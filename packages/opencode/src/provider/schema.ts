@@ -23,7 +23,7 @@ export const ProviderID = providerIdSchema.pipe(
     openrouter: schema.makeUnsafe("openrouter"),
     mistral: schema.makeUnsafe("mistral"),
     gitlab: schema.makeUnsafe("gitlab"),
-    kolboAi: schema.makeUnsafe("kolbo-ai"),
+    kolbo: schema.makeUnsafe("kolbo"),
   })),
 )
 

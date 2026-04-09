@@ -522,11 +522,11 @@ export const snapshot = {
       },
     },
   },
-  "kolbo-ai": {
-    id: "kolbo-ai",
-    env: ["KOLBO_API_KEY"],
+  kolbo: {
+    id: "kolbo",
+    env: [],
     npm: "@ai-sdk/openai-compatible",
-    api: "https://api.kolbo.ai/v1",
+    api: "http://localhost:5050/v1",
     name: "Kolbo AI",
     doc: "https://docs.kolbo.ai",
     models: {
