@@ -237,7 +237,7 @@ describe("session.prompt regression", () => {
           return new Response("not found", { status: 404 })
         }
         calls++
-        return new Response(chat("packages/opencode/src/session/processor.ts"), {
+        return new Response(chat("packages/kodu/src/session/processor.ts"), {
           status: 200,
           headers: { "Content-Type": "text/event-stream" },
         })
@@ -249,9 +249,9 @@ describe("session.prompt regression", () => {
         git: true,
         init: async (dir) => {
           await Bun.write(
-            path.join(dir, "opencode.json"),
+            path.join(dir, "kodu.json"),
             JSON.stringify({
-              $schema: "https://opencode.ai/config.json",
+              $schema: "https://kodu.ai/config.json",
               enabled_providers: ["alibaba"],
               provider: {
                 alibaba: {
@@ -318,9 +318,9 @@ describe("session.prompt regression", () => {
         git: true,
         init: async (dir) => {
           await Bun.write(
-            path.join(dir, "opencode.json"),
+            path.join(dir, "kodu.json"),
             JSON.stringify({
-              $schema: "https://opencode.ai/config.json",
+              $schema: "https://kodu.ai/config.json",
               enabled_providers: ["alibaba"],
               provider: {
                 alibaba: {
@@ -405,7 +405,7 @@ describe("session.prompt agent variant", () => {
           const other = await SessionPrompt.prompt({
             sessionID: session.id,
             agent: "build",
-            model: { providerID: ProviderID.make("opencode"), modelID: ModelID.make("kimi-k2.5-free") },
+            model: { providerID: ProviderID.make("kodu"), modelID: ModelID.make("kimi-k2.5-free") },
             noReply: true,
             parts: [{ type: "text", text: "hello" }],
           })

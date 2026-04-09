@@ -51,9 +51,9 @@ export namespace Server {
         // Allow CORS preflight requests to succeed without auth.
         // Browser clients sending Authorization headers will preflight with OPTIONS.
         if (c.req.method === "OPTIONS") return next()
-        const password = Flag.OPENCODE_SERVER_PASSWORD
+        const password = Flag.KODU_SERVER_PASSWORD
         if (!password) return next()
-        const username = Flag.OPENCODE_SERVER_USERNAME ?? "opencode"
+        const username = Flag.KODU_SERVER_USERNAME ?? "kodu"
 
         if (c.req.query("auth_token")) c.req.raw.headers.set("authorization", `Basic ${c.req.query("auth_token")}`)
 
@@ -89,7 +89,7 @@ export namespace Server {
             )
               return input
 
-            if (/^https:\/\/([a-z0-9-]+\.)*opencode\.ai$/.test(input)) return input
+            if (/^https:\/\/([a-z0-9-]+\.)*kodu\.ai$/.test(input)) return input
             if (opts?.cors?.includes(input)) return input
           },
         }),
@@ -166,9 +166,9 @@ export namespace Server {
         openAPIRouteHandler(app, {
           documentation: {
             info: {
-              title: "opencode",
+              title: "kodu",
               version: "0.0.3",
-              description: "opencode api",
+              description: "kodu api",
             },
             openapi: "3.1.1",
           },
@@ -261,9 +261,9 @@ export namespace Server {
     const result = await generateSpecs(app, {
       documentation: {
         info: {
-          title: "opencode",
+          title: "kodu",
           version: "1.0.0",
-          description: "opencode api",
+          description: "kodu api",
         },
         openapi: "3.1.1",
       },

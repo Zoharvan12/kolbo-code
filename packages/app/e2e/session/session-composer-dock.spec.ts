@@ -98,8 +98,8 @@ async function expectPermissionOpen(page: any) {
 async function todoDock(page: any, sessionID: string) {
   await page.addInitScript(() => {
     const win = window as ComposerWindow
-    win.__opencode_e2e = {
-      ...win.__opencode_e2e,
+    win.__kodu_e2e = {
+      ...win.__kodu_e2e,
       composer: {
         enabled: true,
         sessions: {},
@@ -111,7 +111,7 @@ async function todoDock(page: any, sessionID: string) {
     await page.evaluate(
       (input: { event: string; sessionID: string; driver: ComposerDriverState | undefined }) => {
         const win = window as ComposerWindow
-        const composer = win.__opencode_e2e?.composer
+        const composer = win.__kodu_e2e?.composer
         if (!composer?.enabled) throw new Error("Composer e2e driver is not enabled")
         composer.sessions ??= {}
         const prev = composer.sessions[input.sessionID] ?? {}
@@ -136,7 +136,7 @@ async function todoDock(page: any, sessionID: string) {
   const read = () =>
     page.evaluate((sessionID: string) => {
       const win = window as ComposerWindow
-      return win.__opencode_e2e?.composer?.sessions?.[sessionID]?.probe ?? null
+      return win.__kodu_e2e?.composer?.sessions?.[sessionID]?.probe ?? null
     }, sessionID) as Promise<ComposerProbeState | null>
 
   const api = {

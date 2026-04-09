@@ -13,11 +13,11 @@ export namespace Observability {
         baseUrl: Flag.OTEL_EXPORTER_OTLP_ENDPOINT,
         loggerMergeWithExisting: false,
         resource: {
-          serviceName: "opencode",
+          serviceName: "kodu",
           serviceVersion: VERSION,
           attributes: {
             "deployment.environment.name": CHANNEL === "local" ? "local" : CHANNEL,
-            "opencode.client": Flag.OPENCODE_CLIENT,
+            "kodu.client": Flag.KODU_CLIENT,
           },
         },
         headers: Flag.OTEL_EXPORTER_OTLP_HEADERS

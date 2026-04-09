@@ -16,7 +16,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { iife } from "@/util/iife"
 import { init } from "#db"
 
-declare const OPENCODE_MIGRATIONS: { sql: string; timestamp: number; name: string }[] | undefined
+declare const KODU_MIGRATIONS: { sql: string; timestamp: number; name: string }[] | undefined
 
 export const NotFoundError = NamedError.create(
   "NotFoundError",
@@ -29,16 +29,16 @@ const log = Log.create({ service: "db" })
 
 export namespace Database {
   export function getChannelPath() {
-    if (["latest", "beta"].includes(CHANNEL) || Flag.OPENCODE_DISABLE_CHANNEL_DB)
-      return path.join(Global.Path.data, "opencode.db")
+    if (["latest", "beta"].includes(CHANNEL) || Flag.KODU_DISABLE_CHANNEL_DB)
+      return path.join(Global.Path.data, "kodu.db")
     const safe = CHANNEL.replace(/[^a-zA-Z0-9._-]/g, "-")
     return path.join(Global.Path.data, `opencode-${safe}.db`)
   }
 
   export const Path = iife(() => {
-    if (Flag.OPENCODE_DB) {
-      if (Flag.OPENCODE_DB === ":memory:" || path.isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
-      return path.join(Global.Path.data, Flag.OPENCODE_DB)
+    if (Flag.KODU_DB) {
+      if (Flag.KODU_DB === ":memory:" || path.isAbsolute(Flag.KODU_DB)) return Flag.KODU_DB
+      return path.join(Global.Path.data, Flag.KODU_DB)
     }
     return getChannelPath()
   })
@@ -96,15 +96,15 @@ export namespace Database {
 
     // Apply schema migrations
     const entries =
-      typeof OPENCODE_MIGRATIONS !== "undefined"
-        ? OPENCODE_MIGRATIONS
+      typeof KODU_MIGRATIONS !== "undefined"
+        ? KODU_MIGRATIONS
         : migrations(path.join(import.meta.dirname, "../../migration"))
     if (entries.length > 0) {
       log.info("applying migrations", {
         count: entries.length,
-        mode: typeof OPENCODE_MIGRATIONS !== "undefined" ? "bundled" : "dev",
+        mode: typeof KODU_MIGRATIONS !== "undefined" ? "bundled" : "dev",
       })
-      if (Flag.OPENCODE_SKIP_MIGRATIONS) {
+      if (Flag.KODU_SKIP_MIGRATIONS) {
         for (const item of entries) {
           item.sql = "select 1;"
         }

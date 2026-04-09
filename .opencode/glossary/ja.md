@@ -2,13 +2,13 @@
 
 ## Sources
 
-- PR #9821: https://github.com/anomalyco/opencode/pull/9821
-- PR #13160: https://github.com/anomalyco/opencode/pull/13160
+- PR #9821: https://github.com/anomalyco/kodu/pull/9821
+- PR #13160: https://github.com/anomalyco/kodu/pull/13160
 
 ## Do Not Translate (Locale Additions)
 
-- `OpenCode` (preserve casing in prose; keep `opencode` only in commands, package names, paths, or code)
-- `OpenCode CLI`
+- `Kodu` (preserve casing in prose; keep `kodu` only in commands, package names, paths, or code)
+- `Kodu CLI`
 - `CLI`, `TUI`, `MCP`, `OAuth`
 - Commands, flags, file paths, and code literals (keep exactly as written)
 

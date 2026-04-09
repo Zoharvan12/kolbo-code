@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.1",
   "info": {
-    "title": "opencode",
-    "description": "opencode api",
+    "title": "kodu",
+    "description": "kodu api",
     "version": "1.0.0"
   },
   "paths": {
@@ -10,7 +10,7 @@
       "get": {
         "operationId": "global.health",
         "summary": "Get health",
-        "description": "Get health information about the OpenCode server.",
+        "description": "Get health information about the Kodu server.",
         "responses": {
           "200": {
             "description": "Health information",
@@ -45,7 +45,7 @@
       "get": {
         "operationId": "global.event",
         "summary": "Get global events",
-        "description": "Subscribe to global events from the OpenCode system using server-sent events.",
+        "description": "Subscribe to global events from the Kodu system using server-sent events.",
         "responses": {
           "200": {
             "description": "Event stream",
@@ -95,7 +95,7 @@
       "get": {
         "operationId": "global.config.get",
         "summary": "Get global configuration",
-        "description": "Retrieve the current global OpenCode configuration settings and preferences.",
+        "description": "Retrieve the current global Kodu configuration settings and preferences.",
         "responses": {
           "200": {
             "description": "Get global config info",
@@ -118,7 +118,7 @@
       "patch": {
         "operationId": "global.config.update",
         "summary": "Update global configuration",
-        "description": "Update global OpenCode configuration settings and preferences.",
+        "description": "Update global Kodu configuration settings and preferences.",
         "responses": {
           "200": {
             "description": "Successfully updated global config",
@@ -162,7 +162,7 @@
       "post": {
         "operationId": "global.dispose",
         "summary": "Dispose instance",
-        "description": "Clean up and dispose all OpenCode instances, releasing all resources.",
+        "description": "Clean up and dispose all Kodu instances, releasing all resources.",
         "responses": {
           "200": {
             "description": "Global disposed",
@@ -186,8 +186,8 @@
     "/global/upgrade": {
       "post": {
         "operationId": "global.upgrade",
-        "summary": "Upgrade opencode",
-        "description": "Upgrade opencode to the specified version or latest if not specified.",
+        "summary": "Upgrade kodu",
+        "description": "Upgrade kodu to the specified version or latest if not specified.",
         "responses": {
           "200": {
             "description": "Upgrade result",
@@ -460,7 +460,7 @@
           }
         ],
         "summary": "List all projects",
-        "description": "Get a list of projects that have been opened with OpenCode.",
+        "description": "Get a list of projects that have been opened with Kodu.",
         "responses": {
           "200": {
             "description": "List of projects",
@@ -504,7 +504,7 @@
           }
         ],
         "summary": "Get current project",
-        "description": "Retrieve the currently active project that OpenCode is working with.",
+        "description": "Retrieve the currently active project that Kodu is working with.",
         "responses": {
           "200": {
             "description": "Current project information",
@@ -692,7 +692,7 @@
           }
         ],
         "summary": "List PTY sessions",
-        "description": "Get a list of all active pseudo-terminal (PTY) sessions managed by OpenCode.",
+        "description": "Get a list of all active pseudo-terminal (PTY) sessions managed by Kodu.",
         "responses": {
           "200": {
             "description": "List of sessions",
@@ -1082,7 +1082,7 @@
           }
         ],
         "summary": "Get configuration",
-        "description": "Retrieve the current OpenCode configuration settings and preferences.",
+        "description": "Retrieve the current Kodu configuration settings and preferences.",
         "responses": {
           "200": {
             "description": "Get config info",
@@ -1121,7 +1121,7 @@
           }
         ],
         "summary": "Update configuration",
-        "description": "Update OpenCode configuration settings and preferences.",
+        "description": "Update Kodu configuration settings and preferences.",
         "responses": {
           "200": {
             "description": "Successfully updated config",
@@ -1369,7 +1369,7 @@
           }
         ],
         "summary": "Switch active Console org",
-        "description": "Persist a new active Console account/org selection for the current local OpenCode state.",
+        "description": "Persist a new active Console account/org selection for the current local Kodu state.",
         "responses": {
           "200": {
             "description": "Switch success",
@@ -2005,7 +2005,7 @@
           }
         ],
         "summary": "List sessions",
-        "description": "Get a list of all OpenCode sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.",
+        "description": "Get a list of all Kodu sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.",
         "responses": {
           "200": {
             "description": "List of sessions",
@@ -2129,7 +2129,7 @@
           }
         ],
         "summary": "List sessions",
-        "description": "Get a list of all OpenCode sessions, sorted by most recently updated.",
+        "description": "Get a list of all Kodu sessions, sorted by most recently updated.",
         "responses": {
           "200": {
             "description": "List of sessions",
@@ -2171,7 +2171,7 @@
           }
         ],
         "summary": "Create session",
-        "description": "Create a new OpenCode session for interacting with AI assistants and managing conversations.",
+        "description": "Create a new Kodu session for interacting with AI assistants and managing conversations.",
         "responses": {
           "200": {
             "description": "Successfully created session",
@@ -2313,7 +2313,7 @@
           }
         ],
         "summary": "Get session",
-        "description": "Retrieve detailed information about a specific OpenCode session.",
+        "description": "Retrieve detailed information about a specific Kodu session.",
         "tags": ["Session"],
         "responses": {
           "200": {
@@ -6699,7 +6699,7 @@
           }
         ],
         "summary": "Dispose instance",
-        "description": "Clean up and dispose the current OpenCode instance, releasing all resources.",
+        "description": "Clean up and dispose the current Kodu instance, releasing all resources.",
         "responses": {
           "200": {
             "description": "Instance disposed",
@@ -6740,7 +6740,7 @@
           }
         ],
         "summary": "Get paths",
-        "description": "Retrieve the current working directory and related path information for the OpenCode instance.",
+        "description": "Retrieve the current working directory and related path information for the Kodu instance.",
         "responses": {
           "200": {
             "description": "Path",
@@ -6875,7 +6875,7 @@
           }
         ],
         "summary": "List commands",
-        "description": "Get a list of all available commands in the OpenCode system.",
+        "description": "Get a list of all available commands in the Kodu system.",
         "responses": {
           "200": {
             "description": "List of commands",
@@ -6919,7 +6919,7 @@
           }
         ],
         "summary": "List agents",
-        "description": "Get a list of all available AI agents in the OpenCode system.",
+        "description": "Get a list of all available AI agents in the Kodu system.",
         "responses": {
           "200": {
             "description": "List of agents",
@@ -6963,7 +6963,7 @@
           }
         ],
         "summary": "List skills",
-        "description": "Get a list of all available skills in the OpenCode system.",
+        "description": "Get a list of all available skills in the Kodu system.",
         "responses": {
           "200": {
             "description": "List of skills",
@@ -10370,7 +10370,7 @@
         "enum": ["DEBUG", "INFO", "WARN", "ERROR"]
       },
       "ServerConfig": {
-        "description": "Server configuration for opencode serve and web commands",
+        "description": "Server configuration for kodu serve and web commands",
         "type": "object",
         "properties": {
           "port": {
@@ -10388,7 +10388,7 @@
             "type": "boolean"
           },
           "mdnsDomain": {
-            "description": "Custom domain name for mDNS service (default: opencode.local)",
+            "description": "Custom domain name for mDNS service (default: kodu.local)",
             "type": "string"
           },
           "cors": {
@@ -10957,7 +10957,7 @@
             "$ref": "#/components/schemas/ServerConfig"
           },
           "command": {
-            "description": "Command configuration, see https://opencode.ai/docs/commands",
+            "description": "Command configuration, see https://kodu.ai/docs/commands",
             "type": "object",
             "propertyNames": {
               "type": "string"
@@ -11111,7 +11111,7 @@
             }
           },
           "agent": {
-            "description": "Agent configuration, see https://opencode.ai/docs/agents",
+            "description": "Agent configuration, see https://kodu.ai/docs/agents",
             "type": "object",
             "properties": {
               "plan": {

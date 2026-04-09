@@ -1,22 +1,22 @@
 ---
 title: TUI
-description: Korištenje korisničkog interfejsa OpenCode terminala.
+description: Korištenje korisničkog interfejsa Kodu terminala.
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 
-OpenCode pruža interaktivni terminalski interfejs ili TUI za rad na vašim projektima sa LLM.
+Kodu pruža interaktivni terminalski interfejs ili TUI za rad na vašim projektima sa LLM.
 
-Pokretanje OpenCode pokreće TUI za trenutni direktorij.
+Pokretanje Kodu pokreće TUI za trenutni direktorij.
 
 ```bash
-opencode
+kodu
 ```
 
 Ili ga možete pokrenuti za određeni radni direktorij.
 
 ```bash
-opencode /path/to/project
+kodu /path/to/project
 ```
 
 Kada uđete u TUI, možete to zatražiti porukom.
@@ -57,7 +57,7 @@ Izlaz naredbe se dodaje u razgovor kao rezultat alata.
 
 ## Naredbe
 
-Kada koristite OpenCode TUI, možete upisati `/` nakon čega slijedi ime komande da biste brzo izvršili radnje. na primjer:
+Kada koristite Kodu TUI, možete upisati `/` nakon čega slijedi ime komande da biste brzo izvršili radnje. na primjer:
 
 ```bash frame="none"
 /help
@@ -71,7 +71,7 @@ Ovdje su sve dostupne komande kose crte:
 
 ### connect
 
-Dodajte provajdera u OpenCode. Omogućava vam da odaberete između dostupnih provajdera i dodate njihove API ključeve.
+Dodajte provajdera u Kodu. Omogućava vam da odaberete između dostupnih provajdera i dodate njihove API ključeve.
 
 ```bash frame="none"
 /connect
@@ -117,7 +117,7 @@ Otvorite vanjski uređivač za sastavljanje poruka. Koristi editor postavljen u 
 
 ### exit
 
-Izađite iz OpenCode. _Aliases_: `/quit`, `/q`
+Izađite iz Kodu. _Aliases_: `/quit`, `/q`
 
 ```bash frame="none"
 /exit
@@ -362,8 +362,8 @@ Možete prilagoditi TUI ponašanje putem `tui.json` (ili `tui.jsonc`).
 
 ```json title="tui.json"
 {
-  "$schema": "https://opencode.ai/tui.json",
-  "theme": "opencode",
+  "$schema": "https://kodu.ai/tui.json",
+  "theme": "kodu",
   "keybinds": {
     "leader": "ctrl+x"
   },
@@ -375,7 +375,7 @@ Možete prilagoditi TUI ponašanje putem `tui.json` (ili `tui.jsonc`).
 }
 ```
 
-Ovo je odvojeno od `opencode.json`, koji konfiguriše ponašanje servera/izvršavanja.
+Ovo je odvojeno od `kodu.json`, koji konfiguriše ponašanje servera/izvršavanja.
 
 ### Opcije
 
@@ -385,7 +385,7 @@ Ovo je odvojeno od `opencode.json`, koji konfiguriše ponašanje servera/izvrša
 - `scroll_speed` - ​​Kontrolira koliko brzo TUI skroluje kada se koriste komande za pomeranje (minimum: `0.001`, podržava decimalne vrijednosti). Podrazumevano je `3`. **Napomena: Ovo se zanemaruje ako je `scroll_acceleration.enabled` postavljeno na `true`.**
 - `diff_style` - Kontrolira prikazivanje razlike. `"auto"` se prilagođava širini terminala, `"stacked"` uvijek prikazuje raspored u jednoj koloni.
 
-Koristite `OPENCODE_TUI_CONFIG` da učitate prilagođenu putanju TUI konfiguracije.
+Koristite `KODU_TUI_CONFIG` da učitate prilagođenu putanju TUI konfiguracije.
 
 ---
 

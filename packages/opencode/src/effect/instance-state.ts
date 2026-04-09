@@ -4,7 +4,7 @@ import { Context } from "@/util/context"
 import { InstanceRef } from "./instance-ref"
 import { registerDisposer } from "./instance-registry"
 
-const TypeId = "~opencode/InstanceState"
+const TypeId = "~kodu/InstanceState"
 
 export interface InstanceState<A, E = never, R = never> {
   readonly [TypeId]: typeof TypeId

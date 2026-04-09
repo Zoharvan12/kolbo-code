@@ -33,7 +33,7 @@ import { getMimeType } from "hono/utils/mime"
 
 const log = Log.create({ service: "server" })
 
-const embeddedUIPromise = Flag.OPENCODE_DISABLE_EMBEDDED_WEB_UI
+const embeddedUIPromise = Flag.KODU_DISABLE_EMBEDDED_WEB_UI
   ? Promise.resolve(null)
   : // @ts-expect-error - generated file at build time
     import("opencode-web-ui.gen.ts").then((module) => module.default as Record<string, string>).catch(() => null)
@@ -63,7 +63,7 @@ export const InstanceRoutes = (upgrade: UpgradeWebSocket, app: Hono = new Hono()
       "/instance/dispose",
       describeRoute({
         summary: "Dispose instance",
-        description: "Clean up and dispose the current OpenCode instance, releasing all resources.",
+        description: "Clean up and dispose the current Kodu instance, releasing all resources.",
         operationId: "instance.dispose",
         responses: {
           200: {
@@ -85,7 +85,7 @@ export const InstanceRoutes = (upgrade: UpgradeWebSocket, app: Hono = new Hono()
       "/path",
       describeRoute({
         summary: "Get paths",
-        description: "Retrieve the current working directory and related path information for the OpenCode instance.",
+        description: "Retrieve the current working directory and related path information for the Kodu instance.",
         operationId: "path.get",
         responses: {
           200: {
@@ -176,7 +176,7 @@ export const InstanceRoutes = (upgrade: UpgradeWebSocket, app: Hono = new Hono()
       "/command",
       describeRoute({
         summary: "List commands",
-        description: "Get a list of all available commands in the OpenCode system.",
+        description: "Get a list of all available commands in the Kodu system.",
         operationId: "command.list",
         responses: {
           200: {
@@ -198,7 +198,7 @@ export const InstanceRoutes = (upgrade: UpgradeWebSocket, app: Hono = new Hono()
       "/agent",
       describeRoute({
         summary: "List agents",
-        description: "Get a list of all available AI agents in the OpenCode system.",
+        description: "Get a list of all available AI agents in the Kodu system.",
         operationId: "app.agents",
         responses: {
           200: {
@@ -220,7 +220,7 @@ export const InstanceRoutes = (upgrade: UpgradeWebSocket, app: Hono = new Hono()
       "/skill",
       describeRoute({
         summary: "List skills",
-        description: "Get a list of all available skills in the OpenCode system.",
+        description: "Get a list of all available skills in the Kodu system.",
         operationId: "app.skills",
         responses: {
           200: {
@@ -299,11 +299,11 @@ export const InstanceRoutes = (upgrade: UpgradeWebSocket, app: Hono = new Hono()
           return c.json({ error: "Not Found" }, 404)
         }
       } else {
-        const response = await proxy(`https://app.opencode.ai${path}`, {
+        const response = await proxy(`https://app.kodu.ai${path}`, {
           ...c.req,
           headers: {
             ...c.req.raw.headers,
-            host: "app.opencode.ai",
+            host: "app.kodu.ai",
           },
         })
         const match = response.headers.get("content-type")?.includes("text/html")

@@ -21,7 +21,7 @@ async function signWindows(configuration: { path: string }) {
 }
 
 const channel = (() => {
-  const raw = process.env.OPENCODE_CHANNEL
+  const raw = process.env.KODU_CHANNEL
   if (raw === "dev" || raw === "beta" || raw === "prod") return raw
   return "dev"
 })()
@@ -54,8 +54,8 @@ const getBase = (): Configuration => ({
     sign: true,
   },
   protocols: {
-    name: "OpenCode",
-    schemes: ["opencode"],
+    name: "Kodu",
+    schemes: ["kodu"],
   },
   win: {
     icon: `resources/icons/icon.ico`,
@@ -84,17 +84,17 @@ function getConfig() {
     case "dev": {
       return {
         ...base,
-        appId: "ai.opencode.desktop.dev",
-        productName: "OpenCode Dev",
+        appId: "ai.kodu.desktop.dev",
+        productName: "Kodu Dev",
         rpm: { packageName: "opencode-dev" },
       }
     }
     case "beta": {
       return {
         ...base,
-        appId: "ai.opencode.desktop.beta",
-        productName: "OpenCode Beta",
-        protocols: { name: "OpenCode Beta", schemes: ["opencode"] },
+        appId: "ai.kodu.desktop.beta",
+        productName: "Kodu Beta",
+        protocols: { name: "Kodu Beta", schemes: ["kodu"] },
         publish: { provider: "github", owner: "anomalyco", repo: "opencode-beta", channel: "latest" },
         rpm: { packageName: "opencode-beta" },
       }
@@ -102,11 +102,11 @@ function getConfig() {
     case "prod": {
       return {
         ...base,
-        appId: "ai.opencode.desktop",
-        productName: "OpenCode",
-        protocols: { name: "OpenCode", schemes: ["opencode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "opencode", channel: "latest" },
-        rpm: { packageName: "opencode" },
+        appId: "ai.kodu.desktop",
+        productName: "Kodu",
+        protocols: { name: "Kodu", schemes: ["kodu"] },
+        publish: { provider: "github", owner: "anomalyco", repo: "kodu", channel: "latest" },
+        rpm: { packageName: "kodu" },
       }
     }
   }

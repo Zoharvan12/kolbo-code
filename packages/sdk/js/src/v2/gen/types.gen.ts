@@ -1120,7 +1120,7 @@ export type SyncEvent = {
 export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR"
 
 /**
- * Server configuration for opencode serve and web commands
+ * Server configuration for kodu serve and web commands
  */
 export type ServerConfig = {
   /**
@@ -1136,7 +1136,7 @@ export type ServerConfig = {
    */
   mdns?: boolean
   /**
-   * Custom domain name for mDNS service (default: opencode.local)
+   * Custom domain name for mDNS service (default: kodu.local)
    */
   mdnsDomain?: string
   /**
@@ -1423,7 +1423,7 @@ export type Config = {
   logLevel?: LogLevel
   server?: ServerConfig
   /**
-   * Command configuration, see https://opencode.ai/docs/commands
+   * Command configuration, see https://kodu.ai/docs/commands
    */
   command?: {
     [key: string]: {
@@ -1508,7 +1508,7 @@ export type Config = {
     [key: string]: AgentConfig | undefined
   }
   /**
-   * Agent configuration, see https://opencode.ai/docs/agents
+   * Agent configuration, see https://kodu.ai/docs/agents
    */
   agent?: {
     plan?: AgentConfig

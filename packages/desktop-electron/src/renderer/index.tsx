@@ -32,18 +32,18 @@ if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
 
 void initI18n()
 
-const deepLinkEvent = "opencode:deep-link"
+const deepLinkEvent = "kodu:deep-link"
 
 const emitDeepLinks = (urls: string[]) => {
   if (urls.length === 0) return
-  window.__OPENCODE__ ??= {}
-  const pending = window.__OPENCODE__.deepLinks ?? []
-  window.__OPENCODE__.deepLinks = [...pending, ...urls]
+  window.__KODU__ ??= {}
+  const pending = window.__KODU__.deepLinks ?? []
+  window.__KODU__.deepLinks = [...pending, ...urls]
   window.dispatchEvent(new CustomEvent(deepLinkEvent, { detail: { urls } }))
 }
 
 const listenForDeepLinks = () => {
-  const startUrls = window.__OPENCODE__?.deepLinks ?? []
+  const startUrls = window.__KODU__?.deepLinks ?? []
   if (startUrls.length) emitDeepLinks(startUrls)
   return window.api.onDeepLink((urls) => emitDeepLinks(urls))
 }
@@ -58,12 +58,12 @@ const createPlatform = (): Platform => {
   })()
 
   const wslHome = async () => {
-    if (os !== "windows" || !window.__OPENCODE__?.wsl) return undefined
+    if (os !== "windows" || !window.__KODU__?.wsl) return undefined
     return window.api.wslPath("~", "windows").catch(() => undefined)
   }
 
   const handleWslPicker = async <T extends string | string[]>(result: T | null): Promise<T | null> => {
-    if (!result || !window.__OPENCODE__?.wsl) return result
+    if (!result || !window.__KODU__?.wsl) return result
     if (Array.isArray(result)) {
       return Promise.all(result.map((path) => window.api.wslPath(path, "linux").catch(() => path))) as any
     }
@@ -137,7 +137,7 @@ const createPlatform = (): Platform => {
       if (os === "windows") {
         const resolvedApp = app ? await window.api.resolveAppPath(app).catch(() => null) : null
         const resolvedPath = await (async () => {
-          if (window.__OPENCODE__?.wsl) {
+          if (window.__KODU__?.wsl) {
             const converted = await window.api.wslPath(path, "windows").catch(() => null)
             if (converted) return converted
           }
@@ -179,7 +179,7 @@ const createPlatform = (): Platform => {
 
       const notification = new Notification(title, {
         body: description ?? "",
-        icon: "https://opencode.ai/favicon-96x96-v3.png",
+        icon: "https://kodu.ai/favicon-96x96-v3.png",
       })
       notification.onclick = () => {
         void window.api.showWindow()
@@ -197,7 +197,7 @@ const createPlatform = (): Platform => {
     getWslEnabled: async () => {
       const next = await window.api.getWslConfig().catch(() => null)
       if (next) return next.enabled
-      return window.__OPENCODE__!.wsl ?? false
+      return window.__KODU__!.wsl ?? false
     },
 
     setWslEnabled: async (enabled) => {
@@ -250,7 +250,7 @@ listenForDeepLinks()
 render(() => {
   const platform = createPlatform()
   const loadLocale = async () => {
-    const current = await platform.storage?.("opencode.global.dat").getItem("language")
+    const current = await platform.storage?.("kodu.global.dat").getItem("language")
     const legacy = current ? undefined : await platform.storage?.().getItem("language.v1")
     const raw = current ?? legacy
     if (!raw) return

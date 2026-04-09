@@ -52,7 +52,7 @@ export async function terminalConnects(page: Page, input?: { term?: Locator }) {
   const term = input?.term ?? page.locator(terminalSelector).first()
   const id = await terminalID(term)
   return page.evaluate((id) => {
-    return (window as E2EWindow).__opencode_e2e?.terminal?.terminals?.[id]?.connects ?? 0
+    return (window as E2EWindow).__kodu_e2e?.terminal?.terminals?.[id]?.connects ?? 0
   }, id)
 }
 
@@ -60,7 +60,7 @@ export async function disconnectTerminal(page: Page, input?: { term?: Locator })
   const term = input?.term ?? page.locator(terminalSelector).first()
   const id = await terminalID(term)
   await page.evaluate((id) => {
-    ;(window as E2EWindow).__opencode_e2e?.terminal?.controls?.[id]?.disconnect?.()
+    ;(window as E2EWindow).__kodu_e2e?.terminal?.controls?.[id]?.disconnect?.()
   }, id)
 }
 
@@ -68,7 +68,7 @@ async function terminalReady(page: Page, term?: Locator) {
   const next = term ?? page.locator(terminalSelector).first()
   const id = await terminalID(next)
   return page.evaluate((id) => {
-    const state = (window as E2EWindow).__opencode_e2e?.terminal?.terminals?.[id]
+    const state = (window as E2EWindow).__kodu_e2e?.terminal?.terminals?.[id]
     return !!state?.connected && (state.settled ?? 0) > 0
   }, id)
 }
@@ -77,7 +77,7 @@ async function terminalFocusIdle(page: Page, term?: Locator) {
   const next = term ?? page.locator(terminalSelector).first()
   const id = await terminalID(next)
   return page.evaluate((id) => {
-    const state = (window as E2EWindow).__opencode_e2e?.terminal?.terminals?.[id]
+    const state = (window as E2EWindow).__kodu_e2e?.terminal?.terminals?.[id]
     return (state?.focusing ?? 0) === 0
   }, id)
 }
@@ -87,7 +87,7 @@ async function terminalHas(page: Page, input: { term?: Locator; token: string })
   const id = await terminalID(next)
   return page.evaluate(
     (input) => {
-      const state = (window as E2EWindow).__opencode_e2e?.terminal?.terminals?.[input.id]
+      const state = (window as E2EWindow).__kodu_e2e?.terminal?.terminals?.[input.id]
       return state?.rendered.includes(input.token) ?? false
     },
     { id, token: input.token },
@@ -96,7 +96,7 @@ async function terminalHas(page: Page, input: { term?: Locator; token: string })
 
 async function promptSlashActive(page: Page, id: string) {
   return page.evaluate((id) => {
-    const state = (window as E2EWindow).__opencode_e2e?.prompt?.current
+    const state = (window as E2EWindow).__kodu_e2e?.prompt?.current
     if (state?.popover !== "slash") return false
     if (!state.slash.ids.includes(id)) return false
     return state.slash.active === id
@@ -105,13 +105,13 @@ async function promptSlashActive(page: Page, id: string) {
 
 async function promptSlashSelects(page: Page) {
   return page.evaluate(() => {
-    return (window as E2EWindow).__opencode_e2e?.prompt?.current?.selects ?? 0
+    return (window as E2EWindow).__kodu_e2e?.prompt?.current?.selects ?? 0
   })
 }
 
 async function promptSlashSelected(page: Page, input: { id: string; count: number }) {
   return page.evaluate((input) => {
-    const state = (window as E2EWindow).__opencode_e2e?.prompt?.current
+    const state = (window as E2EWindow).__kodu_e2e?.prompt?.current
     if (!state) return false
     return state.selected === input.id && state.selects >= input.count
   }, input)
@@ -318,7 +318,7 @@ export async function createTestProject(input?: { serverUrl?: string }) {
   await fs.writeFile(path.join(root, "README.md"), `# e2e\n\n${id}\n`)
 
   execSync("git init", { cwd: root, stdio: "ignore" })
-  await fs.writeFile(path.join(root, ".git", "opencode"), id)
+  await fs.writeFile(path.join(root, ".git", "kodu"), id)
   execSync("git config core.fsmonitor false", { cwd: root, stdio: "ignore" })
   execSync("git config commit.gpgsign false", { cwd: root, stdio: "ignore" })
   execSync("git add -A", { cwd: root, stdio: "ignore" })
@@ -345,7 +345,7 @@ async function probeSession(page: Page) {
   return page
     .evaluate(() => {
       const win = window as E2EWindow
-      const current = win.__opencode_e2e?.model?.current
+      const current = win.__kodu_e2e?.model?.current
       if (!current) return null
       return { dir: current.dir, sessionID: current.sessionID }
     })

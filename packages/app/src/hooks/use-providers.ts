@@ -4,7 +4,7 @@ import { useParams } from "@solidjs/router"
 import { createMemo } from "solid-js"
 
 export const popularProviders = [
-  "opencode",
+  "kodu",
   "opencode-go",
   "anthropic",
   "github-copilot",
@@ -37,7 +37,7 @@ export function useProviders() {
     paid: () => {
       const connected = new Set(providers().connected)
       return providers().all.filter(
-        (p) => connected.has(p.id) && (p.id !== "opencode" || Object.values(p.models).some((m) => m.cost?.input)),
+        (p) => connected.has(p.id) && (p.id !== "kodu" || Object.values(p.models).some((m) => m.cost?.input)),
       )
     },
   }

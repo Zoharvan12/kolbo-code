@@ -11174,13 +11174,13 @@ export const snapshot = {
       },
     },
   },
-  opencode: {
-    id: "opencode",
-    env: ["OPENCODE_API_KEY"],
+  kodu: {
+    id: "kodu",
+    env: ["KODU_API_KEY"],
     npm: "@ai-sdk/openai-compatible",
-    api: "https://opencode.ai/zen/v1",
-    name: "OpenCode Zen",
-    doc: "https://opencode.ai/docs/zen",
+    api: "https://kodu.ai/zen/v1",
+    name: "Kodu Zen",
+    doc: "https://kodu.ai/docs/zen",
     models: {
       "gpt-5.3-codex": {
         id: "gpt-5.3-codex",
@@ -32149,11 +32149,11 @@ export const snapshot = {
   },
   "opencode-go": {
     id: "opencode-go",
-    env: ["OPENCODE_API_KEY"],
+    env: ["KODU_API_KEY"],
     npm: "@ai-sdk/openai-compatible",
-    api: "https://opencode.ai/zen/go/v1",
-    name: "OpenCode Go",
-    doc: "https://opencode.ai/docs/zen",
+    api: "https://kodu.ai/zen/go/v1",
+    name: "Kodu Go",
+    doc: "https://kodu.ai/docs/zen",
     models: {
       "glm-5": {
         id: "glm-5",

@@ -4,10 +4,10 @@
   "version": "1.4.2",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://opencode.ai",
+  "homepage": "https://kodu.ai",
   "author": {
-    "name": "OpenCode",
-    "email": "hello@opencode.ai"
+    "name": "Kodu",
+    "email": "hello@kodu.ai"
   },
   "scripts": {
     "typecheck": "tsgo -b",

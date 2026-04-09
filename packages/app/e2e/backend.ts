@@ -67,20 +67,20 @@ export async function startBackend(label: string, input?: { llmUrl?: string }): 
   const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), `opencode-e2e-${label}-`))
   const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
   const repoDir = path.resolve(appDir, "../..")
-  const opencodeDir = path.join(repoDir, "packages", "opencode")
+  const koduDir = path.join(repoDir, "packages", "kodu")
   const env = {
     ...process.env,
-    OPENCODE_DISABLE_LSP_DOWNLOAD: "true",
-    OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
-    OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: "true",
-    OPENCODE_TEST_HOME: path.join(sandbox, "home"),
+    KODU_DISABLE_LSP_DOWNLOAD: "true",
+    KODU_DISABLE_DEFAULT_PLUGINS: "true",
+    KODU_EXPERIMENTAL_DISABLE_FILEWATCHER: "true",
+    KODU_TEST_HOME: path.join(sandbox, "home"),
     XDG_DATA_HOME: path.join(sandbox, "share"),
     XDG_CACHE_HOME: path.join(sandbox, "cache"),
     XDG_CONFIG_HOME: path.join(sandbox, "config"),
     XDG_STATE_HOME: path.join(sandbox, "state"),
-    OPENCODE_CLIENT: "app",
-    OPENCODE_STRICT_CONFIG_DEPS: "true",
-    OPENCODE_E2E_LLM_URL: input?.llmUrl,
+    KODU_CLIENT: "app",
+    KODU_STRICT_CONFIG_DEPS: "true",
+    KODU_E2E_LLM_URL: input?.llmUrl,
   } satisfies Record<string, string | undefined>
   const out: string[] = []
   const err: string[] = []
@@ -88,7 +88,7 @@ export async function startBackend(label: string, input?: { llmUrl?: string }): 
     "bun",
     ["run", "--conditions=browser", "./src/index.ts", "serve", "--port", String(port), "--hostname", "127.0.0.1"],
     {
-      cwd: opencodeDir,
+      cwd: koduDir,
       env,
       stdio: ["ignore", "pipe", "pipe"],
     },

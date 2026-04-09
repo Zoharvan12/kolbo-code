@@ -47,7 +47,7 @@ describe("project.initGit endpoint", () => {
       expect(seen.some((evt) => evt.directory === tmp.path && evt.payload.type === "server.instance.disposed")).toBe(
         true,
       )
-      expect(await Filesystem.exists(path.join(tmp.path, ".git", "opencode"))).toBe(false)
+      expect(await Filesystem.exists(path.join(tmp.path, ".git", "kodu"))).toBe(false)
 
       const current = await app.request("/project/current", {
         headers: {

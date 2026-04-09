@@ -28,7 +28,7 @@ export namespace SessionRevert {
     readonly cleanup: (session: Session.Info) => Effect.Effect<void>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@opencode/SessionRevert") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/SessionRevert") {}
 
   export const layer = Layer.effect(
     Service,

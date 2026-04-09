@@ -1,13 +1,13 @@
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://kodu.ai/config.json",
   "provider": {
-    "opencode": {
+    "kodu": {
       "options": {},
     },
   },
   "permission": {
     "edit": {
-      "packages/opencode/migration/*": "deny",
+      "packages/kodu/migration/*": "deny",
     },
   },
   "mcp": {},
