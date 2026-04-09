@@ -55,6 +55,7 @@ type Mode =
   | "session"
   | "plugin"
   | "db"
+  | "kodu"
 
 const map = new Map<string, Mode>([
   ["attach", "attach"],
@@ -81,6 +82,7 @@ const map = new Map<string, Mode>([
   ["plugin", "plugin"],
   ["plug", "plugin"],
   ["db", "db"],
+  ["kodu", "kodu"],
 ])
 
 function flag(arg: string, name: string) {
@@ -153,6 +155,7 @@ const [
   SessionCommand,
   PluginCommand,
   DbCommand,
+  KoduCommand,
 ] = await Promise.all([
   load(!none && (all || mode === "tui"), () => import("./cli/cmd/tui/thread").then((x) => x.TuiThreadCommand)),
   load(!none && (all || mode === "attach"), () => import("./cli/cmd/tui/attach").then((x) => x.AttachCommand)),
@@ -177,11 +180,12 @@ const [
   load(!none && (all || mode === "session"), () => import("./cli/cmd/session").then((x) => x.SessionCommand)),
   load(!none && (all || mode === "plugin"), () => import("./cli/cmd/plug").then((x) => x.PluginCommand)),
   load(!none && (all || mode === "db"), () => import("./cli/cmd/db").then((x) => x.DbCommand)),
+  load(!none && (all || mode === "kodu"), () => import("./cli/cmd/auth").then((x) => x.AuthCommand)),
 ])
 
 function show(out: string) {
   const text = out.trimStart()
-  if (!text.startsWith("opencode ")) {
+  if (!text.startsWith("kodu ")) {
     process.stderr.write(UI.logo() + EOL + EOL)
     process.stderr.write(text)
     return
@@ -191,7 +195,7 @@ function show(out: string) {
 
 const cli = yargs(args)
   .parserConfiguration({ "populate--": true })
-  .scriptName("opencode")
+  .scriptName("kodu")
   .wrap(100)
   .help("help", "show help")
   .alias("help", "h")
@@ -212,7 +216,7 @@ const cli = yargs(args)
   })
   .middleware(async (opts) => {
     if (opts.pure) {
-      process.env.OPENCODE_PURE = "1"
+      process.env.KODU_PURE = "1"
     }
 
     await Log.init({
@@ -228,15 +232,15 @@ const cli = yargs(args)
     Heap.start()
 
     process.env.AGENT = "1"
-    process.env.OPENCODE = "1"
-    process.env.OPENCODE_PID = String(process.pid)
+    process.env.KODU = "1"
+    process.env.KODU_PID = String(process.pid)
 
-    Log.Default.info("opencode", {
+    Log.Default.info("kodu", {
       version: Installation.VERSION,
       args: process.argv.slice(2),
     })
 
-    const marker = path.join(Global.Path.data, "opencode.db")
+    const marker = path.join(Global.Path.data, "kodu.db")
     if (!(await Filesystem.exists(marker))) {
       const tty = process.stderr.isTTY
       process.stderr.write("Performing one time database migration, may take a few minutes..." + EOL)
@@ -366,6 +370,10 @@ if (PluginCommand) {
 
 if (DbCommand) {
   cli.command(DbCommand)
+}
+
+if (KoduCommand) {
+  cli.command(KoduCommand)
 }
 
 cli
