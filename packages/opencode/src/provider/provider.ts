@@ -814,6 +814,13 @@ export namespace Provider {
             },
           },
         }),
+      "kolbo-ai": () =>
+        Effect.succeed({
+          autoload: false,
+          options: {
+            baseURL: "https://api.kolbo.ai/v1",
+          },
+        }),
     }
   }
 
