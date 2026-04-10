@@ -169,14 +169,12 @@ function AutoMethod(props: AutoMethodProps) {
   const toast = useToast()
   const { t } = useI18n()
 
-  useKeyboard((evt) => {
-    if (evt.name === "c" && evt.ctrl) {
-      const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
-      Clipboard.copy(code)
-        .then(() => toast.show({ message: t("toast.copiedToClipboard"), variant: "info" }))
-        .catch(toast.error)
-    }
-  })
+  const copyCode = () => {
+    const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
+    Clipboard.copy(code)
+      .then(() => toast.show({ message: t("toast.copiedToClipboard"), variant: "info" }))
+      .catch(toast.error)
+  }
 
   onMount(async () => {
     open(props.authorization.url).catch(() => {})
@@ -210,23 +208,22 @@ function AutoMethod(props: AutoMethodProps) {
       </box>
       <box gap={1}>
         <Link href={props.authorization.url} fg={theme.primary} />
-        <text
-          fg={theme.primary}
-          attributes={1}
-          onMouseUp={() => {
-            const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
-            Clipboard.copy(code)
-              .then(() => toast.show({ message: t("toast.copiedToClipboard"), variant: "info" }))
-              .catch(toast.error)
-          }}
+        <text fg={theme.textMuted}>{props.authorization.instructions}</text>
+        <box
+          flexDirection="row"
+          gap={1}
+          backgroundColor={theme.primary}
+          paddingLeft={2}
+          paddingRight={2}
+          onMouseUp={copyCode}
         >
-          {props.authorization.instructions} <span style={{ fg: theme.textMuted }}>← {t("dialog.copyLabel")}</span>
-        </text>
+          <text fg={theme.background} attributes={TextAttributes.BOLD}>
+            {props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? ""}
+          </text>
+          <text fg={theme.background}> — {t("dialog.copyLabel")}</text>
+        </box>
       </box>
       <text fg={theme.textMuted}>{t("dialog.waitingForAuthorization")}</text>
-      <text fg={theme.textMuted}>
-        ctrl+c <span style={{ fg: theme.textMuted }}>{t("dialog.copyLabel")}</span>
-      </text>
     </box>
   )
 }
