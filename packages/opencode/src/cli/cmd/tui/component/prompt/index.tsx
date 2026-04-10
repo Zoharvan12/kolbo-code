@@ -36,7 +36,7 @@ import { useToast } from "../../ui/toast"
 import { useKV } from "../../context/kv"
 import { useTextareaKeybindings } from "../textarea-keybindings"
 import { DialogSkill } from "../dialog-skill"
-import { useI18n } from "@/i18n"
+import { useI18n, toVisual, isRTL } from "@/i18n"
 
 export type PromptProps = {
   sessionID?: string
@@ -103,7 +103,7 @@ export function Prompt(props: PromptProps) {
   function promptModelWarning() {
     toast.show({
       variant: "warning",
-      message: "Connect a provider to send prompts",
+      message: tI18n("toast.noProviderForPrompts"),
       duration: 3000,
     })
     if (sync.data.provider.length === 0) {
@@ -217,9 +217,9 @@ export function Prompt(props: PromptProps) {
   command.register(() => {
     return [
       {
-        title: "Clear prompt",
+        title: tI18n("commands.clearPrompt"),
         value: "prompt.clear",
-        category: "Prompt",
+        category: tI18n("commands.categories.prompt"),
         hidden: true,
         onSelect: (dialog) => {
           input.extmarks.clear()
@@ -228,10 +228,10 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Submit prompt",
+        title: tI18n("commands.submitPrompt"),
         value: "prompt.submit",
         keybind: "input_submit",
-        category: "Prompt",
+        category: tI18n("commands.categories.prompt"),
         hidden: true,
         onSelect: (dialog) => {
           if (!input.focused) return
@@ -240,10 +240,10 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Paste",
+        title: tI18n("commands.paste"),
         value: "prompt.paste",
         keybind: "input_paste",
-        category: "Prompt",
+        category: tI18n("commands.categories.prompt"),
         hidden: true,
         onSelect: async () => {
           const content = await Clipboard.read()
@@ -257,10 +257,10 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Interrupt session",
+        title: tI18n("commands.interruptSession"),
         value: "session.interrupt",
         keybind: "session_interrupt",
-        category: "Session",
+        category: tI18n("commands.categories.session"),
         hidden: true,
         enabled: status().type !== "idle",
         onSelect: (dialog) => {
@@ -289,8 +289,8 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Open editor",
-        category: "Session",
+        title: tI18n("commands.openEditor"),
+        category: tI18n("commands.categories.session"),
         keybind: "editor_open",
         value: "prompt.editor",
         slash: {
@@ -376,9 +376,9 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Skills",
+        title: tI18n("commands.skills"),
         value: "prompt.skills",
-        category: "Prompt",
+        category: tI18n("commands.categories.prompt"),
         slash: {
           name: "skills",
         },
@@ -538,9 +538,9 @@ export function Prompt(props: PromptProps) {
 
   command.register(() => [
     {
-      title: "Stash prompt",
+      title: tI18n("commands.stashPrompt"),
       value: "prompt.stash",
-      category: "Prompt",
+      category: tI18n("commands.categories.prompt"),
       enabled: !!store.prompt.input,
       onSelect: (dialog) => {
         if (!store.prompt.input) return
@@ -556,9 +556,9 @@ export function Prompt(props: PromptProps) {
       },
     },
     {
-      title: "Stash pop",
+      title: tI18n("commands.stashPop"),
       value: "prompt.stash.pop",
-      category: "Prompt",
+      category: tI18n("commands.categories.prompt"),
       enabled: stash.list().length > 0,
       onSelect: (dialog) => {
         const entry = stash.pop()
@@ -572,9 +572,9 @@ export function Prompt(props: PromptProps) {
       },
     },
     {
-      title: "Stash list",
+      title: tI18n("commands.stashList"),
       value: "prompt.stash.list",
-      category: "Prompt",
+      category: tI18n("commands.categories.prompt"),
       enabled: stash.list().length > 0,
       onSelect: (dialog) => {
         dialog.replace(() => (
@@ -616,7 +616,7 @@ export function Prompt(props: PromptProps) {
         console.log("Creating a session failed:", res.error)
 
         toast.show({
-          message: "Creating a session failed. Open console for more details.",
+          message: tI18n("toast.sessionCreateFailed"),
           variant: "error",
         })
 
@@ -975,8 +975,8 @@ export function Prompt(props: PromptProps) {
                 if (e.name === "escape" && store.prompt.input !== "") {
                   const now = Date.now()
                   if (store.escPressedAt !== null && now - store.escPressedAt < 1500) {
-                    // Second press within 1.5s → clear
-                    input.clear()
+                    // Second press within 1.5s → clear (setText resets undo history, clear() doesn't)
+                    input.setText("")
                     input.extmarks.clear()
                     setStore("prompt", { input: "", parts: [] })
                     setStore("extmarkToPartIndex", new Map())
@@ -1102,6 +1102,54 @@ export function Prompt(props: PromptProps) {
                 if (promptPartTypeId === 0) {
                   promptPartTypeId = input.extmarks.registerType("prompt-part")
                 }
+
+                // RTL textarea support: maintain logical text, display visually-reordered text.
+                // opentui renders cell-by-cell so the terminal's BiDi algorithm never runs.
+                // We intercept insertText/deleteCharBackward to keep a logicalText buffer,
+                // store the bidi-visual string in the opentui buffer, and expose logicalText
+                // via plainText so the rest of the app works with correct logical order.
+                if (isRTL()) {
+                  let logicalText = ""
+
+                  // Save originals before patching
+                  const _origInsertText = r.insertText.bind(r)
+                  const _origDeleteChar = r.deleteCharBackward.bind(r)
+                  const _origSetText = r.setText.bind(r)
+
+                  // Update the visual buffer from current logicalText
+                  const syncVisual = () => {
+                    _origSetText(toVisual(logicalText))
+                    r.cursorOffset = 0
+                  }
+
+                  r.insertText = (text: string) => {
+                    logicalText = logicalText + text.replace(/[\n\r]/g, "")
+                    syncVisual()
+                    ;(r as any).emit?.("input", logicalText)
+                  }
+
+                  r.deleteCharBackward = () => {
+                    if (logicalText.length === 0) return false
+                    logicalText = logicalText.slice(0, -1)
+                    syncVisual()
+                    ;(r as any).emit?.("input", logicalText)
+                    return true
+                  }
+
+                  // plainText getter returns logical (not visual) text for the rest of the app
+                  Object.defineProperty(r, "plainText", {
+                    get: () => logicalText,
+                    configurable: true,
+                  })
+
+                  // setText: external callers (history navigation, pre-fill) update logicalText too
+                  r.setText = (value: string) => {
+                    logicalText = value
+                    _origSetText(toVisual(logicalText))
+                    r.cursorOffset = 0
+                  }
+                }
+
                 props.ref?.(ref)
                 setTimeout(() => {
                   // setTimeout is a workaround and needs to be addressed properly
