@@ -373,7 +373,13 @@
     "successfullyCopied": "正常にコピーされました",
     "fatalErrorOccurred": "致命的なエラーが発生しました！",
     "resetTui": "TUIをリセットします",
-    "ctrlCToExit": "終了するにはctrl+cを押してください"
+    "ctrlCToExit": "終了するにはctrl+cを押してください",
+    "insufficientCredits": "{{name}}のクレジットが不足しています。続行するにはクレジットを追加するか、プランをアップグレードしてください。"
+  },
+  "upsell": {
+    "title": "クレジット不足",
+    "body": "{{name}}のクレジットが不足しています。{{name}}を引き続き使用するには、クレジットを追加するか、プランをアップグレードしてください。",
+    "subscribe": "クレジットを追加"
   },
   "status": {
     "title": "ステータス",

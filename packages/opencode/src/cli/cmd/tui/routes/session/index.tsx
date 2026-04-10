@@ -84,15 +84,38 @@ import { useTuiConfig } from "../../context/tui-config"
 import { getScrollAcceleration } from "../../util/scroll"
 import { TuiPluginRuntime } from "../../plugin"
 import { DialogGoUpsell } from "../../component/dialog-go-upsell"
+import { Partner } from "@/brand/partner"
+import { Link } from "../../ui/link"
 import { SessionRetry } from "@/session/retry"
 import { DialogProvider as DialogProviderConnect } from "../../component/dialog-provider"
 import { useI18n, toVisual, toVisualLines } from "@/i18n"
 
 addDefaultParsers(parsers.parsers)
 
-const GO_UPSELL_LAST_SEEN_AT = "go_upsell_last_seen_at"
-const GO_UPSELL_DONT_SHOW = "go_upsell_dont_show"
-const GO_UPSELL_WINDOW = 86_400_000 // 24 hrs
+// Short anti-spam window for the retry-sentinel path only: during a burst of
+// retries the same status event can fire many times per turn. This prevents
+// stacking the dialog — it does NOT suppress future sessions. The hard 402
+// path below bypasses this entirely.
+const GO_UPSELL_RETRY_DEBOUNCE_MS = 10_000
+
+// Detect any "out of credits" error from kolbo-api. The backend may surface
+// this as a hard 402 with body {"error":{"message":"Insufficient credits",
+// "type":"insufficient_credits"}}, or — for free-tier users — as a retryable
+// APIError whose response body contains "FreeUsageLimitError". Match all
+// signals defensively so a wording change on the server doesn't silently
+// regress the upsell UX (and so both free-tier and paid-runout render the
+// same friendly localized line in the chat).
+function isInsufficientCreditsError(error: AssistantMessage["error"] | undefined): boolean {
+  if (!error || error.name !== "APIError") return false
+  const data = error.data as { message?: string; statusCode?: number; responseBody?: string }
+  if (data.statusCode === 402) return true
+  const msg = (data.message ?? "").toLowerCase()
+  if (msg.includes("insufficient credit")) return true
+  const body = data.responseBody ?? ""
+  if (body.includes("InsufficientCredits") || body.includes("insufficient_credits")) return true
+  if (body.includes("FreeUsageLimitError")) return true
+  return false
+}
 
 const context = createContext<{
   width: number
@@ -228,21 +251,23 @@ export function Session() {
   const dialog = useDialog()
   const renderer = useRenderer()
 
+  // Show the upsell dialog. No "don't show again" / 24h suppression — if the
+  // user keeps hitting the wall, they need to keep seeing why. The only guard
+  // is a short in-memory debounce to avoid stacking the dialog when the same
+  // error event fires repeatedly during a retry burst.
+  let lastUpsellShownAt = 0
+  const showGoUpsell = () => {
+    if (dialog.stack.length > 0) return
+    if (Date.now() - lastUpsellShownAt < GO_UPSELL_RETRY_DEBOUNCE_MS) return
+    lastUpsellShownAt = Date.now()
+    DialogGoUpsell.show(dialog)
+  }
+
   sdk.event.on("session.status", (evt) => {
     if (evt.properties.sessionID !== route.sessionID) return
     if (evt.properties.status.type !== "retry") return
     if (evt.properties.status.message !== SessionRetry.GO_UPSELL_MESSAGE) return
-    if (dialog.stack.length > 0) return
-
-    const seen = kv.get(GO_UPSELL_LAST_SEEN_AT)
-    if (typeof seen === "number" && Date.now() - seen < GO_UPSELL_WINDOW) return
-
-    if (kv.get(GO_UPSELL_DONT_SHOW)) return
-
-    DialogGoUpsell.show(dialog).then((dontShowAgain) => {
-      if (dontShowAgain) kv.set(GO_UPSELL_DONT_SHOW, true)
-      kv.set(GO_UPSELL_LAST_SEEN_AT, Date.now())
-    })
+    showGoUpsell()
   })
 
   // Auto-show provider dialog when auth fails mid-session
@@ -252,6 +277,16 @@ export function Session() {
     if (last.error?.name !== "ProviderAuthError") return
     if (dialog.stack.length > 0) return
     dialog.replace(() => <DialogProviderConnect />)
+  })
+
+  // Auto-show upsell dialog when a final (non-retryable) credits-exhausted
+  // error arrives. The retry-path listener above only fires while retries are
+  // in flight; this covers the case where kolbo-api returns 402 outright.
+  createEffect(() => {
+    const last = lastAssistant()
+    if (!last || last.role !== "assistant") return
+    if (!isInsufficientCreditsError(last.error)) return
+    showGoUpsell()
   })
 
   // Allow exit when in child session (prompt is hidden)
@@ -1404,8 +1439,15 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
           backgroundColor={theme.backgroundPanel}
           customBorderChars={SplitBorder.customBorderChars}
           borderColor={theme.error}
+          gap={1}
         >
-          <text fg={theme.textMuted}>{props.message.error?.data.message}</text>
+          <Show
+            when={isInsufficientCreditsError(props.message.error)}
+            fallback={<text fg={theme.textMuted}>{props.message.error?.data.message}</text>}
+          >
+            <text fg={theme.textMuted}>{t("error.insufficientCredits", { name: Partner.name })}</text>
+            <Link href={Partner.upsellUrl} fg={theme.primary} />
+          </Show>
         </box>
       </Show>
       <Switch>

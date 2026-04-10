@@ -391,7 +391,13 @@
     "successfullyCopied": "Successfully copied",
     "fatalErrorOccurred": "A fatal error occurred!",
     "resetTui": "Reset TUI",
-    "ctrlCToExit": "ctrl+c to exit"
+    "ctrlCToExit": "ctrl+c to exit",
+    "insufficientCredits": "You're out of {{name}} credits. Add credits or upgrade your plan to continue."
+  },
+  "upsell": {
+    "title": "Out of credits",
+    "body": "You're out of {{name}} credits. Add credits or upgrade your plan to keep using {{name}}.",
+    "subscribe": "add credits"
   },
   "status": {
     "title": "Status",

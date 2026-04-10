@@ -1,5 +1,6 @@
 import type { Argv, InferredOptionTypes } from "yargs"
 import { Config } from "../config/config"
+import { Flag } from "../flag/flag"
 
 const options = {
   port: {
@@ -55,6 +56,29 @@ export async function resolveNetworkOptions(args: NetworkOptions) {
   const configCors = config?.server?.cors ?? []
   const argsCors = Array.isArray(args.cors) ? args.cors : args.cors ? [args.cors] : []
   const cors = [...configCors, ...argsCors]
+
+  // Safety gate: binding to a non-loopback interface without authentication
+  // exposes the full kolbo API (file ops, bash execution, session control)
+  // to anyone on the network. Require KOLBO_SERVER_PASSWORD whenever we're
+  // listening on something other than loopback.
+  //
+  // Exception: `0.0.0.0` is legal if the user has explicitly set a password.
+  const isLoopback =
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "localhost" ||
+    hostname === "localhost."
+  if (!isLoopback && !Flag.KOLBO_SERVER_PASSWORD) {
+    throw new Error(
+      `Refusing to start kolbo server on ${hostname} without authentication.\n` +
+        `Listening on a non-loopback interface would expose the kolbo API ` +
+        `(including bash execution and file access) to anyone on the network.\n\n` +
+        `Either:\n` +
+        `  - remove --mdns / --hostname and let the server bind to 127.0.0.1, or\n` +
+        `  - set KOLBO_SERVER_PASSWORD (and optionally KOLBO_SERVER_USERNAME) ` +
+        `in the environment to enable basic-auth.`,
+    )
+  }
 
   return { hostname, port, mdns, mdnsDomain, cors }
 }

@@ -4,6 +4,7 @@ import { Tool } from "./tool"
 import path from "path"
 import DESCRIPTION from "./bash.txt"
 import { Log } from "../util/log"
+import { redactSecrets } from "../util/redact"
 import { Instance } from "../project/instance"
 import { lazy } from "@/util/lazy"
 import { Language, type Node } from "web-tree-sitter"
@@ -270,8 +271,14 @@ async function collect(root: Node, cwd: string, ps: boolean, shell: string): Pro
 }
 
 function preview(text: string) {
-  if (text.length <= MAX_METADATA_LENGTH) return text
-  return text.slice(0, MAX_METADATA_LENGTH) + "\n\n..."
+  // Redact common secret patterns before the preview lands in session
+  // metadata / UI. The LLM still receives the raw output (returned from
+  // execute()), so commands like `aws sts get-caller-identity` keep
+  // working — but the persisted session state and the log file don't
+  // carry the secret. See util/redact.ts for covered patterns.
+  const scrubbed = redactSecrets(text)
+  if (scrubbed.length <= MAX_METADATA_LENGTH) return scrubbed
+  return scrubbed.slice(0, MAX_METADATA_LENGTH) + "\n\n..."
 }
 
 async function parse(command: string, ps: boolean) {

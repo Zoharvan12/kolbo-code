@@ -10,7 +10,7 @@ import { LSP } from "../lsp"
 import { FileTime } from "../file/time"
 import DESCRIPTION from "./read.txt"
 import { Instance } from "../project/instance"
-import { assertExternalDirectoryEffect } from "./external-directory"
+import { assertExternalDirectoryEffect, resolveRealPath } from "./external-directory"
 import { Instruction } from "../session/instruction"
 
 const DEFAULT_READ_LIMIT = 2000
@@ -101,7 +101,12 @@ export const ReadTool = Tool.defineEffect(
         ),
       )
 
-      yield* assertExternalDirectoryEffect(ctx, filepath, {
+      // Resolve symlinks so the external-directory check sees the real
+      // target. A symlink inside the worktree that points at /etc/shadow
+      // should trip the external-directory prompt, not silently pass.
+      const realFilepath = yield* Effect.promise(() => resolveRealPath(filepath))
+
+      yield* assertExternalDirectoryEffect(ctx, realFilepath, {
         bypass: Boolean(ctx.extra?.["bypassCwdCheck"]),
         kind: stat?.type === "Directory" ? "directory" : "file",
       })

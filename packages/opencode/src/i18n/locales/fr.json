@@ -373,7 +373,13 @@
     "successfullyCopied": "Copié avec succès",
     "fatalErrorOccurred": "Une erreur fatale s'est produite !",
     "resetTui": "Réinitialiser l'interface TUI",
-    "ctrlCToExit": "ctrl+c pour quitter"
+    "ctrlCToExit": "ctrl+c pour quitter",
+    "insufficientCredits": "Vous n'avez plus de crédits {{name}}. Ajoutez des crédits ou mettez à niveau votre plan pour continuer."
+  },
+  "upsell": {
+    "title": "Plus de crédits",
+    "body": "Vous n'avez plus de crédits {{name}}. Ajoutez des crédits ou mettez à niveau votre plan pour continuer à utiliser {{name}}.",
+    "subscribe": "ajouter des crédits"
   },
   "status": {
     "title": "État",

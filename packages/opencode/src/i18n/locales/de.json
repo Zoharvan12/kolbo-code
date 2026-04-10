@@ -373,7 +373,13 @@
     "successfullyCopied": "Erfolgreich kopiert",
     "fatalErrorOccurred": "Ein schwerwiegender Fehler ist aufgetreten!",
     "resetTui": "TUI zurücksetzen",
-    "ctrlCToExit": "Strg+C zum Beenden"
+    "ctrlCToExit": "Strg+C zum Beenden",
+    "insufficientCredits": "Du hast keine {{name}}-Credits mehr. Füge Credits hinzu oder aktualisiere deinen Plan, um fortzufahren."
+  },
+  "upsell": {
+    "title": "Keine Credits mehr",
+    "body": "Du hast keine {{name}}-Credits mehr. Füge Credits hinzu oder aktualisiere deinen Plan, um {{name}} weiter zu nutzen.",
+    "subscribe": "Credits hinzufügen"
   },
   "status": {
     "title": "Status",

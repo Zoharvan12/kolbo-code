@@ -32,6 +32,7 @@ import { SessionPrompt } from "@/session/prompt"
 import { Git } from "@/git"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Process } from "@/util/process"
+import { Partner } from "../../brand/partner"
 
 type GitHubAuthor = {
   login: string
@@ -245,7 +246,7 @@ export const GithubInstallCommand = cmd({
                 "",
                 "    3. Go to a GitHub issue and comment `/oc summarize` to see the agent in action",
                 "",
-                "   Learn more about the GitHub agent - https://kolbo.ai/docs/github/#usage-examples",
+                `   Learn more about the GitHub agent - ${Partner.docsUrl}/github/#usage-examples`,
               ].join("\n"),
             )
           }
@@ -364,7 +365,7 @@ export const GithubInstallCommand = cmd({
 
             async function getInstallation() {
               return await fetch(
-                `https://api.kolbo.ai/get_github_app_installation?owner=${app.owner}&repo=${app.repo}`,
+                `${Partner.apiBase.replace(/\/api$/, "")}/get_github_app_installation?owner=${app.owner}&repo=${app.repo}`,
               )
                 .then((res) => res.json())
                 .then((data) => data.installation)
@@ -477,7 +478,7 @@ export const GithubRunCommand = cmd({
           ? (payload as IssueCommentEvent | IssuesEvent).issue.number
           : (payload as PullRequestEvent | PullRequestReviewCommentEvent).pull_request.number
       const runUrl = `/${owner}/${repo}/actions/runs/${runId}`
-      const shareBaseUrl = isMock ? "https://dev.kolbo.ai" : "https://kolbo.ai"
+      const shareBaseUrl = isMock ? "https://dev.kolbo.ai" : Partner.shareBase
 
       let appToken: string
       let octoRest: Octokit
@@ -736,7 +737,7 @@ export const GithubRunCommand = cmd({
 
       function normalizeOidcBaseUrl(): string {
         const value = process.env["OIDC_BASE_URL"]
-        if (!value) return "https://api.kolbo.ai"
+        if (!value) return Partner.apiBase.replace(/\/api$/, "")
         return value.replace(/\/+$/, "")
       }
 

@@ -1470,7 +1470,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               if (!cachedSkills && !cachedEnv) {
                 ;[cachedSkills, cachedEnv] = yield* Effect.all([
                   Effect.promise(() => SystemPrompt.skills(agent)),
-                  Effect.promise(() => SystemPrompt.environment(model)),
+                  Effect.promise(() => SystemPrompt.environment(model, agent)),
                 ])
               }
               const [instructions, modelMsgs] = yield* Effect.all([

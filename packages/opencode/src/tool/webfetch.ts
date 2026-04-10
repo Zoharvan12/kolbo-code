@@ -4,6 +4,7 @@ import TurndownService from "turndown"
 import DESCRIPTION from "./webfetch.txt"
 import { abortAfterAny } from "../util/abort"
 import { iife } from "@/util/iife"
+import { assertPublicUrl } from "../util/safe-url"
 
 const MAX_RESPONSE_SIZE = 5 * 1024 * 1024 // 5MB
 const DEFAULT_TIMEOUT = 30 * 1000 // 30 seconds
@@ -24,6 +25,13 @@ export const WebFetchTool = Tool.define("webfetch", {
     if (!params.url.startsWith("http://") && !params.url.startsWith("https://")) {
       throw new Error("URL must start with http:// or https://")
     }
+
+    // SSRF defense: reject loopback, RFC1918, link-local, cloud metadata.
+    // Without this the LLM (or a prompt-injected document it's reading) can
+    // tell the CLI to fetch http://169.254.169.254/latest/meta-data/ and
+    // exfiltrate cloud instance credentials. See util/safe-url.ts for
+    // coverage details and known DNS-rebinding limitation.
+    await assertPublicUrl(params.url)
 
     await ctx.ask({
       permission: "webfetch",
@@ -63,13 +71,32 @@ export const WebFetchTool = Tool.define("webfetch", {
       "Accept-Language": "en-US,en;q=0.9",
     }
 
+    // Manual redirect handling so we can re-validate each hop against
+    // assertPublicUrl. Without this, a publicly-resolvable URL could 302
+    // us into 169.254.169.254 / RFC1918 / loopback and bypass the
+    // one-shot SSRF check above. Max 5 hops, matching browser default.
+    const fetchFollowSafe = async (url: string, init: { signal: AbortSignal; headers: Record<string, string> }) => {
+      let currentUrl = url
+      for (let hop = 0; hop <= 5; hop++) {
+        if (hop > 0) await assertPublicUrl(currentUrl)
+        const res = await fetch(currentUrl, { ...init, redirect: "manual" })
+        if (res.status < 300 || res.status >= 400) return res
+        const loc = res.headers.get("location")
+        if (!loc) return res
+        // Free the connection before continuing.
+        try { await res.arrayBuffer() } catch {}
+        currentUrl = new URL(loc, currentUrl).toString()
+      }
+      throw new Error("Too many redirects")
+    }
+
     const response = await iife(async () => {
       try {
-        const initial = await fetch(params.url, { signal, headers })
+        const initial = await fetchFollowSafe(params.url, { signal, headers })
 
         // Retry with honest UA if blocked by Cloudflare bot detection (TLS fingerprint mismatch)
         return initial.status === 403 && initial.headers.get("cf-mitigated") === "challenge"
-          ? await fetch(params.url, { signal, headers: { ...headers, "User-Agent": "kolbo" } })
+          ? await fetchFollowSafe(params.url, { signal, headers: { ...headers, "User-Agent": "kolbo" } })
           : initial
       } finally {
         clearTimeout()

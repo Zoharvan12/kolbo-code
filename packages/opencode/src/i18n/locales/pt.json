@@ -373,7 +373,13 @@
     "successfullyCopied": "Copiado com sucesso",
     "fatalErrorOccurred": "Um erro fatal ocorreu!",
     "resetTui": "Reiniciar TUI",
-    "ctrlCToExit": "ctrl+c para sair"
+    "ctrlCToExit": "ctrl+c para sair",
+    "insufficientCredits": "Você ficou sem créditos do {{name}}. Adicione créditos ou atualize seu plano para continuar."
+  },
+  "upsell": {
+    "title": "Sem créditos",
+    "body": "Você ficou sem créditos do {{name}}. Adicione créditos ou atualize seu plano para continuar usando o {{name}}.",
+    "subscribe": "adicionar créditos"
   },
   "status": {
     "title": "Status",

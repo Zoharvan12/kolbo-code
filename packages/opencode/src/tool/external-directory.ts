@@ -1,4 +1,5 @@
 import path from "path"
+import fsp from "fs/promises"
 import { Effect } from "effect"
 import type { Tool } from "./tool"
 import { Instance } from "../project/instance"
@@ -44,3 +45,29 @@ export const assertExternalDirectoryEffect = Effect.fn("Tool.assertExternalDirec
 ) {
   yield* Effect.promise(() => assertExternalDirectory(ctx, target, options))
 })
+
+/**
+ * Resolve a target path to its real on-disk location, following symlinks.
+ *
+ * Used to defeat symlink-based TOCTOU escapes where a file inside the
+ * project (which `assertExternalDirectory` would otherwise wave through)
+ * actually points at `/etc/shadow` or similar. Call the assertion on the
+ * resolved path so the external-directory prompt fires correctly.
+ *
+ * For paths that don't exist yet (new files being written), we resolve the
+ * parent directory instead — this is still enough to catch a symlinked
+ * parent directory pointing outside the project.
+ */
+export async function resolveRealPath(target: string): Promise<string> {
+  try {
+    return await fsp.realpath(target)
+  } catch {
+    const parent = path.dirname(target)
+    try {
+      const realParent = await fsp.realpath(parent)
+      return path.join(realParent, path.basename(target))
+    } catch {
+      return target
+    }
+  }
+}

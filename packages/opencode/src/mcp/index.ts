@@ -381,13 +381,42 @@ export namespace MCP {
       const connectLocal = Effect.fn("MCP.connectLocal")(function* (key: string, mcp: Config.Mcp & { type: "local" }) {
         const [cmd, ...args] = mcp.command
         const cwd = Instance.directory
+        // Scrub dynamic-loader env vars from the inherited environment before
+        // spawning an MCP subprocess. `LD_PRELOAD` / `DYLD_INSERT_LIBRARIES`
+        // etc. in a poisoned shell env would otherwise inject arbitrary
+        // shared libraries into every MCP server we launch. If the MCP
+        // config explicitly sets one of these, we honor it — but we never
+        // inherit it silently from the parent env.
+        const DANGEROUS_ENV = [
+          // Shared library injection (Linux / macOS)
+          "LD_PRELOAD",
+          "LD_LIBRARY_PATH",
+          "LD_AUDIT",
+          "DYLD_INSERT_LIBRARIES",
+          "DYLD_LIBRARY_PATH",
+          "DYLD_FRAMEWORK_PATH",
+          "DYLD_FALLBACK_LIBRARY_PATH",
+          "DYLD_FALLBACK_FRAMEWORK_PATH",
+          // Interpreter injection (NODE_OPTIONS=--require /tmp/evil.js is
+          // a well-known RCE pattern; the equivalents in other runtimes
+          // are just as dangerous).
+          "NODE_OPTIONS",
+          "PYTHONSTARTUP",
+          "PYTHONPATH",
+          "PERL5OPT",
+          "PERL5LIB",
+          "RUBYOPT",
+          "RUBYLIB",
+        ]
+        const scrubbedParentEnv: Record<string, string | undefined> = { ...process.env }
+        for (const k of DANGEROUS_ENV) delete scrubbedParentEnv[k]
         const transport = new StdioClientTransport({
           stderr: "pipe",
           command: cmd,
           args,
           cwd,
           env: {
-            ...process.env,
+            ...scrubbedParentEnv,
             ...(cmd === "kolbo" ? { BUN_BE_BUN: "1" } : {}),
             ...mcp.environment,
           },

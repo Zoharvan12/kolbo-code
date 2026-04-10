@@ -1,7 +1,8 @@
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import { setTimeout as sleep } from "node:timers/promises"
+import { Partner } from "../brand/partner"
 
-const KOLBO_API_BASE = process.env.KOLBO_API_BASE || "https://api.kolbo.ai/api"
+const KOLBO_API_BASE = Partner.apiBase
 const OAUTH_POLLING_SAFETY_MARGIN_MS = 3000
 
 export async function KolboAuthPlugin(_input: PluginInput): Promise<Hooks> {
@@ -18,13 +19,15 @@ export async function KolboAuthPlugin(_input: PluginInput): Promise<Hooks> {
       methods: [
         {
           type: "oauth",
-          label: "Login with Kolbo.AI",
+          label: `Login with ${Partner.name}`,
           async authorize() {
             const r = await fetch(`${KOLBO_API_BASE}/auth/kolbo-cli/device/code`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: "{}",
             })
+            // Status code is the only thing we surface — body may contain
+            // unbounded server text.
             if (!r.ok) throw new Error(`Failed to start device login (${r.status})`)
 
             const data = (await r.json()) as {

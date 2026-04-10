@@ -15,8 +15,10 @@ import type { Hooks } from "@opencode-ai/plugin"
 import { Process } from "../../util/process"
 import { text } from "node:stream/consumers"
 import open from "open"
+import { Partner } from "../../brand/partner"
+import { assertPublicUrl } from "../../util/safe-url"
 
-const KOLBO_API_BASE = process.env.KOLBO_API_BASE || "https://api.kolbo.ai/api"
+const KOLBO_API_BASE = Partner.apiBase
 
 const KOLBO_SKILL_MD = `---
 name: kolbo
@@ -89,11 +91,10 @@ export async function ensureKolboMcpWired(): Promise<void> {
     const apiKey = auth.type === "api" ? auth.key : auth.type === "oauth" ? auth.access : undefined
     if (!apiKey) return
 
-    // Resolve the API base: stored metadata → env var → production default
-    const apiBase =
-      (auth.type === "api" && auth.metadata?.apiBase) ||
-      process.env.KOLBO_API_BASE ||
-      null
+    // Resolve the API base: stored metadata → partner profile (env/file) → null
+    // When null, the MCP runs against its own compiled-in default (production Kolbo).
+    const metadataApiBase = auth.type === "api" ? auth.metadata?.apiBase : undefined
+    const apiBase = metadataApiBase || (Partner.isWhitelabel ? Partner.apiBase : null)
 
     const configDir = Global.Path.config
     fs.mkdirSync(configDir, { recursive: true })
@@ -132,7 +133,12 @@ export async function ensureKolboMcpWired(): Promise<void> {
     }
 
     if (needsWrite) {
-      fs.writeFileSync(configFile, JSON.stringify(existing, null, 2))
+      // 0o600: kolbo.json stores KOLBO_API_KEY in plaintext for the MCP
+      // subprocess to read. Restrict to owner read/write so other local
+      // users can't pick up the key. (No-op on Windows, which ignores
+      // Unix permission bits — OS keystore migration is a separate item.)
+      fs.writeFileSync(configFile, JSON.stringify(existing, null, 2), { mode: 0o600 })
+      try { fs.chmodSync(configFile, 0o600) } catch {}
     }
 
     // Write skill file if missing
@@ -161,8 +167,9 @@ async function kolboDeviceLogin(): Promise<string | null> {
       return null
     }
     init = (await r.json()) as any
-  } catch (err: any) {
-    prompts.log.error(`Could not reach ${KOLBO_API_BASE}: ${err?.message || err}`)
+  } catch {
+    // Don't echo raw error — may contain server response bodies / paths.
+    prompts.log.error(`Could not reach ${KOLBO_API_BASE}. Check your network and try again.`)
     return null
   }
 
@@ -192,7 +199,9 @@ async function kolboDeviceLogin(): Promise<string | null> {
       if (r.status === 400) {
         const body = (await r.json().catch(() => ({}))) as any
         if (body?.error === "expired") {
-          spinner.stop("Device code expired")
+          // Generic message — we don't want to leak device-code lifecycle
+          // details that would help an attacker enumerate valid codes.
+          spinner.stop("Login failed, please try again")
           return null
         }
         continue
@@ -206,8 +215,9 @@ async function kolboDeviceLogin(): Promise<string | null> {
     }
     spinner.stop("Timed out waiting for approval")
     return null
-  } catch (err: any) {
-    spinner.stop(`Error: ${err?.message || err}`)
+  } catch {
+    // Don't echo raw error to user.
+    spinner.stop("Login failed")
     return null
   }
 }
@@ -476,9 +486,85 @@ export const ProvidersLoginCommand = cmd({
         prompts.intro("Add credential")
         if (args.url) {
           const url = args.url.replace(/\/+$/, "")
-          const wellknown = await fetch(`${url}/.well-known/kolbo`).then((x) => x.json() as any)
-          prompts.log.info(`Running \`${wellknown.auth.command.join(" ")}\``)
-          const proc = Process.spawn(wellknown.auth.command, {
+          // .well-known/kolbo auth hands us an arbitrary command array and
+          // we spawn it — the authoritative-looking filename makes this
+          // more dangerous than it looks. Lock it down:
+          //   1. URL must be https and public (no file://, no RFC1918)
+          //   2. Command array must be shaped correctly and contain no
+          //      obvious shell-metacharacters in argv[0]
+          //   3. User must explicitly confirm the exact command before
+          //      we spawn it, no matter how trusted the origin looks.
+          let parsedUrl: URL
+          try {
+            parsedUrl = new URL(url)
+          } catch {
+            prompts.log.error(`Invalid URL: ${url}`)
+            prompts.outro("Done")
+            return
+          }
+          if (parsedUrl.protocol !== "https:") {
+            prompts.log.error(`Refusing non-HTTPS well-known URL: ${url}`)
+            prompts.outro("Done")
+            return
+          }
+          try {
+            await assertPublicUrl(url)
+          } catch (e: any) {
+            prompts.log.error(e?.message ?? "Refusing to fetch from internal address")
+            prompts.outro("Done")
+            return
+          }
+          let wellknown: any
+          try {
+            // redirect:"error" closes the assertPublicUrl bypass — a
+            // trusted-looking server could otherwise 302 us into
+            // http://169.254.169.254/ (cloud metadata) and we'd happily
+            // follow. A legitimate /.well-known/kolbo never needs to
+            // redirect.
+            const r = await fetch(`${url}/.well-known/kolbo`, { redirect: "error" })
+            wellknown = await r.json()
+          } catch {
+            prompts.log.error(`Could not fetch ${url}/.well-known/kolbo`)
+            prompts.outro("Done")
+            return
+          }
+          if (
+            !wellknown?.auth?.command ||
+            !Array.isArray(wellknown.auth.command) ||
+            wellknown.auth.command.length === 0 ||
+            wellknown.auth.command.some((x: unknown) => typeof x !== "string")
+          ) {
+            prompts.log.error("Invalid .well-known/kolbo response (missing or malformed auth.command)")
+            prompts.outro("Done")
+            return
+          }
+          const cmdArr: string[] = wellknown.auth.command
+          // Reject shell-metacharacters in argv[0]. Spawn is not a shell,
+          // but an attacker could still trick users into running something
+          // that looks innocuous at a glance.
+          if (/[;&|`$<>\n\r]/.test(cmdArr[0])) {
+            prompts.log.error("Refusing command with shell metacharacters")
+            prompts.outro("Done")
+            return
+          }
+          const displayCmd = cmdArr
+            .map((x) => (/[\s"'$`]/.test(x) ? JSON.stringify(x) : x))
+            .join(" ")
+          prompts.log.warn(
+            `About to run a command from ${url}/.well-known/kolbo:\n\n    ${displayCmd}\n\n` +
+              `This command will run with your full user privileges. Only approve if you trust this server.`,
+          )
+          const confirm = await prompts.confirm({
+            message: `Run this command?`,
+            initialValue: false,
+          })
+          if (prompts.isCancel(confirm) || !confirm) {
+            prompts.log.info("Cancelled")
+            prompts.outro("Done")
+            return
+          }
+          prompts.log.info(`Running \`${displayCmd}\``)
+          const proc = Process.spawn(cmdArr, {
             stdout: "pipe",
           })
           if (!proc.stdout) {
@@ -628,9 +714,9 @@ export const ProvidersLoginCommand = cmd({
             return
           }
           const metadata: Record<string, string> = {}
-          if (KOLBO_API_BASE !== "https://api.kolbo.ai/api") metadata.apiBase = KOLBO_API_BASE
+          if (Partner.isWhitelabel) metadata.apiBase = KOLBO_API_BASE
           await Auth.set("kolbo", { type: "api", key, metadata })
-          prompts.log.success("Logged into Kolbo")
+          prompts.log.success(`Logged into ${Partner.name}`)
 
           // Auto-inject Kolbo MCP + skill into global config (idempotent)
           try {
@@ -644,7 +730,7 @@ export const ProvidersLoginCommand = cmd({
               try { existing = JSON.parse(fs.readFileSync(configFile, "utf8")) } catch {}
             }
             const mcpEnv: Record<string, string> = { KOLBO_API_KEY: key }
-            if (process.env.KOLBO_API_BASE) mcpEnv.KOLBO_API_URL = process.env.KOLBO_API_BASE
+            if (Partner.isWhitelabel) mcpEnv.KOLBO_API_URL = Partner.apiBase
             if (existing.mcp?.kolbo?.environment?.KOLBO_API_KEY !== key) {
               existing.mcp = {
                 ...existing.mcp,
@@ -654,7 +740,9 @@ export const ProvidersLoginCommand = cmd({
                   environment: mcpEnv,
                 },
               }
-              fs.writeFileSync(configFile, JSON.stringify(existing, null, 2))
+              // Restrict to 0o600 — file contains the Kolbo API key.
+              fs.writeFileSync(configFile, JSON.stringify(existing, null, 2), { mode: 0o600 })
+              try { fs.chmodSync(configFile, 0o600) } catch {}
             }
 
             // 2. Write the Kolbo skill file so the agent knows how to use the MCP tools

@@ -18,6 +18,7 @@ import {
 } from "solid-js"
 import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
 import { Flag } from "@/flag/flag"
+import { Partner } from "@/brand/partner"
 import semver from "semver"
 import { DialogProvider, useDialog } from "@tui/ui/dialog"
 import { DialogProvider as DialogProviderList } from "@tui/component/dialog-provider"
@@ -725,7 +726,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       title: tc("commands.openDocs"),
       value: "docs.open",
       onSelect: () => {
-        open("https://kolbo.ai/docs").catch(() => {})
+        open(Partner.docsUrl).catch(() => {})
         dialog.clear()
       },
       category: tc("commands.categories.system"),

@@ -79,8 +79,19 @@ export namespace AppFileSystem {
 
       const writeJson = Effect.fn("FileSystem.writeJson")(function* (path: string, data: unknown, mode?: number) {
         const content = JSON.stringify(data, null, 2)
-        yield* fs.writeFileString(path, content)
-        if (mode) yield* fs.chmod(path, mode)
+        // Atomic write: serialize to a sibling temp file, set permissions
+        // on the temp file *before* it becomes the real file, then rename.
+        // This prevents:
+        //   - readers seeing a half-written auth.json (torn JSON parse errors)
+        //   - readers seeing the file world-readable during the gap between
+        //     writeFileString and chmod
+        //   - two concurrent writers clobbering each other (last-rename-wins,
+        //     but neither loses a partial write)
+        // Rename is atomic on POSIX and on Windows when the target exists.
+        const tmp = `${path}.tmp.${process.pid}.${Math.random().toString(36).slice(2, 10)}`
+        yield* fs.writeFileString(tmp, content)
+        if (mode) yield* fs.chmod(tmp, mode).pipe(Effect.ignore)
+        yield* fs.rename(tmp, path)
       })
 
       const ensureDir = Effect.fn("FileSystem.ensureDir")(function* (path: string) {

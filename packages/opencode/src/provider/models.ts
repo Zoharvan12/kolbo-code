@@ -4,6 +4,7 @@ import path from "path"
 import z from "zod"
 import { Installation } from "../installation"
 import { Flag } from "../flag/flag"
+import { Partner } from "../brand/partner"
 import { lazy } from "@/util/lazy"
 import { Filesystem } from "../util/filesystem"
 import { Flock } from "@/util/flock"
@@ -135,13 +136,13 @@ export namespace ModelsDev {
     id: "kolbo",
     env: ["KOLBO_API_KEY"],
     npm: "@ai-sdk/openai-compatible",
-    api: "https://api.kolbo.ai/api/kolbo/v1",
-    name: "Kolbo",
-    doc: "https://kolbo.ai/cli",
+    api: `${Partner.apiBase}/kolbo/v1`,
+    name: Partner.name,
+    doc: `https://${Partner.domain}/cli`,
     models: {
       "kolbo-default": {
         id: "kolbo-default",
-        name: "Kolbo",
+        name: Partner.name,
         family: "kolbo",
         attachment: true,
         reasoning: false,

@@ -18,6 +18,7 @@ import { useToast } from "../ui/toast"
 import { isConsoleManagedProvider } from "@tui/util/provider-origin"
 import open from "open"
 import { useI18n } from "@/i18n"
+import { Partner } from "@/brand/partner"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   kolbo: 0,
@@ -306,7 +307,7 @@ function ApiMethod(props: ApiMethodProps) {
                 {t("provider.kolboDescription")}
               </text>
               <text fg={theme.text}>
-                {t("provider.getApiKeyAt")} <span style={{ fg: theme.primary }}>https://kolbo.ai</span>
+                {t("provider.getApiKeyAt")} <span style={{ fg: theme.primary }}>{`https://${Partner.domain}`}</span>
               </text>
             </box>
           ),

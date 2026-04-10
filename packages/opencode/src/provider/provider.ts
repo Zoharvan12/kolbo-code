@@ -15,6 +15,7 @@ import { Auth } from "../auth"
 import { Env } from "../env"
 import { Instance } from "../project/instance"
 import { Flag } from "../flag/flag"
+import { Partner } from "../brand/partner"
 import { iife } from "@/util/iife"
 import { Global } from "../global"
 import path from "path"
@@ -805,8 +806,8 @@ export namespace Provider {
         return {
           autoload: ok,
           options: apiKey
-            ? { baseURL: `${process.env.KOLBO_API_BASE ?? "https://api.kolbo.ai/api"}/kolbo/v1`, apiKey }
-            : { baseURL: `${process.env.KOLBO_API_BASE ?? "https://api.kolbo.ai/api"}/kolbo/v1` },
+            ? { baseURL: `${Partner.apiBase}/kolbo/v1`, apiKey }
+            : { baseURL: `${Partner.apiBase}/kolbo/v1` },
         }
       }),
     }

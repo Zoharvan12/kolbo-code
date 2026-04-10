@@ -373,7 +373,13 @@
     "successfullyCopied": "复制成功",
     "fatalErrorOccurred": "发生了一个致命错误！",
     "resetTui": "重置 TUI",
-    "ctrlCToExit": "ctrl+c 退出"
+    "ctrlCToExit": "ctrl+c 退出",
+    "insufficientCredits": "您的 {{name}} credits 已用完。请添加 credits 或升级您的套餐以继续使用。"
+  },
+  "upsell": {
+    "title": "Credits 已用完",
+    "body": "您的 {{name}} credits 已用完。请添加 credits 或升级您的套餐以继续使用 {{name}}。",
+    "subscribe": "添加 credits"
   },
   "status": {
     "title": "状态",

@@ -4,6 +4,7 @@ import { createWriteStream } from "fs"
 import { Global } from "../global"
 import z from "zod"
 import { Glob } from "./glob"
+import { redactSecrets } from "./redact"
 
 export namespace Log {
   export const Level = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]).meta({ ref: "LogLevel", description: "Log level" })
@@ -124,7 +125,13 @@ export namespace Log {
       const next = new Date()
       const diff = next.getTime() - last
       last = next.getTime()
-      return [next.toISOString().split(".")[0], "+" + diff + "ms", prefix, message].filter(Boolean).join(" ") + "\n"
+      // Scrub common secret patterns (API keys, JWTs, PEM blocks) before
+      // the line is persisted to disk or echoed to stderr. Log files are
+      // kept for days and routinely scooped into support bundles, so any
+      // secret that sneaks into tool output becomes an exfiltration vector.
+      const line =
+        [next.toISOString().split(".")[0], "+" + diff + "ms", prefix, message].filter(Boolean).join(" ") + "\n"
+      return redactSecrets(line)
     }
     const result: Logger = {
       debug(message?: any, extra?: Record<string, any>) {

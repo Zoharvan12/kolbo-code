@@ -13,6 +13,7 @@ import { lazy } from "../../util/lazy"
 import { Config } from "../../config/config"
 import { errors } from "../error"
 import { Auth } from "../../auth"
+import { Partner } from "../../brand/partner"
 
 const log = Log.create({ service: "server" })
 
@@ -347,7 +348,7 @@ export const GlobalRoutes = lazy(() =>
           return c.json({ available: 0, reserved: 0, total: 0 })
         }
 
-        const base = process.env.KOLBO_API_BASE ?? "https://api.kolbo.ai/api"
+        const base = Partner.apiBase
         try {
           const res = await fetch(`${base}/kolbo/v1/balance`, {
             headers: { "X-API-Key": apiKey },

@@ -14,6 +14,7 @@ export namespace Flag {
   export const OTEL_EXPORTER_OTLP_ENDPOINT = process.env["OTEL_EXPORTER_OTLP_ENDPOINT"]
   export const OTEL_EXPORTER_OTLP_HEADERS = process.env["OTEL_EXPORTER_OTLP_HEADERS"]
 
+  export const KOLBO_PARTNER_PROFILE = process.env["KOLBO_PARTNER_PROFILE"]
   export const KOLBO_AUTO_SHARE = truthy("KOLBO_AUTO_SHARE")
   export const KOLBO_AUTO_HEAP_SNAPSHOT = truthy("KOLBO_AUTO_HEAP_SNAPSHOT")
   export const KOLBO_GIT_BASH_PATH = process.env["KOLBO_GIT_BASH_PATH"]

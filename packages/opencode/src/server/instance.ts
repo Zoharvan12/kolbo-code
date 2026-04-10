@@ -16,6 +16,7 @@ import { Global } from "../global"
 import { LSP } from "../lsp"
 import { Command } from "../command"
 import { Flag } from "../flag/flag"
+import { Partner } from "../brand/partner"
 import { QuestionRoutes } from "./routes/question"
 import { PermissionRoutes } from "./routes/permission"
 import { Snapshot } from "@/snapshot"
@@ -299,7 +300,7 @@ export const InstanceRoutes = (upgrade: UpgradeWebSocket, app: Hono = new Hono()
           return c.json({ error: "Not Found" }, 404)
         }
       } else {
-        const appBase = process.env.KOLBO_APP_BASE ?? "https://app.kolbo.ai"
+        const appBase = Partner.appBase
         const appHost = new URL(appBase).host
         const response = await proxy(`${appBase}${path}`, {
           ...c.req,

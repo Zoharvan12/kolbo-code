@@ -373,7 +373,13 @@
     "successfullyCopied": "تم النسخ بنجاح",
     "fatalErrorOccurred": "حدث خطأ فادح!",
     "resetTui": "إعادة ضبط واجهة المستخدم الرسومية TUI",
-    "ctrlCToExit": "ctrl+c للخروج"
+    "ctrlCToExit": "ctrl+c للخروج",
+    "insufficientCredits": "لقد نفدت أرصدة {{name}} الخاصة بك. أضف أرصدة أو قم بترقية خطتك للمتابعة."
+  },
+  "upsell": {
+    "title": "نفدت الأرصدة",
+    "body": "لقد نفدت أرصدة {{name}} الخاصة بك. أضف أرصدة أو قم بترقية خطتك لمواصلة استخدام {{name}}.",
+    "subscribe": "إضافة أرصدة"
   },
   "status": {
     "title": "الحالة",

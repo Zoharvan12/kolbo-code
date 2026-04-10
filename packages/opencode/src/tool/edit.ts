@@ -17,7 +17,7 @@ import { FileTime } from "../file/time"
 import { Filesystem } from "../util/filesystem"
 import { Instance } from "../project/instance"
 import { Snapshot } from "@/snapshot"
-import { assertExternalDirectory } from "./external-directory"
+import { assertExternalDirectory, resolveRealPath } from "./external-directory"
 
 const MAX_DIAGNOSTICS_PER_FILE = 20
 
@@ -52,7 +52,9 @@ export const EditTool = Tool.define("edit", {
     }
 
     const filePath = path.isAbsolute(params.filePath) ? params.filePath : path.join(Instance.directory, params.filePath)
-    await assertExternalDirectory(ctx, filePath)
+    // Resolve symlinks before the project-boundary check (see write.ts).
+    const realFilePath = await resolveRealPath(filePath)
+    await assertExternalDirectory(ctx, realFilePath)
 
     let diff = ""
     let contentOld = ""

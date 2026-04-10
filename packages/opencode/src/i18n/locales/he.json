@@ -374,7 +374,13 @@
     "successfullyCopied": "הועתק בהצלחה",
     "fatalErrorOccurred": "אירעה שגיאה חמורה!",
     "resetTui": "אפס TUI",
-    "ctrlCToExit": "ctrl+c ליציאה"
+    "ctrlCToExit": "ctrl+c ליציאה",
+    "insufficientCredits": "נגמרו לך הקרדיטים של {{name}}. הוסף קרדיטים או שדרג את החבילה שלך כדי להמשיך."
+  },
+  "upsell": {
+    "title": "נגמרו הקרדיטים",
+    "body": "נגמרו לך הקרדיטים של {{name}}. הוסף קרדיטים או שדרג את החבילה שלך כדי להמשיך להשתמש ב-{{name}}.",
+    "subscribe": "הוסף קרדיטים"
   },
   "status": {
     "title": "מצב",
