@@ -1,7 +1,7 @@
 name: publish
 run-name: "${{ format('release {0}', inputs.bump) }}"
 
-if: github.repository == 'anomalyco/kodu'
+if: github.repository == 'Zoharvan12/kolbo-cli'
 
 on:
   push:
@@ -35,7 +35,7 @@ permissions:
 jobs:
   version:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: github.repository == 'anomalyco/kodu'
+    if: github.repository == 'Zoharvan12/kolbo-cli'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -72,7 +72,7 @@ jobs:
   build-cli:
     needs: version
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: github.repository == 'anomalyco/kodu'
+    if: github.repository == 'Zoharvan12/kolbo-cli'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -90,7 +90,7 @@ jobs:
       - name: Build
         id: build
         run: |
-          ./packages/kodu/script/build.ts
+          ./packages/opencode/script/build.ts
         env:
           KODU_VERSION: ${{ needs.version.outputs.version }}
           KODU_RELEASE: ${{ needs.version.outputs.release }}
@@ -101,13 +101,13 @@ jobs:
         with:
           name: opencode-cli
           path: |
-            packages/kodu/dist/opencode-darwin*
-            packages/kodu/dist/opencode-linux*
+            packages/opencode/dist/opencode-darwin*
+            packages/opencode/dist/opencode-linux*
 
       - uses: actions/upload-artifact@v4
         with:
           name: opencode-cli-windows
-          path: packages/kodu/dist/opencode-windows*
+          path: packages/opencode/dist/opencode-windows*
     outputs:
       version: ${{ needs.version.outputs.version }}
 
@@ -116,7 +116,7 @@ jobs:
       - build-cli
       - version
     runs-on: blacksmith-4vcpu-windows-2025
-    if: github.repository == 'anomalyco/kodu'
+    if: github.repository == 'Zoharvan12/kolbo-cli'
     env:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -130,7 +130,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: opencode-cli-windows
-          path: packages/kodu/dist
+          path: packages/opencode/dist
 
       - name: Setup git committer
         id: committer
@@ -183,7 +183,7 @@ jobs:
           }
 
       - name: Repack Windows CLI archives
-        working-directory: packages/kodu/dist
+        working-directory: packages/opencode/dist
         shell: pwsh
         run: |
           Compress-Archive -Path "opencode-windows-arm64\bin\*" -DestinationPath "opencode-windows-arm64.zip" -Force
@@ -207,9 +207,9 @@ jobs:
         with:
           name: opencode-cli-signed-windows
           path: |
-            packages/kodu/dist/opencode-windows-arm64
-            packages/kodu/dist/opencode-windows-x64
-            packages/kodu/dist/opencode-windows-x64-baseline
+            packages/opencode/dist/opencode-windows-arm64
+            packages/opencode/dist/opencode-windows-x64
+            packages/opencode/dist/opencode-windows-x64-baseline
 
   build-tauri:
     needs:
@@ -583,17 +583,17 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: opencode-cli
-          path: packages/kodu/dist
+          path: packages/opencode/dist
 
       - uses: actions/download-artifact@v4
         with:
           name: opencode-cli-windows
-          path: packages/kodu/dist
+          path: packages/opencode/dist
 
       - uses: actions/download-artifact@v4
         with:
           name: opencode-cli-signed-windows
-          path: packages/kodu/dist
+          path: packages/opencode/dist
 
       - uses: actions/download-artifact@v4
         if: needs.version.outputs.release
