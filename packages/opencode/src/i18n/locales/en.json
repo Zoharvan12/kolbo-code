@@ -157,6 +157,7 @@
     "commands": "commands",
     "agents": "toggle mode",
     "escAgainToClear": "again to clear",
+    "newline": "new line",
     "interrupted": "interrupted",
     "exitShellMode": "exit shell mode",
     "parent": "Parent",

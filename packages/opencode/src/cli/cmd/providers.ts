@@ -110,7 +110,8 @@ export async function ensureKolboMcpWired(): Promise<void> {
     }
     const currentKey = existing.mcp?.kolbo?.environment?.KOLBO_API_KEY
     const currentUrl = existing.mcp?.kolbo?.environment?.KOLBO_API_URL
-    if (currentKey !== apiKey || currentUrl !== mcpEnv.KOLBO_API_URL) {
+    let needsWrite = currentKey !== apiKey || currentUrl !== mcpEnv.KOLBO_API_URL
+    if (needsWrite) {
       existing.mcp = {
         ...existing.mcp,
         kolbo: {
@@ -119,6 +120,18 @@ export async function ensureKolboMcpWired(): Promise<void> {
           environment: mcpEnv,
         },
       }
+    }
+
+    // Inject default MCPs — only add entries that don't already exist
+    const { DEFAULT_MCPS } = await import("../../mcp/catalog.js")
+    for (const [name, cfg] of Object.entries(DEFAULT_MCPS)) {
+      if (!existing.mcp?.[name]) {
+        existing.mcp = { ...existing.mcp, [name]: cfg }
+        needsWrite = true
+      }
+    }
+
+    if (needsWrite) {
       fs.writeFileSync(configFile, JSON.stringify(existing, null, 2))
     }
 

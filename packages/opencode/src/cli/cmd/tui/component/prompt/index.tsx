@@ -1232,7 +1232,7 @@ export function Prompt(props: PromptProps) {
         </box>
         <box width="100%" flexDirection="row" justifyContent="space-between">
           <Show when={status().type !== "idle"} fallback={
-            <Show when={store.escPressedAt !== null} fallback={props.hint ?? <text />}>
+            <Show when={store.escPressedAt !== null} fallback={props.hint ?? <text fg={theme.text}>ctrl+j <span style={{ fg: theme.textMuted }}>{tI18n("session.newline")}</span></text>}>
               <text fg={theme.warning}>esc <span style={{ fg: theme.textMuted }}>{tI18n("session.escAgainToClear")}</span></text>
             </Show>
           }>
