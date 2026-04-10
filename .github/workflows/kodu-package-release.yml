@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   publish-npm:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     if: github.repository == 'Zoharvan12/kodu'
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-docker:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     if: github.repository == 'Zoharvan12/kodu'
     steps:
       - uses: actions/checkout@v4
