@@ -30,15 +30,12 @@ export function Home() {
   const dialog = useDialog()
   let sent = false
 
-  // Auto-show provider onboarding if no provider is connected on startup
+  // Always show auth/onboarding if no provider is connected — re-shows on ESC
   const connected = createMemo(() => sync.data.provider_next.connected.length > 0)
-  let shownOnboarding = false
   createEffect(() => {
     if (!sync.ready) return
     if (connected()) return
-    if (shownOnboarding) return
     if (dialog.stack.length > 0) return
-    shownOnboarding = true
     dialog.replace(() => <DialogProvider />)
   })
 
