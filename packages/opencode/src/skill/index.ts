@@ -143,6 +143,20 @@ export namespace Skill {
     directory: string,
     worktree: string,
   ) {
+    // Scan built-in skills bundled with the CLI.
+    // In dev: src/skill/ → ../../skills = packages/opencode/skills/
+    // In built binary: bin/ → ../skills = dist/{platform}/skills/
+    const candidates = [
+      path.join(import.meta.dirname, "../../skills"),
+      path.join(import.meta.dirname, "../skills"),
+    ]
+    for (const builtinSkillsDir of candidates) {
+      if (yield* fsys.isDir(builtinSkillsDir)) {
+        yield* scan(state, bus, builtinSkillsDir, SKILL_PATTERN, { scope: "builtin" })
+        break
+      }
+    }
+
     if (!Flag.KOLBO_DISABLE_EXTERNAL_SKILLS) {
       for (const dir of EXTERNAL_DIRS) {
         const root = path.join(Global.Path.home, dir)

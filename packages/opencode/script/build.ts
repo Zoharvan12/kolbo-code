@@ -235,6 +235,14 @@ for (const item of targets) {
   }
 
   await $`rm -rf ./dist/${name}/bin/tui`
+
+  // Copy built-in skills alongside the binary
+  const skillsSrc = path.join(dir, "skills")
+  const skillsDest = `dist/${name}/skills`
+  if (fs.existsSync(skillsSrc)) {
+    await $`cp -r ${skillsSrc} ${skillsDest}`
+  }
+
   await Bun.file(`dist/${name}/package.json`).write(
     JSON.stringify(
       {
