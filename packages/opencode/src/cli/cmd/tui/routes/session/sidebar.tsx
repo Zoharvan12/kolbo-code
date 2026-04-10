@@ -4,8 +4,8 @@ import { useTheme } from "../../context/theme"
 import { useTuiConfig } from "../../context/tui-config"
 import { Installation } from "@/installation"
 import { TuiPluginRuntime } from "../../plugin"
-
 import { getScrollAcceleration } from "../../util/scroll"
+import { toVisual } from "@/i18n"
 
 export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   const sync = useSync()
@@ -46,7 +46,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
             >
               <box paddingRight={1}>
                 <text fg={theme.text}>
-                  <b>{session()!.title}</b>
+                  <b>{toVisual(session()!.title)}</b>
                 </text>
                 <Show when={session()!.share?.url}>
                   <text fg={theme.textMuted}>{session()!.share!.url}</text>

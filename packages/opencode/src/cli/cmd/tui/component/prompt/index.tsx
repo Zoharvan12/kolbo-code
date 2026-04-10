@@ -1118,8 +1118,15 @@ export function Prompt(props: PromptProps) {
 
                   // Update the visual buffer from current logicalText
                   const syncVisual = () => {
-                    _origSetText(toVisual(logicalText))
-                    r.cursorOffset = 0
+                    const visualText = toVisual(logicalText)
+                    _origSetText(visualText)
+                    // For RTL text, toVisual reverses it so the newest char is at visual position 0.
+                    // For LTR text, toVisual returns it unchanged, so the newest char is at the end.
+                    if (visualText !== logicalText) {
+                      r.cursorOffset = 0
+                    } else {
+                      r.cursorOffset = Bun.stringWidth(visualText)
+                    }
                   }
 
                   r.insertText = (text: string) => {

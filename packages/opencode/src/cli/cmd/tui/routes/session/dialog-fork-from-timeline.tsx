@@ -8,6 +8,7 @@ import { useRoute } from "@tui/context/route"
 import { useDialog } from "../../ui/dialog"
 import type { PromptInfo } from "@tui/component/prompt/history"
 import { strip } from "@tui/component/prompt/part"
+import { toVisual } from "@/i18n"
 
 export function DialogForkFromTimeline(props: { sessionID: string; onMove: (messageID: string) => void }) {
   const sync = useSync()
@@ -29,7 +30,7 @@ export function DialogForkFromTimeline(props: { sessionID: string; onMove: (mess
       ) as TextPart
       if (!part) continue
       result.push({
-        title: part.text.replace(/\n/g, " "),
+        title: toVisual(part.text.replace(/\n/g, " ")),
         value: message.id,
         footer: Locale.time(message.time.created),
         onSelect: async (dialog) => {
