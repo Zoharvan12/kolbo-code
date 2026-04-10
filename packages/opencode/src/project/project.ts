@@ -100,7 +100,7 @@ export namespace Project {
     readonly removeSandbox: (id: ProjectID, directory: string) => Effect.Effect<void>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Project") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Project") {}
 
   type GitResult = { code: number; text: string; stderr: string }
 
@@ -141,7 +141,7 @@ export namespace Project {
           }),
         )
 
-      const fakeVcs = Info.shape.vcs.parse(Flag.KODU_FAKE_VCS)
+      const fakeVcs = Info.shape.vcs.parse(Flag.KOLBO_FAKE_VCS)
 
       const resolveGitPath = (cwd: string, name: string) => {
         if (!name) return cwd
@@ -155,7 +155,7 @@ export namespace Project {
       const scope = yield* Scope.Scope
 
       const readCachedProjectId = Effect.fnUntraced(function* (dir: string) {
-        return yield* fs.readFileString(pathSvc.join(dir, "kodu")).pipe(
+        return yield* fs.readFileString(pathSvc.join(dir, "kolbo")).pipe(
           Effect.map((x) => x.trim()),
           Effect.map(ProjectID.make),
           Effect.catch(() => Effect.void),
@@ -222,7 +222,7 @@ export namespace Project {
 
             id = roots[0] ? ProjectID.make(roots[0]) : undefined
             if (id) {
-              yield* fs.writeFileString(pathSvc.join(worktree, ".git", "kodu"), id).pipe(Effect.ignore)
+              yield* fs.writeFileString(pathSvc.join(worktree, ".git", "kolbo"), id).pipe(Effect.ignore)
             }
           }
 
@@ -256,7 +256,7 @@ export namespace Project {
               time: { created: Date.now(), updated: Date.now() },
             }
 
-        if (Flag.KODU_EXPERIMENTAL_ICON_DISCOVERY)
+        if (Flag.KOLBO_EXPERIMENTAL_ICON_DISCOVERY)
           yield* discover(existing).pipe(Effect.ignore, Effect.forkIn(scope))
 
         const result: Info = {

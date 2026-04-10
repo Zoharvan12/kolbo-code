@@ -12,7 +12,7 @@ import { Global } from "@/global"
 
 const log = Log.create({ service: "tui.migrate" })
 
-const TUI_SCHEMA_URL = "https://kodu.ai/tui.json"
+const TUI_SCHEMA_URL = "https://kolbo.ai/tui.json"
 
 const LegacyTheme = TuiInfo.shape.theme.optional()
 const LegacyRecord = z.record(z.string(), z.unknown()).optional()
@@ -32,12 +32,12 @@ interface MigrateInput {
 }
 
 /**
- * Migrates tui-specific keys (theme, keybinds, tui) from kodu.json files
+ * Migrates tui-specific keys (theme, keybinds, tui) from kolbo.json files
  * into dedicated tui.json files. Migration is performed per-directory and
  * skips only locations where a tui.json already exists.
  */
 export async function migrateTuiConfig(input: MigrateInput) {
-  const kodu = await koduFiles(input)
+  const kodu = await kolboFiles(input)
   for (const file of kodu) {
     const source = await Filesystem.readText(file).catch((error) => {
       log.warn("failed to read config for tui migration", { path: file, error })
@@ -134,16 +134,16 @@ async function backupAndStripLegacy(file: string, source: string) {
     })
 }
 
-async function koduFiles(input: { directories: string[]; managed: string }) {
-  const project = Flag.KODU_DISABLE_PROJECT_CONFIG
+async function kolboFiles(input: { directories: string[]; managed: string }) {
+  const project = Flag.KOLBO_DISABLE_PROJECT_CONFIG
     ? []
-    : await ConfigPaths.projectFiles("kodu", Instance.directory, Instance.worktree)
-  const files = [...project, ...ConfigPaths.fileInDirectory(Global.Path.config, "kodu")]
+    : await ConfigPaths.projectFiles("kolbo", Instance.directory, Instance.worktree)
+  const files = [...project, ...ConfigPaths.fileInDirectory(Global.Path.config, "kolbo")]
   for (const dir of unique(input.directories)) {
-    files.push(...ConfigPaths.fileInDirectory(dir, "kodu"))
+    files.push(...ConfigPaths.fileInDirectory(dir, "kolbo"))
   }
   if (Flag.KOLBO_CONFIG) files.push(Flag.KOLBO_CONFIG)
-  files.push(...ConfigPaths.fileInDirectory(input.managed, "kodu"))
+  files.push(...ConfigPaths.fileInDirectory(input.managed, "kolbo"))
 
   const existing = await Promise.all(
     unique(files).map(async (file) => {

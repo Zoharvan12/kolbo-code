@@ -13,11 +13,11 @@ export namespace Observability {
         baseUrl: Flag.OTEL_EXPORTER_OTLP_ENDPOINT,
         loggerMergeWithExisting: false,
         resource: {
-          serviceName: "kodu",
+          serviceName: "kolbo",
           serviceVersion: VERSION,
           attributes: {
             "deployment.environment.name": CHANNEL === "local" ? "local" : CHANNEL,
-            "kodu.client": Flag.KODU_CLIENT,
+            "kolbo.client": Flag.KOLBO_CLIENT,
           },
         },
         headers: Flag.OTEL_EXPORTER_OTLP_HEADERS
