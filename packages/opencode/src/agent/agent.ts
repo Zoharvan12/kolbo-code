@@ -120,6 +120,19 @@ export namespace Agent {
               mode: "primary",
               native: true,
             },
+            auto: {
+              name: "auto",
+              description: "Auto-approve mode. Skips all permission prompts — use with care.",
+              options: {},
+              permission: Permission.merge(
+                defaults,
+                Permission.fromConfig({
+                  "*": "allow",
+                }),
+              ),
+              mode: "primary",
+              native: true,
+            },
             plan: {
               name: "plan",
               description: "Plan mode. Disallows all edit tools.",
