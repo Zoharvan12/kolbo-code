@@ -3,14 +3,22 @@ import { Effect, Match } from "effect"
 import { UI } from "../../ui"
 import { Auth } from "@/auth"
 import * as Prompt from "../../effect/prompt"
-import axios from "axios"
 
 const println = (msg: string) => Effect.sync(() => UI.println(msg))
 
-const KODU_PROVIDER = "kolbo"
+const KOLBO_PROVIDER = "kolbo"
 
 const isValidApiKey = (key: string) => {
   return key.startsWith("kolbo_live_") || key.startsWith("kolbo_test_")
+}
+
+async function postJson(url: string, body: unknown) {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  return r.json() as Promise<any>
 }
 
 const loginEffect = Effect.gen(function* () {
@@ -18,13 +26,13 @@ const loginEffect = Effect.gen(function* () {
 
   yield* Prompt.log.info("Requesting device code...")
 
-  const response = yield* Effect.promise(() =>
-    axios.post("https://api.kolbo.ai/auth/device/code", {
-      client_id: "kodu-cli",
+  const response: any = yield* Effect.promise(() =>
+    postJson("https://api.kolbo.ai/auth/device/code", {
+      client_id: "kolbo-cli",
     }),
   )
 
-  const { user_code, device_code, verification_uri, interval, expires_in } = response.data
+  const { user_code, device_code, verification_uri, interval, expires_in } = response
 
   yield* Prompt.log.info(`Go to: ${verification_uri}`)
   yield* Prompt.log.info(`Enter code: ${UI.Style.TEXT_HIGHLIGHT_BOLD}${user_code}${UI.Style.TEXT_NORMAL}`)
@@ -35,20 +43,16 @@ const loginEffect = Effect.gen(function* () {
   const poll = (wait: number): Effect.Effect<{ access_token: string; refresh_token: string }, Error> =>
     Effect.gen(function* () {
       yield* Effect.sleep(wait)
-      const pollResponse = yield* Effect.promise(() =>
-        axios.post(
-          "https://api.kolbo.ai/auth/device/verify",
-          {
-            client_id: "kodu-cli",
-            device_code,
-          },
-          { timeout: 5000 },
-        ),
+      const pollResponse: any = yield* Effect.promise(() =>
+        postJson("https://api.kolbo.ai/auth/device/verify", {
+          client_id: "kolbo-cli",
+          device_code,
+        }),
       )
-      if (pollResponse.data.error === "authorization_pending") return yield* poll(wait)
-      if (pollResponse.data.error === "slow_down") return yield* poll(wait + 1000)
-      if (pollResponse.data.access_token) return pollResponse.data
-      throw new Error(pollResponse.data.error || "Unknown error")
+      if (pollResponse.error === "authorization_pending") return yield* poll(wait)
+      if (pollResponse.error === "slow_down") return yield* poll(wait + 1000)
+      if (pollResponse.access_token) return pollResponse
+      throw new Error(pollResponse.error || "Unknown error")
     })
 
   const result = yield* poll(interval * 1000).pipe(
@@ -56,7 +60,7 @@ const loginEffect = Effect.gen(function* () {
     Effect.catchTag("TimeoutError", () => Effect.fail(new Error("Authentication timed out"))),
   )
 
-  yield* Auth.set(KODU_PROVIDER, new Auth.Oauth({
+  yield* Auth.set(KOLBO_PROVIDER, new Auth.Oauth({
     type: "oauth",
     access: result.access_token,
     refresh: result.refresh_token,
@@ -76,7 +80,7 @@ const apiKeyEffect = (apiKey: string) =>
       return
     }
 
-    yield* Auth.set(KODU_PROVIDER, new Auth.Api({
+    yield* Auth.set(KOLBO_PROVIDER, new Auth.Api({
       type: "api",
       key: apiKey,
     }))
@@ -85,7 +89,7 @@ const apiKeyEffect = (apiKey: string) =>
   })
 
 const statusEffect = Effect.gen(function* () {
-  const info = yield* Auth.get(KODU_PROVIDER)
+  const info = yield* Auth.get(KOLBO_PROVIDER)
 
   if (!info) {
     yield* println("Not logged in to Kolbo.AI")
@@ -110,13 +114,13 @@ const statusEffect = Effect.gen(function* () {
 const logoutEffect = Effect.gen(function* () {
   yield* Prompt.intro("Kolbo.AI Logout")
 
-  const info = yield* Auth.get(KODU_PROVIDER)
+  const info = yield* Auth.get(KOLBO_PROVIDER)
   if (!info) {
     yield* println("Not logged in to Kolbo.AI")
     return
   }
 
-  yield* Auth.remove(KODU_PROVIDER)
+  yield* Auth.remove(KOLBO_PROVIDER)
   yield* Prompt.outro("Logged out from Kolbo.AI")
 })
 
