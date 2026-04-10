@@ -33,7 +33,6 @@ permissions:
 jobs:
   version:
     runs-on: ubuntu-latest
-    if: endsWith(github.repository, '/kolbo-cli')
     steps:
       - uses: actions/checkout@v3
         with:
@@ -70,7 +69,6 @@ jobs:
   build-cli:
     needs: version
     runs-on: ubuntu-latest
-    if: endsWith(github.repository, '/kolbo-cli')
     steps:
       - uses: actions/checkout@v3
         with:
@@ -114,7 +112,6 @@ jobs:
       - build-cli
       - version
     runs-on: windows-latest
-    if: endsWith(github.repository, '/kolbo-cli')
     env:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
