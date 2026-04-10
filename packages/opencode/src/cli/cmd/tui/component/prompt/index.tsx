@@ -1117,7 +1117,12 @@ export function Prompt(props: PromptProps) {
             <box flexDirection="row" flexShrink={0} paddingTop={1} gap={1} justifyContent="space-between">
               <box flexDirection="row" gap={1}>
                 <text fg={highlight()}>
-                  {store.mode === "shell" ? "Shell" : Locale.titlecase(local.agent.current().name)}{" "}
+                  {store.mode === "shell"
+                    ? tI18n("agent.shell")
+                    : (() => {
+                        const key = ({ build: "build", plan: "plan", "auto-approve": "autoApprove" } as Record<string, string>)[local.agent.current().name]
+                        return key ? tI18n(`agent.${key}.name`) : Locale.titlecase(local.agent.current().name)
+                      })()}{" "}
                 </text>
                 <Show when={store.mode === "normal"}>
                   <box flexDirection="row" gap={1}>
@@ -1173,7 +1178,7 @@ export function Prompt(props: PromptProps) {
         <box width="100%" flexDirection="row" justifyContent="space-between">
           <Show when={status().type !== "idle"} fallback={
             <Show when={store.escPressedAt !== null} fallback={props.hint ?? <text />}>
-              <text fg={theme.warning}>esc <span style={{ fg: theme.textMuted }}>again to clear</span></text>
+              <text fg={theme.warning}>esc <span style={{ fg: theme.textMuted }}>{tI18n("session.escAgainToClear")}</span></text>
             </Show>
           }>
             <box

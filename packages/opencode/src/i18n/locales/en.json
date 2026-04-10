@@ -156,6 +156,7 @@
     "againToInterrupt": "again to interrupt",
     "commands": "commands",
     "agents": "toggle mode",
+    "escAgainToClear": "again to clear",
     "exitShellMode": "exit shell mode",
     "parent": "Parent",
     "prev": "Prev",
@@ -263,6 +264,23 @@
     "goToParentSession": "Go to parent session",
     "nextChildSession": "Next child session",
     "previousChildSession": "Previous child session"
+  },
+  "agent": {
+    "selectTitle": "Select agent",
+    "native": "native",
+    "shell": "Shell",
+    "build": {
+      "name": "Build",
+      "description": "The default agent. Executes tools based on configured permissions."
+    },
+    "plan": {
+      "name": "Plan",
+      "description": "Plan mode. Disallows all edit tools."
+    },
+    "autoApprove": {
+      "name": "Auto-Approve",
+      "description": "Auto-approve mode. Skips all permission prompts — use with care."
+    }
   },
   "dialog": {
     "sessions": "Sessions",
