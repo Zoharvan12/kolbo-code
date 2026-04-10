@@ -168,11 +168,22 @@ function AutoMethod(props: AutoMethodProps) {
   const local = useLocal()
   const toast = useToast()
   const { t } = useI18n()
+  const [copied, setCopied] = createSignal(false)
+
+  // Extract the code from instructions — handles both "XXXX-YYYY" and plain "XXXXXXXX" formats
+  const extractCode = () =>
+    props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ??
+    props.authorization.instructions.match(/[A-Z0-9]{6,10}/)?.[0] ??
+    props.authorization.url
 
   const copyCode = () => {
-    const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
+    const code = extractCode()
     Clipboard.copy(code)
-      .then(() => toast.show({ message: t("toast.copiedToClipboard"), variant: "info" }))
+      .then(() => {
+        setCopied(true)
+        toast.show({ message: t("toast.copiedToClipboard"), variant: "info" })
+        setTimeout(() => setCopied(false), 2000)
+      })
       .catch(toast.error)
   }
 
@@ -211,16 +222,14 @@ function AutoMethod(props: AutoMethodProps) {
         <text fg={theme.textMuted}>{props.authorization.instructions}</text>
         <box
           flexDirection="row"
-          gap={1}
-          backgroundColor={theme.primary}
-          paddingLeft={2}
-          paddingRight={2}
+          backgroundColor={copied() ? theme.success : theme.primary}
+          paddingLeft={1}
+          paddingRight={1}
           onMouseUp={copyCode}
         >
           <text fg={theme.background} attributes={TextAttributes.BOLD}>
-            {props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? ""}
+            {copied() ? `✓ ${t("toast.copiedToClipboard")}` : `${extractCode()}  ← ${t("dialog.copyLabel")}`}
           </text>
-          <text fg={theme.background}> — {t("dialog.copyLabel")}</text>
         </box>
       </box>
       <text fg={theme.textMuted}>{t("dialog.waitingForAuthorization")}</text>
