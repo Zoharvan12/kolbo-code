@@ -119,6 +119,7 @@ export const DEFAULT_THEMES: Record<string, ThemeJson> = {
   vercel,
   zenburn,
   carbonfox,
+  kolbo: opencode,
 }
 
 type State = {
@@ -317,8 +318,8 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
         const mode = pick(kv.get("theme_mode", props.mode))
         draft.mode = lock ?? mode ?? props.mode
         draft.lock = lock
-        const active = config.theme ?? kv.get("theme", "kodu")
-        draft.active = typeof active === "string" ? active : "kodu"
+        const active = config.theme ?? kv.get("theme", "kolbo")
+        draft.active = typeof active === "string" ? active : "kolbo"
         draft.ready = false
       }),
     )
@@ -337,7 +338,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
             syncThemes()
           })
           .catch(() => {
-            setStore("active", "kodu")
+            setStore("active", "kolbo")
           }),
       ]).finally(() => {
         setStore("ready", true)
@@ -356,7 +357,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
             systemTheme = undefined
             syncThemes()
             if (store.active === "system") {
-              setStore("active", "kodu")
+              setStore("active", "kolbo")
             }
             return
           }
@@ -367,7 +368,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
           systemTheme = undefined
           syncThemes()
           if (store.active === "system") {
-            setStore("active", "kodu")
+            setStore("active", "kolbo")
           }
         })
     }
@@ -420,7 +421,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
         if (theme) return resolveTheme(theme, store.mode)
       }
 
-      return resolveTheme(store.themes.kodu, store.mode)
+      return resolveTheme(store.themes.kolbo, store.mode)
     })
 
     createEffect(() => {
@@ -481,7 +482,7 @@ async function getCustomThemes() {
     Global.Path.config,
     ...(await Array.fromAsync(
       Filesystem.up({
-        targets: [".kodu"],
+        targets: [".kolbo"],
         start: process.cwd(),
       }),
     )),
