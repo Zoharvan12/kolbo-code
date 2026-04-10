@@ -176,7 +176,8 @@
     "failedToExport": "无法导出会话",
     "transcriptCopied": "会话记录已复制到剪贴板！",
     "failedToCopyTranscript": "无法复制会话记录",
-    "escAgainToClear": "再次清除"
+    "escAgainToClear": "再次清除",
+    "interrupted": "已中断"
   },
   "commands": {
     "categories": {
@@ -398,7 +399,7 @@
   },
   "agent": {
     "selectTitle": "选择代理",
-    "native": "原生",
+    "native": "本地",
     "shell": "Shell",
     "build": {
       "name": "构建",
@@ -406,11 +407,11 @@
     },
     "plan": {
       "name": "计划",
-      "description": "计划模式。禁用所有编辑工具。"
+      "description": "计划模式。禁止所有编辑工具。"
     },
     "autoApprove": {
       "name": "自动批准",
-      "description": "自动批准模式。跳过所有权限提示 - 请谨慎使用。"
+      "description": "自动批准模式。跳过所有权限提示 — 请谨慎使用。"
     }
   }
 }

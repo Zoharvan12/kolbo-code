@@ -176,7 +176,8 @@
     "failedToExport": "Échec de l'exportation de la session",
     "transcriptCopied": "La transcription de la session a été copiée dans le presse-papiers !",
     "failedToCopyTranscript": "Échec de la copie de la transcription de la session",
-    "escAgainToClear": "De nouveau pour effacer"
+    "escAgainToClear": "De nouveau pour effacer",
+    "interrupted": "interrompue"
   },
   "commands": {
     "categories": {
@@ -397,7 +398,7 @@
     "continue": "Continuer"
   },
   "agent": {
-    "selectTitle": "Sélectionner un agent",
+    "selectTitle": "Sélectionner l'agent",
     "native": "Natif",
     "shell": "Shell",
     "build": {
@@ -406,7 +407,7 @@
     },
     "plan": {
       "name": "Planification",
-      "description": "Mode planification. Interdit tous les outils d'édition."
+      "description": "Mode Planification. Interdit tous les outils d'édition."
     },
     "autoApprove": {
       "name": "Approbation automatique",

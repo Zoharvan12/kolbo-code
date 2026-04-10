@@ -176,7 +176,8 @@
     "failedToExport": "セッションのエクスポートに失敗しました。",
     "transcriptCopied": "セッションのトランスクリプトをクリップボードにコピーしました！",
     "failedToCopyTranscript": "セッションのトランスクリプトのコピーに失敗しました",
-    "escAgainToClear": "もう一度押すとクリアされます"
+    "escAgainToClear": "もう一度押すとクリアされます",
+    "interrupted": "中断されました"
   },
   "commands": {
     "categories": {
@@ -405,12 +406,12 @@
       "description": "デフォルトのエージェントです。設定された権限に基づいてツールを実行します。"
     },
     "plan": {
-      "name": "計画",
-      "description": "計画モードです。すべての編集ツールは許可されません。"
+      "name": "プラン",
+      "description": "プランモードです。すべての編集ツールが禁止されています。"
     },
     "autoApprove": {
       "name": "自動承認",
-      "description": "自動承認モードです。すべての許可プロンプトをスキップします。使用にはご注意ください。"
+      "description": "自動承認モードです。すべての許可プロンプトをスキップします。使用には注意してください。"
     }
   }
 }

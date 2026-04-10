@@ -176,7 +176,8 @@
     "failedToExport": "세션 내보내기에 실패했습니다.",
     "transcriptCopied": "세션 기록이 클립보드에 복사되었습니다!",
     "failedToCopyTranscript": "세션 기록 복사에 실패했습니다.",
-    "escAgainToClear": "다시 누르면 지워집니다."
+    "escAgainToClear": "다시 누르면 지워집니다.",
+    "interrupted": "중단되었습니다."
   },
   "commands": {
     "categories": {
@@ -397,12 +398,12 @@
     "continue": "계속"
   },
   "agent": {
-    "selectTitle": "에이전트를 선택합니다.",
+    "selectTitle": "에이전트 선택",
     "native": "기본",
     "shell": "셸",
     "build": {
       "name": "빌드",
-      "description": "기본 에이전트입니다. 구성된 권한을 기반으로 도구를 실행합니다."
+      "description": "기본 에이전트입니다. 구성된 권한에 따라 도구를 실행합니다."
     },
     "plan": {
       "name": "계획",
@@ -410,7 +411,7 @@
     },
     "autoApprove": {
       "name": "자동 승인",
-      "description": "자동 승인 모드입니다. 모든 권한 프롬프트를 건너뜁니다. 주의해서 사용하십시오."
+      "description": "자동 승인 모드입니다. 모든 권한 확인 메시지를 건너뜁니다. 주의해서 사용하십시오."
     }
   }
 }

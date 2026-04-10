@@ -176,7 +176,8 @@
     "failedToExport": "Session konnte nicht exportiert werden",
     "transcriptCopied": "Session-Protokoll in die Zwischenablage kopiert!",
     "failedToCopyTranscript": "Session-Protokoll konnte nicht kopiert werden",
-    "escAgainToClear": "erneut drücken, um zu löschen"
+    "escAgainToClear": "nochmals, um zu löschen",
+    "interrupted": "unterbrochen"
   },
   "commands": {
     "categories": {
@@ -398,19 +399,19 @@
   },
   "agent": {
     "selectTitle": "Agent auswählen",
-    "native": "Nativ",
+    "native": "nativ",
     "shell": "Shell",
     "build": {
-      "name": "Erstellen",
-      "description": "Der Standard-Agent. Führt Werkzeuge basierend auf konfigurierten Berechtigungen aus."
+      "name": "Bauen",
+      "description": "Der Standard-Agent. Führt Werkzeuge basierend auf den konfigurierten Berechtigungen aus."
     },
     "plan": {
       "name": "Planen",
-      "description": "Planungsmodus. Erlaubt keine Bearbeitungswerkzeuge."
+      "description": "Planmodus. Erlaubt keine Bearbeitungswerkzeuge."
     },
     "autoApprove": {
-      "name": "Automatische Genehmigung",
-      "description": "Modus für automatische Genehmigung. Überspringt alle Berechtigungsaufforderungen – mit Vorsicht verwenden."
+      "name": "Automatisch genehmigen",
+      "description": "Modus für automatische Genehmigung. Überspringt alle Berechtigungsabfragen – mit Vorsicht verwenden."
     }
   }
 }

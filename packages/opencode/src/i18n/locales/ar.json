@@ -176,7 +176,8 @@
     "failedToExport": "فشل تصدير الجلسة",
     "transcriptCopied": "تم نسخ نص الجلسة إلى الحافظة!",
     "failedToCopyTranscript": "فشل نسخ نص الجلسة",
-    "escAgainToClear": "مرة أخرى للمسح"
+    "escAgainToClear": "مرة أخرى للمسح",
+    "interrupted": "تمت المقاطعة"
   },
   "commands": {
     "categories": {
@@ -405,8 +406,8 @@
       "description": "الوكيل الافتراضي. ينفذ الأدوات بناءً على الأذونات المكونة."
     },
     "plan": {
-      "name": "تخطيط",
-      "description": "وضع التخطيط. يمنع جميع أدوات التحرير."
+      "name": "خطة",
+      "description": "وضع الخطة. يمنع جميع أدوات التحرير."
     },
     "autoApprove": {
       "name": "الموافقة التلقائية",

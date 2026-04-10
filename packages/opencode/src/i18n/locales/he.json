@@ -176,7 +176,8 @@
     "failedToExport": "אירעה שגיאה בעת ייצוא הסשן",
     "transcriptCopied": "תמלול הסשן הועתק ללוח!",
     "failedToCopyTranscript": "אירעה שגיאה בעת העתקת תמלול הסשן",
-    "escAgainToClear": "שוב כדי לנקות"
+    "escAgainToClear": "שוב כדי לנקות",
+    "interrupted": "הופסק"
   },
   "commands": {
     "categories": {

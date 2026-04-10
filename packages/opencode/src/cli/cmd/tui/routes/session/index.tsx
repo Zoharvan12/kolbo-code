@@ -86,6 +86,7 @@ import { TuiPluginRuntime } from "../../plugin"
 import { DialogGoUpsell } from "../../component/dialog-go-upsell"
 import { SessionRetry } from "@/session/retry"
 import { DialogProvider as DialogProviderConnect } from "../../component/dialog-provider"
+import { useI18n } from "@/i18n"
 
 addDefaultParsers(parsers.parsers)
 
@@ -1348,6 +1349,7 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
   const local = useLocal()
   const { theme } = useTheme()
   const sync = useSync()
+  const { t } = useI18n()
   const messages = createMemo(() => sync.data.message[props.message.sessionID] ?? [])
   const model = createMemo(() => Model.name(ctx.providers(), props.message.providerID, props.message.modelID))
 
@@ -1418,13 +1420,18 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
               >
                 ▣{" "}
               </span>{" "}
-              <span style={{ fg: theme.text }}>{Locale.titlecase(props.message.mode)}</span>
+              <span style={{ fg: theme.text }}>
+                {(() => {
+                  const key = ({ build: "build", plan: "plan", "auto-approve": "autoApprove" } as Record<string, string>)[props.message.mode]
+                  return key ? t(`agent.${key}.name`) : Locale.titlecase(props.message.mode)
+                })()}
+              </span>
               <span style={{ fg: theme.textMuted }}> · {model()}</span>
               <Show when={duration()}>
                 <span style={{ fg: theme.textMuted }}> · {Locale.duration(duration())}</span>
               </Show>
               <Show when={props.message.error?.name === "MessageAbortedError"}>
-                <span style={{ fg: theme.textMuted }}> · interrupted</span>
+                <span style={{ fg: theme.textMuted }}> · {t("session.interrupted")}</span>
               </Show>
             </text>
           </box>

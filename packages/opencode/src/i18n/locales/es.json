@@ -176,7 +176,8 @@
     "failedToExport": "No se pudo exportar la sesión",
     "transcriptCopied": "¡Transcripción de la sesión copiada al portapapeles!",
     "failedToCopyTranscript": "No se pudo copiar la transcripción de la sesión",
-    "escAgainToClear": "otra vez para borrar"
+    "escAgainToClear": "otra vez para borrar",
+    "interrupted": "interrumpido"
   },
   "commands": {
     "categories": {
@@ -397,7 +398,7 @@
     "continue": "Continuar"
   },
   "agent": {
-    "selectTitle": "Seleccione agente",
+    "selectTitle": "Seleccione un agente",
     "native": "nativo",
     "shell": "Shell",
     "build": {
@@ -410,7 +411,7 @@
     },
     "autoApprove": {
       "name": "Aprobación automática",
-      "description": "Modo de aprobación automática. Omite todas las solicitudes de permisos; úselo con precaución."
+      "description": "Modo de aprobación automática. Omite todos los avisos de permiso; utilícelo con cuidado."
     }
   }
 }
