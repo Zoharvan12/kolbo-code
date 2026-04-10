@@ -14,14 +14,16 @@ import { ShareNext } from "@/share/share-next"
 
 export async function InstanceBootstrap() {
   Log.Default.info("bootstrapping", { directory: Instance.directory })
-  await Plugin.init()
+  // Fire non-blocking inits immediately (they all initialize lazily on first use)
   ShareNext.init()
   Format.init()
-  await LSP.init()
+  LSP.init() // don't await — initializes lazily on first file touch
   File.init()
   FileWatcher.init()
   Vcs.init()
   Snapshot.init()
+  // Plugin.init() must complete before TUI is usable (auth, model loading)
+  await Plugin.init()
 
   Bus.subscribe(Command.Event.Executed, async (payload) => {
     if (payload.properties.name === Command.Default.INIT) {

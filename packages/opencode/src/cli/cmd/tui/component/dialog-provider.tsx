@@ -16,7 +16,7 @@ import { useToast } from "../ui/toast"
 import { isConsoleManagedProvider } from "@tui/util/provider-origin"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
-  kodu: 0,
+  kolbo: 0,
   "opencode-go": 1,
   openai: 2,
   "github-copilot": 3,
@@ -32,7 +32,7 @@ export function createDialogProviderOptions() {
   const { theme } = useTheme()
   const options = createMemo(() => {
     return pipe(
-      sync.data.provider_next.all,
+      sync.data.provider_next.all.filter((x) => x.id === "kolbo"),
       sortBy((x) => PROVIDER_PRIORITY[x.id] ?? 99),
       map((provider) => {
         const consoleManaged = isConsoleManagedProvider(sync.data.console_state.consoleManagedProviders, provider.id)
@@ -42,7 +42,7 @@ export function createDialogProviderOptions() {
           title: provider.name,
           value: provider.id,
           description: {
-            kodu: "(Recommended)",
+            kolbo: "(Recommended)",
             anthropic: "(API key)",
             openai: "(ChatGPT Plus/Pro or API key)",
             "opencode-go": "Low cost subscription for everyone",
@@ -267,25 +267,13 @@ function ApiMethod(props: ApiMethodProps) {
       placeholder="API key"
       description={
         {
-          kodu: (
+          kolbo: (
             <box gap={1}>
               <text fg={theme.textMuted}>
-                Kodu Zen gives you access to all the best coding models at the cheapest prices with a single API
-                key.
+                Access AI models through your Kolbo.AI account.
               </text>
               <text fg={theme.text}>
-                Go to <span style={{ fg: theme.primary }}>https://kodu.ai/zen</span> to get a key
-              </text>
-            </box>
-          ),
-          "opencode-go": (
-            <box gap={1}>
-              <text fg={theme.textMuted}>
-                Kodu Go is a $10 per month subscription that provides reliable access to popular open coding models
-                with generous usage limits.
-              </text>
-              <text fg={theme.text}>
-                Go to <span style={{ fg: theme.primary }}>https://kodu.ai/zen</span> and enable Kodu Go
+                Get an API key at <span style={{ fg: theme.primary }}>https://kolbo.ai</span>
               </text>
             </box>
           ),

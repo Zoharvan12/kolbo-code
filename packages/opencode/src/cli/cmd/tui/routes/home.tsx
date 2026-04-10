@@ -1,5 +1,5 @@
 import { Prompt, type PromptRef } from "@tui/component/prompt"
-import { createEffect, createSignal } from "solid-js"
+import { createEffect, createMemo, createSignal } from "solid-js"
 import { Logo } from "../component/logo"
 import { useSync } from "../context/sync"
 import { Toast } from "../ui/toast"
@@ -8,6 +8,8 @@ import { useRouteData } from "@tui/context/route"
 import { usePromptRef } from "../context/prompt"
 import { useLocal } from "../context/local"
 import { TuiPluginRuntime } from "../plugin"
+import { useDialog } from "../ui/dialog"
+import { DialogProvider } from "../component/dialog-provider"
 
 // TODO: what is the best way to do this?
 let once = false
@@ -23,7 +25,20 @@ export function Home() {
   const [ref, setRef] = createSignal<PromptRef | undefined>()
   const args = useArgs()
   const local = useLocal()
+  const dialog = useDialog()
   let sent = false
+
+  // Auto-show provider onboarding if no provider is connected on startup
+  const connected = createMemo(() => sync.data.provider_next.connected.length > 0)
+  let shownOnboarding = false
+  createEffect(() => {
+    if (!sync.ready) return
+    if (connected()) return
+    if (shownOnboarding) return
+    if (dialog.stack.length > 0) return
+    shownOnboarding = true
+    dialog.replace(() => <DialogProvider />)
+  })
 
   const bind = (r: PromptRef | undefined) => {
     setRef(r)

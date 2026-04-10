@@ -115,7 +115,7 @@ export namespace Provider {
   }
 
   function e2eURL() {
-    const url = Env.get("KODU_E2E_LLM_URL")
+    const url = Env.get("KOLBO_E2E_LLM_URL")
     if (typeof url !== "string" || url === "") return
     return url
   }
@@ -315,7 +315,7 @@ export namespace Provider {
             }
 
             // Region resolution precedence (highest to lowest):
-            // 1. options.region from kodu.json provider config
+            // 1. options.region from kolbo.json provider config
             // 2. defaultRegion from AWS_REGION environment variable
             // 3. Default "us-east-1" (baked into defaultRegion)
             const region = options?.region ?? defaultRegion
@@ -398,8 +398,8 @@ export namespace Provider {
           autoload: false,
           options: {
             headers: {
-              "HTTP-Referer": "https://kodu.ai/",
-              "X-Title": "kodu",
+              "HTTP-Referer": "https://kolbo.ai/",
+              "X-Title": "kolbo",
             },
           },
         }),
@@ -408,8 +408,8 @@ export namespace Provider {
           autoload: false,
           options: {
             headers: {
-              "http-referer": "https://kodu.ai/",
-              "x-title": "kodu",
+              "http-referer": "https://kolbo.ai/",
+              "x-title": "kolbo",
             },
           },
         }),
@@ -507,8 +507,8 @@ export namespace Provider {
           autoload: false,
           options: {
             headers: {
-              "HTTP-Referer": "https://kodu.ai/",
-              "X-Title": "kodu",
+              "HTTP-Referer": "https://kolbo.ai/",
+              "X-Title": "kolbo",
             },
           },
         }),
@@ -525,7 +525,7 @@ export namespace Provider {
         const providerConfig = (yield* dep.config()).provider?.["gitlab"]
 
         const aiGatewayHeaders = {
-          "User-Agent": `kodu/${Installation.VERSION} gitlab-ai-provider/${GITLAB_PROVIDER_VERSION} (${os.platform()} ${os.release()}; ${os.arch()})`,
+          "User-Agent": `kolbo/${Installation.VERSION} gitlab-ai-provider/${GITLAB_PROVIDER_VERSION} (${os.platform()} ${os.release()}; ${os.arch()})`,
           "anthropic-beta": "context-1m-2025-08-07",
           ...(providerConfig?.options?.aiGatewayHeaders || {}),
         }
@@ -679,7 +679,7 @@ export namespace Provider {
           options: {
             apiKey,
             headers: {
-              "User-Agent": `kodu/${Installation.VERSION} cloudflare-workers-ai (${os.platform()} ${os.release()}; ${os.arch()})`,
+              "User-Agent": `kolbo/${Installation.VERSION} cloudflare-workers-ai (${os.platform()} ${os.release()}; ${os.arch()})`,
             },
           },
           async getModel(sdk: any, modelID: string) {
@@ -728,7 +728,7 @@ export namespace Provider {
         if (!apiToken) {
           throw new Error(
             "CLOUDFLARE_API_TOKEN (or CF_AIG_TOKEN) is required for Cloudflare AI Gateway. " +
-              "Set it via environment variable or run `kodu auth cloudflare-ai-gateway`.",
+              "Set it via environment variable or run `kolbo auth cloudflare-ai-gateway`.",
           )
         }
 
@@ -751,7 +751,7 @@ export namespace Provider {
           skipCache: input.options?.skipCache,
           collectLog: input.options?.collectLog,
           headers: {
-            "User-Agent": `kodu/${Installation.VERSION} cloudflare-ai-gateway (${os.platform()} ${os.release()}; ${os.arch()})`,
+            "User-Agent": `kolbo/${Installation.VERSION} cloudflare-ai-gateway (${os.platform()} ${os.release()}; ${os.arch()})`,
           },
         }
 
@@ -777,7 +777,7 @@ export namespace Provider {
           autoload: false,
           options: {
             headers: {
-              "X-Cerebras-3rd-Party-Integration": "kodu",
+              "X-Cerebras-3rd-Party-Integration": "kolbo",
             },
           },
         }),
@@ -786,8 +786,8 @@ export namespace Provider {
           autoload: false,
           options: {
             headers: {
-              "HTTP-Referer": "https://kodu.ai/",
-              "X-Title": "kodu",
+              "HTTP-Referer": "https://kolbo.ai/",
+              "X-Title": "kolbo",
             },
           },
         }),
@@ -805,8 +805,8 @@ export namespace Provider {
         return {
           autoload: ok,
           options: apiKey
-            ? { baseURL: "https://api.kolbo.ai/api/kolbo/v1", apiKey }
-            : { baseURL: "https://api.kolbo.ai/api/kolbo/v1" },
+            ? { baseURL: `${process.env.KOLBO_API_BASE ?? "https://api.kolbo.ai/api"}/kolbo/v1`, apiKey }
+            : { baseURL: `${process.env.KOLBO_API_BASE ?? "https://api.kolbo.ai/api"}/kolbo/v1` },
         }
       }),
     }
@@ -919,7 +919,7 @@ export namespace Provider {
     varsLoaders: Record<string, CustomVarsLoader>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Provider") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Provider") {}
 
   function cost(c: ModelsDev.Model["cost"]): Model["cost"] {
     const result: Model["cost"] = {
@@ -1309,7 +1309,7 @@ export namespace Provider {
                 (providerID === ProviderID.openrouter && modelID === "openai/gpt-5-chat")
               )
                 delete provider.models[modelID]
-              if (model.status === "alpha" && !Flag.KODU_ENABLE_EXPERIMENTAL_MODELS) delete provider.models[modelID]
+              if (model.status === "alpha" && !Flag.KOLBO_ENABLE_EXPERIMENTAL_MODELS) delete provider.models[modelID]
               if (model.status === "deprecated") delete provider.models[modelID]
               if (
                 (configProvider?.blacklist && configProvider.blacklist.includes(modelID)) ||

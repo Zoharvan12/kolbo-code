@@ -63,23 +63,23 @@ export namespace Config {
   function systemManagedConfigDir(): string {
     switch (process.platform) {
       case "darwin":
-        return "/Library/Application Support/kodu"
+        return "/Library/Application Support/kolbo"
       case "win32":
-        return path.join(process.env.ProgramData || "C:\\ProgramData", "kodu")
+        return path.join(process.env.ProgramData || "C:\\ProgramData", "kolbo")
       default:
-        return "/etc/kodu"
+        return "/etc/kolbo"
     }
   }
 
   export function managedConfigDir() {
-    return process.env.KODU_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()
+    return process.env.KOLBO_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()
   }
 
   const managedDir = managedConfigDir()
 
-  const MANAGED_PLIST_DOMAIN = "ai.kodu.managed"
+  const MANAGED_PLIST_DOMAIN = "ai.kolbo.managed"
 
-  // Keys injected by macOS/MDM into the managed plist that are not Kodu config
+  // Keys injected by macOS/MDM into the managed plist that are not Kolbo config
   const PLIST_META = new Set([
     "PayloadDisplayName",
     "PayloadIdentifier",
@@ -90,7 +90,7 @@ export namespace Config {
   ])
 
   /**
-   * Parse raw JSON (from plutil conversion of a managed plist) into Kodu config.
+   * Parse raw JSON (from plutil conversion of a managed plist) into Kolbo config.
    * Strips MDM metadata keys before parsing through the config schema.
    * Pure function — no OS interaction, safe to unit test directly.
    */
@@ -146,6 +146,17 @@ export namespace Config {
 
   export async function installDependencies(dir: string, input?: InstallInput) {
     if (!(await isWritable(dir))) return
+
+    const target = Installation.isLocal() ? "*" : Installation.VERSION
+
+    // Skip npm install if the plugin package is already installed at the right version
+    if (target !== "*") {
+      const installedPkg = await Filesystem.readJson<{ version?: string }>(
+        path.join(dir, "node_modules", "@opencode-ai", "plugin", "package.json"),
+      ).catch(() => undefined)
+      if (installedPkg?.version === target) return
+    }
+
     await using _ = await Flock.acquire(`config-install:${Filesystem.resolve(dir)}`, {
       signal: input?.signal,
       onWait: (tick) =>
@@ -159,7 +170,6 @@ export namespace Config {
     input?.signal?.throwIfAborted()
 
     const pkg = path.join(dir, "package.json")
-    const target = Installation.isLocal() ? "*" : Installation.VERSION
     const json = await Filesystem.readJson<{ dependencies?: Record<string, string> }>(pkg).catch(() => ({
       dependencies: {},
     }))
@@ -222,7 +232,7 @@ export namespace Config {
       })
       if (!md) continue
 
-      const patterns = ["/.kodu/command/", "/.kodu/commands/", "/command/", "/commands/"]
+      const patterns = ["/.kolbo/command/", "/.kolbo/commands/", "/command/", "/commands/"]
       const file = rel(item, patterns) ?? path.basename(item)
       const name = trim(file)
 
@@ -261,7 +271,7 @@ export namespace Config {
       })
       if (!md) continue
 
-      const patterns = ["/.kodu/agent/", "/.kodu/agents/", "/agent/", "/agents/"]
+      const patterns = ["/.kolbo/agent/", "/.kolbo/agents/", "/agent/", "/agents/"]
       const file = rel(item, patterns) ?? path.basename(item)
       const agentName = trim(file)
 
@@ -777,7 +787,7 @@ export namespace Config {
       port: z.number().int().positive().optional().describe("Port to listen on"),
       hostname: z.string().optional().describe("Hostname to listen on"),
       mdns: z.boolean().optional().describe("Enable mDNS service discovery"),
-      mdnsDomain: z.string().optional().describe("Custom domain name for mDNS service (default: kodu.local)"),
+      mdnsDomain: z.string().optional().describe("Custom domain name for mDNS service (default: kolbo.local)"),
       cors: z.array(z.string()).optional().describe("Additional domains to allow for CORS"),
     })
     .strict()
@@ -911,11 +921,11 @@ export namespace Config {
     .object({
       $schema: z.string().optional().describe("JSON schema reference for configuration validation"),
       logLevel: Log.Level.optional().describe("Log level"),
-      server: Server.optional().describe("Server configuration for kodu serve and web commands"),
+      server: Server.optional().describe("Server configuration for kolbo serve and web commands"),
       command: z
         .record(z.string(), Command)
         .optional()
-        .describe("Command configuration, see https://kodu.ai/docs/commands"),
+        .describe("Command configuration, see https://kolbo.ai/docs/commands"),
       skills: Skills.optional().describe("Additional skill folder paths"),
       watcher: z
         .object({
@@ -987,7 +997,7 @@ export namespace Config {
         })
         .catchall(Agent)
         .optional()
-        .describe("Agent configuration, see https://kodu.ai/docs/agents"),
+        .describe("Agent configuration, see https://kolbo.ai/docs/agents"),
       provider: z
         .record(z.string(), Provider)
         .optional()
@@ -1126,10 +1136,10 @@ export namespace Config {
     readonly waitForDependencies: () => Effect.Effect<void>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Config") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Config") {}
 
   function globalConfigFile() {
-    const candidates = ["kodu.jsonc", "kodu.json", "config.json"].map((file) =>
+    const candidates = ["kolbo.jsonc", "kolbo.json", "config.json"].map((file) =>
       path.join(Global.Path.config, file),
     )
     for (const file of candidates) {
@@ -1245,15 +1255,15 @@ export namespace Config {
             delete copy.theme
             delete copy.keybinds
             delete copy.tui
-            log.warn("tui keys in kodu config are deprecated; move them to tui.json", { path: source })
+            log.warn("tui keys in kolbo config are deprecated; move them to tui.json", { path: source })
             return copy
           })()
 
           const parsed = Info.safeParse(normalized)
           if (parsed.success) {
             if (!parsed.data.$schema && isFile) {
-              parsed.data.$schema = "https://kodu.ai/config.json"
-              const updated = original.replace(/^\s*\{/, '{\n  "$schema": "https://kodu.ai/config.json",')
+              parsed.data.$schema = "https://kolbo.ai/config.json"
+              const updated = original.replace(/^\s*\{/, '{\n  "$schema": "https://kolbo.ai/config.json",')
               yield* fs.writeFileString(options.path, updated).pipe(Effect.catch(() => Effect.void))
             }
             const data = parsed.data
@@ -1283,8 +1293,8 @@ export namespace Config {
           let result: Info = pipe(
             {},
             mergeDeep(yield* loadFile(path.join(Global.Path.config, "config.json"))),
-            mergeDeep(yield* loadFile(path.join(Global.Path.config, "kodu.json"))),
-            mergeDeep(yield* loadFile(path.join(Global.Path.config, "kodu.jsonc"))),
+            mergeDeep(yield* loadFile(path.join(Global.Path.config, "kolbo.json"))),
+            mergeDeep(yield* loadFile(path.join(Global.Path.config, "kolbo.jsonc"))),
           )
 
           const legacy = path.join(Global.Path.config, "config")
@@ -1294,7 +1304,7 @@ export namespace Config {
                 .then(async (mod) => {
                   const { provider, model, ...rest } = mod.default
                   if (provider && model) result.model = `${provider}/${model}`
-                  result["$schema"] = "https://kodu.ai/config.json"
+                  result["$schema"] = "https://kolbo.ai/config.json"
                   result = mergeDeep(result, rest)
                   await fsNode.writeFile(path.join(Global.Path.config, "config.json"), JSON.stringify(result, null, 2))
                   await fsNode.unlink(legacy)
@@ -1329,7 +1339,7 @@ export namespace Config {
 
           const scope = (source: string): PluginScope => {
             if (source.startsWith("http://") || source.startsWith("https://")) return "global"
-            if (source === "KODU_CONFIG_CONTENT") return "local"
+            if (source === "KOLBO_CONFIG_CONTENT") return "local"
             if (Instance.containsPath(source)) return "local"
             return "global"
           }
@@ -1354,15 +1364,15 @@ export namespace Config {
             if (value.type === "wellknown") {
               const url = key.replace(/\/+$/, "")
               process.env[value.key] = value.token
-              log.debug("fetching remote config", { url: `${url}/.well-known/kodu` })
-              const response = yield* Effect.promise(() => fetch(`${url}/.well-known/kodu`))
+              log.debug("fetching remote config", { url: `${url}/.well-known/kolbo` })
+              const response = yield* Effect.promise(() => fetch(`${url}/.well-known/kolbo`))
               if (!response.ok) {
                 throw new Error(`failed to fetch remote config from ${url}: ${response.status}`)
               }
               const wellknown = (yield* Effect.promise(() => response.json())) as any
               const remoteConfig = wellknown.config ?? {}
-              if (!remoteConfig.$schema) remoteConfig.$schema = "https://kodu.ai/config.json"
-              const source = `${url}/.well-known/kodu`
+              if (!remoteConfig.$schema) remoteConfig.$schema = "https://kolbo.ai/config.json"
+              const source = `${url}/.well-known/kolbo`
               const next = yield* loadConfig(JSON.stringify(remoteConfig), {
                 dir: path.dirname(source),
                 source,
@@ -1380,9 +1390,9 @@ export namespace Config {
             log.debug("loaded custom config", { path: Flag.KOLBO_CONFIG })
           }
 
-          if (!Flag.KODU_DISABLE_PROJECT_CONFIG) {
+          if (!Flag.KOLBO_DISABLE_PROJECT_CONFIG) {
             for (const file of yield* Effect.promise(() =>
-              ConfigPaths.projectFiles("kodu", ctx.directory, ctx.worktree),
+              ConfigPaths.projectFiles("kolbo", ctx.directory, ctx.worktree),
             )) {
               merge(file, yield* loadFile(file), "local")
             }
@@ -1394,15 +1404,15 @@ export namespace Config {
 
           const directories = yield* Effect.promise(() => ConfigPaths.directories(ctx.directory, ctx.worktree))
 
-          if (Flag.KODU_CONFIG_DIR) {
-            log.debug("loading config from KODU_CONFIG_DIR", { path: Flag.KODU_CONFIG_DIR })
+          if (Flag.KOLBO_CONFIG_DIR) {
+            log.debug("loading config from KOLBO_CONFIG_DIR", { path: Flag.KOLBO_CONFIG_DIR })
           }
 
           const deps: Promise<void>[] = []
 
           for (const dir of unique(directories)) {
-            if (dir.endsWith(".kodu") || dir === Flag.KODU_CONFIG_DIR) {
-              for (const file of ["kodu.json", "kodu.jsonc"]) {
+            if (dir.endsWith(".kolbo") || dir === Flag.KOLBO_CONFIG_DIR) {
+              for (const file of ["kolbo.json", "kolbo.jsonc"]) {
                 const source = path.join(dir, file)
                 log.debug(`loading config from ${source}`)
                 merge(source, yield* loadFile(source))
@@ -1412,29 +1422,34 @@ export namespace Config {
               }
             }
 
-            const dep = iife(async () => {
-              await installDependencies(dir)
-            })
-            void dep.catch((err) => {
-              log.warn("background dependency install failed", { dir, error: err })
-            })
-            deps.push(dep)
-
-            result.command = mergeDeep(result.command ?? {}, yield* Effect.promise(() => loadCommand(dir)))
-            result.agent = mergeDeep(result.agent, yield* Effect.promise(() => loadAgent(dir)))
-            result.agent = mergeDeep(result.agent, yield* Effect.promise(() => loadMode(dir)))
-            const list = yield* Effect.promise(() => loadPlugin(dir))
+            const [commandResult, agentResult, modeResult, list] = yield* Effect.promise(() =>
+              Promise.all([loadCommand(dir), loadAgent(dir), loadMode(dir), loadPlugin(dir)]),
+            )
+            result.command = mergeDeep(result.command ?? {}, commandResult)
+            result.agent = mergeDeep(result.agent, agentResult)
+            result.agent = mergeDeep(result.agent, modeResult)
             track(dir, list)
+
+            // Only install deps if there are actual plugin files — avoids spawning npm on every startup
+            if (list.length > 0) {
+              const dep = iife(async () => {
+                await installDependencies(dir)
+              })
+              void dep.catch((err) => {
+                log.warn("background dependency install failed", { dir, error: err })
+              })
+              deps.push(dep)
+            }
           }
 
-          if (process.env.KODU_CONFIG_CONTENT) {
-            const source = "KODU_CONFIG_CONTENT"
-            const next = yield* loadConfig(process.env.KODU_CONFIG_CONTENT, {
+          if (process.env.KOLBO_CONFIG_CONTENT) {
+            const source = "KOLBO_CONFIG_CONTENT"
+            const next = yield* loadConfig(process.env.KOLBO_CONFIG_CONTENT, {
               dir: ctx.directory,
               source,
             })
             merge(source, next, "local")
-            log.debug("loaded custom config from KODU_CONFIG_CONTENT")
+            log.debug("loaded custom config from KOLBO_CONFIG_CONTENT")
           }
 
           const activeOrg = Option.getOrUndefined(
@@ -1447,8 +1462,8 @@ export namespace Config {
                 { concurrency: 2 },
               )
               if (Option.isSome(tokenOpt)) {
-                process.env["KODU_CONSOLE_TOKEN"] = tokenOpt.value
-                Env.set("KODU_CONSOLE_TOKEN", tokenOpt.value)
+                process.env["KOLBO_CONSOLE_TOKEN"] = tokenOpt.value
+                Env.set("KOLBO_CONSOLE_TOKEN", tokenOpt.value)
               }
 
               activeOrgName = activeOrg.org.name
@@ -1475,7 +1490,7 @@ export namespace Config {
           }
 
           if (existsSync(managedDir)) {
-            for (const file of ["kodu.json", "kodu.jsonc"]) {
+            for (const file of ["kolbo.json", "kolbo.jsonc"]) {
               const source = path.join(managedDir, file)
               merge(source, yield* loadFile(source), "global")
             }
@@ -1493,8 +1508,8 @@ export namespace Config {
             })
           }
 
-          if (Flag.KODU_PERMISSION) {
-            result.permission = mergeDeep(result.permission ?? {}, JSON.parse(Flag.KODU_PERMISSION))
+          if (Flag.KOLBO_PERMISSION) {
+            result.permission = mergeDeep(result.permission ?? {}, JSON.parse(Flag.KOLBO_PERMISSION))
           }
 
           if (result.tools) {
@@ -1516,10 +1531,10 @@ export namespace Config {
             result.share = "auto"
           }
 
-          if (Flag.KODU_DISABLE_AUTOCOMPACT) {
+          if (Flag.KOLBO_DISABLE_AUTOCOMPACT) {
             result.compaction = { ...result.compaction, auto: false }
           }
-          if (Flag.KODU_DISABLE_PRUNE) {
+          if (Flag.KOLBO_DISABLE_PRUNE) {
             result.compaction = { ...result.compaction, prune: false }
           }
 
