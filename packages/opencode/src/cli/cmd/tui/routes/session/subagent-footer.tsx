@@ -8,8 +8,10 @@ import { useCommandDialog } from "@tui/component/dialog-command"
 import { useKeybind } from "../../context/keybind"
 import { Locale } from "@/util/locale"
 import { useTerminalDimensions } from "@opentui/solid"
+import { useI18n } from "@/i18n"
 
 export function SubagentFooter() {
+  const { t } = useI18n()
   const route = useRouteData("session")
   const sync = useSync()
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
@@ -17,9 +19,9 @@ export function SubagentFooter() {
 
   const subagentInfo = createMemo(() => {
     const s = session()
-    if (!s) return { label: "Subagent", index: 0, total: 0 }
+    if (!s) return { label: t("session.subagent"), index: 0, total: 0 }
     const agentMatch = s.title.match(/@(\w+) subagent/)
-    const label = agentMatch ? Locale.titlecase(agentMatch[1]) : "Subagent"
+    const label = agentMatch ? Locale.titlecase(agentMatch[1]) : t("session.subagent")
 
     if (!s.parentID) return { label, index: 0, total: 0 }
 
@@ -101,7 +103,7 @@ export function SubagentFooter() {
               backgroundColor={hover() === "parent" ? theme.backgroundElement : theme.backgroundPanel}
             >
               <text fg={theme.text}>
-                Parent <span style={{ fg: theme.textMuted }}>{keybind.print("session_parent")}</span>
+                {t("session.parent")} <span style={{ fg: theme.textMuted }}>{keybind.print("session_parent")}</span>
               </text>
             </box>
             <box
@@ -111,7 +113,7 @@ export function SubagentFooter() {
               backgroundColor={hover() === "prev" ? theme.backgroundElement : theme.backgroundPanel}
             >
               <text fg={theme.text}>
-                Prev <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle_reverse")}</span>
+                {t("session.prev")} <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle_reverse")}</span>
               </text>
             </box>
             <box
@@ -121,7 +123,7 @@ export function SubagentFooter() {
               backgroundColor={hover() === "next" ? theme.backgroundElement : theme.backgroundPanel}
             >
               <text fg={theme.text}>
-                Next <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle")}</span>
+                {t("session.next")} <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle")}</span>
               </text>
             </box>
           </box>

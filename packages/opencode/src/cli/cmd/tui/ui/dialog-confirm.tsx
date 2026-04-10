@@ -5,6 +5,7 @@ import { createStore } from "solid-js/store"
 import { For } from "solid-js"
 import { useKeyboard } from "@opentui/solid"
 import { Locale } from "@/util/locale"
+import { useI18n } from "@/i18n"
 
 export type DialogConfirmProps = {
   title: string
@@ -19,6 +20,7 @@ export type DialogConfirmResult = boolean | undefined
 export function DialogConfirm(props: DialogConfirmProps) {
   const dialog = useDialog()
   const { theme } = useTheme()
+  const { t } = useI18n()
   const [store, setStore] = createStore({
     active: "confirm" as "confirm" | "cancel",
   })
@@ -41,7 +43,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
           {props.title}
         </text>
         <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
-          esc
+          {t("dialog.esc")}
         </text>
       </box>
       <box paddingBottom={1}>
@@ -61,7 +63,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
               }}
             >
               <text fg={key === store.active ? theme.selectedListItemText : theme.textMuted}>
-                {Locale.titlecase(key === "cancel" ? (props.label ?? key) : key)}
+                {Locale.titlecase(key === "cancel" ? (props.label ?? t("dialog.cancel")) : t("dialog.confirm"))}
               </text>
             </box>
           )}

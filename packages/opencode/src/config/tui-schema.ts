@@ -29,6 +29,10 @@ export const TuiInfo = z
   .object({
     $schema: z.string().optional(),
     theme: z.string().optional(),
+    language: z
+      .enum(["en", "he", "ar", "ru", "zh", "es", "hi", "ja", "de", "ko", "fr", "pt"])
+      .optional()
+      .describe("UI language for the TUI (ISO 639-1 code)"),
     keybinds: KeybindOverride.optional(),
     plugin: Config.PluginSpec.array().optional(),
     plugin_enabled: z.record(z.string(), z.boolean()).optional(),

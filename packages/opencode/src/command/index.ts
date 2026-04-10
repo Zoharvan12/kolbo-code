@@ -85,7 +85,7 @@ export namespace Command {
 
         commands[Default.INIT] = {
           name: Default.INIT,
-          description: "guided AGENTS.md setup",
+          description: "guided KOLBO.md setup",
           source: "command",
           get template() {
             return PROMPT_INITIALIZE.replace("${path}", ctx.worktree)

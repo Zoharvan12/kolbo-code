@@ -177,7 +177,8 @@
     "transcriptCopied": "세션 기록이 클립보드에 복사되었습니다!",
     "failedToCopyTranscript": "세션 기록 복사에 실패했습니다.",
     "escAgainToClear": "다시 누르면 지워집니다.",
-    "interrupted": "중단되었습니다."
+    "interrupted": "중단되었습니다.",
+    "failedToShare": "세션을 공유하지 못했습니다."
   },
   "commands": {
     "categories": {
@@ -188,7 +189,8 @@
       "config": "구성",
       "system": "시스템",
       "provider": "제공자",
-      "workspace": "워크스페이스"
+      "workspace": "워크스페이스",
+      "prompt": "프롬프트"
     },
     "switchSession": "세션 전환",
     "manageWorkspaces": "워크스페이스 관리",
@@ -264,7 +266,16 @@
     "goToChildSession": "자식 세션으로 이동",
     "goToParentSession": "부모 세션으로 이동",
     "nextChildSession": "다음 자식 세션",
-    "previousChildSession": "이전 자식 세션"
+    "previousChildSession": "이전 자식 세션",
+    "clearPrompt": "프롬프트를 지웁니다.",
+    "submitPrompt": "프롬프트를 제출합니다.",
+    "paste": "붙여넣습니다.",
+    "interruptSession": "세션을 중단합니다.",
+    "openEditor": "편집기를 엽니다.",
+    "skills": "스킬",
+    "stashPrompt": "프롬프트를 보관합니다.",
+    "stashPop": "보관된 프롬프트를 꺼냅니다.",
+    "stashList": "보관 목록을 표시합니다."
   },
   "dialog": {
     "sessions": "세션",
@@ -312,7 +323,9 @@
     "connected": "연결됨",
     "disabled": "비활성화됨",
     "disabledInConfiguration": "구성에서 비활성화됨",
-    "needsAuthentication": "인증이 필요합니다 (실행: kolbo mcp auth {{key}})"
+    "needsAuthentication": "인증이 필요합니다 (실행: kolbo mcp auth {{key}})",
+    "kolboDescription": "Kolbo.AI 계정을 통해 AI 모델에 액세스합니다.",
+    "getApiKeyAt": "API 키를 다음 위치에서 얻으십시오."
   },
   "permission": {
     "required": "권한이 필요합니다",
@@ -391,7 +404,9 @@
     "noTextContent": "마지막 어시스턴트 메시지에서 텍스트 콘텐츠가 없습니다.",
     "messageCopied": "메시지가 클립보드에 복사되었습니다!",
     "failedToCopy": "클립보드에 복사하지 못했습니다.",
-    "failedToCopyConsoleSelection": "콘솔 선택 영역을 클립보드에 복사하지 못했습니다: {{error}}"
+    "failedToCopyConsoleSelection": "콘솔 선택 영역을 클립보드에 복사하지 못했습니다: {{error}}",
+    "noProviderForPrompts": "프롬프트를 보내려면 공급자를 연결하십시오.",
+    "sessionCreateFailed": "세션 생성에 실패했습니다. 자세한 내용은 콘솔을 여십시오."
   },
   "exitMessage": {
     "session": "세션",

@@ -177,7 +177,8 @@
     "transcriptCopied": "¡Transcripción de la sesión copiada al portapapeles!",
     "failedToCopyTranscript": "No se pudo copiar la transcripción de la sesión",
     "escAgainToClear": "otra vez para borrar",
-    "interrupted": "interrumpido"
+    "interrupted": "interrumpido",
+    "failedToShare": "No se pudo compartir la sesión"
   },
   "commands": {
     "categories": {
@@ -188,7 +189,8 @@
       "config": "Configuración",
       "system": "Sistema",
       "provider": "Proveedor",
-      "workspace": "Espacio de trabajo"
+      "workspace": "Espacio de trabajo",
+      "prompt": "Solicitud"
     },
     "switchSession": "Cambiar de sesión",
     "manageWorkspaces": "Administrar espacios de trabajo",
@@ -264,7 +266,16 @@
     "goToChildSession": "Ir a la sesión hija",
     "goToParentSession": "Ir a la sesión padre",
     "nextChildSession": "Siguiente sesión hija",
-    "previousChildSession": "Sesión hija anterior"
+    "previousChildSession": "Sesión hija anterior",
+    "clearPrompt": "Borrar solicitud",
+    "submitPrompt": "Enviar solicitud",
+    "paste": "Pegar",
+    "interruptSession": "Interrumpir sesión",
+    "openEditor": "Abrir editor",
+    "skills": "Habilidades",
+    "stashPrompt": "Guardar solicitud",
+    "stashPop": "Recuperar solicitud guardada",
+    "stashList": "Lista de solicitudes guardadas"
   },
   "dialog": {
     "sessions": "Sesiones",
@@ -312,7 +323,9 @@
     "connected": "Conectado",
     "disabled": "Deshabilitado",
     "disabledInConfiguration": "Deshabilitado en la configuración",
-    "needsAuthentication": "Necesita autenticación (ejecute: kolbo mcp auth {{key}})"
+    "needsAuthentication": "Necesita autenticación (ejecute: kolbo mcp auth {{key}})",
+    "kolboDescription": "Acceda a modelos de IA a través de su cuenta Kolbo.AI.",
+    "getApiKeyAt": "Obtenga una clave API en"
   },
   "permission": {
     "required": "Permiso requerido",
@@ -391,7 +404,9 @@
     "noTextContent": "No se encontró contenido de texto en el último mensaje del asistente",
     "messageCopied": "¡Mensaje copiado al portapapeles!",
     "failedToCopy": "No se pudo copiar al portapapeles",
-    "failedToCopyConsoleSelection": "No se pudo copiar la selección de la consola al portapapeles: {{error}}"
+    "failedToCopyConsoleSelection": "No se pudo copiar la selección de la consola al portapapeles: {{error}}",
+    "noProviderForPrompts": "Conecte un proveedor para enviar solicitudes",
+    "sessionCreateFailed": "La creación de la sesión falló. Abra la consola para más detalles."
   },
   "exitMessage": {
     "session": "Sesión",

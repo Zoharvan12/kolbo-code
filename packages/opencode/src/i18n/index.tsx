@@ -61,6 +61,18 @@ const RTL_REGEX = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\
  * Only applied when the string actually contains RTL characters.
  * Skips strings that contain {highlight} markup to avoid breaking the parser.
  */
+/**
+ * Apply toVisual line-by-line — safe for multi-line content like markdown.
+ * Each line is reordered independently so markdown structure across lines is preserved.
+ */
+export function toVisualLines(text: string): string {
+  if (!text || !RTL_REGEX.test(text)) return text
+  return text
+    .split("\n")
+    .map((line) => toVisual(line))
+    .join("\n")
+}
+
 export function toVisual(text: string): string {
   if (!text || !RTL_REGEX.test(text)) return text
   // Skip strings with custom markup like {highlight}...{/highlight} — bidi reordering

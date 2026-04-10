@@ -177,7 +177,8 @@
     "transcriptCopied": "सेशन ट्रांसक्रिप्ट को क्लिपबोर्ड पर कॉपी किया गया!",
     "failedToCopyTranscript": "सेशन ट्रांसक्रिप्ट कॉपी करने में विफल",
     "escAgainToClear": "फिर से साफ़ करने के लिए",
-    "interrupted": "बाधित"
+    "interrupted": "बाधित",
+    "failedToShare": "सेशन साझा करने में विफल"
   },
   "commands": {
     "categories": {
@@ -188,7 +189,8 @@
       "config": "कॉन्फ़िग",
       "system": "सिस्टम",
       "provider": "प्रोवाइडर",
-      "workspace": "कार्यस्थान"
+      "workspace": "कार्यस्थान",
+      "prompt": "प्रॉम्प्ट"
     },
     "switchSession": "सेशन बदलें",
     "manageWorkspaces": "कार्यस्थान प्रबंधित करें",
@@ -264,7 +266,16 @@
     "goToChildSession": "चाइल्ड सेशन पर जाएं",
     "goToParentSession": "पैरेंट सेशन पर जाएं",
     "nextChildSession": "अगला चाइल्ड सेशन",
-    "previousChildSession": "पिछला चाइल्ड सेशन"
+    "previousChildSession": "पिछला चाइल्ड सेशन",
+    "clearPrompt": "प्रॉम्प्ट साफ़ करें",
+    "submitPrompt": "प्रॉम्प्ट सबमिट करें",
+    "paste": "पेस्ट करें",
+    "interruptSession": "सेशन में बाधा डालें",
+    "openEditor": "संपादक खोलें",
+    "skills": "कौशल",
+    "stashPrompt": "प्रॉम्प्ट छिपाएँ",
+    "stashPop": "छिपा हुआ प्रॉम्प्ट निकालें",
+    "stashList": "छिपाए गए प्रॉम्प्ट की सूची"
   },
   "dialog": {
     "sessions": "सत्र",
@@ -312,7 +323,9 @@
     "connected": "कनेक्टेड",
     "disabled": "अक्षम",
     "disabledInConfiguration": "कॉन्फ़िगरेशन में अक्षम",
-    "needsAuthentication": " प्रमाणीकरण की आवश्यकता है (चलाएं: kolbo mcp auth {{key}})"
+    "needsAuthentication": " प्रमाणीकरण की आवश्यकता है (चलाएं: kolbo mcp auth {{key}})",
+    "kolboDescription": "अपने Kolbo.AI खाते के माध्यम से AI मॉडल एक्सेस करें।",
+    "getApiKeyAt": "यहां API कुंजी प्राप्त करें: {{getApiKeyAt}}"
   },
   "permission": {
     "required": "अनुमति आवश्यक है",
@@ -391,7 +404,9 @@
     "noTextContent": "अंतिम सहायक संदेश में कोई टेक्स्ट सामग्री नहीं मिली",
     "messageCopied": "संदेश क्लिपबोर्ड पर कॉपी किया गया!",
     "failedToCopy": "क्लिपबोर्ड पर कॉपी करने में विफल",
-    "failedToCopyConsoleSelection": "कंसोल चयन को क्लिपबोर्ड पर कॉपी करने में विफल: {{error}}"
+    "failedToCopyConsoleSelection": "कंसोल चयन को क्लिपबोर्ड पर कॉपी करने में विफल: {{error}}",
+    "noProviderForPrompts": "प्रॉम्प्ट भेजने के लिए एक प्रदाता कनेक्ट करें",
+    "sessionCreateFailed": "सेशन बनाने में विफल। अधिक जानकारी के लिए कंसोल खोलें।"
   },
   "exitMessage": {
     "session": "सेशन",

@@ -36,19 +36,22 @@ await Promise.all([
 
 const CACHE_VERSION = "21"
 
-const version = await Filesystem.readText(path.join(Global.Path.cache, "version")).catch(() => "0")
-
-if (version !== CACHE_VERSION) {
-  try {
-    const contents = await fs.readdir(Global.Path.cache)
-    await Promise.all(
-      contents.map((item) =>
-        fs.rm(path.join(Global.Path.cache, item), {
-          recursive: true,
-          force: true,
-        }),
-      ),
-    )
-  } catch (e) {}
-  await Filesystem.write(path.join(Global.Path.cache, "version"), CACHE_VERSION)
-}
+// Fire-and-forget — stale cache doesn't affect current invocation
+void Filesystem.readText(path.join(Global.Path.cache, "version"))
+  .catch(() => "0")
+  .then(async (version) => {
+    if (version !== CACHE_VERSION) {
+      try {
+        const contents = await fs.readdir(Global.Path.cache)
+        await Promise.all(
+          contents.map((item) =>
+            fs.rm(path.join(Global.Path.cache, item), {
+              recursive: true,
+              force: true,
+            }),
+          ),
+        )
+      } catch (e) {}
+      await Filesystem.write(path.join(Global.Path.cache, "version"), CACHE_VERSION)
+    }
+  })

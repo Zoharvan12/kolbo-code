@@ -8,6 +8,7 @@ import { createDialogProviderOptions, DialogProvider } from "./dialog-provider"
 import { DialogVariant } from "./dialog-variant"
 import { useKeybind } from "../context/keybind"
 import * as fuzzysort from "fuzzysort"
+import { useI18n } from "@/i18n"
 
 export function useConnected() {
   const sync = useSync()
@@ -21,6 +22,7 @@ export function DialogModel(props: { providerID?: string }) {
   const sync = useSync()
   const dialog = useDialog()
   const keybind = useKeybind()
+  const { t } = useI18n()
   const [query, setQuery] = createSignal("")
 
   const connected = useConnected()
@@ -49,7 +51,7 @@ export function DialogModel(props: { providerID?: string }) {
             description: provider.name,
             category,
             disabled: provider.id === "kolbo" && model.id.includes("-nano"),
-            footer: model.cost?.input === 0 && provider.id === "kolbo" ? "Free" : undefined,
+            footer: model.cost?.input === 0 && provider.id === "kolbo" ? t("dialog.free") : undefined,
             onSelect: () => {
               onSelect(provider.id, model.id)
             },
@@ -58,12 +60,12 @@ export function DialogModel(props: { providerID?: string }) {
       })
     }
 
-    const favoriteOptions = toOptions(favorites, "Favorites")
+    const favoriteOptions = toOptions(favorites, t("dialog.favorites"))
     const recentOptions = toOptions(
       recents.filter(
         (item) => !favorites.some((fav) => fav.providerID === item.providerID && fav.modelID === item.modelID),
       ),
-      "Recent",
+      t("dialog.recent"),
     )
 
     const providerOptions = pipe(
@@ -82,11 +84,11 @@ export function DialogModel(props: { providerID?: string }) {
             value: { providerID: provider.id, modelID: model },
             title: info.name ?? model,
             description: favorites.some((item) => item.providerID === provider.id && item.modelID === model)
-              ? "(Favorite)"
+              ? t("dialog.favorite")
               : undefined,
             category: connected() ? provider.name : undefined,
             disabled: provider.id === "kolbo" && model.includes("-nano"),
-            footer: info.cost?.input === 0 && provider.id === "kolbo" ? "Free" : undefined,
+            footer: info.cost?.input === 0 && provider.id === "kolbo" ? t("dialog.free") : undefined,
             onSelect() {
               onSelect(provider.id, model)
             },
@@ -112,7 +114,7 @@ export function DialogModel(props: { providerID?: string }) {
           providers(),
           map((option) => ({
             ...option,
-            category: "Popular providers",
+            category: t("dialog.popularProviders"),
           })),
           take(6),
         )
@@ -134,7 +136,7 @@ export function DialogModel(props: { providerID?: string }) {
 
   const title = createMemo(() => {
     const value = provider()
-    if (!value) return "Select model"
+    if (!value) return t("dialog.selectModel")
     return value.name
   })
 
@@ -159,14 +161,14 @@ export function DialogModel(props: { providerID?: string }) {
       keybind={[
         {
           keybind: keybind.all.model_provider_list?.[0],
-          title: connected() ? "Connect provider" : "View all providers",
+          title: connected() ? t("dialog.connectProviderKeybind") : t("dialog.viewAllProviders"),
           onTrigger() {
             dialog.replace(() => <DialogProvider />)
           },
         },
         {
           keybind: keybind.all.model_favorite_toggle?.[0],
-          title: "Favorite",
+          title: t("dialog.favoriteKeybind"),
           disabled: !connected(),
           onTrigger: (option) => {
             local.model.toggleFavorite(option.value as { providerID: string; modelID: string })

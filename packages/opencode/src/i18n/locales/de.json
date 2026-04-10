@@ -177,7 +177,8 @@
     "transcriptCopied": "Session-Protokoll in die Zwischenablage kopiert!",
     "failedToCopyTranscript": "Session-Protokoll konnte nicht kopiert werden",
     "escAgainToClear": "nochmals, um zu löschen",
-    "interrupted": "unterbrochen"
+    "interrupted": "unterbrochen",
+    "failedToShare": "Das Teilen der Sitzung ist fehlgeschlagen"
   },
   "commands": {
     "categories": {
@@ -188,7 +189,8 @@
       "config": "Konfiguration",
       "system": "System",
       "provider": "Anbieter",
-      "workspace": "Arbeitsbereich"
+      "workspace": "Arbeitsbereich",
+      "prompt": "Eingabeaufforderung"
     },
     "switchSession": "Session wechseln",
     "manageWorkspaces": "Arbeitsbereiche verwalten",
@@ -264,7 +266,16 @@
     "goToChildSession": "Zur Kind-Sitzung gehen",
     "goToParentSession": "Zur Eltern-Sitzung gehen",
     "nextChildSession": "Nächste Kind-Sitzung",
-    "previousChildSession": "Vorherige Kind-Sitzung"
+    "previousChildSession": "Vorherige Kind-Sitzung",
+    "clearPrompt": "Eingabeaufforderung löschen",
+    "submitPrompt": "Eingabeaufforderung senden",
+    "paste": "Einfügen",
+    "interruptSession": "Sitzung unterbrechen",
+    "openEditor": "Editor öffnen",
+    "skills": "Fähigkeiten",
+    "stashPrompt": "Eingabeaufforderung zwischenspeichern",
+    "stashPop": "Zwischengespeicherte Eingabeaufforderung abrufen",
+    "stashList": "Zwischengespeicherte Eingabeaufforderungen auflisten"
   },
   "dialog": {
     "sessions": "Sitzungen",
@@ -312,7 +323,9 @@
     "connected": "Verbunden",
     "disabled": "Deaktiviert",
     "disabledInConfiguration": "In der Konfiguration deaktiviert",
-    "needsAuthentication": "Authentifizierung erforderlich (ausführen: kolbo mcp auth {{key}})"
+    "needsAuthentication": "Authentifizierung erforderlich (ausführen: kolbo mcp auth {{key}})",
+    "kolboDescription": "Greifen Sie über Ihr Kolbo.AI-Konto auf KI-Modelle zu.",
+    "getApiKeyAt": "Holen Sie sich einen API-Schlüssel unter"
   },
   "permission": {
     "required": "Berechtigung erforderlich",
@@ -391,7 +404,9 @@
     "noTextContent": "Kein Textinhalt in der letzten Assistentennachricht gefunden",
     "messageCopied": "Nachricht in die Zwischenablage kopiert!",
     "failedToCopy": "Das Kopieren in die Zwischenablage ist fehlgeschlagen",
-    "failedToCopyConsoleSelection": "Das Kopieren der Konsolenauswahl in die Zwischenablage ist fehlgeschlagen: {{error}}"
+    "failedToCopyConsoleSelection": "Das Kopieren der Konsolenauswahl in die Zwischenablage ist fehlgeschlagen: {{error}}",
+    "noProviderForPrompts": "Verbinden Sie einen Anbieter, um Eingabeaufforderungen zu senden",
+    "sessionCreateFailed": "Das Erstellen einer Sitzung ist fehlgeschlagen. Öffnen Sie die Konsole für weitere Details."
   },
   "exitMessage": {
     "session": "Sitzung",

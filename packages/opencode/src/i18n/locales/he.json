@@ -177,7 +177,8 @@
     "transcriptCopied": "תמלול הסשן הועתק ללוח!",
     "failedToCopyTranscript": "אירעה שגיאה בעת העתקת תמלול הסשן",
     "escAgainToClear": "שוב כדי לנקות",
-    "interrupted": "הופסק"
+    "interrupted": "הופסק",
+    "failedToShare": "שיתוף הסשן נכשל"
   },
   "commands": {
     "categories": {
@@ -188,7 +189,8 @@
       "config": "הגדרות",
       "system": "מערכת",
       "provider": "ספק",
-      "workspace": "סביבת עבודה"
+      "workspace": "סביבת עבודה",
+      "prompt": "בקשה"
     },
     "switchSession": "החלפת סשן",
     "manageWorkspaces": "ניהול סביבות עבודה",
@@ -264,7 +266,16 @@
     "goToChildSession": "מעבר לפעילות צאצא",
     "goToParentSession": "מעבר לפעילות אב",
     "nextChildSession": "פעילות צאצא הבאה",
-    "previousChildSession": "פעילות צאצא קודמת"
+    "previousChildSession": "פעילות צאצא קודמת",
+    "clearPrompt": "נקה בקשה",
+    "submitPrompt": "שלח בקשה",
+    "paste": "הדבק",
+    "interruptSession": "הפסק סשן",
+    "openEditor": "פתח עורך",
+    "skills": "מיומנויות",
+    "stashPrompt": "שמור בקשה בצד",
+    "stashPop": "שלוף בקשה שמורה",
+    "stashList": "רשימת בקשות שמורות"
   },
   "dialog": {
     "sessions": "פעילויות",
@@ -312,7 +323,9 @@
     "connected": "מחובר",
     "disabled": "מושבת",
     "disabledInConfiguration": "מושבת בתצורה",
-    "needsAuthentication": "דרוש אימות (הרצת: kolbo mcp auth {{key}})"
+    "needsAuthentication": "דרוש אימות (הרצת: kolbo mcp auth {{key}})",
+    "kolboDescription": "קבל גישה למודלים של AI דרך חשבון Kolbo.AI שלך.",
+    "getApiKeyAt": "קבל מפתח API בכתובת"
   },
   "permission": {
     "required": "נדרשת הרשאה",
@@ -391,7 +404,9 @@
     "noTextContent": "לא נמצא תוכן טקסט בהודעת העוזר האחרונה",
     "messageCopied": "ההודעה הועתקה ללוח!",
     "failedToCopy": "ההעתקה ללוח הגזירים נכשלה",
-    "failedToCopyConsoleSelection": "ההעתקה של בחירת המסוף ללוח הגזירים נכשלה: {{error}}"
+    "failedToCopyConsoleSelection": "ההעתקה של בחירת המסוף ללוח הגזירים נכשלה: {{error}}",
+    "noProviderForPrompts": "חבר ספק כדי לשלוח בקשות",
+    "sessionCreateFailed": "יצירת הסשן נכשלה. פתח את המסוף לפרטים נוספים."
   },
   "exitMessage": {
     "session": "מקטע עבודה",

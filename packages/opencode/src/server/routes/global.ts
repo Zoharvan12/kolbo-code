@@ -12,6 +12,7 @@ import { Log } from "../../util/log"
 import { lazy } from "../../util/lazy"
 import { Config } from "../../config/config"
 import { errors } from "../error"
+import { Auth } from "../../auth"
 
 const log = Log.create({ service: "server" })
 
@@ -307,6 +308,56 @@ export const GlobalRoutes = lazy(() =>
           return c.json(result)
         }
         return c.json(result, 500)
+      },
+    )
+    .get(
+      "/kolbo-balance",
+      describeRoute({
+        summary: "Get Kolbo credit balance",
+        description: "Fetch the authenticated user's Kolbo credit balance from kolbo-api.",
+        operationId: "global.kolbo-balance",
+        responses: {
+          200: {
+            description: "Credit balance",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    available: z.number(),
+                    reserved: z.number(),
+                    total: z.number(),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(401, 502),
+        },
+      }),
+      async (c) => {
+        const auth = await Auth.get("kolbo")
+        const apiKey =
+          auth?.type === "api"
+            ? auth.key
+            : auth?.type === "oauth"
+              ? auth.access
+              : undefined
+
+        if (!apiKey) {
+          return c.json({ available: 0, reserved: 0, total: 0 })
+        }
+
+        const base = process.env.KOLBO_API_BASE ?? "https://api.kolbo.ai/api"
+        try {
+          const res = await fetch(`${base}/kolbo/v1/balance`, {
+            headers: { "X-API-Key": apiKey },
+          })
+          if (!res.ok) return c.json({ available: 0, reserved: 0, total: 0 })
+          const data = (await res.json()) as { available: number; reserved: number; total: number }
+          return c.json(data)
+        } catch {
+          return c.json({ available: 0, reserved: 0, total: 0 })
+        }
       },
     ),
 )

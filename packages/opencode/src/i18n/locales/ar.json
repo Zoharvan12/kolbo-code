@@ -177,7 +177,8 @@
     "transcriptCopied": "تم نسخ نص الجلسة إلى الحافظة!",
     "failedToCopyTranscript": "فشل نسخ نص الجلسة",
     "escAgainToClear": "مرة أخرى للمسح",
-    "interrupted": "تمت المقاطعة"
+    "interrupted": "تمت المقاطعة",
+    "failedToShare": "فشل مشاركة الجلسة"
   },
   "commands": {
     "categories": {
@@ -188,7 +189,8 @@
       "config": "الإعدادات",
       "system": "النظام",
       "provider": "المزود",
-      "workspace": "مساحة العمل"
+      "workspace": "مساحة العمل",
+      "prompt": "المطالبة"
     },
     "switchSession": "تبديل الجلسة",
     "manageWorkspaces": "إدارة مساحات العمل",
@@ -264,7 +266,16 @@
     "goToChildSession": "الذهاب إلى الجلسة الفرعية",
     "goToParentSession": "الذهاب إلى الجلسة الأصلية",
     "nextChildSession": "الجلسة الفرعية التالية",
-    "previousChildSession": "الجلسة الفرعية السابقة"
+    "previousChildSession": "الجلسة الفرعية السابقة",
+    "clearPrompt": "مسح المطالبة",
+    "submitPrompt": "إرسال المطالبة",
+    "paste": "لصق",
+    "interruptSession": "مقاطعة الجلسة",
+    "openEditor": "فتح المحرر",
+    "skills": "المهارات",
+    "stashPrompt": "تخبئة المطالبة",
+    "stashPop": "إخراج المطالبة المخفية",
+    "stashList": "قائمة المطالبات المخفية"
   },
   "dialog": {
     "sessions": "الجلسات",
@@ -312,7 +323,9 @@
     "connected": "متصل",
     "disabled": "معطل",
     "disabledInConfiguration": "معطل في الإعدادات",
-    "needsAuthentication": "يتطلب مصادقة (تشغيل: kolbo mcp auth {{key}})"
+    "needsAuthentication": "يتطلب مصادقة (تشغيل: kolbo mcp auth {{key}})",
+    "kolboDescription": "الوصول إلى نماذج الذكاء الاصطناعي من خلال حسابك في Kolbo.AI.",
+    "getApiKeyAt": "احصل على مفتاح API في"
   },
   "permission": {
     "required": "إذن مطلوب",
@@ -391,7 +404,9 @@
     "noTextContent": "لم يتم العثور على محتوى نصي في آخر رسالة للمساعد",
     "messageCopied": "تم نسخ الرسالة إلى الحافظة!",
     "failedToCopy": "فشل النسخ إلى الحافظة",
-    "failedToCopyConsoleSelection": "فشل نسخ تحديد وحدة التحكم إلى الحافظة: {{error}}"
+    "failedToCopyConsoleSelection": "فشل نسخ تحديد وحدة التحكم إلى الحافظة: {{error}}",
+    "noProviderForPrompts": "قم بتوصيل مزود لإرسال المطالبات",
+    "sessionCreateFailed": "فشل إنشاء جلسة. افتح وحدة التحكم لمزيد من التفاصيل."
   },
   "exitMessage": {
     "session": "الجلسة",

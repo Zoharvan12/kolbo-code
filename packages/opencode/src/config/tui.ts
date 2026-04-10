@@ -139,6 +139,20 @@ export namespace TuiConfig {
     return state().then((x) => x.config)
   }
 
+  /** Persist a partial config update to the global tui.json (creates it if needed). */
+  export async function update(patch: Partial<Info>): Promise<void> {
+    const { default: fsSync, promises: fsAsync } = await import("fs")
+    const { default: pathModule } = await import("path")
+    const globalTuiPath = pathModule.join(Global.Path.config, "tui.json")
+    let existing: Record<string, unknown> = {}
+    try {
+      const text = await fsAsync.readFile(globalTuiPath, "utf8")
+      existing = JSON.parse(text)
+    } catch {}
+    const merged = { ...existing, ...patch }
+    await fsAsync.writeFile(globalTuiPath, JSON.stringify(merged, null, 2), "utf8")
+  }
+
   export async function waitForDependencies() {
     const deps = await state().then((x) => x.deps)
     await Promise.all(deps)

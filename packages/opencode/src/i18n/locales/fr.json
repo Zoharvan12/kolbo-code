@@ -177,7 +177,8 @@
     "transcriptCopied": "La transcription de la session a été copiée dans le presse-papiers !",
     "failedToCopyTranscript": "Échec de la copie de la transcription de la session",
     "escAgainToClear": "De nouveau pour effacer",
-    "interrupted": "interrompue"
+    "interrupted": "interrompue",
+    "failedToShare": "Le partage de la session a échoué"
   },
   "commands": {
     "categories": {
@@ -188,7 +189,8 @@
       "config": "Configuration",
       "system": "Système",
       "provider": "Fournisseur",
-      "workspace": "Espace de travail"
+      "workspace": "Espace de travail",
+      "prompt": "Invite de commande"
     },
     "switchSession": "Changer de session",
     "manageWorkspaces": "Gérer les espaces de travail",
@@ -264,7 +266,16 @@
     "goToChildSession": "Aller à la session enfant",
     "goToParentSession": "Aller à la session parent",
     "nextChildSession": "Session enfant suivante",
-    "previousChildSession": "Session enfant précédente"
+    "previousChildSession": "Session enfant précédente",
+    "clearPrompt": "Effacer l'invite de commande",
+    "submitPrompt": "Soumettre l'invite de commande",
+    "paste": "Coller",
+    "interruptSession": "Interrompre la session",
+    "openEditor": "Ouvrir l'éditeur",
+    "skills": "Compétences",
+    "stashPrompt": "Mettre l'invite de commande en réserve",
+    "stashPop": "Récupérer l'invite de commande de la réserve",
+    "stashList": "Liste des invites de commande en réserve"
   },
   "dialog": {
     "sessions": "Sessions",
@@ -312,7 +323,9 @@
     "connected": "Connecté",
     "disabled": "Désactivé",
     "disabledInConfiguration": "Désactivé dans la configuration",
-    "needsAuthentication": "Authentification requise (exécuter : kolbo mcp auth {{key}})"
+    "needsAuthentication": "Authentification requise (exécuter : kolbo mcp auth {{key}})",
+    "kolboDescription": "Accédez aux modèles d'IA via votre compte Kolbo.AI.",
+    "getApiKeyAt": "Obtenez une clé API sur"
   },
   "permission": {
     "required": "Autorisation requise",
@@ -391,7 +404,9 @@
     "noTextContent": "Aucun contenu de texte trouvé dans le dernier message de l'assistant",
     "messageCopied": "Message copié dans le presse-papiers !",
     "failedToCopy": "Impossible de copier dans le presse-papiers",
-    "failedToCopyConsoleSelection": "Impossible de copier la sélection de la console dans le presse-papiers : {{error}}"
+    "failedToCopyConsoleSelection": "Impossible de copier la sélection de la console dans le presse-papiers : {{error}}",
+    "noProviderForPrompts": "Connectez un fournisseur pour envoyer des invites de commande",
+    "sessionCreateFailed": "La création d'une session a échoué. Veuillez consulter la console pour plus de détails."
   },
   "exitMessage": {
     "session": "Session",

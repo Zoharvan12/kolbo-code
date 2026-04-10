@@ -177,7 +177,8 @@
     "transcriptCopied": "Транскрипт сессии скопирован в буфер обмена!",
     "failedToCopyTranscript": "Не удалось скопировать транскрипт сессии",
     "escAgainToClear": "ещё раз, чтобы очистить",
-    "interrupted": "прервано"
+    "interrupted": "прервано",
+    "failedToShare": "Не удалось поделиться сессией"
   },
   "commands": {
     "categories": {
@@ -188,7 +189,8 @@
       "config": "Конфигурация",
       "system": "Система",
       "provider": "Провайдер",
-      "workspace": "Рабочее пространство"
+      "workspace": "Рабочее пространство",
+      "prompt": "Запрос"
     },
     "switchSession": "Переключить сессию",
     "manageWorkspaces": "Управление рабочими пространствами",
@@ -264,7 +266,16 @@
     "goToChildSession": "Перейти к дочерней сессии",
     "goToParentSession": "Перейти к родительской сессии",
     "nextChildSession": "Следующая дочерняя сессия",
-    "previousChildSession": "Предыдущая дочерняя сессия"
+    "previousChildSession": "Предыдущая дочерняя сессия",
+    "clearPrompt": "Очистить запрос",
+    "submitPrompt": "Отправить запрос",
+    "paste": "Вставить",
+    "interruptSession": "Прервать сессию",
+    "openEditor": "Открыть редактор",
+    "skills": "Навыки",
+    "stashPrompt": "Сохранить запрос",
+    "stashPop": "Извлечь сохраненный запрос",
+    "stashList": "Список сохраненных запросов"
   },
   "dialog": {
     "sessions": "Сессии",
@@ -312,7 +323,9 @@
     "connected": "Подключено",
     "disabled": "Отключено",
     "disabledInConfiguration": "Отключено в конфигурации",
-    "needsAuthentication": "Требуется аутентификация (запустите: kolbo mcp auth {{key}})"
+    "needsAuthentication": "Требуется аутентификация (запустите: kolbo mcp auth {{key}})",
+    "kolboDescription": "Получите доступ к моделям ИИ через свою учетную запись Kolbo.AI.",
+    "getApiKeyAt": "Получите API-ключ на сайте"
   },
   "permission": {
     "required": "Требуется разрешение",
@@ -391,7 +404,9 @@
     "noTextContent": "Текстовое содержимое не найдено в последнем сообщении ассистента",
     "messageCopied": "Сообщение скопировано в буфер обмена!",
     "failedToCopy": "Не удалось скопировать в буфер обмена",
-    "failedToCopyConsoleSelection": "Не удалось скопировать выделенный фрагмент консоли в буфер обмена: {{error}}"
+    "failedToCopyConsoleSelection": "Не удалось скопировать выделенный фрагмент консоли в буфер обмена: {{error}}",
+    "noProviderForPrompts": "Подключите провайдера, чтобы отправлять запросы",
+    "sessionCreateFailed": "Не удалось создать сессию. Для получения более подробной информации откройте консоль."
   },
   "exitMessage": {
     "session": "Сессия",

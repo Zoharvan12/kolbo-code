@@ -49,6 +49,7 @@ import type {
   GlobalDisposeResponses,
   GlobalEventResponses,
   GlobalHealthResponses,
+  GlobalKolboBalanceResponses,
   GlobalSyncEventSubscribeResponses,
   GlobalUpgradeErrors,
   GlobalUpgradeResponses,
@@ -345,6 +346,18 @@ export class Global extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+
+  /**
+   * Get Kolbo credit balance
+   *
+   * Fetch the authenticated user's Kolbo credit balance.
+   */
+  public kolboBalance<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<GlobalKolboBalanceResponses, unknown, ThrowOnError>({
+      url: "/global/kolbo-balance",
+      ...options,
     })
   }
 

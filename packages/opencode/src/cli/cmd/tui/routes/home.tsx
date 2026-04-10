@@ -10,15 +10,17 @@ import { useLocal } from "../context/local"
 import { TuiPluginRuntime } from "../plugin"
 import { useDialog } from "../ui/dialog"
 import { DialogProvider } from "../component/dialog-provider"
+import { useI18n } from "@/i18n"
 
 // TODO: what is the best way to do this?
 let once = false
-const placeholder = {
-  normal: ["Fix a TODO in the codebase", "What is the tech stack of this project?", "Fix broken tests"],
-  shell: ["ls -la", "git status", "pwd"],
-}
 
 export function Home() {
+  const { t } = useI18n()
+  const placeholder = createMemo(() => ({
+    normal: [t("home.placeholder.fixTodo"), t("home.placeholder.techStack"), t("home.placeholder.fixTests")],
+    shell: [t("home.shellPlaceholder.ls"), t("home.shellPlaceholder.gitStatus"), t("home.shellPlaceholder.pwd")],
+  }))
   const sync = useSync()
   const route = useRouteData("home")
   const promptRef = usePromptRef()
@@ -83,7 +85,7 @@ export function Home() {
               ref={bind}
               workspaceID={route.workspaceID}
               right={<TuiPluginRuntime.Slot name="home_prompt_right" workspace_id={route.workspaceID} />}
-              placeholders={placeholder}
+              placeholders={placeholder()}
             />
           </TuiPluginRuntime.Slot>
         </box>

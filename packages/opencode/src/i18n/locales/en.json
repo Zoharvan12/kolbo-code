@@ -167,6 +167,7 @@
     "notFound": "Session not found: {{id}}",
     "deleted": "The current session was deleted",
     "failedToFork": "Failed to fork session",
+    "failedToShare": "Failed to share session",
     "noProviderForSummarize": "Connect a provider to summarize this session",
     "shareUrlCopied": "Share URL copied to clipboard!",
     "failedToCopyUrl": "Failed to copy URL to clipboard",
@@ -188,8 +189,18 @@
       "config": "Config",
       "system": "System",
       "provider": "Provider",
-      "workspace": "Workspace"
+      "workspace": "Workspace",
+      "prompt": "Prompt"
     },
+    "clearPrompt": "Clear prompt",
+    "submitPrompt": "Submit prompt",
+    "paste": "Paste",
+    "interruptSession": "Interrupt session",
+    "openEditor": "Open editor",
+    "skills": "Skills",
+    "stashPrompt": "Stash prompt",
+    "stashPop": "Stash pop",
+    "stashList": "Stash list",
     "switchSession": "Switch session",
     "manageWorkspaces": "Manage workspaces",
     "newSession": "New session",
@@ -325,6 +336,8 @@
     "apiKey": "(API key)",
     "chatGptPlusOrApiKey": "(ChatGPT Plus/Pro or API key)",
     "lowCostSubscription": "Low cost subscription for everyone",
+    "kolboDescription": "Access AI models through your Kolbo.AI account.",
+    "getApiKeyAt": "Get an API key at",
     "needsAuth": "Needs auth",
     "connected": "Connected",
     "disabled": "Disabled",
@@ -408,7 +421,9 @@
     "noTextContent": "No text content found in last assistant message",
     "messageCopied": "Message copied to clipboard!",
     "failedToCopy": "Failed to copy to clipboard",
-    "failedToCopyConsoleSelection": "Failed to copy console selection to clipboard: {{error}}"
+    "failedToCopyConsoleSelection": "Failed to copy console selection to clipboard: {{error}}",
+    "noProviderForPrompts": "Connect a provider to send prompts",
+    "sessionCreateFailed": "Creating a session failed. Open console for more details."
   },
   "exitMessage": {
     "session": "Session",

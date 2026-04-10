@@ -1,5 +1,6 @@
 import { createMemo, createSignal, onMount, Show } from "solid-js"
 import { useSync } from "@tui/context/sync"
+import { useLocal } from "@tui/context/local"
 import { map, pipe, sortBy } from "remeda"
 import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
@@ -10,11 +11,13 @@ import { useTheme } from "../context/theme"
 import { TextAttributes } from "@opentui/core"
 import type { ProviderAuthAuthorization, ProviderAuthMethod } from "@opencode-ai/sdk/v2"
 import { DialogModel } from "./dialog-model"
+import { DialogLanguage } from "./dialog-language"
 import { useKeyboard } from "@opentui/solid"
 import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "../ui/toast"
 import { isConsoleManagedProvider } from "@tui/util/provider-origin"
 import open from "open"
+import { useI18n } from "@/i18n"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   kolbo: 0,
@@ -31,6 +34,7 @@ export function createDialogProviderOptions() {
   const sdk = useSDK()
   const toast = useToast()
   const { theme } = useTheme()
+  const { t } = useI18n()
   const options = createMemo(() => {
     return pipe(
       sync.data.provider_next.all.filter((x) => x.id === "kolbo"),
@@ -43,13 +47,13 @@ export function createDialogProviderOptions() {
           title: provider.name,
           value: provider.id,
           description: {
-            kolbo: "(Recommended)",
-            anthropic: "(API key)",
-            openai: "(ChatGPT Plus/Pro or API key)",
-            "opencode-go": "Low cost subscription for everyone",
+            kolbo: t("provider.recommended"),
+            anthropic: t("provider.apiKey"),
+            openai: t("provider.chatGptPlusOrApiKey"),
+            "opencode-go": t("provider.lowCostSubscription"),
           }[provider.id],
           footer: consoleManaged ? sync.data.console_state.activeOrgName : undefined,
-          category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",
+          category: provider.id in PROVIDER_PRIORITY ? t("dialog.popular") : t("dialog.other"),
           gutter: connected ? <text fg={theme.success}>✓</text> : undefined,
           async onSelect() {
             if (consoleManaged) return
@@ -66,7 +70,7 @@ export function createDialogProviderOptions() {
                 dialog.replace(
                   () => (
                     <DialogSelect
-                      title="Select auth method"
+                      title={t("dialog.selectAuthMethod")}
                       options={methods.map((x, index) => ({
                         title: x.label,
                         value: index,
@@ -146,7 +150,8 @@ export function createDialogProviderOptions() {
 
 export function DialogProvider() {
   const options = createDialogProviderOptions()
-  return <DialogSelect title="Connect a provider" options={options()} />
+  const { t } = useI18n()
+  return <DialogSelect title={t("dialog.connectProvider")} options={options()} />
 }
 
 interface AutoMethodProps {
@@ -160,13 +165,15 @@ function AutoMethod(props: AutoMethodProps) {
   const sdk = useSDK()
   const dialog = useDialog()
   const sync = useSync()
+  const local = useLocal()
   const toast = useToast()
+  const { t } = useI18n()
 
   useKeyboard((evt) => {
     if (evt.name === "c" && !evt.ctrl && !evt.meta) {
       const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
       Clipboard.copy(code)
-        .then(() => toast.show({ message: "Copied to clipboard", variant: "info" }))
+        .then(() => toast.show({ message: t("toast.copiedToClipboard"), variant: "info" }))
         .catch(toast.error)
     }
   })
@@ -183,6 +190,11 @@ function AutoMethod(props: AutoMethodProps) {
     }
     await sdk.client.instance.dispose()
     await sync.bootstrap()
+    if (props.providerID === "kolbo") {
+      local.model.set({ providerID: "kolbo", modelID: "kolbo-default" }, { recent: true })
+      dialog.replace(() => <DialogLanguage onSelect={() => dialog.clear()} />)
+      return
+    }
     dialog.replace(() => <DialogModel providerID={props.providerID} />)
   })
 
@@ -198,11 +210,29 @@ function AutoMethod(props: AutoMethodProps) {
       </box>
       <box gap={1}>
         <Link href={props.authorization.url} fg={theme.primary} />
-        <text fg={theme.textMuted}>{props.authorization.instructions}</text>
+        <text
+          fg={theme.textMuted}
+          onMouseUp={() => {
+            const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
+            Clipboard.copy(code)
+              .then(() => toast.show({ message: t("toast.copiedToClipboard"), variant: "info" }))
+              .catch(toast.error)
+          }}
+        >
+          {props.authorization.instructions}
+        </text>
       </box>
-      <text fg={theme.textMuted}>Waiting for authorization...</text>
-      <text fg={theme.text}>
-        c <span style={{ fg: theme.textMuted }}>copy</span>
+      <text fg={theme.textMuted}>{t("dialog.waitingForAuthorization")}</text>
+      <text
+        fg={theme.text}
+        onMouseUp={() => {
+          const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
+          Clipboard.copy(code)
+            .then(() => toast.show({ message: t("toast.copiedToClipboard"), variant: "info" }))
+            .catch(toast.error)
+        }}
+      >
+        c <span style={{ fg: theme.textMuted }}>{t("dialog.copyLabel")}</span>
       </text>
     </box>
   )
@@ -219,12 +249,13 @@ function CodeMethod(props: CodeMethodProps) {
   const sdk = useSDK()
   const sync = useSync()
   const dialog = useDialog()
+  const { t } = useI18n()
   const [error, setError] = createSignal(false)
 
   return (
     <DialogPrompt
       title={props.title}
-      placeholder="Authorization code"
+      placeholder={t("dialog.authorizationCode")}
       onConfirm={async (value) => {
         const { error } = await sdk.client.provider.oauth.callback({
           providerID: props.providerID,
@@ -244,7 +275,7 @@ function CodeMethod(props: CodeMethodProps) {
           <text fg={theme.textMuted}>{props.authorization.instructions}</text>
           <Link href={props.authorization.url} fg={theme.primary} />
           <Show when={error()}>
-            <text fg={theme.error}>Invalid code</text>
+            <text fg={theme.error}>{t("dialog.invalidCode")}</text>
           </Show>
         </box>
       )}
@@ -262,20 +293,21 @@ function ApiMethod(props: ApiMethodProps) {
   const sdk = useSDK()
   const sync = useSync()
   const { theme } = useTheme()
+  const { t } = useI18n()
 
   return (
     <DialogPrompt
       title={props.title}
-      placeholder="API key"
+      placeholder={t("dialog.apiKey")}
       description={
         {
           kolbo: (
             <box gap={1}>
               <text fg={theme.textMuted}>
-                Access AI models through your Kolbo.AI account.
+                {t("provider.kolboDescription")}
               </text>
               <text fg={theme.text}>
-                Get an API key at <span style={{ fg: theme.primary }}>https://kolbo.ai</span>
+                {t("provider.getApiKeyAt")} <span style={{ fg: theme.primary }}>https://kolbo.ai</span>
               </text>
             </box>
           ),

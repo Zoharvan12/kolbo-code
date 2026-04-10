@@ -31,6 +31,7 @@ import { DialogModel, useConnected } from "@tui/component/dialog-model"
 import { DialogMcp } from "@tui/component/dialog-mcp"
 import { DialogStatus } from "@tui/component/dialog-status"
 import { DialogThemeList } from "@tui/component/dialog-theme-list"
+import { DialogLanguage } from "@tui/component/dialog-language"
 import { DialogHelp } from "./ui/dialog-help"
 import { CommandProvider, useCommandDialog } from "@tui/component/dialog-command"
 import { DialogAgent } from "@tui/component/dialog-agent"
@@ -60,6 +61,7 @@ import { TuiConfigProvider, useTuiConfig } from "./context/tui-config"
 import { TuiConfig } from "@/config/tui"
 import { createTuiApi, TuiPluginRuntime, type RouteMap } from "./plugin"
 import { FormatError, FormatUnknownError } from "@/cli/error"
+import { I18nProvider, initI18n, useI18n, type SupportedLang } from "@/i18n"
 
 async function getTerminalBackgroundColor(): Promise<"dark" | "light"> {
   // can't set raw mode if not a TTY
@@ -196,6 +198,8 @@ export function tui(input: {
 
     const renderer = await createCliRenderer(rendererConfig(input.config))
 
+    await initI18n((input.config.language as SupportedLang) ?? "en")
+
     await render(() => {
       return (
         <ErrorBoundary
@@ -209,6 +213,7 @@ export function tui(input: {
                 <ToastProvider>
                   <RouteProvider>
                     <TuiConfigProvider config={input.config}>
+                      <I18nProvider lang={(input.config.language as SupportedLang) ?? "en"}>
                       <SDKProvider
                         url={input.url}
                         directory={input.directory}
@@ -238,6 +243,7 @@ export function tui(input: {
                           </ThemeProvider>
                         </SyncProvider>
                       </SDKProvider>
+                      </I18nProvider>
                     </TuiConfigProvider>
                   </RouteProvider>
                 </ToastProvider>
@@ -263,6 +269,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
   const sdk = useSDK()
   const toast = useToast()
   const themeState = useTheme()
+  const { t: tc } = useI18n()
   const { theme, mode, setMode, locked, lock, unlock } = themeState
   const sync = useSync()
   const exit = useExit()
@@ -338,7 +345,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     if (!text || text.length === 0) return
 
     await Clipboard.copy(text)
-      .then(() => toast.show({ message: "Copied to clipboard", variant: "info" }))
+      .then(() => toast.show({ message: tc("toast.copiedToClipboard"), variant: "info" }))
       .catch(toast.error)
 
     renderer.clearSelection()
@@ -380,7 +387,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
         if (!providerID || !modelID)
           return toast.show({
             variant: "warning",
-            message: `Invalid model format: ${args.model}`,
+            message: tc("toast.invalidModelFormat", { model: args.model }),
             duration: 3000,
           })
         local.model.set({ providerID, modelID }, { recent: true })
@@ -409,7 +416,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
           if (result.data?.id) {
             route.navigate({ type: "session", sessionID: result.data.id })
           } else {
-            toast.show({ message: "Failed to fork session", variant: "error" })
+            toast.show({ message: tc("session.failedToFork"), variant: "error" })
           }
         })
       } else {
@@ -429,7 +436,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       if (result.data?.id) {
         route.navigate({ type: "session", sessionID: result.data.id })
       } else {
-        toast.show({ message: "Failed to fork session", variant: "error" })
+        toast.show({ message: tc("session.failedToFork"), variant: "error" })
       }
     })
   })
@@ -448,10 +455,10 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
   const connected = useConnected()
   command.register(() => [
     {
-      title: "Switch session",
+      title: tc("commands.switchSession"),
       value: "session.list",
       keybind: "session_list",
-      category: "Session",
+      category: tc("commands.categories.session"),
       suggested: sync.data.session.length > 0,
       slash: {
         name: "sessions",
@@ -464,9 +471,9 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     ...(Flag.KOLBO_EXPERIMENTAL_WORKSPACES
       ? [
           {
-            title: "Manage workspaces",
+            title: tc("commands.manageWorkspaces"),
             value: "workspace.list",
-            category: "Workspace",
+            category: tc("commands.categories.workspace"),
             suggested: true,
             slash: {
               name: "workspaces",
@@ -478,11 +485,11 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
         ]
       : []),
     {
-      title: "New session",
+      title: tc("commands.newSession"),
       suggested: route.data.type === "session",
       value: "session.new",
       keybind: "session_new",
-      category: "Session",
+      category: tc("commands.categories.session"),
       slash: {
         name: "new",
         aliases: ["clear"],
@@ -502,11 +509,11 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
-      title: "Switch model",
+      title: tc("commands.switchModel"),
       value: "model.list",
       keybind: "model_list",
       suggested: true,
-      category: "Agent",
+      category: tc("commands.categories.agent"),
       slash: {
         name: "models",
       },
@@ -515,50 +522,50 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
-      title: "Model cycle",
+      title: tc("commands.modelCycle"),
       value: "model.cycle_recent",
       keybind: "model_cycle_recent",
-      category: "Agent",
+      category: tc("commands.categories.agent"),
       hidden: true,
       onSelect: () => {
         local.model.cycle(1)
       },
     },
     {
-      title: "Model cycle reverse",
+      title: tc("commands.modelCycleReverse"),
       value: "model.cycle_recent_reverse",
       keybind: "model_cycle_recent_reverse",
-      category: "Agent",
+      category: tc("commands.categories.agent"),
       hidden: true,
       onSelect: () => {
         local.model.cycle(-1)
       },
     },
     {
-      title: "Favorite cycle",
+      title: tc("commands.favoriteCycle"),
       value: "model.cycle_favorite",
       keybind: "model_cycle_favorite",
-      category: "Agent",
+      category: tc("commands.categories.agent"),
       hidden: true,
       onSelect: () => {
         local.model.cycleFavorite(1)
       },
     },
     {
-      title: "Favorite cycle reverse",
+      title: tc("commands.favoriteCycleReverse"),
       value: "model.cycle_favorite_reverse",
       keybind: "model_cycle_favorite_reverse",
-      category: "Agent",
+      category: tc("commands.categories.agent"),
       hidden: true,
       onSelect: () => {
         local.model.cycleFavorite(-1)
       },
     },
     {
-      title: "Switch agent",
+      title: tc("commands.switchAgent"),
       value: "agent.list",
       keybind: "agent_list",
-      category: "Agent",
+      category: tc("commands.categories.agent"),
       slash: {
         name: "agents",
       },
@@ -567,9 +574,9 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
-      title: "Toggle MCPs",
+      title: tc("commands.toggleMcps"),
       value: "mcp.list",
-      category: "Agent",
+      category: tc("commands.categories.agent"),
       slash: {
         name: "mcps",
       },
@@ -578,29 +585,29 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
-      title: "Agent cycle",
+      title: tc("commands.agentCycle"),
       value: "agent.cycle",
       keybind: "agent_cycle",
-      category: "Agent",
+      category: tc("commands.categories.agent"),
       hidden: true,
       onSelect: () => {
         local.agent.move(1)
       },
     },
     {
-      title: "Variant cycle",
+      title: tc("commands.variantCycle"),
       value: "variant.cycle",
       keybind: "variant_cycle",
-      category: "Agent",
+      category: tc("commands.categories.agent"),
       onSelect: () => {
         local.model.variant.cycle()
       },
     },
     {
-      title: "Switch model variant",
+      title: tc("commands.switchModelVariant"),
       value: "variant.list",
       keybind: "variant_list",
-      category: "Agent",
+      category: tc("commands.categories.agent"),
       hidden: local.model.variant.list().length === 0,
       slash: {
         name: "variants",
@@ -610,17 +617,17 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
-      title: "Agent cycle reverse",
+      title: tc("commands.agentCycleReverse"),
       value: "agent.cycle.reverse",
       keybind: "agent_cycle_reverse",
-      category: "Agent",
+      category: tc("commands.categories.agent"),
       hidden: true,
       onSelect: () => {
         local.agent.move(-1)
       },
     },
     {
-      title: "Connect provider",
+      title: tc("commands.connectProvider"),
       value: "provider.connect",
       suggested: !connected(),
       slash: {
@@ -629,12 +636,12 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       onSelect: () => {
         dialog.replace(() => <DialogProviderList />)
       },
-      category: "Provider",
+      category: tc("commands.categories.provider"),
     },
     ...(sync.data.console_state.switchableOrgCount > 1
       ? [
           {
-            title: "Switch org",
+            title: tc("commands.switchOrg"),
             value: "console.org.switch",
             suggested: Boolean(sync.data.console_state.activeOrgName),
             slash: {
@@ -644,12 +651,12 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
             onSelect: () => {
               dialog.replace(() => <DialogConsoleOrg />)
             },
-            category: "Provider",
+            category: tc("commands.categories.provider"),
           },
         ]
       : []),
     {
-      title: "View status",
+      title: tc("commands.viewStatus"),
       keybind: "status_view",
       value: "kolbo.status",
       slash: {
@@ -658,10 +665,10 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       onSelect: () => {
         dialog.replace(() => <DialogStatus />)
       },
-      category: "System",
+      category: tc("commands.categories.system"),
     },
     {
-      title: "Switch theme",
+      title: tc("commands.switchTheme"),
       value: "theme.switch",
       keybind: "theme_list",
       slash: {
@@ -670,29 +677,41 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       onSelect: () => {
         dialog.replace(() => <DialogThemeList />)
       },
-      category: "System",
+      category: tc("commands.categories.system"),
     },
     {
-      title: "Toggle theme mode",
+      title: tc("commands.switchLanguage"),
+      value: "language.switch",
+      slash: {
+        name: "language",
+        aliases: ["lang"],
+      },
+      onSelect: () => {
+        dialog.replace(() => <DialogLanguage />)
+      },
+      category: tc("commands.categories.system"),
+    },
+    {
+      title: tc("commands.toggleThemeMode"),
       value: "theme.switch_mode",
       onSelect: (dialog) => {
         setMode(mode() === "dark" ? "light" : "dark")
         dialog.clear()
       },
-      category: "System",
+      category: tc("commands.categories.system"),
     },
     {
-      title: locked() ? "Unlock theme mode" : "Lock theme mode",
+      title: locked() ? tc("commands.unlockThemeMode") : tc("commands.lockThemeMode"),
       value: "theme.mode.lock",
       onSelect: (dialog) => {
         if (locked()) unlock()
         else lock()
         dialog.clear()
       },
-      category: "System",
+      category: tc("commands.categories.system"),
     },
     {
-      title: "Help",
+      title: tc("commands.help"),
       value: "help.show",
       slash: {
         name: "help",
@@ -700,30 +719,30 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       onSelect: () => {
         dialog.replace(() => <DialogHelp />)
       },
-      category: "System",
+      category: tc("commands.categories.system"),
     },
     {
-      title: "Open docs",
+      title: tc("commands.openDocs"),
       value: "docs.open",
       onSelect: () => {
         open("https://kolbo.ai/docs").catch(() => {})
         dialog.clear()
       },
-      category: "System",
+      category: tc("commands.categories.system"),
     },
     {
-      title: "Exit the app",
+      title: tc("commands.exitApp"),
       value: "app.exit",
       slash: {
         name: "exit",
         aliases: ["quit", "q"],
       },
       onSelect: () => exit(),
-      category: "System",
+      category: tc("commands.categories.system"),
     },
     {
-      title: "Toggle debug panel",
-      category: "System",
+      title: tc("commands.toggleDebugPanel"),
+      category: tc("commands.categories.system"),
       value: "app.debug",
       onSelect: (dialog) => {
         renderer.toggleDebugOverlay()
@@ -731,8 +750,8 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
-      title: "Toggle console",
-      category: "System",
+      title: tc("commands.toggleConsole"),
+      category: tc("commands.categories.system"),
       value: "app.console",
       onSelect: (dialog) => {
         renderer.console.toggle()
@@ -740,24 +759,24 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
-      title: "Write heap snapshot",
-      category: "System",
+      title: tc("commands.writeHeapSnapshot"),
+      category: tc("commands.categories.system"),
       value: "app.heap_snapshot",
       onSelect: async (dialog) => {
         const files = await props.onSnapshot?.()
         toast.show({
           variant: "info",
-          message: `Heap snapshot written to ${files?.join(", ")}`,
+          message: tc("update.heapSnapshotWritten", { files: files?.join(", ") ?? "" }),
           duration: 5000,
         })
         dialog.clear()
       },
     },
     {
-      title: "Suspend terminal",
+      title: tc("commands.suspendTerminal"),
       value: "terminal.suspend",
       keybind: "terminal_suspend",
-      category: "System",
+      category: tc("commands.categories.system"),
       hidden: true,
       enabled: tuiConfig.keybinds?.terminal_suspend !== "none",
       onSelect: () => {
@@ -771,10 +790,10 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
-      title: terminalTitleEnabled() ? "Disable terminal title" : "Enable terminal title",
+      title: terminalTitleEnabled() ? tc("commands.disableTerminalTitle") : tc("commands.enableTerminalTitle"),
       value: "terminal.title.toggle",
       keybind: "terminal_title_toggle",
-      category: "System",
+      category: tc("commands.categories.system"),
       onSelect: (dialog) => {
         setTerminalTitleEnabled((prev) => {
           const next = !prev
@@ -786,18 +805,18 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
     },
     {
-      title: kv.get("animations_enabled", true) ? "Disable animations" : "Enable animations",
+      title: kv.get("animations_enabled", true) ? tc("commands.disableAnimations") : tc("commands.enableAnimations"),
       value: "app.toggle.animations",
-      category: "System",
+      category: tc("commands.categories.system"),
       onSelect: (dialog) => {
         kv.set("animations_enabled", !kv.get("animations_enabled", true))
         dialog.clear()
       },
     },
     {
-      title: kv.get("diff_wrap_mode", "word") === "word" ? "Disable diff wrapping" : "Enable diff wrapping",
+      title: kv.get("diff_wrap_mode", "word") === "word" ? tc("commands.disableDiffWrapping") : tc("commands.enableDiffWrapping"),
       value: "app.toggle.diffwrap",
-      category: "System",
+      category: tc("commands.categories.system"),
       onSelect: (dialog) => {
         const current = kv.get("diff_wrap_mode", "word")
         kv.set("diff_wrap_mode", current === "word" ? "none" : "word")
@@ -831,7 +850,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       route.navigate({ type: "home" })
       toast.show({
         variant: "info",
-        message: "The current session was deleted",
+        message: tc("session.deleted"),
       })
     }
   })
@@ -856,8 +875,8 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
 
     const choice = await DialogConfirm.show(
       dialog,
-      `Update Available`,
-      `A new release v${version} is available. Would you like to update now?`,
+      tc("update.available"),
+      tc("update.prompt", { version }),
       "skip",
     )
 
@@ -870,7 +889,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
 
     toast.show({
       variant: "info",
-      message: `Updating to v${version}...`,
+      message: tc("update.updating", { version }),
       duration: 30000,
     })
 
@@ -879,8 +898,8 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     if (result.error || !result.data?.success) {
       toast.show({
         variant: "error",
-        title: "Update Failed",
-        message: "Update failed",
+        title: tc("update.failed"),
+        message: tc("update.failedMessage"),
         duration: 10000,
       })
       return
@@ -888,8 +907,8 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
 
     await DialogAlert.show(
       dialog,
-      "Update Complete",
-      `Successfully updated to Kolbo v${result.data.version}. Please restart the application.`,
+      tc("update.complete"),
+      tc("update.completeMessage", { version: result.data.version }),
     )
 
     exit()

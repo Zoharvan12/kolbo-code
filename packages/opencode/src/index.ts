@@ -35,6 +35,7 @@ import { JsonMigration } from "./storage/json-migration"
 import { Database } from "./storage/db"
 import { errorMessage } from "./util/error"
 import { PluginCommand } from "./cli/cmd/plug"
+import { ensureKolboMcpWired } from "./cli/cmd/providers"
 import { Heap } from "./cli/heap"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 
@@ -145,6 +146,9 @@ const cli = yargs(args)
       }
       process.stderr.write("Database migration complete." + EOL)
     }
+
+    // Silently wire Kolbo MCP + skill — fire and forget, non-critical
+    void ensureKolboMcpWired()
   })
   .usage("")
   .completion("completion", "generate shell completion script")

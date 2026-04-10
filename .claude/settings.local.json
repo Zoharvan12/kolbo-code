@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp \"C:/Users/Zohar/.claude/.agents/skills/remotion-best-practices/SKILL.md\" \"G:/Projects/Kolbo.AI/github/kodu/packages/opencode/skills/remotion-best-practices/SKILL.md\")",
+      "Bash(cp \"C:/Users/Zohar/.claude/.agents/skills/remotion-best-practices/rules/\"*.md \"G:/Projects/Kolbo.AI/github/kodu/packages/opencode/skills/remotion-best-practices/rules/\")"
+    ]
+  }
+}

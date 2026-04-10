@@ -177,7 +177,8 @@
     "transcriptCopied": "会话记录已复制到剪贴板！",
     "failedToCopyTranscript": "无法复制会话记录",
     "escAgainToClear": "再次清除",
-    "interrupted": "已中断"
+    "interrupted": "已中断",
+    "failedToShare": "共享会话失败"
   },
   "commands": {
     "categories": {
@@ -188,7 +189,8 @@
       "config": "配置",
       "system": "系统",
       "provider": "提供者",
-      "workspace": "工作区"
+      "workspace": "工作区",
+      "prompt": "提示词"
     },
     "switchSession": "切换会话",
     "manageWorkspaces": "管理工作区",
@@ -264,7 +266,16 @@
     "goToChildSession": "转到子会话",
     "goToParentSession": "转到父会话",
     "nextChildSession": "下一个子会话",
-    "previousChildSession": "上一个子会话"
+    "previousChildSession": "上一个子会话",
+    "clearPrompt": "清除提示词",
+    "submitPrompt": "提交提示词",
+    "paste": "粘贴",
+    "interruptSession": "中断会话",
+    "openEditor": "打开编辑器",
+    "skills": "技能",
+    "stashPrompt": "暂存提示词",
+    "stashPop": "弹出暂存",
+    "stashList": "暂存列表"
   },
   "dialog": {
     "sessions": "会话",
@@ -312,7 +323,9 @@
     "connected": "已连接",
     "disabled": "已禁用",
     "disabledInConfiguration": "在配置中已禁用",
-    "needsAuthentication": "需要身份验证 (运行: kolbo mcp auth {{key}})"
+    "needsAuthentication": "需要身份验证 (运行: kolbo mcp auth {{key}})",
+    "kolboDescription": "通过您的 Kolbo.AI 帐户访问 AI 模型。",
+    "getApiKeyAt": "在以下位置获取 API 密钥"
   },
   "permission": {
     "required": "需要权限",
@@ -391,7 +404,9 @@
     "noTextContent": "在最后一条助手消息中未找到文本内容",
     "messageCopied": "消息已复制到剪贴板！",
     "failedToCopy": "复制到剪贴板失败",
-    "failedToCopyConsoleSelection": "无法复制控制台选定内容到剪贴板：{{error}}"
+    "failedToCopyConsoleSelection": "无法复制控制台选定内容到剪贴板：{{error}}",
+    "noProviderForPrompts": "连接一个提供商以发送提示词",
+    "sessionCreateFailed": "创建会话失败。打开控制台查看更多详细信息。"
   },
   "exitMessage": {
     "session": "会话",

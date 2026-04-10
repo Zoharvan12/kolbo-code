@@ -2066,6 +2066,16 @@ export type FormatterStatus = {
   enabled: boolean
 }
 
+export type GlobalKolboBalanceResponses = {
+  200: {
+    available: number
+    reserved: number
+    total: number
+  }
+}
+
+export type GlobalKolboBalanceResponse = GlobalKolboBalanceResponses[keyof GlobalKolboBalanceResponses]
+
 export type GlobalHealthData = {
   body?: never
   path?: never

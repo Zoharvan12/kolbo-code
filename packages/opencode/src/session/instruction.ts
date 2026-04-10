@@ -17,6 +17,7 @@ import type { MessageID } from "./schema"
 const log = Log.create({ service: "instruction" })
 
 const FILES = [
+  "KOLBO.md",
   "AGENTS.md",
   ...(Flag.KOLBO_DISABLE_CLAUDE_CODE_PROMPT ? [] : ["CLAUDE.md"]),
   "CONTEXT.md", // deprecated
@@ -25,8 +26,10 @@ const FILES = [
 function globalFiles() {
   const files = []
   if (Flag.KOLBO_CONFIG_DIR) {
+    files.push(path.join(Flag.KOLBO_CONFIG_DIR, "KOLBO.md"))
     files.push(path.join(Flag.KOLBO_CONFIG_DIR, "AGENTS.md"))
   }
+  files.push(path.join(Global.Path.config, "KOLBO.md"))
   files.push(path.join(Global.Path.config, "AGENTS.md"))
   if (!Flag.KOLBO_DISABLE_CLAUDE_CODE_PROMPT) {
     files.push(path.join(os.homedir(), ".claude", "CLAUDE.md"))

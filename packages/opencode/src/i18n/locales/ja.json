@@ -177,7 +177,8 @@
     "transcriptCopied": "セッションのトランスクリプトをクリップボードにコピーしました！",
     "failedToCopyTranscript": "セッションのトランスクリプトのコピーに失敗しました",
     "escAgainToClear": "もう一度押すとクリアされます",
-    "interrupted": "中断されました"
+    "interrupted": "中断されました",
+    "failedToShare": "セッションの共有に失敗しました。"
   },
   "commands": {
     "categories": {
@@ -188,7 +189,8 @@
       "config": "設定",
       "system": "システム",
       "provider": "プロバイダー",
-      "workspace": "ワークスペース"
+      "workspace": "ワークスペース",
+      "prompt": "プロンプト"
     },
     "switchSession": "セッションの切り替え",
     "manageWorkspaces": "ワークスペースの管理",
@@ -264,7 +266,16 @@
     "goToChildSession": "子セッションに移動します",
     "goToParentSession": "親セッションに移動します",
     "nextChildSession": "次の子セッション",
-    "previousChildSession": "前のチャイルドセッション"
+    "previousChildSession": "前のチャイルドセッション",
+    "clearPrompt": "プロンプトをクリア",
+    "submitPrompt": "プロンプトを送信",
+    "paste": "貼り付け",
+    "interruptSession": "セッションを中断",
+    "openEditor": "エディターを開く",
+    "skills": "スキル",
+    "stashPrompt": "プロンプトを隠す",
+    "stashPop": "隠したプロンプトを取り出す",
+    "stashList": "隠したプロンプトの一覧"
   },
   "dialog": {
     "sessions": "セッション",
@@ -312,7 +323,9 @@
     "connected": "接続されました",
     "disabled": "無効",
     "disabledInConfiguration": "設定で無効になっています",
-    "needsAuthentication": "認証が必要です (実行: kolbo mcp auth {{key}})"
+    "needsAuthentication": "認証が必要です (実行: kolbo mcp auth {{key}})",
+    "kolboDescription": "Kolbo.AIアカウントを通してAIモデルにアクセスします。",
+    "getApiKeyAt": "APIキーはこちらで取得してください："
   },
   "permission": {
     "required": "許可が必要です",
@@ -391,7 +404,9 @@
     "noTextContent": "最後のアシスタントメッセージにテキストコンテンツが見つかりませんでした",
     "messageCopied": "メッセージをクリップボードにコピーしました！",
     "failedToCopy": "クリップボードへのコピーに失敗しました。",
-    "failedToCopyConsoleSelection": "コンソールの選択内容をクリップボードにコピーできませんでした: {{error}}"
+    "failedToCopyConsoleSelection": "コンソールの選択内容をクリップボードにコピーできませんでした: {{error}}",
+    "noProviderForPrompts": "プロンプトを送信するにはプロバイダーを接続してください。",
+    "sessionCreateFailed": "セッションの作成に失敗しました。詳細はコンソールを開いてください。"
   },
   "exitMessage": {
     "session": "セッション",

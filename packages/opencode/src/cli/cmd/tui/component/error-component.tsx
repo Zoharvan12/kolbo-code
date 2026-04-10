@@ -5,6 +5,7 @@ import { createSignal } from "solid-js"
 import { Installation } from "@/installation"
 import { win32FlushInputBuffer } from "../win32"
 import { getScrollAcceleration } from "../util/scroll"
+import { t } from "@/i18n"
 
 export function ErrorComponent(props: {
   error: Error
@@ -65,19 +66,19 @@ export function ErrorComponent(props: {
     <box flexDirection="column" gap={1} backgroundColor={colors.bg}>
       <box flexDirection="row" gap={1} alignItems="center">
         <text attributes={TextAttributes.BOLD} fg={colors.text}>
-          Please report an issue.
+          {t("error.pleaseReport")}
         </text>
         <box onMouseUp={copyIssueURL} backgroundColor={colors.primary} padding={1}>
           <text attributes={TextAttributes.BOLD} fg={colors.bg}>
-            Copy issue URL (exception info pre-filled)
+            {t("error.copyIssueUrl")}
           </text>
         </box>
-        {copied() && <text fg={colors.muted}>Successfully copied</text>}
+        {copied() && <text fg={colors.muted}>{t("error.successfullyCopied")}</text>}
       </box>
       <box flexDirection="row" gap={2} alignItems="center">
-        <text fg={colors.text}>A fatal error occurred!</text>
+        <text fg={colors.text}>{t("error.fatalErrorOccurred")}</text>
         <box onMouseUp={props.reset} backgroundColor={colors.primary} padding={1}>
-          <text fg={colors.bg}>Reset TUI</text>
+          <text fg={colors.bg}>{t("error.resetTui")}</text>
         </box>
         <box onMouseUp={handleExit} backgroundColor={colors.primary} padding={1}>
           <text fg={colors.bg}>Exit</text>

@@ -50,10 +50,10 @@ function mapTextareaKeybindings(
   if (!bindings) return []
   return bindings.map((binding) => ({
     name: binding.name,
-    ctrl: binding.ctrl || undefined,
-    meta: binding.meta || undefined,
-    shift: binding.shift || undefined,
-    super: binding.super || undefined,
+    ctrl: binding.ctrl ?? undefined,
+    meta: binding.meta ?? undefined,
+    shift: binding.shift ?? undefined,
+    super: binding.super ?? undefined,
     action,
   }))
 }
@@ -65,7 +65,8 @@ export function useTextareaKeybindings() {
     const keybinds = keybind.all
 
     return [
-      { name: "return", action: "submit" },
+      { name: "return", shift: false, action: "submit" },
+      { name: "return", shift: true, action: "newline" },
       { name: "return", meta: true, action: "newline" },
       ...TEXTAREA_ACTIONS.flatMap((action) => mapTextareaKeybindings(keybinds, action)),
     ] satisfies KeyBinding[]

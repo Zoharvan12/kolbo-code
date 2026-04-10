@@ -177,7 +177,8 @@
     "transcriptCopied": "Transcrição da sessão copiada para a área de transferência!",
     "failedToCopyTranscript": "Falha ao copiar a transcrição da sessão",
     "escAgainToClear": "novamente para limpar",
-    "interrupted": "interrompida"
+    "interrupted": "interrompida",
+    "failedToShare": "Falha ao compartilhar a sessão"
   },
   "commands": {
     "categories": {
@@ -188,7 +189,8 @@
       "config": "Configuração",
       "system": "Sistema",
       "provider": "Provedor",
-      "workspace": "Espaço de trabalho"
+      "workspace": "Espaço de trabalho",
+      "prompt": "Prompt"
     },
     "switchSession": "Trocar de sessão",
     "manageWorkspaces": "Gerenciar espaços de trabalho",
@@ -264,7 +266,16 @@
     "goToChildSession": "Ir para a sessão filha",
     "goToParentSession": "Ir para a sessão pai",
     "nextChildSession": "Próxima sessão filha",
-    "previousChildSession": "Sessão filha anterior"
+    "previousChildSession": "Sessão filha anterior",
+    "clearPrompt": "Limpar prompt",
+    "submitPrompt": "Enviar prompt",
+    "paste": "Colar",
+    "interruptSession": "Interromper sessão",
+    "openEditor": "Abrir editor",
+    "skills": "Habilidades",
+    "stashPrompt": "Salvar prompt",
+    "stashPop": "Recuperar prompt salvo",
+    "stashList": "Listar prompts salvos"
   },
   "dialog": {
     "sessions": "Sessões",
@@ -312,7 +323,9 @@
     "connected": "Conectado",
     "disabled": "Desativado",
     "disabledInConfiguration": "Desativado na configuração",
-    "needsAuthentication": "Requer autenticação (execute: kolbo mcp auth {{key}})"
+    "needsAuthentication": "Requer autenticação (execute: kolbo mcp auth {{key}})",
+    "kolboDescription": "Acesse modelos de IA através da sua conta Kolbo.AI.",
+    "getApiKeyAt": "Obtenha uma chave de API em"
   },
   "permission": {
     "required": "Permissão necessária",
@@ -391,7 +404,9 @@
     "noTextContent": "Nenhum conteúdo de texto encontrado na última mensagem do assistente",
     "messageCopied": "Mensagem copiada para a área de transferência!",
     "failedToCopy": "Falha ao copiar para a área de transferência",
-    "failedToCopyConsoleSelection": "Falha ao copiar a seleção do console para a área de transferência: {{error}}"
+    "failedToCopyConsoleSelection": "Falha ao copiar a seleção do console para a área de transferência: {{error}}",
+    "noProviderForPrompts": "Conecte um provedor para enviar prompts",
+    "sessionCreateFailed": "Falha ao criar uma sessão. Abra o console para mais detalhes."
   },
   "exitMessage": {
     "session": "Sessão",
