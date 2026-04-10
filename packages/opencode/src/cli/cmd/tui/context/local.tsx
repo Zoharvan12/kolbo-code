@@ -290,7 +290,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               })
               return
             }
-            setModelStore("model", agent.current().name, model)
+            const cur = agent.current()
+            if (!cur) return
+            setModelStore("model", cur.name, model)
             if (options?.recent) {
               const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)
               if (uniq.length > 10) uniq.pop()
@@ -392,6 +394,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     // Automatically update model when agent changes
     createEffect(() => {
       const value = agent.current()
+      if (!value) return
       if (value.model) {
         if (isModelValid(value.model))
           model.set({
