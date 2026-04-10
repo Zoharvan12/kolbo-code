@@ -17,7 +17,7 @@ export namespace Flag {
   export const KODU_AUTO_SHARE = truthy("KODU_AUTO_SHARE")
   export const KODU_AUTO_HEAP_SNAPSHOT = truthy("KODU_AUTO_HEAP_SNAPSHOT")
   export const KODU_GIT_BASH_PATH = process.env["KODU_GIT_BASH_PATH"]
-  export const KODU_CONFIG = process.env["KODU_CONFIG"]
+  export const KOLBO_CONFIG = process.env["KOLBO_CONFIG"]
   export declare const KODU_PURE: boolean
   export declare const KODU_TUI_CONFIG: string | undefined
   export declare const KODU_CONFIG_DIR: string | undefined
@@ -33,7 +33,7 @@ export namespace Flag {
   export const KODU_DISABLE_LSP_DOWNLOAD = truthy("KODU_DISABLE_LSP_DOWNLOAD")
   export const KODU_ENABLE_EXPERIMENTAL_MODELS = truthy("KODU_ENABLE_EXPERIMENTAL_MODELS")
   export const KODU_DISABLE_AUTOCOMPACT = truthy("KODU_DISABLE_AUTOCOMPACT")
-  export const KODU_DISABLE_MODELS_FETCH = truthy("KODU_DISABLE_MODELS_FETCH")
+  export const KOLBO_DISABLE_MODELS_FETCH = truthy("KOLBO_DISABLE_MODELS_FETCH")
   export const KODU_DISABLE_MOUSE = truthy("KODU_DISABLE_MOUSE")
   export const KODU_DISABLE_CLAUDE_CODE = truthy("KODU_DISABLE_CLAUDE_CODE")
   export const KODU_DISABLE_CLAUDE_CODE_PROMPT =
@@ -76,8 +76,8 @@ export namespace Flag {
   export const KODU_EXPERIMENTAL_PLAN_MODE = KODU_EXPERIMENTAL || truthy("KODU_EXPERIMENTAL_PLAN_MODE")
   export const KODU_EXPERIMENTAL_WORKSPACES = KODU_EXPERIMENTAL || truthy("KODU_EXPERIMENTAL_WORKSPACES")
   export const KODU_EXPERIMENTAL_MARKDOWN = !falsy("KODU_EXPERIMENTAL_MARKDOWN")
-  export const KODU_MODELS_URL = process.env["KODU_MODELS_URL"]
-  export const KODU_MODELS_PATH = process.env["KODU_MODELS_PATH"]
+  export const KOLBO_MODELS_URL = process.env["KOLBO_MODELS_URL"]
+  export const KOLBO_MODELS_PATH = process.env["KOLBO_MODELS_PATH"]
   export const KODU_DISABLE_EMBEDDED_WEB_UI = truthy("KODU_DISABLE_EMBEDDED_WEB_UI")
   export const KODU_DB = process.env["KODU_DB"]
   export const KODU_DISABLE_CHANNEL_DB = truthy("KODU_DISABLE_CHANNEL_DB")

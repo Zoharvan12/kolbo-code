@@ -13,6 +13,74 @@ import { Instance } from "../../project/instance"
 import type { Hooks } from "@opencode-ai/plugin"
 import { Process } from "../../util/process"
 import { text } from "node:stream/consumers"
+import open from "open"
+
+const KOLBO_API_BASE = process.env.KOLBO_API_BASE || "https://api.kolbo.ai/api"
+
+async function kolboDeviceLogin(): Promise<string | null> {
+  // 1. Request a device code from kolbo-api
+  let init: { device_code: string; user_code: string; verification_uri: string; interval?: number; expires_in?: number }
+  try {
+    const r = await fetch(`${KOLBO_API_BASE}/auth/kolbo-cli/device/code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    })
+    if (!r.ok) {
+      prompts.log.error(`Failed to start device login (${r.status})`)
+      return null
+    }
+    init = (await r.json()) as any
+  } catch (err: any) {
+    prompts.log.error(`Could not reach ${KOLBO_API_BASE}: ${err?.message || err}`)
+    return null
+  }
+
+  const { device_code, user_code, verification_uri } = init
+  const interval = Math.max(1, init.interval ?? 5) * 1000
+  const expiresAt = Date.now() + (init.expires_in ?? 900) * 1000
+
+  prompts.log.info(
+    `Open ${verification_uri} in your browser and enter the code:\n\n    ${user_code}\n`,
+  )
+  open(verification_uri).catch(() => {})
+
+  const spinner = prompts.spinner()
+  spinner.start("Waiting for approval in your browser...")
+  try {
+    while (Date.now() < expiresAt) {
+      await new Promise((r) => setTimeout(r, interval))
+      let r: Response
+      try {
+        r = await fetch(
+          `${KOLBO_API_BASE}/auth/kolbo-cli/device/token?code=${encodeURIComponent(device_code)}`,
+        )
+      } catch {
+        continue
+      }
+      if (r.status === 202) continue
+      if (r.status === 400) {
+        const body = (await r.json().catch(() => ({}))) as any
+        if (body?.error === "expired") {
+          spinner.stop("Device code expired")
+          return null
+        }
+        continue
+      }
+      if (!r.ok) continue
+      const data = (await r.json()) as any
+      if (data?.status === "approved" && data?.api_key) {
+        spinner.stop("Approved")
+        return data.api_key
+      }
+    }
+    spinner.stop("Timed out waiting for approval")
+    return null
+  } catch (err: any) {
+    spinner.stop(`Error: ${err?.message || err}`)
+    return null
+  }
+}
 
 type PluginAuth = NonNullable<Hooks["auth"]>
 
@@ -257,7 +325,7 @@ export const ProvidersLoginCommand = cmd({
   builder: (yargs) =>
     yargs
       .positional("url", {
-        describe: "kodu auth provider",
+        describe: "kolbo auth provider",
         type: "string",
       })
       .option("provider", {
@@ -278,7 +346,7 @@ export const ProvidersLoginCommand = cmd({
         prompts.intro("Add credential")
         if (args.url) {
           const url = args.url.replace(/\/+$/, "")
-          const wellknown = await fetch(`${url}/.well-known/kodu`).then((x) => x.json() as any)
+          const wellknown = await fetch(`${url}/.well-known/kolbo`).then((x) => x.json() as any)
           prompts.log.info(`Running \`${wellknown.auth.command.join(" ")}\``)
           const proc = Process.spawn(wellknown.auth.command, {
             stdout: "pipe",
@@ -321,7 +389,7 @@ export const ProvidersLoginCommand = cmd({
         })
 
         const priority: Record<string, number> = {
-          kodu: 0,
+          kolbo: 0,
           openai: 1,
           "github-copilot": 2,
           google: 3,
@@ -348,7 +416,7 @@ export const ProvidersLoginCommand = cmd({
               label: x.name,
               value: x.id,
               hint: {
-                kodu: "recommended",
+                kolbo: "recommended — pay with your Kolbo.AI credits",
                 openai: "ChatGPT Plus/Pro or API key",
               }[x.id],
             })),
@@ -423,7 +491,16 @@ export const ProvidersLoginCommand = cmd({
         }
 
         if (provider === "kolbo") {
-          prompts.log.info("Create an api key at https://kodu.ai/auth")
+          const key = await kolboDeviceLogin()
+          if (!key) {
+            prompts.log.error("Login failed")
+            prompts.outro("Done")
+            return
+          }
+          await Auth.set("kolbo", { type: "api", key })
+          prompts.log.success("Logged into Kolbo")
+          prompts.outro("Done")
+          return
         }
 
         if (provider === "vercel") {

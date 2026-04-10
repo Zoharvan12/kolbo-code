@@ -1,4 +1,18 @@
 #!/usr/bin/env bun
+/**
+ * Kolbo CLI publish script — npm only.
+ *
+ * Expects `bun run script/build.ts` to have been run first, producing
+ * platform binary packages under ./dist/@kolbo-ai/kolbo-<os>-<arch>/.
+ *
+ * Creates a wrapper package at ./dist/@kolbo-ai/kolbo/ that declares every
+ * platform binary as an optionalDependency. When a user runs
+ * `npm i -g @kolbo-ai/kolbo`, npm only installs the binary package that
+ * matches their OS/CPU; the bin/kolbo launcher finds and execs it.
+ *
+ * Publishes everything to the npm registry under the @kolbo-ai scope.
+ */
+
 import { $ } from "bun"
 import pkg from "../package.json"
 import { Script } from "@opencode-ai/script"
@@ -7,175 +21,73 @@ import { fileURLToPath } from "url"
 const dir = fileURLToPath(new URL("..", import.meta.url))
 process.chdir(dir)
 
+const WRAPPER_NAME = "@kolbo-ai/kolbo"
+const WRAPPER_BIN = "kolbo"
+
+// 1. Discover platform binary packages produced by build.ts
 const binaries: Record<string, string> = {}
-for (const filepath of new Bun.Glob("*/package.json").scanSync({ cwd: "./dist" })) {
-  const pkg = await Bun.file(`./dist/${filepath}`).json()
-  binaries[pkg.name] = pkg.version
+for (const filepath of new Bun.Glob("*/*/package.json").scanSync({ cwd: "./dist" })) {
+  const data = await Bun.file(`./dist/${filepath}`).json()
+  if (!data?.name || !data?.version) continue
+  binaries[data.name] = data.version
 }
-console.log("binaries", binaries)
+console.log("Found platform binaries:", binaries)
+
+if (Object.keys(binaries).length === 0) {
+  console.error("No platform binary packages found under ./dist. Did you run build.ts?")
+  process.exit(1)
+}
+
 const version = Object.values(binaries)[0]
+console.log(`Publishing @${WRAPPER_NAME}@${version} (${Script.channel})`)
 
-await $`mkdir -p ./dist/${pkg.name}`
-await $`cp -r ./bin ./dist/${pkg.name}/bin`
-await $`cp ./script/postinstall.mjs ./dist/${pkg.name}/postinstall.mjs`
-await Bun.file(`./dist/${pkg.name}/LICENSE`).write(await Bun.file("../../LICENSE").text())
+// 2. Scaffold the wrapper package at dist/@kolbo-ai/kolbo/
+const wrapperDir = `./dist/${WRAPPER_NAME}`
+await $`rm -rf ${wrapperDir}`
+await $`mkdir -p ${wrapperDir}/bin`
+await $`cp -r ./bin/${WRAPPER_BIN} ${wrapperDir}/bin/${WRAPPER_BIN}`
 
-await Bun.file(`./dist/${pkg.name}/package.json`).write(
+// Copy license if present
+try {
+  await Bun.file(`${wrapperDir}/LICENSE`).write(await Bun.file("../../LICENSE").text())
+} catch {
+  // no root LICENSE, not fatal
+}
+
+await Bun.file(`${wrapperDir}/package.json`).write(
   JSON.stringify(
     {
-      name: pkg.name + "-ai",
-      bin: {
-        [pkg.name]: `./bin/${pkg.name}`,
-      },
-      scripts: {
-        postinstall: "bun ./postinstall.mjs || node ./postinstall.mjs",
-      },
-      version: version,
+      name: WRAPPER_NAME,
+      version,
       license: pkg.license,
+      description: pkg.description,
+      homepage: pkg.homepage,
+      repository: pkg.repository,
+      bin: { [WRAPPER_BIN]: `./bin/${WRAPPER_BIN}` },
       optionalDependencies: binaries,
+      publishConfig: { access: "public" },
     },
     null,
     2,
   ),
 )
 
+// 3. Publish each platform package in parallel
 const tasks = Object.entries(binaries).map(async ([name]) => {
+  const scoped = name.split("/")
+  const subdir = scoped.length === 2 ? `./dist/${name}` : `./dist/${name}`
   if (process.platform !== "win32") {
-    await $`chmod -R 755 .`.cwd(`./dist/${name}`)
+    await $`chmod -R 755 .`.cwd(subdir)
   }
-  await $`bun pm pack`.cwd(`./dist/${name}`)
-  await $`npm publish *.tgz --access public --tag ${Script.channel}`.cwd(`./dist/${name}`)
+  console.log(`→ publishing ${name}`)
+  await $`npm publish --access public --tag ${Script.channel} --provenance`.cwd(subdir)
+  console.log(`  published ${name}`)
 })
 await Promise.all(tasks)
-await $`cd ./dist/${pkg.name} && bun pm pack && npm publish *.tgz --access public --tag ${Script.channel}`
 
-const image = "ghcr.io/anomalyco/kodu"
-const platforms = "linux/amd64,linux/arm64"
-const tags = [`${image}:${version}`, `${image}:${Script.channel}`]
-const tagFlags = tags.flatMap((t) => ["-t", t])
-await $`docker buildx build --platform ${platforms} ${tagFlags} --push .`
+// 4. Publish the wrapper package last so optionalDependencies resolve
+console.log(`→ publishing ${WRAPPER_NAME}`)
+await $`npm publish --access public --tag ${Script.channel} --provenance`.cwd(wrapperDir)
+console.log(`  published ${WRAPPER_NAME}`)
 
-// registries
-if (!Script.preview) {
-  // Calculate SHA values
-  const arm64Sha = await $`sha256sum ./dist/opencode-linux-arm64.tar.gz | cut -d' ' -f1`.text().then((x) => x.trim())
-  const x64Sha = await $`sha256sum ./dist/opencode-linux-x64.tar.gz | cut -d' ' -f1`.text().then((x) => x.trim())
-  const macX64Sha = await $`sha256sum ./dist/opencode-darwin-x64.zip | cut -d' ' -f1`.text().then((x) => x.trim())
-  const macArm64Sha = await $`sha256sum ./dist/opencode-darwin-arm64.zip | cut -d' ' -f1`.text().then((x) => x.trim())
-
-  const [pkgver, _subver = ""] = Script.version.split(/(-.*)/, 2)
-
-  // arch
-  const binaryPkgbuild = [
-    "# Maintainer: dax",
-    "# Maintainer: adam",
-    "",
-    "pkgname='opencode-bin'",
-    `pkgver=${pkgver}`,
-    `_subver=${_subver}`,
-    "options=('!debug' '!strip')",
-    "pkgrel=1",
-    "pkgdesc='The AI coding agent built for the terminal.'",
-    "url='https://github.com/anomalyco/kodu'",
-    "arch=('aarch64' 'x86_64')",
-    "license=('MIT')",
-    "provides=('kodu')",
-    "conflicts=('kodu')",
-    "depends=('ripgrep')",
-    "",
-    `source_aarch64=("\${pkgname}_\${pkgver}_aarch64.tar.gz::https://github.com/anomalyco/kodu/releases/download/v\${pkgver}\${_subver}/opencode-linux-arm64.tar.gz")`,
-    `sha256sums_aarch64=('${arm64Sha}')`,
-
-    `source_x86_64=("\${pkgname}_\${pkgver}_x86_64.tar.gz::https://github.com/anomalyco/kodu/releases/download/v\${pkgver}\${_subver}/opencode-linux-x64.tar.gz")`,
-    `sha256sums_x86_64=('${x64Sha}')`,
-    "",
-    "package() {",
-    '  install -Dm755 ./kodu "${pkgdir}/usr/bin/kodu"',
-    "}",
-    "",
-  ].join("\n")
-
-  for (const [pkg, pkgbuild] of [["opencode-bin", binaryPkgbuild]]) {
-    for (let i = 0; i < 30; i++) {
-      try {
-        await $`rm -rf ./dist/aur-${pkg}`
-        await $`git clone ssh://aur@aur.archlinux.org/${pkg}.git ./dist/aur-${pkg}`
-        await $`cd ./dist/aur-${pkg} && git checkout master`
-        await Bun.file(`./dist/aur-${pkg}/PKGBUILD`).write(pkgbuild)
-        await $`cd ./dist/aur-${pkg} && makepkg --printsrcinfo > .SRCINFO`
-        await $`cd ./dist/aur-${pkg} && git add PKGBUILD .SRCINFO`
-        await $`cd ./dist/aur-${pkg} && git commit -m "Update to v${Script.version}"`
-        await $`cd ./dist/aur-${pkg} && git push`
-        break
-      } catch (e) {
-        continue
-      }
-    }
-  }
-
-  // Homebrew formula
-  const homebrewFormula = [
-    "# typed: false",
-    "# frozen_string_literal: true",
-    "",
-    "# This file was generated by GoReleaser. DO NOT EDIT.",
-    "class Opencode < Formula",
-    `  desc "The AI coding agent built for the terminal."`,
-    `  homepage "https://github.com/anomalyco/kodu"`,
-    `  version "${Script.version.split("-")[0]}"`,
-    "",
-    `  depends_on "ripgrep"`,
-    "",
-    "  on_macos do",
-    "    if Hardware::CPU.intel?",
-    `      url "https://github.com/anomalyco/kodu/releases/download/v${Script.version}/opencode-darwin-x64.zip"`,
-    `      sha256 "${macX64Sha}"`,
-    "",
-    "      def install",
-    '        bin.install "kodu"',
-    "      end",
-    "    end",
-    "    if Hardware::CPU.arm?",
-    `      url "https://github.com/anomalyco/kodu/releases/download/v${Script.version}/opencode-darwin-arm64.zip"`,
-    `      sha256 "${macArm64Sha}"`,
-    "",
-    "      def install",
-    '        bin.install "kodu"',
-    "      end",
-    "    end",
-    "  end",
-    "",
-    "  on_linux do",
-    "    if Hardware::CPU.intel? and Hardware::CPU.is_64_bit?",
-    `      url "https://github.com/anomalyco/kodu/releases/download/v${Script.version}/opencode-linux-x64.tar.gz"`,
-    `      sha256 "${x64Sha}"`,
-    "      def install",
-    '        bin.install "kodu"',
-    "      end",
-    "    end",
-    "    if Hardware::CPU.arm? and Hardware::CPU.is_64_bit?",
-    `      url "https://github.com/anomalyco/kodu/releases/download/v${Script.version}/opencode-linux-arm64.tar.gz"`,
-    `      sha256 "${arm64Sha}"`,
-    "      def install",
-    '        bin.install "kodu"',
-    "      end",
-    "    end",
-    "  end",
-    "end",
-    "",
-    "",
-  ].join("\n")
-
-  const token = process.env.GITHUB_TOKEN
-  if (!token) {
-    console.error("GITHUB_TOKEN is required to update homebrew tap")
-    process.exit(1)
-  }
-  const tap = `https://x-access-token:${token}@github.com/anomalyco/homebrew-tap.git`
-  await $`rm -rf ./dist/homebrew-tap`
-  await $`git clone ${tap} ./dist/homebrew-tap`
-  await Bun.file("./dist/homebrew-tap/kodu.rb").write(homebrewFormula)
-  await $`cd ./dist/homebrew-tap && git add kodu.rb`
-  await $`cd ./dist/homebrew-tap && git commit -m "Update to v${Script.version}"`
-  await $`cd ./dist/homebrew-tap && git push`
-}
+console.log(`\n✅ Done. Install with: npm i -g ${WRAPPER_NAME}@${Script.channel}`)

@@ -791,14 +791,22 @@ export namespace Provider {
             },
           },
         }),
-      kolbo: Effect.fnUntraced(function* (_input: Info) {
+      kolbo: Effect.fnUntraced(function* (input: Info) {
+        const env = Env.all()
+        const hasEnvKey = input.env.some((item) => env[item])
         const auth = yield* dep.auth("kolbo")
-        const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+        const apiKey =
+          auth?.type === "api"
+            ? auth.key
+            : auth?.type === "oauth"
+              ? auth.access
+              : undefined
+        const ok = hasEnvKey || Boolean(apiKey)
         return {
-          autoload: !!apiKey,
+          autoload: ok,
           options: apiKey
-            ? { baseURL: "https://api.kolbo.ai/v1", apiKey }
-            : { baseURL: "https://api.kolbo.ai/v1" },
+            ? { baseURL: "https://api.kolbo.ai/api/kolbo/v1", apiKey }
+            : { baseURL: "https://api.kolbo.ai/api/kolbo/v1" },
         }
       }),
     }

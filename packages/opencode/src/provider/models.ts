@@ -109,7 +109,7 @@ export namespace ModelsDev {
   export type Provider = z.infer<typeof Provider>
 
   function url() {
-    return Flag.KODU_MODELS_URL || "https://models.dev"
+    return Flag.KOLBO_MODELS_URL || "https://models.dev"
   }
 
   function fresh() {
@@ -128,49 +128,57 @@ export namespace ModelsDev {
     return { ok: result.ok, text: await result.text() }
   }
 
+  // Kolbo.AI provider — routes through kolbo-api at the isolated /kolbo/v1
+  // prefix so the CLI consumes the user's Kolbo.AI credit balance via the
+  // hidden kodu-default model (exposed publicly as kolbo-default).
   const KOLBO_PROVIDER = {
     id: "kolbo",
-    env: [],
+    env: ["KOLBO_API_KEY"],
     npm: "@ai-sdk/openai-compatible",
-    api: "https://api.kolbo.ai/v1",
-    name: "Kolbo AI",
-    doc: "https://docs.kolbo.ai",
+    api: "https://api.kolbo.ai/api/kolbo/v1",
+    name: "Kolbo",
+    doc: "https://kolbo.ai/cli",
     models: {
-      kodu: {
-        id: "kodu",
-        name: "Kodu (MiniMax M2.7)",
-        family: "minimax",
-        attachment: false,
-        reasoning: true,
+      "kolbo-default": {
+        id: "kolbo-default",
+        name: "Kolbo",
+        family: "kolbo",
+        attachment: true,
+        reasoning: false,
         tool_call: true,
-        interleaved: { field: "reasoning_content" },
+        structured_output: true,
         temperature: true,
-        release_date: "2026-03-01",
-        last_updated: "2026-03-01",
-        modalities: { input: ["text"], output: ["text"] },
+        release_date: "2026-04-10",
+        last_updated: "2026-04-10",
+        modalities: { input: ["text", "image"], output: ["text"] },
         open_weights: false,
-        cost: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
-        limit: { context: 196608, input: 196601, output: 24576 },
+        cost: { input: 0.4, output: 1.6 },
+        limit: { context: 1_000_000, output: 32_768 },
       },
     },
   }
 
   function injectKolbo(data: Record<string, any>) {
+    if (!data || typeof data !== "object") return { kolbo: KOLBO_PROVIDER } as any
+    // Strip upstream opencode providers so they don't show up in the picker.
+    delete data.opencode
+    delete data["opencode-go"]
+    delete data.kodu
     data.kolbo = KOLBO_PROVIDER
     return data
   }
 
   export const Data = lazy(async () => {
-    const result = await Filesystem.readJson(Flag.KODU_MODELS_PATH ?? filepath).catch(() => {})
+    const result = await Filesystem.readJson(Flag.KOLBO_MODELS_PATH ?? filepath).catch(() => {})
     if (result) return injectKolbo(result)
     // @ts-ignore
     const snapshot = await import("./models-snapshot.js")
       .then((m) => m.snapshot as Record<string, unknown>)
       .catch(() => undefined)
     if (snapshot) return injectKolbo(snapshot)
-    if (Flag.KODU_DISABLE_MODELS_FETCH) return injectKolbo({})
+    if (Flag.KOLBO_DISABLE_MODELS_FETCH) return injectKolbo({})
     return Flock.withLock(`models-dev:${filepath}`, async () => {
-      const result = await Filesystem.readJson(Flag.KODU_MODELS_PATH ?? filepath).catch(() => {})
+      const result = await Filesystem.readJson(Flag.KOLBO_MODELS_PATH ?? filepath).catch(() => {})
       if (result) return injectKolbo(result)
       const result2 = await fetchApi()
       if (result2.ok) {
@@ -203,7 +211,7 @@ export namespace ModelsDev {
   }
 }
 
-if (!Flag.KODU_DISABLE_MODELS_FETCH && !process.argv.includes("--get-yargs-completions")) {
+if (!Flag.KOLBO_DISABLE_MODELS_FETCH && !process.argv.includes("--get-yargs-completions")) {
   ModelsDev.refresh()
   setInterval(
     async () => {

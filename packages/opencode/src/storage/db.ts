@@ -16,7 +16,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { iife } from "@/util/iife"
 import { init } from "#db"
 
-declare const KODU_MIGRATIONS: { sql: string; timestamp: number; name: string }[] | undefined
+declare const KOLBO_MIGRATIONS: { sql: string; timestamp: number; name: string }[] | undefined
 
 export const NotFoundError = NamedError.create(
   "NotFoundError",
@@ -96,13 +96,13 @@ export namespace Database {
 
     // Apply schema migrations
     const entries =
-      typeof KODU_MIGRATIONS !== "undefined"
-        ? KODU_MIGRATIONS
+      typeof KOLBO_MIGRATIONS !== "undefined"
+        ? KOLBO_MIGRATIONS
         : migrations(path.join(import.meta.dirname, "../../migration"))
     if (entries.length > 0) {
       log.info("applying migrations", {
         count: entries.length,
-        mode: typeof KODU_MIGRATIONS !== "undefined" ? "bundled" : "dev",
+        mode: typeof KOLBO_MIGRATIONS !== "undefined" ? "bundled" : "dev",
       })
       if (Flag.KODU_SKIP_MIGRATIONS) {
         for (const item of entries) {

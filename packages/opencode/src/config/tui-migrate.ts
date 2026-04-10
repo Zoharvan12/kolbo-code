@@ -142,7 +142,7 @@ async function koduFiles(input: { directories: string[]; managed: string }) {
   for (const dir of unique(input.directories)) {
     files.push(...ConfigPaths.fileInDirectory(dir, "kodu"))
   }
-  if (Flag.KODU_CONFIG) files.push(Flag.KODU_CONFIG)
+  if (Flag.KOLBO_CONFIG) files.push(Flag.KOLBO_CONFIG)
   files.push(...ConfigPaths.fileInDirectory(input.managed, "kodu"))
 
   const existing = await Promise.all(

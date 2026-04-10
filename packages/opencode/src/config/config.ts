@@ -1375,9 +1375,9 @@ export namespace Config {
           const global = yield* getGlobal()
           merge(Global.Path.config, global, "global")
 
-          if (Flag.KODU_CONFIG) {
-            merge(Flag.KODU_CONFIG, yield* loadFile(Flag.KODU_CONFIG))
-            log.debug("loaded custom config", { path: Flag.KODU_CONFIG })
+          if (Flag.KOLBO_CONFIG) {
+            merge(Flag.KOLBO_CONFIG, yield* loadFile(Flag.KOLBO_CONFIG))
+            log.debug("loaded custom config", { path: Flag.KOLBO_CONFIG })
           }
 
           if (!Flag.KODU_DISABLE_PROJECT_CONFIG) {

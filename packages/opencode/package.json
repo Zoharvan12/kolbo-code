@@ -1,9 +1,18 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "version": "1.4.2",
-  "name": "@kodu/cli",
+  "name": "@kolbo-ai/kolbo",
   "type": "module",
   "license": "MIT",
+  "description": "Kolbo — AI coding agent powered by Kolbo.AI",
+  "homepage": "https://kolbo.ai/cli",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Zoharvan12/kolbo"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "private": false,
   "scripts": {
     "prepare": "effect-language-service patch || true",
@@ -23,7 +32,7 @@
     "db": "bun drizzle-kit"
   },
   "bin": {
-    "kodu": "./bin/kodu"
+    "kolbo": "./bin/kolbo"
   },
   "randomField": "this-is-a-random-value-12345",
   "exports": {

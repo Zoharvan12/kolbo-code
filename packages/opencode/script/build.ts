@@ -203,8 +203,8 @@ for (const item of targets) {
       autoloadTsconfig: true,
       autoloadPackageJson: true,
       target: name.replace(pkg.name, "bun") as any,
-      outfile: `dist/${name}/bin/kodu`,
-      execArgv: [`--user-agent=kodu/${Script.version}`, "--use-system-ca", "--"],
+      outfile: `dist/${name}/bin/kolbo`,
+      execArgv: [`--user-agent=kolbo/${Script.version}`, "--use-system-ca", "--"],
       windows: {},
     },
     files: {
@@ -212,18 +212,18 @@ for (const item of targets) {
     },
     entrypoints: ["./src/index.ts", parserWorker, workerPath, ...(embeddedFileMap ? ["opencode-web-ui.gen.ts"] : [])],
     define: {
-      KODU_VERSION: `'${Script.version}'`,
-      KODU_MIGRATIONS: JSON.stringify(migrations),
+      KOLBO_VERSION: `'${Script.version}'`,
+      KOLBO_MIGRATIONS: JSON.stringify(migrations),
       OTUI_TREE_SITTER_WORKER_PATH: bunfsRoot + workerRelativePath,
-      KODU_WORKER_PATH: workerPath,
-      KODU_CHANNEL: `'${Script.channel}'`,
-      KODU_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "",
+      KOLBO_WORKER_PATH: workerPath,
+      KOLBO_CHANNEL: `'${Script.channel}'`,
+      KOLBO_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "",
     },
   })
 
   // Smoke test: only run if binary is for current platform
   if (item.os === process.platform && item.arch === process.arch && !item.abi) {
-    const binaryPath = `dist/${name}/bin/kodu`
+    const binaryPath = `dist/${name}/bin/kolbo`
     console.log(`Running smoke test: ${binaryPath} --version`)
     try {
       const versionOutput = await $`${binaryPath} --version`.text()

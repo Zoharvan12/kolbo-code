@@ -18,7 +18,7 @@ import { FileIgnore } from "./ignore"
 import { Protected } from "./protected"
 import { Log } from "../util/log"
 
-declare const KODU_LIBC: string | undefined
+declare const KOLBO_LIBC: string | undefined
 
 export namespace FileWatcher {
   const log = Log.create({ service: "file.watcher" })
@@ -37,7 +37,7 @@ export namespace FileWatcher {
   const watcher = lazy((): typeof import("@parcel/watcher") | undefined => {
     try {
       const binding = require(
-        `@parcel/watcher-${process.platform}-${process.arch}${process.platform === "linux" ? `-${KODU_LIBC || "glibc"}` : ""}`,
+        `@parcel/watcher-${process.platform}-${process.arch}${process.platform === "linux" ? `-${KOLBO_LIBC || "glibc"}` : ""}`,
       )
       return createWrapper(binding) as typeof import("@parcel/watcher")
     } catch (error) {
