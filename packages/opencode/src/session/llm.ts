@@ -352,7 +352,7 @@ export namespace LLM {
       maxOutputTokens: params.maxOutputTokens,
       abortSignal: input.abort,
       headers: {
-        ...(input.model.providerID.startsWith("kodu")
+        ...(input.model.providerID.startsWith("kolbo")
           ? {
               "x-opencode-project": Instance.project.id,
               "x-opencode-session": input.sessionID,

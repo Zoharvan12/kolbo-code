@@ -180,29 +180,6 @@ export namespace Provider {
             },
           },
         }),
-      kodu: Effect.fnUntraced(function* (input: Info) {
-        const env = Env.all()
-        const hasKey = iife(() => {
-          if (input.env.some((item) => env[item])) return true
-          return false
-        })
-        const ok =
-          hasKey ||
-          Boolean(yield* dep.auth(input.id)) ||
-          Boolean((yield* dep.config()).provider?.["kodu"]?.options?.apiKey)
-
-        if (!ok) {
-          for (const [key, value] of Object.entries(input.models)) {
-            if (value.cost.input === 0) continue
-            delete input.models[key]
-          }
-        }
-
-        return {
-          autoload: Object.keys(input.models).length > 0,
-          options: ok ? {} : { apiKey: "public" },
-        }
-      }),
       openai: () =>
         Effect.succeed({
           autoload: false,
@@ -814,13 +791,16 @@ export namespace Provider {
             },
           },
         }),
-      kolbo: () =>
-        Effect.succeed({
-          autoload: true,
-          options: {
-            baseURL: "http://localhost:5050/v1",
-          },
-        }),
+      kolbo: Effect.fnUntraced(function* (_input: Info) {
+        const auth = yield* dep.auth("kolbo")
+        const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+        return {
+          autoload: !!apiKey,
+          options: apiKey
+            ? { baseURL: "https://api.kolbo.ai/v1", apiKey }
+            : { baseURL: "https://api.kolbo.ai/v1" },
+        }
+      }),
     }
   }
 
@@ -1596,7 +1576,7 @@ export namespace Provider {
           "gemini-2.5-flash",
           "gpt-5-nano",
         ]
-        if (providerID.startsWith("kodu")) {
+        if (providerID.startsWith("kolbo")) {
           priority = ["gpt-5-nano"]
         }
         if (providerID.startsWith("github-copilot")) {

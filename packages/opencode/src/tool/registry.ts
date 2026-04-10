@@ -202,7 +202,7 @@ export namespace ToolRegistry {
       const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
         const filtered = (yield* all()).filter((tool) => {
           if (tool.id === CodeSearchTool.id || tool.id === WebSearchTool.id) {
-            return input.providerID === ProviderID.kodu || Flag.KODU_ENABLE_EXA
+            return input.providerID === ProviderID.kolbo || Flag.KODU_ENABLE_EXA
           }
 
           const usePatch =

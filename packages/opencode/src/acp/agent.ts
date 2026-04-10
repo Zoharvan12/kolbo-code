@@ -1633,10 +1633,10 @@ export namespace ACP {
 
     if (specified && !providers.length) return specified
 
-    const koduProvider = providers.find((p) => p.id === "kodu")
-    if (koduProvider) {
-      if (koduProvider.models["big-pickle"]) {
-        return { providerID: ProviderID.kodu, modelID: ModelID.make("big-pickle") }
+    const kolboProvider = providers.find((p) => p.id === "kolbo")
+    if (kolboProvider) {
+      if (kolboProvider.models["big-pickle"]) {
+        return { providerID: ProviderID.kolbo, modelID: ModelID.make("big-pickle") }
       }
       const [best] = Provider.sort(Object.values(koduProvider.models))
       if (best) {
@@ -1658,7 +1658,7 @@ export namespace ACP {
 
     if (specified) return specified
 
-    return { providerID: ProviderID.kodu, modelID: ModelID.make("big-pickle") }
+    return { providerID: ProviderID.kolbo, modelID: ModelID.make("big-pickle") }
   }
 
   function parseUri(

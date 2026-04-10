@@ -128,25 +128,57 @@ export namespace ModelsDev {
     return { ok: result.ok, text: await result.text() }
   }
 
+  const KOLBO_PROVIDER = {
+    id: "kolbo",
+    env: [],
+    npm: "@ai-sdk/openai-compatible",
+    api: "https://api.kolbo.ai/v1",
+    name: "Kolbo AI",
+    doc: "https://docs.kolbo.ai",
+    models: {
+      kodu: {
+        id: "kodu",
+        name: "Kodu (MiniMax M2.7)",
+        family: "minimax",
+        attachment: false,
+        reasoning: true,
+        tool_call: true,
+        interleaved: { field: "reasoning_content" },
+        temperature: true,
+        release_date: "2026-03-01",
+        last_updated: "2026-03-01",
+        modalities: { input: ["text"], output: ["text"] },
+        open_weights: false,
+        cost: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
+        limit: { context: 196608, input: 196601, output: 24576 },
+      },
+    },
+  }
+
+  function injectKolbo(data: Record<string, any>) {
+    data.kolbo = KOLBO_PROVIDER
+    return data
+  }
+
   export const Data = lazy(async () => {
     const result = await Filesystem.readJson(Flag.KODU_MODELS_PATH ?? filepath).catch(() => {})
-    if (result) return result
+    if (result) return injectKolbo(result)
     // @ts-ignore
     const snapshot = await import("./models-snapshot.js")
       .then((m) => m.snapshot as Record<string, unknown>)
       .catch(() => undefined)
-    if (snapshot) return snapshot
-    if (Flag.KODU_DISABLE_MODELS_FETCH) return {}
+    if (snapshot) return injectKolbo(snapshot)
+    if (Flag.KODU_DISABLE_MODELS_FETCH) return injectKolbo({})
     return Flock.withLock(`models-dev:${filepath}`, async () => {
       const result = await Filesystem.readJson(Flag.KODU_MODELS_PATH ?? filepath).catch(() => {})
-      if (result) return result
+      if (result) return injectKolbo(result)
       const result2 = await fetchApi()
       if (result2.ok) {
         await Filesystem.write(filepath, result2.text).catch((e) => {
           log.error("Failed to write models cache", { error: e })
         })
       }
-      return JSON.parse(result2.text)
+      return injectKolbo(JSON.parse(result2.text))
     })
   })
 

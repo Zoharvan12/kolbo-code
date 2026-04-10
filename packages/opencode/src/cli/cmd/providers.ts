@@ -422,7 +422,7 @@ export const ProvidersLoginCommand = cmd({
           )
         }
 
-        if (provider === "kodu") {
+        if (provider === "kolbo") {
           prompts.log.info("Create an api key at https://kodu.ai/auth")
         }
 

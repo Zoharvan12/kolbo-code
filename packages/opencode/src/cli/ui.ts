@@ -6,8 +6,8 @@ import { logo as glyphs } from "./logo"
 export namespace UI {
   const wordmark = [
     `K▄▀▄`,
-    `K █ `,
-    `K▀▄ `,
+    `K█ █`,
+    `K▀▄▀`,
   ]
 
   export const CancelledError = NamedError.create("UICancelledError", z.void())
