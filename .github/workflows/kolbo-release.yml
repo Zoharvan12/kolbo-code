@@ -10,9 +10,12 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "npm dist-tag (default: dev)"
+        description: "npm dist-tag (latest | dev)"
         required: false
         default: "dev"
+      version:
+        description: "Explicit version to publish (e.g. 1.5.0) — required when tag=latest"
+        required: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,7 +28,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: github.repository == 'Zoharvan12/kolbo-cli'
+    if: endsWith(github.repository, '/kolbo-cli')
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,6 +52,7 @@ jobs:
       - name: Build all platform binaries
         env:
           KODU_CHANNEL: ${{ github.event.inputs.tag || 'dev' }}
+          KODU_VERSION: ${{ github.event.inputs.version }}
         run: |
           cd packages/opencode
           # Build for every target in script/build.ts. Skipping the embedded
@@ -59,10 +63,8 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # Provenance disabled — repo is currently private and sigstore
-          # provenance rejects non-public source repos. Flip the repo public
-          # and re-add `--provenance` + NPM_CONFIG_PROVENANCE to enable.
           KODU_CHANNEL: ${{ github.event.inputs.tag || 'dev' }}
+          KODU_VERSION: ${{ github.event.inputs.version }}
         run: |
           cd packages/opencode
           bun run script/publish.ts
