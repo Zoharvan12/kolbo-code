@@ -36,6 +36,7 @@ import { useToast } from "../../ui/toast"
 import { useKV } from "../../context/kv"
 import { useTextareaKeybindings } from "../textarea-keybindings"
 import { DialogSkill } from "../dialog-skill"
+import { useI18n } from "@/i18n"
 
 export type PromptProps = {
   sessionID?: string
@@ -78,6 +79,7 @@ export function Prompt(props: PromptProps) {
   let anchor: BoxRenderable
   let autocomplete: AutocompleteRef
 
+  const { t: tI18n } = useI18n()
   const keybind = useKeybind()
   const local = useLocal()
   const sdk = useSDK()
@@ -166,6 +168,7 @@ export function Prompt(props: PromptProps) {
     extmarkToPartIndex: Map<number, number>
     interrupt: number
     placeholder: number
+    escPressedAt: number | null
   }>({
     placeholder: randomIndex(list().length),
     prompt: {
@@ -175,6 +178,7 @@ export function Prompt(props: PromptProps) {
     mode: "normal",
     extmarkToPartIndex: new Map(),
     interrupt: 0,
+    escPressedAt: null,
   })
 
   createEffect(
@@ -967,6 +971,26 @@ export function Prompt(props: PromptProps) {
                     return
                   }
                 }
+                // Double-tap ESC to clear input
+                if (e.name === "escape" && store.prompt.input !== "") {
+                  const now = Date.now()
+                  if (store.escPressedAt !== null && now - store.escPressedAt < 1500) {
+                    // Second press within 1.5s → clear
+                    input.clear()
+                    input.extmarks.clear()
+                    setStore("prompt", { input: "", parts: [] })
+                    setStore("extmarkToPartIndex", new Map())
+                    setStore("escPressedAt", null)
+                    e.preventDefault()
+                    return
+                  }
+                  // First press → show hint
+                  setStore("escPressedAt", now)
+                  // Auto-dismiss after 1.5s if no second press
+                  setTimeout(() => setStore("escPressedAt", null), 1500)
+                  e.preventDefault()
+                  return
+                }
                 if (store.mode === "normal") autocomplete.onKeyDown(e)
                 if (!autocomplete.visible) {
                   if (
@@ -1147,7 +1171,11 @@ export function Prompt(props: PromptProps) {
           />
         </box>
         <box width="100%" flexDirection="row" justifyContent="space-between">
-          <Show when={status().type !== "idle"} fallback={props.hint ?? <text />}>
+          <Show when={status().type !== "idle"} fallback={
+            <Show when={store.escPressedAt !== null} fallback={props.hint ?? <text />}>
+              <text fg={theme.warning}>esc <span style={{ fg: theme.textMuted }}>again to clear</span></text>
+            </Show>
+          }>
             <box
               flexDirection="row"
               gap={1}
@@ -1222,7 +1250,7 @@ export function Prompt(props: PromptProps) {
               <text fg={store.interrupt > 0 ? theme.primary : theme.text}>
                 esc{" "}
                 <span style={{ fg: store.interrupt > 0 ? theme.primary : theme.textMuted }}>
-                  {store.interrupt > 0 ? "again to interrupt" : "interrupt"}
+                  {store.interrupt > 0 ? tI18n("session.againToInterrupt") : tI18n("session.interrupt")}
                 </span>
               </text>
             </box>
@@ -1241,17 +1269,17 @@ export function Prompt(props: PromptProps) {
                     </Match>
                     <Match when={true}>
                       <text fg={theme.text}>
-                        {keybind.print("agent_cycle")} <span style={{ fg: theme.textMuted }}>agents</span>
+                        {keybind.print("agent_cycle")} <span style={{ fg: theme.textMuted }}>{tI18n("session.agents")}</span>
                       </text>
                     </Match>
                   </Switch>
                   <text fg={theme.text}>
-                    {keybind.print("command_list")} <span style={{ fg: theme.textMuted }}>commands</span>
+                    {keybind.print("command_list")} <span style={{ fg: theme.textMuted }}>{tI18n("session.commands")}</span>
                   </text>
                 </Match>
                 <Match when={store.mode === "shell"}>
                   <text fg={theme.text}>
-                    esc <span style={{ fg: theme.textMuted }}>exit shell mode</span>
+                    esc <span style={{ fg: theme.textMuted }}>{tI18n("session.exitShellMode")}</span>
                   </text>
                 </Match>
               </Switch>
