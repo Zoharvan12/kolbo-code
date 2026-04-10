@@ -420,8 +420,8 @@ export function Prompt(props: PromptProps) {
       input.gotoBufferEnd()
     },
     reset() {
-      input.clear()
       input.extmarks.clear()
+      input.setText("")
       setStore("prompt", {
         input: "",
         parts: [],
@@ -718,6 +718,7 @@ export function Prompt(props: PromptProps) {
       mode: currentMode,
     })
     input.extmarks.clear()
+    input.setText("")
     setStore("prompt", {
       input: "",
       parts: [],
@@ -733,7 +734,6 @@ export function Prompt(props: PromptProps) {
           sessionID,
         })
       }, 50)
-    input.clear()
   }
   const exit = useExit()
 
