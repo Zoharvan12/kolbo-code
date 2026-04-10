@@ -1010,6 +1010,16 @@ export namespace MessageV2 {
           ).toObject()
         }
 
+        if (parsed.statusCode === 401) {
+          return new MessageV2.AuthError(
+            {
+              providerID: ctx.providerID,
+              message: parsed.message,
+            },
+            { cause: e },
+          ).toObject()
+        }
+
         return new MessageV2.APIError(
           {
             message: parsed.message,
