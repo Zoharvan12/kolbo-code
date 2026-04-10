@@ -191,16 +191,16 @@ export async function resolvePathPluginTarget(spec: string) {
   throw new Error(`Plugin directory ${file} is missing package.json or index file`)
 }
 
-export async function checkPluginCompatibility(target: string, koduVersion: string, pkg?: PluginPackage) {
-  if (!semver.valid(koduVersion) || semver.major(koduVersion) === 0) return
+export async function checkPluginCompatibility(target: string, kolboVersion: string, pkg?: PluginPackage) {
+  if (!semver.valid(kolboVersion) || semver.major(kolboVersion) === 0) return
   const hit = pkg ?? (await readPluginPackage(target).catch(() => undefined))
   if (!hit) return
   const engines = hit.json.engines
   if (!isRecord(engines)) return
-  const range = engines.kodu
+  const range = engines.kolbo
   if (typeof range !== "string") return
-  if (!semver.satisfies(koduVersion, range)) {
-    throw new Error(`Plugin requires kodu ${range} but running ${koduVersion}`)
+  if (!semver.satisfies(kolboVersion, range)) {
+    throw new Error(`Plugin requires kolbo ${range} but running ${kolboVersion}`)
   }
 }
 

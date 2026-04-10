@@ -30,7 +30,7 @@ export const SessionRoutes = lazy(() =>
       "/",
       describeRoute({
         summary: "List sessions",
-        description: "Get a list of all Kodu sessions, sorted by most recently updated.",
+        description: "Get a list of all Kolbo sessions, sorted by most recently updated.",
         operationId: "session.list",
         responses: {
           200: {
@@ -98,7 +98,7 @@ export const SessionRoutes = lazy(() =>
       "/:sessionID",
       describeRoute({
         summary: "Get session",
-        description: "Retrieve detailed information about a specific Kodu session.",
+        description: "Retrieve detailed information about a specific Kolbo session.",
         tags: ["Session"],
         operationId: "session.get",
         responses: {
@@ -190,7 +190,7 @@ export const SessionRoutes = lazy(() =>
       "/",
       describeRoute({
         summary: "Create session",
-        description: "Create a new Kodu session for interacting with AI assistants and managing conversations.",
+        description: "Create a new Kolbo session for interacting with AI assistants and managing conversations.",
         operationId: "session.create",
         responses: {
           ...errors(400),

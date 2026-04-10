@@ -75,12 +75,12 @@ async function input(value?: string) {
 
 export const TuiThreadCommand = cmd({
   command: "$0 [project]",
-  describe: "start kodu tui",
+  describe: "start kolbo tui",
   builder: (yargs) =>
     withNetworkOptions(yargs)
       .positional("project", {
         type: "string",
-        describe: "path to start kodu in",
+        describe: "path to start kolbo in",
       })
       .option("model", {
         type: "string",
@@ -200,7 +200,7 @@ export const TuiThreadCommand = cmd({
             events: undefined,
           }
         : {
-            url: "http://kodu.internal",
+            url: "http://kolbo.internal",
             fetch: createWorkerFetch(client),
             events: createEventSource(client),
           }

@@ -51,7 +51,7 @@ export namespace LLM {
     readonly stream: (input: StreamInput) => Stream.Stream<Event, unknown>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/LLM") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/LLM") {}
 
   export const layer = Layer.effect(
     Service,
@@ -231,7 +231,7 @@ export namespace LLM {
     }
 
     // Wire up toolExecutor for DWS workflow models so that tool calls
-    // from the workflow service are executed via kodu's tool system
+    // from the workflow service are executed via kolbo's tool system
     // and results sent back over the WebSocket.
     if (language instanceof GitLabWorkflowLanguageModel) {
       const workflowModel = language as GitLabWorkflowLanguageModel & {
@@ -357,12 +357,12 @@ export namespace LLM {
               "x-opencode-project": Instance.project.id,
               "x-opencode-session": input.sessionID,
               "x-opencode-request": input.user.id,
-              "x-opencode-client": Flag.KODU_CLIENT,
+              "x-opencode-client": Flag.KOLBO_CLIENT,
             }
           : {
               "x-session-affinity": input.sessionID,
               ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
-              "User-Agent": `kodu/${Installation.VERSION}`,
+              "User-Agent": `kolbo/${Installation.VERSION}`,
             }),
         ...input.model.headers,
         ...headers,

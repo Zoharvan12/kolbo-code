@@ -16,7 +16,7 @@ export const ConfigRoutes = lazy(() =>
       "/",
       describeRoute({
         summary: "Get configuration",
-        description: "Retrieve the current Kodu configuration settings and preferences.",
+        description: "Retrieve the current Kolbo configuration settings and preferences.",
         operationId: "config.get",
         responses: {
           200: {
@@ -37,7 +37,7 @@ export const ConfigRoutes = lazy(() =>
       "/",
       describeRoute({
         summary: "Update configuration",
-        description: "Update Kodu configuration settings and preferences.",
+        description: "Update Kolbo configuration settings and preferences.",
         operationId: "config.update",
         responses: {
           200: {

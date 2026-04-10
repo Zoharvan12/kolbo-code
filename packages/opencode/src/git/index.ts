@@ -80,7 +80,7 @@ export namespace Git {
     return "modified"
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Git") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Git") {}
 
   export const layer = Layer.effect(
     Service,

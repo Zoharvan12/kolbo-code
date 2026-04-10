@@ -58,7 +58,7 @@ export namespace Installation {
 
   export const VERSION = version
   export const CHANNEL = channel
-  export const USER_AGENT = `kodu/${CHANNEL}/${VERSION}/${Flag.KODU_CLIENT}`
+  export const USER_AGENT = `kolbo/${CHANNEL}/${VERSION}/${Flag.KOLBO_CLIENT}`
 
   export function isPreview() {
     return CHANNEL !== "latest"
@@ -91,7 +91,7 @@ export namespace Installation {
     readonly upgrade: (method: Method, target: string) => Effect.Effect<void, UpgradeFailedError>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Installation") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Installation") {}
 
   export const layer: Layer.Layer<Service, never, HttpClient.HttpClient | ChildProcessSpawner.ChildProcessSpawner> =
     Layer.effect(
@@ -137,16 +137,16 @@ export namespace Installation {
         )
 
         const getBrewFormula = Effect.fnUntraced(function* () {
-          const tapFormula = yield* text(["brew", "list", "--formula", "anomalyco/tap/kodu"])
-          if (tapFormula.includes("kodu")) return "anomalyco/tap/kodu"
-          const coreFormula = yield* text(["brew", "list", "--formula", "kodu"])
-          if (coreFormula.includes("kodu")) return "kodu"
-          return "kodu"
+          const tapFormula = yield* text(["brew", "list", "--formula", "Zoharvan12/tap/kolbo"])
+          if (tapFormula.includes("kolbo")) return "Zoharvan12/tap/kolbo"
+          const coreFormula = yield* text(["brew", "list", "--formula", "kolbo"])
+          if (coreFormula.includes("kolbo")) return "kolbo"
+          return "kolbo"
         })
 
         const upgradeCurl = Effect.fnUntraced(
           function* (target: string) {
-            const response = yield* httpOk.execute(HttpClientRequest.get("https://kodu.ai/install"))
+            const response = yield* httpOk.execute(HttpClientRequest.get("https://kolbo.ai/install"))
             const body = yield* response.text
             const bodyBytes = new TextEncoder().encode(body)
             const proc = ChildProcess.make("bash", [], {
@@ -167,7 +167,7 @@ export namespace Installation {
         )
 
         const methodImpl = Effect.fn("Installation.method")(function* () {
-          if (process.execPath.includes(path.join(".kodu", "bin"))) return "curl" as Method
+          if (process.execPath.includes(path.join(".kolbo", "bin"))) return "curl" as Method
           if (process.execPath.includes(path.join(".local", "bin"))) return "curl" as Method
           const exec = process.execPath.toLowerCase()
 
@@ -176,9 +176,9 @@ export namespace Installation {
             { name: "yarn", command: () => text(["yarn", "global", "list"]) },
             { name: "pnpm", command: () => text(["pnpm", "list", "-g", "--depth=0"]) },
             { name: "bun", command: () => text(["bun", "pm", "ls", "-g"]) },
-            { name: "brew", command: () => text(["brew", "list", "--formula", "kodu"]) },
-            { name: "scoop", command: () => text(["scoop", "list", "kodu"]) },
-            { name: "choco", command: () => text(["choco", "list", "--limit-output", "kodu"]) },
+            { name: "brew", command: () => text(["brew", "list", "--formula", "kolbo"]) },
+            { name: "scoop", command: () => text(["scoop", "list", "kolbo"]) },
+            { name: "choco", command: () => text(["choco", "list", "--limit-output", "kolbo"]) },
           ]
 
           checks.sort((a, b) => {
@@ -192,7 +192,7 @@ export namespace Installation {
           for (const check of checks) {
             const output = yield* check.command()
             const installedName =
-              check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "kodu" : "opencode-ai"
+              check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "kolbo" : "opencode-ai"
             if (output.includes(installedName)) {
               return check.name
             }
@@ -212,7 +212,7 @@ export namespace Installation {
               return info.formulae[0].versions.stable
             }
             const response = yield* httpOk.execute(
-              HttpClientRequest.get("https://formulae.brew.sh/api/formula/kodu.json").pipe(
+              HttpClientRequest.get("https://formulae.brew.sh/api/formula/kolbo.json").pipe(
                 HttpClientRequest.acceptJson,
               ),
             )
@@ -235,7 +235,7 @@ export namespace Installation {
           if (detectedMethod === "choco") {
             const response = yield* httpOk.execute(
               HttpClientRequest.get(
-                "https://community.chocolatey.org/api/v2/Packages?$filter=Id%20eq%20%27kodu%27%20and%20IsLatestVersion&$select=Version",
+                "https://community.chocolatey.org/api/v2/Packages?$filter=Id%20eq%20%27kolbo%27%20and%20IsLatestVersion&$select=Version",
               ).pipe(HttpClientRequest.setHeaders({ Accept: "application/json;odata=verbose" })),
             )
             const data = yield* HttpClientResponse.schemaBodyJson(ChocoPackage)(response)
@@ -245,7 +245,7 @@ export namespace Installation {
           if (detectedMethod === "scoop") {
             const response = yield* httpOk.execute(
               HttpClientRequest.get(
-                "https://raw.githubusercontent.com/ScoopInstaller/Main/master/bucket/kodu.json",
+                "https://raw.githubusercontent.com/ScoopInstaller/Main/master/bucket/kolbo.json",
               ).pipe(HttpClientRequest.setHeaders({ Accept: "application/json" })),
             )
             const data = yield* HttpClientResponse.schemaBodyJson(ScoopManifest)(response)
@@ -253,7 +253,7 @@ export namespace Installation {
           }
 
           const response = yield* httpOk.execute(
-            HttpClientRequest.get("https://api.github.com/repos/anomalyco/kodu/releases/latest").pipe(
+            HttpClientRequest.get("https://api.github.com/repos/Zoharvan12/kolbo-cli/releases/latest").pipe(
               HttpClientRequest.acceptJson,
             ),
           )
@@ -299,10 +299,10 @@ export namespace Installation {
               break
             }
             case "choco":
-              result = yield* run(["choco", "upgrade", "kodu", `--version=${target}`, "-y"])
+              result = yield* run(["choco", "upgrade", "kolbo", `--version=${target}`, "-y"])
               break
             case "scoop":
-              result = yield* run(["scoop", "install", `kodu@${target}`])
+              result = yield* run(["scoop", "install", `kolbo@${target}`])
               break
             default:
               return yield* new UpgradeFailedError({ stderr: `Unknown method: ${m}` })

@@ -26,8 +26,8 @@ export const { use: useRoute, provider: RouteProvider } = createSimpleContext({
   name: "Route",
   init: () => {
     const [store, setStore] = createStore<Route>(
-      process.env["KODU_ROUTE"]
-        ? JSON.parse(process.env["KODU_ROUTE"])
+      process.env["KOLBO_ROUTE"]
+        ? JSON.parse(process.env["KOLBO_ROUTE"])
         : {
             type: "home",
           },

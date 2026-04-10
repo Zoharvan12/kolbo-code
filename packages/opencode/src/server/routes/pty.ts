@@ -13,7 +13,7 @@ export function PtyRoutes(upgradeWebSocket: UpgradeWebSocket) {
       "/",
       describeRoute({
         summary: "List PTY sessions",
-        description: "Get a list of all active pseudo-terminal (PTY) sessions managed by Kodu.",
+        description: "Get a list of all active pseudo-terminal (PTY) sessions managed by Kolbo.",
         operationId: "pty.list",
         responses: {
           200: {

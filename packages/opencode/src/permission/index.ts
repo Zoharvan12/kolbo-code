@@ -135,7 +135,7 @@ export namespace Permission {
     return evalRule(permission, pattern, ...rulesets)
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Permission") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Permission") {}
 
   export const layer = Layer.effect(
     Service,

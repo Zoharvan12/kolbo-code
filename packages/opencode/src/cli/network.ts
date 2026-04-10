@@ -19,8 +19,8 @@ const options = {
   },
   "mdns-domain": {
     type: "string" as const,
-    describe: "custom domain name for mDNS service (default: kodu.local)",
-    default: "kodu.local",
+    describe: "custom domain name for mDNS service (default: kolbo.local)",
+    default: "kolbo.local",
   },
   cors: {
     type: "string" as const,

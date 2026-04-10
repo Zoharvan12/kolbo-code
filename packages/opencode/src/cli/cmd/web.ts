@@ -31,10 +31,10 @@ function getNetworkIPs() {
 export const WebCommand = cmd({
   command: "web",
   builder: (yargs) => withNetworkOptions(yargs),
-  describe: "start kodu server and open web interface",
+  describe: "start kolbo server and open web interface",
   handler: async (args) => {
-    if (!Flag.KODU_SERVER_PASSWORD) {
-      UI.println(UI.Style.TEXT_WARNING_BOLD + "!  " + "KODU_SERVER_PASSWORD is not set; server is unsecured.")
+    if (!Flag.KOLBO_SERVER_PASSWORD) {
+      UI.println(UI.Style.TEXT_WARNING_BOLD + "!  " + "KOLBO_SERVER_PASSWORD is not set; server is unsecured.")
     }
     const opts = await resolveNetworkOptions(args)
     const server = await Server.listen(opts)

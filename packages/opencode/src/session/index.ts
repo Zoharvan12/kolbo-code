@@ -237,7 +237,7 @@ export namespace Session {
 
   export function plan(input: { slug: string; time: { created: number } }) {
     const base = Instance.project.vcs
-      ? path.join(Instance.worktree, ".kodu", "plans")
+      ? path.join(Instance.worktree, ".kolbo", "plans")
       : path.join(Global.Path.data, "plans")
     return path.join(base, [input.time.created, input.slug].join("-") + ".md")
   }
@@ -366,7 +366,7 @@ export namespace Session {
     }) => Effect.Effect<void>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Session") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Session") {}
 
   type Patch = z.infer<typeof Event.Updated.schema>["info"]
 
@@ -409,11 +409,11 @@ export namespace Session {
         yield* Effect.sync(() => SyncEvent.run(Event.Created, { sessionID: result.id, info: result }))
 
         const cfg = yield* config.get()
-        if (!result.parentID && (Flag.KODU_AUTO_SHARE || cfg.share === "auto")) {
+        if (!result.parentID && (Flag.KOLBO_AUTO_SHARE || cfg.share === "auto")) {
           yield* share(result.id).pipe(Effect.ignore, Effect.forkIn(scope))
         }
 
-        if (!Flag.KODU_EXPERIMENTAL_WORKSPACES) {
+        if (!Flag.KOLBO_EXPERIMENTAL_WORKSPACES) {
           // This only exist for backwards compatibility. We should not be
           // manually publishing this event; it is a sync event now
           yield* bus.publish(Event.Updated, {

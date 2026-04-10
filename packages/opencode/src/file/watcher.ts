@@ -65,7 +65,7 @@ export namespace FileWatcher {
     readonly init: () => Effect.Effect<void>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/FileWatcher") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/FileWatcher") {}
 
   export const layer = Layer.effect(
     Service,
@@ -75,7 +75,7 @@ export namespace FileWatcher {
       const state = yield* InstanceState.make(
         Effect.fn("FileWatcher.state")(
           function* () {
-            if (yield* Flag.KODU_EXPERIMENTAL_DISABLE_FILEWATCHER) return
+            if (yield* Flag.KOLBO_EXPERIMENTAL_DISABLE_FILEWATCHER) return
 
             log.info("init", { directory: Instance.directory })
 
@@ -122,7 +122,7 @@ export namespace FileWatcher {
             const cfg = yield* config.get()
             const cfgIgnores = cfg.watcher?.ignore ?? []
 
-            if (yield* Flag.KODU_EXPERIMENTAL_FILEWATCHER) {
+            if (yield* Flag.KOLBO_EXPERIMENTAL_FILEWATCHER) {
               yield* subscribe(Instance.directory, [
                 ...FileIgnore.PATTERNS,
                 ...cfgIgnores,

@@ -15,10 +15,10 @@ export namespace ConfigPaths {
   export async function directories(directory: string, worktree: string) {
     return [
       Global.Path.config,
-      ...(!Flag.KODU_DISABLE_PROJECT_CONFIG
+      ...(!Flag.KOLBO_DISABLE_PROJECT_CONFIG
         ? await Array.fromAsync(
             Filesystem.up({
-              targets: [".kodu"],
+              targets: [".kolbo"],
               start: directory,
               stop: worktree,
             }),
@@ -26,12 +26,12 @@ export namespace ConfigPaths {
         : []),
       ...(await Array.fromAsync(
         Filesystem.up({
-          targets: [".kodu"],
+          targets: [".kolbo"],
           start: Global.Path.home,
           stop: Global.Path.home,
         }),
       )),
-      ...(Flag.KODU_CONFIG_DIR ? [Flag.KODU_CONFIG_DIR] : []),
+      ...(Flag.KOLBO_CONFIG_DIR ? [Flag.KOLBO_CONFIG_DIR] : []),
     ]
   }
 

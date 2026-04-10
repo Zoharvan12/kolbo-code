@@ -57,7 +57,7 @@ export namespace Snapshot {
     readonly diffFull: (from: string, to: string) => Effect.Effect<Snapshot.FileDiff[]>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Snapshot") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Snapshot") {}
 
   export const layer: Layer.Layer<
     Service,

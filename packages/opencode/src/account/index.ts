@@ -181,7 +181,7 @@ export namespace Account {
     readonly poll: (input: Login) => Effect.Effect<PollResult, AccountError>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Account") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Account") {}
 
   export const layer: Layer.Layer<Service, never, AccountRepo | HttpClient.HttpClient> = Layer.effect(
     Service,

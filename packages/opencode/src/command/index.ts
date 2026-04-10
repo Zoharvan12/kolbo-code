@@ -70,7 +70,7 @@ export namespace Command {
     readonly list: () => Effect.Effect<Info[]>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Command") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Command") {}
 
   export const layer = Layer.effect(
     Service,

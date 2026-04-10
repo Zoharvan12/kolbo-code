@@ -32,7 +32,7 @@ export namespace Todo {
     readonly get: (sessionID: SessionID) => Effect.Effect<Info[]>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/SessionTodo") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/SessionTodo") {}
 
   export const layer = Layer.effect(
     Service,

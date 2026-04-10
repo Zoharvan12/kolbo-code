@@ -14,6 +14,7 @@ import { useKeyboard } from "@opentui/solid"
 import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "../ui/toast"
 import { isConsoleManagedProvider } from "@tui/util/provider-origin"
+import open from "open"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   kolbo: 0,
@@ -171,6 +172,7 @@ function AutoMethod(props: AutoMethodProps) {
   })
 
   onMount(async () => {
+    open(props.authorization.url).catch(() => {})
     const result = await sdk.client.provider.oauth.callback({
       providerID: props.providerID,
       method: props.index,

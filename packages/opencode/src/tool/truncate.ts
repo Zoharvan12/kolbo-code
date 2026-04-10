@@ -41,7 +41,7 @@ export namespace Truncate {
     readonly output: (text: string, options?: Options, agent?: Agent.Info) => Effect.Effect<Result>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Truncate") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Truncate") {}
 
   export const layer = Layer.effect(
     Service,

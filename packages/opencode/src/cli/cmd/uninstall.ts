@@ -24,7 +24,7 @@ interface RemovalTargets {
 
 export const UninstallCommand = {
   command: "uninstall",
-  describe: "uninstall kodu and remove all related files",
+  describe: "uninstall kolbo and remove all related files",
   builder: (yargs: Argv) =>
     yargs
       .option("keep-config", {
@@ -55,7 +55,7 @@ export const UninstallCommand = {
     UI.empty()
     UI.println(UI.logo("  "))
     UI.empty()
-    prompts.intro("Uninstall Kodu")
+    prompts.intro("Uninstall Kolbo")
 
     const method = await Installation.method()
     prompts.log.info(`Installation method: ${method}`)
@@ -133,9 +133,9 @@ async function showRemovalSummary(targets: RemovalTargets, method: Installation.
       pnpm: "pnpm uninstall -g opencode-ai",
       bun: "bun remove -g opencode-ai",
       yarn: "yarn global remove opencode-ai",
-      brew: "brew uninstall kodu",
-      choco: "choco uninstall kodu",
-      scoop: "scoop uninstall kodu",
+      brew: "brew uninstall kolbo",
+      choco: "choco uninstall kolbo",
+      scoop: "scoop uninstall kolbo",
     }
     prompts.log.info(`  ✓ Package: ${cmds[method] || method}`)
   }
@@ -184,15 +184,15 @@ async function executeUninstall(method: Installation.Method, targets: RemovalTar
       pnpm: ["pnpm", "uninstall", "-g", "opencode-ai"],
       bun: ["bun", "remove", "-g", "opencode-ai"],
       yarn: ["yarn", "global", "remove", "opencode-ai"],
-      brew: ["brew", "uninstall", "kodu"],
-      choco: ["choco", "uninstall", "kodu"],
-      scoop: ["scoop", "uninstall", "kodu"],
+      brew: ["brew", "uninstall", "kolbo"],
+      choco: ["choco", "uninstall", "kolbo"],
+      scoop: ["scoop", "uninstall", "kolbo"],
     }
 
     const cmd = cmds[method]
     if (cmd) {
       spinner.start(`Running ${cmd.join(" ")}...`)
-      const result = await Process.run(method === "choco" ? ["choco", "uninstall", "kodu", "-y", "-r"] : cmd, {
+      const result = await Process.run(method === "choco" ? ["choco", "uninstall", "kolbo", "-y", "-r"] : cmd, {
         nothrow: true,
       })
       if (result.code !== 0) {
@@ -215,7 +215,7 @@ async function executeUninstall(method: Installation.Method, targets: RemovalTar
     prompts.log.info(`  rm "${targets.binary}"`)
 
     const binDir = path.dirname(targets.binary)
-    if (binDir.includes(".kodu")) {
+    if (binDir.includes(".kolbo")) {
       prompts.log.info(`  rmdir "${binDir}" 2>/dev/null`)
     }
   }
@@ -229,7 +229,7 @@ async function executeUninstall(method: Installation.Method, targets: RemovalTar
   }
 
   UI.empty()
-  prompts.log.success("Thank you for using Kodu!")
+  prompts.log.success("Thank you for using Kolbo!")
 }
 
 async function getShellConfigFile(): Promise<string | null> {
@@ -266,7 +266,7 @@ async function getShellConfigFile(): Promise<string | null> {
     if (!exists) continue
 
     const content = await Filesystem.readText(file).catch(() => "")
-    if (content.includes("# kodu") || content.includes(".kodu/bin")) {
+    if (content.includes("# kolbo") || content.includes(".kolbo/bin")) {
       return file
     }
   }
@@ -284,21 +284,21 @@ async function cleanShellConfig(file: string) {
   for (const line of lines) {
     const trimmed = line.trim()
 
-    if (trimmed === "# kodu") {
+    if (trimmed === "# kolbo") {
       skip = true
       continue
     }
 
     if (skip) {
       skip = false
-      if (trimmed.includes(".kodu/bin") || trimmed.includes("fish_add_path")) {
+      if (trimmed.includes(".kolbo/bin") || trimmed.includes("fish_add_path")) {
         continue
       }
     }
 
     if (
-      (trimmed.startsWith("export PATH=") && trimmed.includes(".kodu/bin")) ||
-      (trimmed.startsWith("fish_add_path") && trimmed.includes(".kodu"))
+      (trimmed.startsWith("export PATH=") && trimmed.includes(".kolbo/bin")) ||
+      (trimmed.startsWith("fish_add_path") && trimmed.includes(".kolbo"))
     ) {
       continue
     }

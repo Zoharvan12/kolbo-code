@@ -539,8 +539,8 @@ export namespace ACP {
       log.info("initialize", { protocolVersion: params.protocolVersion })
 
       const authMethod: AuthMethod = {
-        description: "Run `kodu auth login` in the terminal",
-        name: "Login with kodu",
+        description: "Run `kolbo auth login` in the terminal",
+        name: "Login with kolbo",
         id: "opencode-login",
       }
 
@@ -548,9 +548,9 @@ export namespace ACP {
       if (params.clientCapabilities?._meta?.["terminal-auth"] === true) {
         authMethod._meta = {
           "terminal-auth": {
-            command: "kodu",
+            command: "kolbo",
             args: ["auth", "login"],
-            label: "Kodu Login",
+            label: "Kolbo Login",
           },
         }
       }
@@ -575,7 +575,7 @@ export namespace ACP {
         },
         authMethods: [authMethod],
         agentInfo: {
-          name: "Kodu",
+          name: "Kolbo",
           version: Installation.VERSION,
         },
       }
@@ -1008,7 +1008,7 @@ export namespace ACP {
           }
         } else if (part.type === "file") {
           // Replay file attachments as appropriate ACP content blocks.
-          // Kodu stores files internally as { type: "file", url, filename, mime }.
+          // Kolbo stores files internally as { type: "file", url, filename, mime }.
           // We convert these back to ACP blocks based on the URL scheme and MIME type:
           // - file:// URLs → resource_link
           // - data: URLs with image/* → image block
@@ -1638,7 +1638,7 @@ export namespace ACP {
       if (kolboProvider.models["big-pickle"]) {
         return { providerID: ProviderID.kolbo, modelID: ModelID.make("big-pickle") }
       }
-      const [best] = Provider.sort(Object.values(koduProvider.models))
+      const [best] = Provider.sort(Object.values(kolboProvider.models))
       if (best) {
         return {
           providerID: ProviderID.make(best.providerID),
@@ -1773,7 +1773,7 @@ export namespace ACP {
     availableVariants: string[]
   }) {
     return {
-      kodu: {
+      kolbo: {
         modelId: `${input.model.providerID}/${input.model.modelID}`,
         variant: input.variant ?? null,
         availableVariants: input.availableVariants,

@@ -85,7 +85,7 @@ export const McpListCommand = cmd({
 
         if (servers.length === 0) {
           prompts.log.warn("No MCP servers configured")
-          prompts.outro("Add servers with: kodu mcp add")
+          prompts.outro("Add servers with: kolbo mcp add")
           return
         }
 
@@ -162,7 +162,7 @@ export const McpAuthCommand = cmd({
 
         if (oauthServers.length === 0) {
           prompts.log.warn("No OAuth-capable MCP servers configured")
-          prompts.log.info("Remote MCP servers support OAuth by default. Add a remote server in kodu.json:")
+          prompts.log.info("Remote MCP servers support OAuth by default. Add a remote server in kolbo.json:")
           prompts.log.info(`
   "mcp": {
     "my-server": {
@@ -381,11 +381,11 @@ export const McpLogoutCommand = cmd({
 })
 
 async function resolveConfigPath(baseDir: string, global = false) {
-  // Check for existing config files (prefer .jsonc over .json, check .kodu/ subdirectory too)
-  const candidates = [path.join(baseDir, "kodu.json"), path.join(baseDir, "kodu.jsonc")]
+  // Check for existing config files (prefer .jsonc over .json, check .kolbo/ subdirectory too)
+  const candidates = [path.join(baseDir, "kolbo.json"), path.join(baseDir, "kolbo.jsonc")]
 
   if (!global) {
-    candidates.push(path.join(baseDir, ".kodu", "kodu.json"), path.join(baseDir, ".kodu", "kodu.jsonc"))
+    candidates.push(path.join(baseDir, ".kolbo", "kolbo.json"), path.join(baseDir, ".kolbo", "kolbo.jsonc"))
   }
 
   for (const candidate of candidates) {
@@ -394,7 +394,7 @@ async function resolveConfigPath(baseDir: string, global = false) {
     }
   }
 
-  // Default to kodu.json if none exist
+  // Default to kolbo.json if none exist
   return candidates[0]
 }
 
@@ -481,7 +481,7 @@ export const McpAddCommand = cmd({
         if (type === "local") {
           const command = await prompts.text({
             message: "Enter command to run",
-            placeholder: "e.g., kodu x @modelcontextprotocol/server-filesystem",
+            placeholder: "e.g., kolbo x @modelcontextprotocol/server-filesystem",
             validate: (x) => (x && x.length > 0 ? undefined : "Required"),
           })
           if (prompts.isCancel(command)) throw new UI.CancelledError()

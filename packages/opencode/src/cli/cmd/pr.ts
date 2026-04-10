@@ -6,7 +6,7 @@ import { Process } from "@/util/process"
 
 export const PrCommand = cmd({
   command: "pr <number>",
-  describe: "fetch and checkout a GitHub PR branch, then run kodu",
+  describe: "fetch and checkout a GitHub PR branch, then run kolbo",
   builder: (yargs) =>
     yargs.positional("number", {
       type: "number",
@@ -82,15 +82,15 @@ export const PrCommand = cmd({
               })
             }
 
-            // Check for kodu session link in PR body
+            // Check for kolbo session link in PR body
             if (prInfo && prInfo.body) {
               const sessionMatch = prInfo.body.match(/https:\/\/opncd\.ai\/s\/([a-zA-Z0-9_-]+)/)
               if (sessionMatch) {
                 const sessionUrl = sessionMatch[0]
-                UI.println(`Found kodu session: ${sessionUrl}`)
+                UI.println(`Found kolbo session: ${sessionUrl}`)
                 UI.println(`Importing session...`)
 
-                const importResult = await Process.text(["kodu", "import", sessionUrl], {
+                const importResult = await Process.text(["kolbo", "import", sessionUrl], {
                   nothrow: true,
                 })
                 if (importResult.code === 0) {
@@ -109,18 +109,18 @@ export const PrCommand = cmd({
 
         UI.println(`Successfully checked out PR #${prNumber} as branch '${localBranchName}'`)
         UI.println()
-        UI.println("Starting kodu...")
+        UI.println("Starting kolbo...")
         UI.println()
 
-        const koduArgs = sessionId ? ["-s", sessionId] : []
-        const koduProcess = Process.spawn(["kodu", ...koduArgs], {
+        const kolboArgs = sessionId ? ["-s", sessionId] : []
+        const kolboProcess = Process.spawn(["kolbo", ...kolboArgs], {
           stdin: "inherit",
           stdout: "inherit",
           stderr: "inherit",
           cwd: process.cwd(),
         })
-        const code = await koduProcess.exited
-        if (code !== 0) throw new Error(`kodu exited with code ${code}`)
+        const code = await kolboProcess.exited
+        if (code !== 0) throw new Error(`kolbo exited with code ${code}`)
       },
     })
   },

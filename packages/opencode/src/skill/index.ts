@@ -22,7 +22,7 @@ export namespace Skill {
   const log = Log.create({ service: "skill" })
   const EXTERNAL_DIRS = [".claude", ".agents"]
   const EXTERNAL_SKILL_PATTERN = "skills/**/SKILL.md"
-  const KODU_SKILL_PATTERN = "{skill,skills}/**/SKILL.md"
+  const KOLBO_SKILL_PATTERN = "{skill,skills}/**/SKILL.md"
   const SKILL_PATTERN = "**/SKILL.md"
 
   export const Info = z.object({
@@ -143,7 +143,7 @@ export namespace Skill {
     directory: string,
     worktree: string,
   ) {
-    if (!Flag.KODU_DISABLE_EXTERNAL_SKILLS) {
+    if (!Flag.KOLBO_DISABLE_EXTERNAL_SKILLS) {
       for (const dir of EXTERNAL_DIRS) {
         const root = path.join(Global.Path.home, dir)
         if (!(yield* fsys.isDir(root))) continue
@@ -161,7 +161,7 @@ export namespace Skill {
 
     const configDirs = yield* config.directories()
     for (const dir of configDirs) {
-      yield* scan(state, bus, dir, KODU_SKILL_PATTERN)
+      yield* scan(state, bus, dir, KOLBO_SKILL_PATTERN)
     }
 
     const cfg = yield* config.get()
@@ -187,7 +187,7 @@ export namespace Skill {
     log.info("init", { count: Object.keys(state.skills).length })
   })
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Skill") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Skill") {}
 
   export const layer = Layer.effect(
     Service,

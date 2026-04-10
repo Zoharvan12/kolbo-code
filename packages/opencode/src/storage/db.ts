@@ -29,16 +29,16 @@ const log = Log.create({ service: "db" })
 
 export namespace Database {
   export function getChannelPath() {
-    if (["latest", "beta"].includes(CHANNEL) || Flag.KODU_DISABLE_CHANNEL_DB)
-      return path.join(Global.Path.data, "kodu.db")
+    if (["latest", "beta"].includes(CHANNEL) || Flag.KOLBO_DISABLE_CHANNEL_DB)
+      return path.join(Global.Path.data, "kolbo.db")
     const safe = CHANNEL.replace(/[^a-zA-Z0-9._-]/g, "-")
     return path.join(Global.Path.data, `opencode-${safe}.db`)
   }
 
   export const Path = iife(() => {
-    if (Flag.KODU_DB) {
-      if (Flag.KODU_DB === ":memory:" || path.isAbsolute(Flag.KODU_DB)) return Flag.KODU_DB
-      return path.join(Global.Path.data, Flag.KODU_DB)
+    if (Flag.KOLBO_DB) {
+      if (Flag.KOLBO_DB === ":memory:" || path.isAbsolute(Flag.KOLBO_DB)) return Flag.KOLBO_DB
+      return path.join(Global.Path.data, Flag.KOLBO_DB)
     }
     return getChannelPath()
   })
@@ -104,7 +104,7 @@ export namespace Database {
         count: entries.length,
         mode: typeof KOLBO_MIGRATIONS !== "undefined" ? "bundled" : "dev",
       })
-      if (Flag.KODU_SKIP_MIGRATIONS) {
+      if (Flag.KOLBO_SKIP_MIGRATIONS) {
         for (const item of entries) {
           item.sql = "select 1;"
         }

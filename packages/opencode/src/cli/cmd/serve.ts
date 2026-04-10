@@ -9,14 +9,14 @@ import { Installation } from "../../installation"
 export const ServeCommand = cmd({
   command: "serve",
   builder: (yargs) => withNetworkOptions(yargs),
-  describe: "starts a headless kodu server",
+  describe: "starts a headless kolbo server",
   handler: async (args) => {
-    if (!Flag.KODU_SERVER_PASSWORD) {
-      console.log("Warning: KODU_SERVER_PASSWORD is not set; server is unsecured.")
+    if (!Flag.KOLBO_SERVER_PASSWORD) {
+      console.log("Warning: KOLBO_SERVER_PASSWORD is not set; server is unsecured.")
     }
     const opts = await resolveNetworkOptions(args)
     const server = await Server.listen(opts)
-    console.log(`kodu server listening on http://${server.hostname}:${server.port}`)
+    console.log(`kolbo server listening on http://${server.hostname}:${server.port}`)
 
     await new Promise(() => {})
     await server.stop()

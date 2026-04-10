@@ -18,17 +18,17 @@ const log = Log.create({ service: "instruction" })
 
 const FILES = [
   "AGENTS.md",
-  ...(Flag.KODU_DISABLE_CLAUDE_CODE_PROMPT ? [] : ["CLAUDE.md"]),
+  ...(Flag.KOLBO_DISABLE_CLAUDE_CODE_PROMPT ? [] : ["CLAUDE.md"]),
   "CONTEXT.md", // deprecated
 ]
 
 function globalFiles() {
   const files = []
-  if (Flag.KODU_CONFIG_DIR) {
-    files.push(path.join(Flag.KODU_CONFIG_DIR, "AGENTS.md"))
+  if (Flag.KOLBO_CONFIG_DIR) {
+    files.push(path.join(Flag.KOLBO_CONFIG_DIR, "AGENTS.md"))
   }
   files.push(path.join(Global.Path.config, "AGENTS.md"))
-  if (!Flag.KODU_DISABLE_CLAUDE_CODE_PROMPT) {
+  if (!Flag.KOLBO_DISABLE_CLAUDE_CODE_PROMPT) {
     files.push(path.join(os.homedir(), ".claude", "CLAUDE.md"))
   }
   return files
@@ -64,7 +64,7 @@ export namespace Instruction {
     ) => Effect.Effect<{ filepath: string; content: string }[], AppFileSystem.Error>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Instruction") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Instruction") {}
 
   export const layer: Layer.Layer<Service, never, AppFileSystem.Service | Config.Service | HttpClient.HttpClient> =
     Layer.effect(
@@ -84,19 +84,19 @@ export namespace Instruction {
         )
 
         const relative = Effect.fnUntraced(function* (instruction: string) {
-          if (!Flag.KODU_DISABLE_PROJECT_CONFIG) {
+          if (!Flag.KOLBO_DISABLE_PROJECT_CONFIG) {
             return yield* fs
               .globUp(instruction, Instance.directory, Instance.worktree)
               .pipe(Effect.catch(() => Effect.succeed([] as string[])))
           }
-          if (!Flag.KODU_CONFIG_DIR) {
+          if (!Flag.KOLBO_CONFIG_DIR) {
             log.warn(
-              `Skipping relative instruction "${instruction}" - no KODU_CONFIG_DIR set while project config is disabled`,
+              `Skipping relative instruction "${instruction}" - no KOLBO_CONFIG_DIR set while project config is disabled`,
             )
             return []
           }
           return yield* fs
-            .globUp(instruction, Flag.KODU_CONFIG_DIR, Flag.KODU_CONFIG_DIR)
+            .globUp(instruction, Flag.KOLBO_CONFIG_DIR, Flag.KOLBO_CONFIG_DIR)
             .pipe(Effect.catch(() => Effect.succeed([] as string[])))
         })
 
@@ -124,7 +124,7 @@ export namespace Instruction {
           const paths = new Set<string>()
 
           // The first project-level match wins so we don't stack AGENTS.md/CLAUDE.md from every ancestor.
-          if (!Flag.KODU_DISABLE_PROJECT_CONFIG) {
+          if (!Flag.KOLBO_DISABLE_PROJECT_CONFIG) {
             for (const file of FILES) {
               const matches = yield* fs.findUp(file, Instance.directory, Instance.worktree)
               if (matches.length > 0) {

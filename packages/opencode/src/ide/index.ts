@@ -45,7 +45,7 @@ export namespace Ide {
   }
 
   export function alreadyInstalled() {
-    return process.env["KODU_CALLER"] === "vscode" || process.env["KODU_CALLER"] === "vscode-insiders"
+    return process.env["KOLBO_CALLER"] === "vscode" || process.env["KOLBO_CALLER"] === "vscode-insiders"
   }
 
   export async function install(ide: (typeof SUPPORTED_IDES)[number]["name"]) {

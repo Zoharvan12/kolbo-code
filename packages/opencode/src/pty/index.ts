@@ -112,7 +112,7 @@ export namespace Pty {
     ) => Effect.Effect<{ onMessage: (message: string | ArrayBuffer) => void; onClose: () => void } | undefined>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Pty") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Pty") {}
 
   export const layer = Layer.effect(
     Service,
@@ -187,7 +187,7 @@ export namespace Pty {
           ...input.env,
           ...shell.env,
           TERM: "xterm-256color",
-          KODU_TERMINAL: "1",
+          KOLBO_TERMINAL: "1",
         } as Record<string, string>
 
         if (process.platform === "win32") {

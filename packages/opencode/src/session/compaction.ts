@@ -58,7 +58,7 @@ export namespace SessionCompaction {
     }) => Effect.Effect<void>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/SessionCompaction") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/SessionCompaction") {}
 
   export const layer: Layer.Layer<
     Service,

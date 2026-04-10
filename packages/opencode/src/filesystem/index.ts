@@ -36,7 +36,7 @@ export namespace AppFileSystem {
     readonly globMatch: (pattern: string, filepath: string) => boolean
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/FileSystem") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/FileSystem") {}
 
   export const layer = Layer.effect(
     Service,

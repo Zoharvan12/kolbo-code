@@ -5,7 +5,7 @@ import { Installation } from "../../installation"
 
 export const UpgradeCommand = {
   command: "upgrade [target]",
-  describe: "upgrade kodu to the latest or a specific version",
+  describe: "upgrade kolbo to the latest or a specific version",
   builder: (yargs: Argv) => {
     return yargs
       .positional("target", {
@@ -27,7 +27,7 @@ export const UpgradeCommand = {
     const detectedMethod = await Installation.method()
     const method = (args.method as Installation.Method) ?? detectedMethod
     if (method === "unknown") {
-      prompts.log.error(`kodu is installed to ${process.execPath} and may be managed by a package manager`)
+      prompts.log.error(`kolbo is installed to ${process.execPath} and may be managed by a package manager`)
       const install = await prompts.select({
         message: "Install anyways?",
         options: [
@@ -45,7 +45,7 @@ export const UpgradeCommand = {
     const target = args.target ? args.target.replace(/^v/, "") : await Installation.latest()
 
     if (Installation.VERSION === target) {
-      prompts.log.warn(`kodu upgrade skipped: ${target} is already installed`)
+      prompts.log.warn(`kolbo upgrade skipped: ${target} is already installed`)
       prompts.outro("Done")
       return
     }

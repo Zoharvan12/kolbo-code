@@ -152,7 +152,8 @@ export function Prompt(props: PromptProps) {
 
     const model = sync.data.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
     const pct = model?.limit.context ? `${Math.round((tokens / model.limit.context) * 100)}%` : undefined
-    const cost = msg.reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
+    const isKolbo = last.providerID === "kolbo"
+    const cost = isKolbo ? 0 : msg.reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
     return {
       context: pct ? `${Locale.number(tokens)} (${pct})` : Locale.number(tokens),
       cost: cost > 0 ? money.format(cost) : undefined,
@@ -1099,7 +1100,9 @@ export function Prompt(props: PromptProps) {
                     <text flexShrink={0} fg={keybind.leader ? theme.textMuted : theme.text}>
                       {local.model.parsed().model}
                     </text>
-                    <text fg={theme.textMuted}>{currentProviderLabel()}</text>
+                    <Show when={local.model.parsed().provider !== local.model.parsed().model}>
+                      <text fg={theme.textMuted}>{currentProviderLabel()}</text>
+                    </Show>
                     <Show when={showVariant()}>
                       <text fg={theme.textMuted}>·</text>
                       <text>

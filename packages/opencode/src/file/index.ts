@@ -338,7 +338,7 @@ export namespace File {
     }) => Effect.Effect<string[]>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/File") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/File") {}
 
   export const layer = Layer.effect(
     Service,

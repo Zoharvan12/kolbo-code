@@ -71,7 +71,7 @@ export namespace SessionSummary {
     readonly computeDiff: (input: { messages: MessageV2.WithParts[] }) => Effect.Effect<Snapshot.FileDiff[]>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/SessionSummary") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/SessionSummary") {}
 
   export const layer = Layer.effect(
     Service,

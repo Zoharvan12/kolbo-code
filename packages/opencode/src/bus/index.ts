@@ -41,7 +41,7 @@ export namespace Bus {
     readonly subscribeAllCallback: (callback: (event: any) => unknown) => Effect.Effect<() => void>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/Bus") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/Bus") {}
 
   export const layer = Layer.effect(
     Service,

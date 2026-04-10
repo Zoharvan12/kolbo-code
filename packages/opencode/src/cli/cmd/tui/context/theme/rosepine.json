@@ -1,5 +1,5 @@
 {
-  "$schema": "https://kodu.ai/theme.json",
+  "$schema": "https://kolbo.ai/theme.json",
   "defs": {
     "base": "#191724",
     "surface": "#1f1d2e",

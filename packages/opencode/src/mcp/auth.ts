@@ -49,7 +49,7 @@ export namespace McpAuth {
     readonly isTokenExpired: (mcpName: string) => Effect.Effect<boolean | null>
   }
 
-  export class Service extends ServiceMap.Service<Service, Interface>()("@kodu/McpAuth") {}
+  export class Service extends ServiceMap.Service<Service, Interface>()("@kolbo/McpAuth") {}
 
   export const layer = Layer.effect(
     Service,
