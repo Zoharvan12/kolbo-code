@@ -1,5 +1,7 @@
 name: test
 
+if: github.repository == 'anomalyco/kodu'
+
 on:
   push:
     branches:

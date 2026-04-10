@@ -1,5 +1,7 @@
 name: beta
 
+if: github.repository == 'anomalyco/kodu'
+
 on:
   workflow_dispatch:
   schedule:
