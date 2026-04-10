@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "title": "Neon Rain Chase",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Handheld Shake - Tracking Movement",
+    "prompt": "@female_runner emerges from shadow into neon-lit cyberpunk alley, rain streaming down her face, her leather jacket flaring behind her as she sprints. The camera handheld-tracks from behind, jostling with each footfall, rain droplets catching the neon glow in slow-motion bursts. She glances back over her shoulder — wide eyes, jaw clenched in desperate determination. Buildings blur past on either side, holographic billboards flickering. Her breath fogs in the cold air. one continuous shot, no cuts\n\nSound design (SFX only, no music): heavy rain patter on concrete, rapid footsteps echoing, her sharp intake of breath, distant police sirens wailing closer, neon buzz hum, fabric rustling from the sprint.\n\nStyle: cyberpunk noir, wet pavement reflections, neon pink and cyan lighting against dark brutalist architecture, 2.35:1 widescreen, 24fps, high-end cinematic production feel."
+  },
+  {
+    "id": 2,
+    "title": "Luxury Perfume Reveal",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Dolly In",
+    "prompt": "(0-3s) OPENING: A velvet cloth draped pedestal sits center-frame in a darkened studio. A single overhead spotlight illuminates it, dust motes floating in the beam. The camera is static, wide.\n\n(3-7s) BUILD: A gloved hand enters from the left edge, slowly reaching toward the cloth. The fingers grip the fabric with elegant precision and pull it away in one smooth motion. Underneath: a crystal perfume bottle catches the light, refracting rainbow prisms across the dark space. The camera pushes in slowly, Dolly In.\n\n(7-10s) PAYOFF: The bottle rotates slowly in the spotlight, revealing its faceted surface. Gold liquid glows within. The camera settles on a medium close-up of the bottle as light plays across it. seamless transition, no cuts\n\nSound design (SFX only, no music): velvet rustle of cloth, subtle glass chime as bottle catches light, one beat of anticipation silence, soft ambient studio hum.\n\nStyle: luxury product commercial, moody high-contrast lighting, deep blacks with warm golden spotlight, 2.35:1 widescreen, 24fps, high-end advertising production feel."
+  },
+  {
+    "id": 3,
+    "title": "Samurai Duel at Dawn",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Static",
+    "prompt": "(0-3s) OPENING: Two samurai stand facing each other on a misty mountain clearing at dawn. Cherry blossoms drift slowly in the cold air. Golden first light breaks over distant peaks, casting long shadows. The elder samurai's white hair catches the breeze. Both hands rest on katana hilts.\n\n(3-7s) BUILD: Neither moves. Wind howls through the trees. A single cherry blossom lands on the elder's shoulder. His eyes narrow. The younger samurai shifts his weight almost imperceptibly. Tension crackles like static. Camera remains static, wide, letting the stillness breathe.\n\n(7-10s) PAYOFF: The elder's blade flashes out of its sheath in a silver arc — faster than the eye can follow. In the same instant, the younger samurai crumples. The elder sheathes his sword in one fluid motion, turns, and walks away into the mist. Camera holds. one continuous shot, no cuts\n\nSound design (SFX only, no music): wind howling through bamboo, distant bird calls, single sword unsheathes with metallic ring, body hitting ground with soft thud, footsteps fading into mist, instant dead silence after.\n\nStyle: Japanese period drama, golden hour lighting, mist and atmosphere, shallow depth of field on distant mountains, 2.35:1 widescreen, 24fps, Kurosawa cinematic production feel."
+  },
+  {
+    "id": 4,
+    "title": "K-Pop Dance Formation",
+    "duration": "10s",
+    "mode": "Multi-Shot",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Tracking Movement",
+    "prompt": "A group of five performers in sync K-pop choreography emerge from shadow into dramatic spotlight on a minimalist dark stage. The lead singer commands center position, her confident smirk locking with the camera. They move as one organism — sharp arm isolations, synchronized footwork, hair flipping in perfect unison. The camera glides between them, tracking individual faces during their signature moves before pulling back for the full formation. Colored stage lights sweep across them in sweeping arcs. Energy builds with each beat. Their expressions shift from cool confidence to pure joy mid-performance. one continuous shot, no cuts\n\nSound design (SFX only, no music): bass drop into first beat, synchronized footsteps on stage floor, breath control between phrases, crowd distant roar bleeding in, final pose lock with applause snap.\n\nStyle: K-pop music video, dramatic low-key lighting, cyan and magenta stage lights, smoke atmosphere, dynamic camera movement, 2.35:1 widescreen, 24fps, professional music video production feel."
+  },
+  {
+    "id": 5,
+    "title": "Muay Thai Knockout",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "VFX: Bullet-Time",
+    "prompt": "(0-3s) OPENING: Two fighters circle each other in a dimly lit Bangkok Muay Thai ring. Sweat glistens on their foreheads under harsh overhead lights. The crowd is a blur of shadows beyond the ropes. The younger fighter feints left — his opponent's eyes track the movement.\n\n(3-7s) BUILD: The older fighter steps in with a brutal teep push kick. The younger one absorbs it, rolling with the impact, and counters with a spinning elbow — his entire body rotating through the strike, kinetic energy flowing from feet through core to fist.\n\n(7-10s) PAYOFF: The elbow connects flush with the jaw. The impact ripples through the winner's body — hair blown back from the force of the strike, sweat droplets flying. The loser drops like a stone, out cold before he hits the canvas. The winner stands over him, chest heaving, arms raised in victory. Bullet-time effect on the knockout moment. one continuous shot, no cuts\n\nSound design (SFX only, no music): crowd murmur building, footsteps on canvas, gloves connecting with muffled thud, crack of elbow on jaw, body hitting canvas with heavy impact, instant crowd roar, referee counting in Thai.\n\nStyle: combat sports documentary, harsh overhead ring lighting, handheld documentary camera feel, sweat and grit realism, 2.35:1 widescreen, 24fps, ESPN fight night production feel."
+  },
+  {
+    "id": 6,
+    "title": "3D Claymation Cyberpunk",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Dolly In",
+    "prompt": "A young man in a dark suit sprints across a rain-soaked cyberpunk rooftop at night, his claymation features exaggerated and expressive — oversized head, soft rounded polygon geometry. Neon magenta and cyan lights from the city below paint his form. He skids to a halt at the roof's edge, breath puffing in slow-motion clouds. Below, helicopters searchlight sweeps through the fog. He looks down, then back — pursuers emerging from the stairwell door behind him. His face crumples into pure panic, eyes wide and wet. He jumps. Dolly In follows him as he falls, camera attached to his perspective, city lights streaking past. Deep slow-motion physics throughout except the moment of impact. seamless transition, no cuts\n\nSound design (SFX only, no music): rain hitting camera lens, distant helicopter rotors, heavy clay footsteps on metal rooftop, cloth rustling from sprint, sharp breath intake before jump, wind rushing past during fall, instant dead silence at impact.\n\nStyle: 3D claymation cinematic, soft clay texture on all surfaces, exaggerated organic proportions, cyberpunk neon lighting in magenta/cyan/purple tones, wet rooftop reflections, volumetric atmospheric haze, deep slow-motion, 2.35:1 widescreen, 24fps."
+  },
+  {
+    "id": 7,
+    "title": "French Graphic Novel Scene",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Handheld Shake - Push In",
+    "prompt": "A sharp-suited young man on a galloping horse tears through a vast futuristic city boulevard at dusk. The sky bleeds pale amber into deep violet. His tie whips behind him, jacket billowing. Behind him, a wide-brimmed cowboy in pursuit — jaw set, eyes cold, closing the gap. Camera handheld-shakes with each hoofbeat, pushing in on the hero's panicked face. His expression collapses into raw fear as he glances back. Sweat drips down his temple. The cowboy draws his revolver without breaking stride. The hero flinches — full body, eyes squeezed shut. Bullet grazes past: tears through his jacket shoulder, spinning his half-off shoe. He snaps back, face flooded with disbelief, staring at his damaged clothing. Camera pushes in on his incredulous expression. one continuous shot, no cuts\n\nSound design (SFX only, no music): horse hooves on cobblestone, leather creaking from saddle, hero's panicked breathing, gun cocking, gunshot crack echoing, fabric tearing, one beat of stunned silence.\n\nStyle: French graphic novel illustration, Moebius-inspired clean linework, flat muted color planes, warm amber and ochre palette with cool violet shadows, bold confident outlines, 2.35:1 widescreen, 24fps."
+  },
+  {
+    "id": 8,
+    "title": "Emotional Confrontation",
+    "duration": "10s",
+    "mode": "Single Image",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Push In",
+    "prompt": "(0-3s) OPENING: Two old friends stand facing each other in a sparse empty room. Afternoon light filters through dirty windows, casting long rectangles across the wooden floor. Between them: years of unspoken words. One holds a glass of whiskey, untouched. His jaw is tight.\n\n(3-7s) BUILD: The other steps closer. His eyes glisten. \"I should have told you years ago.\" His voice cracks. Camera Pushes In slowly, capturing every micro-expression — the tremble in his lip, the redness building behind his eyes. The whiskey-holder's hand tightens on the glass.\n\n(7-10s) PAYOFF: A single tear breaks free, rolling down the speaker's cheek. He doesn't wipe it away. The camera holds on his face — raw vulnerability exposed. His friend sets down the whiskey and pulls him into an embrace. Camera holds steady, witnessing. seamless transition, no cuts\n\nSound design (SFX only, no music): old house settling sounds, clock ticking in background, muffled city traffic outside, one breath of suppressed emotion, two men embracing with soft fabric rustle, single sob, instant silence.\n\nStyle: intimate drama, natural available light, shallow depth of field, emotional realism, 2.35:1 widescreen, 24fps, independent film production feel."
+  },
+  {
+    "id": 9,
+    "title": "Anime Mecha Pilot",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Static",
+    "prompt": "(0-3s) OPENING: A massive angular bipedal mech suit stands amid a desolate futuristic cityscape, its white and teal armor catching the harsh sunlight. Debris floats in the air from recent battle. The mech's chest cockpit glows as it activates.\n\n(3-7s) BUILD: Camera cuts inside to the cockpit — a young female pilot reclines casually, one arm behind her head, confident smirk on her face. She takes a long drag from a lollipop, exhaling a plume of smoke. Her eyes are locked on the holographic target display. \"Spotted her. Sending a mark,\" she says with cool intensity.\n\n(7-10s) PAYOFF: She grips the dual flight sticks. Her hair is blown back dramatically as the mech's massive cannon fires off-screen — immense recoil visible. Her expression never wavers, hands firm on the sticks, steely confident. Camera holds on her face in the cockpit, bathed in the cannon's orange muzzle flash. seamless transition, no cuts\n\nSound design (SFX only, no music): mech hydraulic systems activating, cockpit ambient hum, lollipop crack as she bites it, target lock beep, cannon charging with electric whine, massive explosion off-screen, intense wind rush, pilot steady breathing through it all.\n\nStyle: anime mech sci-fi, bold cel-shaded aesthetic, dramatic orange and teal color contrast, cinematic cockpit lighting, 2.35:1 widescreen, 24fps, high-quality anime cinematic production feel."
+  },
+  {
+    "id": 10,
+    "title": "Luxury Interior Reveal",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Dolly In",
+    "prompt": "(0-3s) OPENING: A door opens to reveal an empty modern living room bathed in warm golden hour light streaming through floor-to-ceiling windows. Dust motes dance in the sunbeams. Minimalist furniture casts long shadows. The camera is static, wide, establishing the space.\n\n(3-7s) BUILD: The camera begins a slow Dolly In, gliding past designer furniture — a curved velvet sofa, a sculptural floor lamp, abstract art on textured walls. Each detail is highlighted by the shifting light. Steam rises from a coffee cup left on a marble side table. The space feels lived-in, curated, warm.\n\n(7-10s) PAYOFF: Camera settles on a wide shot of the entire room as golden hour peaks, everything bathed in honey-warm light. A woman enters frame from the left, walking toward camera, silhouette backlit. She pauses, turns, and smiles at something off-camera. Camera holds on her profile. seamless transition, no cuts\n\nSound design (SFX only, no music): door opening with soft creak, footsteps on hardwood floor, fabric rustle from clothing, distant city ambience through windows, soft wind chimes off-camera, gentle exhale of satisfaction.\n\nStyle: luxury interior design, warm golden hour lighting, architectural minimalism, shallow depth of field on foreground details, 2.35:1 widescreen, 24fps, high-end real estate production feel."
+  },
+  {
+    "id": 11,
+    "title": "VFX Explosion Finisher",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "VFX: Explosion",
+    "prompt": "(0-3s) OPENING: A lone warrior stands in an empty concrete arena, sunset casting long shadows across the ground. Wind whips dust across the floor. She raises her fist toward the sky — a defiant gesture. Enemies surround her on all sides, too many to count.\n\n(3-7s) BUILD: She drops into a fighting stance. The first enemy charges. She moves like water — flowing between attacks, each strike precise and devastating. Hair whips around her face, muscles rippling under fabric, breath controlled and rhythmic. One by one they fall.\n\n(7-10s) PAYOFF: The final enemy lunges. She sidesteps and drives her palm into his chest with explosive force. The impact triggers a massive shockwave — preset Explosion activates. Debris flies outward in slow motion, fire reflecting in her eyes. Camera recoils with the impact, then settles on her standing amid the destruction, untouched, breathing calmly. seamless transition, no cuts\n\nSound design (SFX only, no music): wind howling, rapid footwork on concrete, impacts with muffled thuds, enemies grunting, final palm strike contact, massive bass shockwave boom, debris raining down, instant complete silence in aftermath.\n\nStyle: action blockbuster, dramatic sunset backlighting, dust and debris particles, slow-motion impact physics, 2.35:1 widescreen, 24fps, Hollywood VFX production feel."
+  },
+  {
+    "id": 12,
+    "title": "iPhone Social Authenticity",
+    "duration": "10s",
+    "mode": "Single Image",
+    "model": "Seedance 2.0",
+    "preset": "Character: Talk",
+    "prompt": "(0-3s) OPENING: A young woman holds her phone at arm's length, selfie angle, natural window light illuminating her face. She has an authentic smile, slightly crooked teeth visible. Her apartment is visible behind her — messy but lived-in. She looks directly into the camera with genuine warmth.\n\n(3-7s) BUILD: She starts talking — natural rambling energy, not scripted. \"Okay so I actually can't believe this worked\" — genuine surprise on her face. She gestures with her free hand, animated and spontaneous. The camera has that slight iPhone wobble.\n\n(7-10s) PAYOFF: She breaks into genuine laughter — eyes crinkling, head tilting back slightly. Natural bokeh background behind her. She recovers, still smiling. \"Okay but seriously, you have to try this.\" She winks. Camera holds. no words, no music\n\nSound design (SFX only, no music): room ambient noise, natural voice with slight reverb, genuine laughter, one beat of satisfied silence, soft background music fade-in at end.\n\nStyle: Mirage Life social media authenticity, iPhone-style vertical framing, natural window lighting, genuine expression, slight shallow depth of field, 9:16 vertical, 30fps, authentic influencer content feel."
+  },
+  {
+    "id": 13,
+    "title": "Stop-Motion Fashion Editorial",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Static",
+    "prompt": "A model poses in a sun-drenched Parisian apartment, her movements deliberate and slightly stuttered — the signature rhythm of stop-motion animation. Each pose holds for a beat before snapping to the next. She wears an avant-garde designer gown: structural black feathers meeting flowing white silk, sharp shoulders, dramatic train. Morning light streams through tall windows, casting geometric shadows across the parquet floor. She pivots from profile to full-frontal, every joint articulated like a marionette. Her expression shifts from cool detachment to smoldering intensity mid-sequence. The camera remains static throughout, letting her movement create all the energy. one continuous shot, no cuts\n\nSound design (SFX only, no music): floorboard creaking under each pose snap, fabric rustling from feather movement, distant café sounds through window, clock ticking in background, soft ambient Parisian morning hum.\n\nStyle: stop-motion animation, warm Parisian morning light, high fashion editorial, geometric shadow play, slightly jerky frame-by-frame movement, 2.35:1 widescreen, 24fps, Wes Anderson cinematic production feel."
+  },
+  {
+    "id": 14,
+    "title": "Chibi Low-Poly Arena",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Tracking Movement",
+    "prompt": "(0-3s) OPENING: A vast sandy colosseum arena stretches under a golden sky. Tiny warriors on horseback enter from opposite gates in a dramatic charge. The crowd of chibi spectators erupts — tiny arms waving, mouths open in silent screams. Confetti cannons fire.\n\n(3-7s) BUILD: Two knights on stocky ponies clash in the center, their tiny swords sparking on contact. One knight — smaller, wearing a suit instead of armor — fights with unexpected skill. Camera tracks the chaotic melee, following sparks and movement through the dust. His helmet flies off mid-battle, revealing a young face.\n\n(7-10s) PAYOFF: The suited knight delivers a final decisive blow. His opponent tumbles off his pony in slow motion, bouncing comically on the sand. The crowd goes wild. The victor raises his tiny sword — then his watch glows. Camera zooms in on his panicked face as blue energy crackles around him. seamless transition, no cuts\n\nSound design (SFX only, no music): crowd distant roar, horse hooves on sand, sword clash metallic ring, tiny impact sounds, confetti rustling, slow-motion tumble, watch activating with electric hum, blue energy crackling.\n\nStyle: chibi low-poly 3D, compact rounded bodies with oversized expressive heads, smooth polygon geometry, warm sandy arena lighting, volumetric shadows, confetti atmosphere, 2.35:1 widescreen, 24fps."
+  },
+  {
+    "id": 15,
+    "title": "Manga Ink Action",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Handheld Shake - Tracking Movement",
+    "prompt": "Black and white manga animation. A young man in a black suit sprints down a dark alley, panels flashing past in rapid succession. 「ドスッ」the sound effect appears as he kicks open a door. Inside: enemies waiting. His face sets into determined resolve — thick contour lines, crosshatch shadow on his jaw. 「シュッ」as he draws his weapon. Camera handheld-tracks the action, whipping between shots in classic manga style. 「ザッ」as he dispatches three guards in rapid succession, speed lines filling the frame. 「カチッ」as the final enemy clicks his tongue in defeat. Halftone dots cover all midtone regions. Horizontal stripe artifacts blur the fast motion. Free camera, dynamic cuts, twelve animation principles throughout. 0-3s setup, 3-7s confrontation, 7-10s resolution. one continuous shot, no cuts\n\nSound design (SFX only, no music): door crashing open, rapid footsteps, three impact sounds in succession, sword click into position, one beat of heavy silence, distant city night ambience.\n\nStyle: 1980s-90s seinen manga, bold black ink lines, cross-hatching, screentone dots, zero color, high contrast black and white, thick pen nib linework, Akira/Ghost in the Shell density, 2.35:1 widescreen, 24fps."
+  },
+  {
+    "id": 16,
+    "title": "Product Commercial 3-Beat",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Dolly In",
+    "prompt": "(0-3s) SHOT 1 — HANDS OPEN: Two hands hold a closed luxury watch box against a deep navy background. Soft studio rim lighting traces the edges. The camera is static, medium shot.\n\n(3-7s) SHOT 2 — BUILD: Camera Dollys In as hands open the box. The watch gleams under spotlight — polished steel case, sapphire crystal, deep green dial. Fingers reach in, lifting the watch with reverence. The background shifts subtly, revealing a lifestyle context — blurred office environment, afternoon light.\n\n(7-10s) SHOT 3 — HERO PAYOFF: The watch clasps onto a wrist in close-up. Camera settles and holds. Gold light catches the crystal as the wrist rotates slowly. The brand logo is embossed on the leather strap in subtle relief. Seamless transition, no cuts\n\nSound design (SFX only, no music): box lid lifting with soft click, fabric cushion shifting, watch clasp snapping closed, one beat of satisfied appreciation, subtle ambient office hum in background.\n\nStyle: luxury product commercial, deep navy and gold color palette, soft studio lighting with rim light, shallow depth of field, clean minimal composition, 2.35:1 widescreen, 24fps, Swiss watch brand production feel."
+  },
+  {
+    "id": 17,
+    "title": "Underwater Discovery",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Dolly Out",
+    "prompt": "(0-3s) OPENING: A diver floats motionless in the blue void, her body silhouetted against a shaft of sunlight piercing from above. Bubbles rise lazily around her. Fish swim past in Schools, creating moving patterns of silver. She kicks gently, suspended in weightlessness.\n\n(3-7s) BUILD: She descends slowly, arms outstretched, exploring the underwater cavern. Her flashlight beam cuts through the murk, illuminating ancient stone walls covered in coral. A sea turtle glides past, unhurried and ancient. Camera follows her perspective, revealing the space gradually. Her breathing echoes through her regulator.\n\n(7-10s) PAYOFF: She reaches a hidden grotto. Inside: a shipwreck resting on the sand, covered in marine life, a century of history. She hovers at the entrance, bubble stream rising, taking it in. Camera Dollys Out to reveal the full scope — diver small against the wreck's massive hull. She turns to camera, mask reflected, and points with one gloved finger. seamless transition, no cuts\n\nSound design (SFX only, no music): bubbles rising and popping, regulator breathing rhythm, fish swimming past with soft whoosh, flashlight click on, distant whale call, echo in cavern, diver hand signal tap on tank.\n\nStyle: nature documentary, ethereal underwater blue tones, god rays from above, coral vibrant colors, slow float physics, 2.35:1 widescreen, 24fps, BBC Blue Planet production feel."
+  },
+  {
+    "id": 18,
+    "title": "Heist Precision",
+    "duration": "10s",
+    "mode": "First/Last Frame",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Handheld Shake - Tracking Movement",
+    "prompt": "First frame: A sleek vault door in a dark underground bunker. Red laser security beams crisscross the frame, forming an impenetrable grid. The vault handle gleams under a single overhead light.\n\nLast frame: The same vault door hangs open. Inside: empty shelves and safety deposit boxes. A gloved hand holds a single small black USB drive, lit by the flash of the opened vault interior.\n\nTransition: The camera POV from behind the laser grid. A gloved figure moves through the beams with impossible precision — each movement avoiding the lasers by millimeters. The vault handle turns. Lasers shut off in sequence as the system powers down. The door swings open silently. Camera pushes through into the vault. Hand reaches in, retrieves the drive. Gloved fingers close around it. Camera holds on the fist closing around the drive. seamless transition, no cuts\n\nSound design (SFX only, no music): laser beep sensors, vault handle mechanism engaging with heavy mechanical clunk, lasers powering down sequence, vault door heavy swing, fabric rustle from gloves, soft exhale of completed mission, footstep retreat.\n\nStyle: heist thriller, dark bunker atmosphere, red and white lighting contrast, tension and precision, handheld documentary camera feel, 2.35:1 widescreen, 24fps, Ocean's Eleven cinematic feel."
+  },
+  {
+    "id": 19,
+    "title": "Comedic Style Contrast",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Static",
+    "prompt": "(0-3s) OPENING: A photorealistic luxury wedding venue — white tables with crystal glasses, flower arrangements, golden afternoon light through tall windows. Guests in formal wear mill about, genuine smiles, champagne flutes catching light. Everything is lush, warm, beautifully composed.\n\n(3-7s) BUILD: In the center of this perfect scene: a 2D flat cartoon character. He's drawn in bold flat colors, thick black outlines, completely flat with no depth perception. He's wearing a tiny tuxedo and looking around with wide confused eyes. His flat body language contrasts absurdly with the photorealistic guests.\n\n(7-10s) PAYOFF: The cartoon character tries to shake hands with a real guest — his flat hand passes through their photorealistic arm. He looks at it, puzzled. The real guests don't seem to notice him. Camera holds on the absurd visual: flat cartoon in a 3D world, looking wrong on purpose. The cartoon shrugs comically. seamless transition, no cuts\n\nSound design (SFX only, no music): wedding ambient chatter, champagne clinks, string quartet playing, cartoon character flat footstep sounds that don't match, confusion hum, comedic record scratch, guest oblivious murmurs.\n\nStyle: surrealist comedy, deliberate style contrast between 2D flat cartoon and photorealistic live-action, visible composition mismatch, flat illustration physics, 2.35:1 widescreen, 24fps, surrealist comedic production feel."
+  },
+  {
+    "id": 20,
+    "title": "Final Mirror Reveal",
+    "duration": "10s",
+    "mode": "Elements",
+    "model": "Seedance 2.0",
+    "preset": "Camera: Dolly In",
+    "prompt": "(0-3s) OPENING: A woman stands in a restaurant bathroom, staring at herself in a mirror. Golden candlelight flickers. Her hair is wrecked, standing at odd angles. Her dress is torn at the shoulder seam. Makeup smudged, lipstick off-center. She looks exhausted but alive.\n\n(3-7s) BUILD: She tilts her head, examining the damage. Scorch marks along one sleeve from a hellfire encounter hours earlier. A smear of paint across one cheek. Her torn dress reveals a shoe missing entirely — just a sock on that foot. She starts to laugh — a real, broken, relieved laugh. Her reflection laughs with her, mirror matching perfectly.\n\n(7-10s) PAYOFF: She lifts her wrist. On it: a glowing watch. She looks at it, then at her reflection. Same watch on the mirror's wrist. She smiles — a knowing look passes between her and her reflection. She unclasps the watch, sets it on the sink counter. Camera Dollys In on both watches — real and reflected — side by side, glowing faintly. seamless transition, no cuts\n\nSound design (SFX only, no music): restaurant ambient murmur, bathroom echo, woman laughing with genuine emotion, watch clasp clicking on counter, two watches setting down together, one slow exhale of understanding, candle flickering.\n\nStyle: intimate drama, warm candlelight and gold tones, shallow depth of field on mirror reflection, emotional vulnerability, mystery elements in the watch reveal, 2.35:1 widescreen, 24fps, prestige film production feel."
+  }
+]
