@@ -213,7 +213,7 @@ export function tui(input: {
                 <ToastProvider>
                   <RouteProvider>
                     <TuiConfigProvider config={input.config}>
-                      <I18nProvider lang={(input.config.language as SupportedLang) ?? "en"}>
+                      <I18nProvider lang={(input.config.language as SupportedLang) ?? "en"} languageConfigured={!!input.config.language}>
                       <SDKProvider
                         url={input.url}
                         directory={input.directory}

@@ -10,6 +10,7 @@ import { useLocal } from "../context/local"
 import { TuiPluginRuntime } from "../plugin"
 import { useDialog } from "../ui/dialog"
 import { DialogProvider } from "../component/dialog-provider"
+import { DialogLanguage } from "../component/dialog-language"
 import { useI18n } from "@/i18n"
 
 // TODO: what is the best way to do this?
@@ -30,13 +31,18 @@ export function Home() {
   const dialog = useDialog()
   let sent = false
 
-  // Always show auth/onboarding if no provider is connected — re-shows on ESC
+  // Always show language → auth flow if not connected — re-shows on ESC
   const connected = createMemo(() => sync.data.provider_next.connected.length > 0)
+  const { isLanguageConfigured } = useI18n()
   createEffect(() => {
     if (!sync.ready) return
     if (connected()) return
     if (dialog.stack.length > 0) return
-    dialog.replace(() => <DialogProvider />)
+    if (!isLanguageConfigured()) {
+      dialog.replace(() => <DialogLanguage onSelect={() => dialog.replace(() => <DialogProvider />)} />)
+    } else {
+      dialog.replace(() => <DialogProvider />)
+    }
   })
 
   const bind = (r: PromptRef | undefined) => {

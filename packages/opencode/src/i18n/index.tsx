@@ -93,12 +93,14 @@ type I18nContextValue = {
   lang: () => SupportedLang
   isRTL: () => boolean
   setLang: (lang: SupportedLang) => Promise<void>
+  isLanguageConfigured: () => boolean
 }
 
 const I18nContext = createContext<I18nContextValue>()
 
-export const I18nProvider: ParentComponent<{ lang?: SupportedLang }> = (props) => {
+export const I18nProvider: ParentComponent<{ lang?: SupportedLang; languageConfigured?: boolean }> = (props) => {
   const [lang, setLangSignal] = createSignal<SupportedLang>(props.lang ?? "en")
+  const [langConfigured, setLangConfigured] = createSignal(props.languageConfigured ?? false)
 
   const setLang = async (next: SupportedLang) => {
     const resources = await loadLocale(next)
@@ -107,6 +109,7 @@ export const I18nProvider: ParentComponent<{ lang?: SupportedLang }> = (props) =
     }
     await i18next.changeLanguage(next)
     setLangSignal(next)
+    setLangConfigured(true)
     // Persist language choice to tui.json for next session
     try {
       const { TuiConfig } = await import("@/config/tui")
@@ -133,6 +136,7 @@ export const I18nProvider: ParentComponent<{ lang?: SupportedLang }> = (props) =
         lang,
         isRTL: () => RTL_LANGUAGES.includes(lang()),
         setLang,
+        isLanguageConfigured: langConfigured,
       }}
     >
       {props.children}

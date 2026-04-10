@@ -170,7 +170,7 @@ function AutoMethod(props: AutoMethodProps) {
   const { t } = useI18n()
 
   useKeyboard((evt) => {
-    if (evt.name === "c" && !evt.ctrl && !evt.meta) {
+    if (evt.name === "c" && evt.ctrl) {
       const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
       Clipboard.copy(code)
         .then(() => toast.show({ message: t("toast.copiedToClipboard"), variant: "info" }))
@@ -211,7 +211,8 @@ function AutoMethod(props: AutoMethodProps) {
       <box gap={1}>
         <Link href={props.authorization.url} fg={theme.primary} />
         <text
-          fg={theme.textMuted}
+          fg={theme.primary}
+          attributes={1}
           onMouseUp={() => {
             const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
             Clipboard.copy(code)
@@ -219,20 +220,12 @@ function AutoMethod(props: AutoMethodProps) {
               .catch(toast.error)
           }}
         >
-          {props.authorization.instructions}
+          {props.authorization.instructions} <span style={{ fg: theme.textMuted }}>← {t("dialog.copyLabel")}</span>
         </text>
       </box>
       <text fg={theme.textMuted}>{t("dialog.waitingForAuthorization")}</text>
-      <text
-        fg={theme.text}
-        onMouseUp={() => {
-          const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
-          Clipboard.copy(code)
-            .then(() => toast.show({ message: t("toast.copiedToClipboard"), variant: "info" }))
-            .catch(toast.error)
-        }}
-      >
-        c <span style={{ fg: theme.textMuted }}>{t("dialog.copyLabel")}</span>
+      <text fg={theme.textMuted}>
+        ctrl+c <span style={{ fg: theme.textMuted }}>{t("dialog.copyLabel")}</span>
       </text>
     </box>
   )
