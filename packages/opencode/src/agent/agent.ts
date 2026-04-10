@@ -120,8 +120,8 @@ export namespace Agent {
               mode: "primary",
               native: true,
             },
-            auto: {
-              name: "auto",
+            "auto-approve": {
+              name: "auto-approve",
               description: "Auto-approve mode. Skips all permission prompts — use with care.",
               options: {},
               permission: Permission.merge(
