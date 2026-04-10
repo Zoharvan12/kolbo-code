@@ -80,14 +80,14 @@ const tasks = Object.entries(binaries).map(async ([name]) => {
     await $`chmod -R 755 .`.cwd(subdir)
   }
   console.log(`→ publishing ${name}`)
-  await $`npm publish --access public --tag ${Script.channel} --provenance`.cwd(subdir)
+  await $`npm publish --access public --tag ${Script.channel}`.cwd(subdir)
   console.log(`  published ${name}`)
 })
 await Promise.all(tasks)
 
 // 4. Publish the wrapper package last so optionalDependencies resolve
 console.log(`→ publishing ${WRAPPER_NAME}`)
-await $`npm publish --access public --tag ${Script.channel} --provenance`.cwd(wrapperDir)
+await $`npm publish --access public --tag ${Script.channel}`.cwd(wrapperDir)
 console.log(`  published ${WRAPPER_NAME}`)
 
 console.log(`\n✅ Done. Install with: npm i -g ${WRAPPER_NAME}@${Script.channel}`)

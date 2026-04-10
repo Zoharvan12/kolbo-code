@@ -59,7 +59,9 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: "true"
+          # Provenance disabled — repo is currently private and sigstore
+          # provenance rejects non-public source repos. Flip the repo public
+          # and re-add `--provenance` + NPM_CONFIG_PROVENANCE to enable.
           KODU_CHANNEL: ${{ github.event.inputs.tag || 'dev' }}
         run: |
           cd packages/opencode
