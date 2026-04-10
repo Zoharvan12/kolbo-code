@@ -15,6 +15,8 @@ import { useI18n } from "@/i18n"
 
 // TODO: what is the best way to do this?
 let once = false
+// Track whether language was picked this session (module-level = survives re-renders)
+let languagePickedThisSession = false
 
 export function Home() {
   const { t } = useI18n()
@@ -33,13 +35,19 @@ export function Home() {
 
   // Always show language → auth flow if not connected — re-shows on ESC
   const connected = createMemo(() => sync.data.provider_next.connected.length > 0)
-  const { isLanguageConfigured } = useI18n()
   createEffect(() => {
     if (!sync.ready) return
     if (connected()) return
     if (dialog.stack.length > 0) return
-    if (!isLanguageConfigured()) {
-      dialog.replace(() => <DialogLanguage onSelect={() => dialog.replace(() => <DialogProvider />)} />)
+    if (!languagePickedThisSession) {
+      dialog.replace(() => (
+        <DialogLanguage
+          onSelect={() => {
+            languagePickedThisSession = true
+            dialog.replace(() => <DialogProvider />)
+          }}
+        />
+      ))
     } else {
       dialog.replace(() => <DialogProvider />)
     }
