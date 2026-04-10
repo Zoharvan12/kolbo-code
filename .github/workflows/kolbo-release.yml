@@ -70,5 +70,5 @@ jobs:
           echo "### Kolbo CLI published" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`bash" >> "$GITHUB_STEP_SUMMARY"
-          echo "npm i -g @kolbo-ai/kolbo@${{ github.event.inputs.tag || 'dev' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "npm i -g @kolbo-cli/kolbo@${{ github.event.inputs.tag || 'dev' }}" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"

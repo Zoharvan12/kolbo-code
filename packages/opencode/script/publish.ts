@@ -3,14 +3,14 @@
  * Kolbo CLI publish script — npm only.
  *
  * Expects `bun run script/build.ts` to have been run first, producing
- * platform binary packages under ./dist/@kolbo-ai/kolbo-<os>-<arch>/.
+ * platform binary packages under ./dist/@kolbo-cli/kolbo-<os>-<arch>/.
  *
- * Creates a wrapper package at ./dist/@kolbo-ai/kolbo/ that declares every
+ * Creates a wrapper package at ./dist/@kolbo-cli/kolbo/ that declares every
  * platform binary as an optionalDependency. When a user runs
- * `npm i -g @kolbo-ai/kolbo`, npm only installs the binary package that
+ * `npm i -g @kolbo-cli/kolbo`, npm only installs the binary package that
  * matches their OS/CPU; the bin/kolbo launcher finds and execs it.
  *
- * Publishes everything to the npm registry under the @kolbo-ai scope.
+ * Publishes everything to the npm registry under the @kolbo-cli scope.
  */
 
 import { $ } from "bun"
@@ -21,7 +21,7 @@ import { fileURLToPath } from "url"
 const dir = fileURLToPath(new URL("..", import.meta.url))
 process.chdir(dir)
 
-const WRAPPER_NAME = "@kolbo-ai/kolbo"
+const WRAPPER_NAME = "@kolbo-cli/kolbo"
 const WRAPPER_BIN = "kolbo"
 
 // 1. Discover platform binary packages produced by build.ts
@@ -41,7 +41,7 @@ if (Object.keys(binaries).length === 0) {
 const version = Object.values(binaries)[0]
 console.log(`Publishing @${WRAPPER_NAME}@${version} (${Script.channel})`)
 
-// 2. Scaffold the wrapper package at dist/@kolbo-ai/kolbo/
+// 2. Scaffold the wrapper package at dist/@kolbo-cli/kolbo/
 const wrapperDir = `./dist/${WRAPPER_NAME}`
 await $`rm -rf ${wrapperDir}`
 await $`mkdir -p ${wrapperDir}/bin`

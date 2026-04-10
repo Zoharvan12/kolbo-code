@@ -50,7 +50,7 @@ let arch = archMap[os.arch()]
 if (!arch) {
   arch = os.arch()
 }
-const base = "@kolbo-ai/kolbo-" + platform + "-" + arch
+const base = "@kolbo-cli/kolbo-" + platform + "-" + arch
 const binary = platform === "windows" ? "kolbo.exe" : "kolbo"
 
 function supportsAvx2() {
