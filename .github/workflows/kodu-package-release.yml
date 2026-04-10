@@ -20,7 +20,7 @@ permissions:
 jobs:
   publish-npm:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: github.repository == 'anomalyco/kodu'
+    if: github.repository == 'Zoharvan12/kodu'
     steps:
       - uses: actions/checkout@v4
 
@@ -51,7 +51,7 @@ jobs:
 
   publish-docker:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: github.repository == 'anomalyco/kodu'
+    if: github.repository == 'Zoharvan12/kodu'
     steps:
       - uses: actions/checkout@v4
 
@@ -72,5 +72,5 @@ jobs:
 
       - name: Build and push Docker images
         run: |
-          docker build -t ghcr.io/anomalyco/kodu:latest -t ghcr.io/anomalyco/kodu:${{ github.sha }} .
-          docker push ghcr.io/anomalyco/kodu --all-tags
+          docker build -t ghcr.io/Zoharvan12/kodu:latest -t ghcr.io/Zoharvan12/kodu:${{ github.sha }} .
+          docker push ghcr.io/Zoharvan12/kodu --all-tags

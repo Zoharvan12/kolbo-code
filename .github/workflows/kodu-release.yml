@@ -32,7 +32,7 @@ permissions:
 jobs:
   version:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: github.repository == 'anomalyco/kodu'
+    if: github.repository == 'Zoharvan12/kodu'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -59,7 +59,7 @@ jobs:
           KODU_BUMP: ${{ inputs.bump }}
           KODU_VERSION: ${{ inputs.version }}
           KODU_API_KEY: ${{ secrets.KODU_API_KEY }}
-          GH_REPO: ${{ (github.ref_name == 'beta' && 'anomalyco/kodu-beta') || github.repository }}
+          GH_REPO: ${{ (github.ref_name == 'beta' && 'Zoharvan12/kodu-beta') || github.repository }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       release: ${{ steps.version.outputs.release }}
@@ -69,7 +69,7 @@ jobs:
   build-cli:
     needs: version
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: github.repository == 'anomalyco/kodu'
+    if: github.repository == 'Zoharvan12/kodu'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -87,7 +87,7 @@ jobs:
       - name: Build
         id: build
         run: |
-          ./packages/kodu/script/build.ts
+          ./packages/opencode/script/build.ts
         env:
           KODU_VERSION: ${{ needs.version.outputs.version }}
           KODU_RELEASE: ${{ needs.version.outputs.release }}
@@ -98,13 +98,13 @@ jobs:
         with:
           name: kodu-cli
           path: |
-            packages/kodu/dist/kodu-darwin*
-            packages/kodu/dist/kodu-linux*
+            packages/opencode/dist/kodu-darwin*
+            packages/opencode/dist/kodu-linux*
 
       - uses: actions/upload-artifact@v4
         with:
           name: kodu-cli-windows
-          path: packages/kodu/dist/kodu-windows*
+          path: packages/opencode/dist/kodu-windows*
     outputs:
       version: ${{ needs.version.outputs.version }}
 
@@ -113,7 +113,7 @@ jobs:
       - build-cli
       - version
     runs-on: blacksmith-4vcpu-windows-2025
-    if: github.repository == 'anomalyco/kodu'
+    if: github.repository == 'Zoharvan12/kodu'
     env:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -127,7 +127,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: kodu-cli-windows
-          path: packages/kodu/dist
+          path: packages/opencode/dist
 
       - name: Setup git committer
         id: committer
@@ -149,9 +149,9 @@ jobs:
           signing-account-name: ${{ env.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
           certificate-profile-name: ${{ env.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE }}
           files: |
-            ${{ github.workspace }}\packages\kodu\dist\kodu-windows-arm64\bin\kodu.exe
-            ${{ github.workspace }}\packages\kodu\dist\kodu-windows-x64\bin\kodu.exe
-            ${{ github.workspace }}\packages\kodu\dist\kodu-windows-x64-baseline\bin\kodu.exe
+            ${{ github.workspace }}\packages\opencode\dist\kodu-windows-arm64\bin\kodu.exe
+            ${{ github.workspace }}\packages\opencode\dist\kodu-windows-x64\bin\kodu.exe
+            ${{ github.workspace }}\packages\opencode\dist\kodu-windows-x64-baseline\bin\kodu.exe
           exclude-environment-credential: true
           exclude-workload-identity-credential: true
           exclude-managed-identity-credential: true
@@ -167,9 +167,9 @@ jobs:
         shell: pwsh
         run: |
           $files = @(
-            "${{ github.workspace }}\packages\kodu\dist\kodu-windows-arm64\bin\kodu.exe",
-            "${{ github.workspace }}\packages\kodu\dist\kodu-windows-x64\bin\kodu.exe",
-            "${{ github.workspace }}\packages\kodu\dist\kodu-windows-x64-baseline\bin\kodu.exe"
+            "${{ github.workspace }}\packages\opencode\dist\kodu-windows-arm64\bin\kodu.exe",
+            "${{ github.workspace }}\packages\opencode\dist\kodu-windows-x64\bin\kodu.exe",
+            "${{ github.workspace }}\packages\opencode\dist\kodu-windows-x64-baseline\bin\kodu.exe"
           )
 
           foreach ($file in $files) {
@@ -180,7 +180,7 @@ jobs:
           }
 
       - name: Repack Windows CLI archives
-        working-directory: packages/kodu/dist
+        working-directory: packages/opencode/dist
         shell: pwsh
         run: |
           Compress-Archive -Path "kodu-windows-arm64\bin\*" -DestinationPath "kodu-windows-arm64.zip" -Force
@@ -194,9 +194,9 @@ jobs:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
         run: |
           gh release upload "v${{ needs.version.outputs.version }}" `
-            "${{ github.workspace }}\packages\kodu\dist\kodu-windows-arm64.zip" `
-            "${{ github.workspace }}\packages\kodu\dist\kodu-windows-x64.zip" `
-            "${{ github.workspace }}\packages\kodu\dist\kodu-windows-x64-baseline.zip" `
+            "${{ github.workspace }}\packages\opencode\dist\kodu-windows-arm64.zip" `
+            "${{ github.workspace }}\packages\opencode\dist\kodu-windows-x64.zip" `
+            "${{ github.workspace }}\packages\opencode\dist\kodu-windows-x64-baseline.zip" `
             --clobber `
             --repo "${{ needs.version.outputs.repo }}"
 
@@ -204,6 +204,6 @@ jobs:
         with:
           name: kodu-cli-signed-windows
           path: |
-            packages/kodu/dist/kodu-windows-arm64
-            packages/kodu/dist/kodu-windows-x64
-            packages/kodu/dist/kodu-windows-x64-baseline
+            packages/opencode/dist/kodu-windows-arm64
+            packages/opencode/dist/kodu-windows-x64
+            packages/opencode/dist/kodu-windows-x64-baseline

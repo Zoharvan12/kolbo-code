@@ -1,2 +1,2 @@
 @echo off
-"C:\Users\Zohar\.bun\bin\bun.exe" run --cwd "C:\Users\Zohar\Documents\opencode\packages\opencode" --conditions=browser src/index.ts %*
+"C:\Users\Zohar\Documents\opencode\packages\opencode\dist\@kodu\cli-windows-x64\bin\kodu.exe" %*
