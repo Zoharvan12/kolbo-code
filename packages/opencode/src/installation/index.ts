@@ -192,7 +192,7 @@ export namespace Installation {
           for (const check of checks) {
             const output = yield* check.command()
             const installedName =
-              check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "kolbo" : "kolbo-cli"
+              check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "kolbo" : "@kolbo/kolbo-code"
             if (output.includes(installedName)) {
               return check.name
             }
@@ -226,7 +226,7 @@ export namespace Installation {
             const registry = reg.endsWith("/") ? reg.slice(0, -1) : reg
             const channel = CHANNEL
             const response = yield* httpOk.execute(
-              HttpClientRequest.get(`${registry}/@kolbo-cli/kolbo/${channel}`).pipe(HttpClientRequest.acceptJson),
+              HttpClientRequest.get(`${registry}/@kolbo/kolbo-code/${channel}`).pipe(HttpClientRequest.acceptJson),
             )
             const data = yield* HttpClientResponse.schemaBodyJson(NpmPackage)(response)
             return data.version
@@ -256,7 +256,7 @@ export namespace Installation {
           const r = (yield* text(["npm", "config", "get", "registry"])).trim()
           const reg = (r || "https://registry.npmjs.org").replace(/\/$/, "")
           const fallbackResponse = yield* httpOk.execute(
-            HttpClientRequest.get(`${reg}/@kolbo-cli/kolbo/${CHANNEL}`).pipe(HttpClientRequest.acceptJson),
+            HttpClientRequest.get(`${reg}/@kolbo/kolbo-code/${CHANNEL}`).pipe(HttpClientRequest.acceptJson),
           )
           const fallbackData = yield* HttpClientResponse.schemaBodyJson(NpmPackage)(fallbackResponse)
           return fallbackData.version
@@ -269,13 +269,13 @@ export namespace Installation {
               result = yield* upgradeCurl(target)
               break
             case "npm":
-              result = yield* run(["npm", "install", "-g", `@kolbo-cli/kolbo@${target}`])
+              result = yield* run(["npm", "install", "-g", `@kolbo/kolbo-code@${target}`])
               break
             case "pnpm":
-              result = yield* run(["pnpm", "install", "-g", `@kolbo-cli/kolbo@${target}`])
+              result = yield* run(["pnpm", "install", "-g", `@kolbo/kolbo-code@${target}`])
               break
             case "bun":
-              result = yield* run(["bun", "install", "-g", `@kolbo-cli/kolbo@${target}`])
+              result = yield* run(["bun", "install", "-g", `@kolbo/kolbo-code@${target}`])
               break
             case "brew": {
               const formula = yield* getBrewFormula()

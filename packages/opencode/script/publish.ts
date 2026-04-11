@@ -21,7 +21,7 @@ import { fileURLToPath } from "url"
 const dir = fileURLToPath(new URL("..", import.meta.url))
 process.chdir(dir)
 
-const WRAPPER_NAME = "@kolbo-cli/kolbo"
+const WRAPPER_NAME = "@kolbo/kolbo-code"
 const WRAPPER_BIN = "kolbo"
 
 // 1. Discover platform binary packages produced by build.ts
@@ -80,14 +80,18 @@ const tasks = Object.entries(binaries).map(async ([name]) => {
     await $`chmod -R 755 .`.cwd(subdir)
   }
   console.log(`→ publishing ${name}`)
-  await $`npm publish --access public --tag ${Script.channel}`.cwd(subdir)
+  // --provenance: cryptographically binds the package to this GitHub Actions
+  // run via Sigstore. Mitigates maintainer-token-theft republishing (Shai-Hulud
+  // class attacks). Requires `id-token: write` in the workflow, which
+  // kolbo-release.yml already sets.
+  await $`npm publish --access public --provenance --tag ${Script.channel}`.cwd(subdir)
   console.log(`  published ${name}`)
 })
 await Promise.all(tasks)
 
 // 4. Publish the wrapper package last so optionalDependencies resolve
 console.log(`→ publishing ${WRAPPER_NAME}`)
-await $`npm publish --access public --tag ${Script.channel}`.cwd(wrapperDir)
+await $`npm publish --access public --provenance --tag ${Script.channel}`.cwd(wrapperDir)
 console.log(`  published ${WRAPPER_NAME}`)
 
 console.log(`\n✅ Done. Install with: npm i -g ${WRAPPER_NAME}@${Script.channel}`)
