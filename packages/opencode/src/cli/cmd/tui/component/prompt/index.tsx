@@ -975,6 +975,83 @@ export function Prompt(props: PromptProps) {
   }
 
   /**
+   * Monotonic counters per attachment bucket for the current prompt. We count
+   * by reading from `store.prompt.parts` at pasteAttachment time, but keep a
+   * "next index" hint cached here so that if the store filter races with an
+   * in-flight upload (second drop reading state before the first has landed),
+   * the chip label still increments. The signal is reset whenever the prompt
+   * is cleared (on submit / stash / ctrl+c). Each call returns the next index
+   * for its bucket AND stores it back so the following call increments.
+   *
+   * Read order in `pasteAttachment` is:
+   *   1. Read the real store count (source of truth).
+   *   2. Read the cached hint.
+   *   3. Use `max(storeCount, hint) + 1` — guarantees strict monotonic
+   *      numbering even if two uploads complete in the same microtask and
+   *      both read a stale storeCount.
+   *   4. Update the hint.
+   */
+  const [imageIdxHint, setImageIdxHint] = createSignal(0)
+  const [pdfIdxHint, setPdfIdxHint] = createSignal(0)
+  const [audioIdxHint, setAudioIdxHint] = createSignal(0)
+  const [videoIdxHint, setVideoIdxHint] = createSignal(0)
+  const [fileIdxHint, setFileIdxHint] = createSignal(0)
+
+  function nextAttachmentIndex(bucket: AttachmentBucket): number {
+    // Source of truth: live store count for the same bucket.
+    const storeCount = store.prompt.parts.filter((x) => {
+      if (x.type !== "file") return false
+      return bucketForMime((x as { mime: string }).mime) === bucket
+    }).length
+    const hint = (() => {
+      switch (bucket) {
+        case "Image":
+          return imageIdxHint()
+        case "PDF":
+          return pdfIdxHint()
+        case "Audio":
+          return audioIdxHint()
+        case "Video":
+          return videoIdxHint()
+        default:
+          return fileIdxHint()
+      }
+    })()
+    // Take whichever is larger so we're strictly monotonic under races.
+    const next = Math.max(storeCount, hint) + 1
+    switch (bucket) {
+      case "Image":
+        setImageIdxHint(next)
+        break
+      case "PDF":
+        setPdfIdxHint(next)
+        break
+      case "Audio":
+        setAudioIdxHint(next)
+        break
+      case "Video":
+        setVideoIdxHint(next)
+        break
+      default:
+        setFileIdxHint(next)
+        break
+    }
+    return next
+  }
+
+  // When the prompt is cleared (submit, stash, ctrl+c, reset), the parts array
+  // goes back to empty. Reset all bucket hints so the next prompt starts at 1.
+  createEffect(() => {
+    if (store.prompt.parts.length === 0) {
+      setImageIdxHint(0)
+      setPdfIdxHint(0)
+      setAudioIdxHint(0)
+      setVideoIdxHint(0)
+      setFileIdxHint(0)
+    }
+  })
+
+  /**
    * Attach a file part to the current prompt. The caller must have already
    * produced a `url` — either an HTTPS CDN URL from `/kolbo-files-upload`
    * (preferred, required for anything routed via kolbo-vision) or a
@@ -986,11 +1063,8 @@ export function Prompt(props: PromptProps) {
     const currentOffset = input.visualCursor.offset
     const extmarkStart = currentOffset
     const bucket = bucketForMime(file.mime)
-    const count = store.prompt.parts.filter((x) => {
-      if (x.type !== "file") return false
-      return bucketForMime(x.mime) === bucket
-    }).length
-    const virtualText = `[${bucket} ${count + 1}]`
+    const idx = nextAttachmentIndex(bucket)
+    const virtualText = `[${bucket} ${idx}]`
     const extmarkEnd = extmarkStart + virtualText.length
     const textToInsert = virtualText + " "
 
@@ -1132,11 +1206,28 @@ export function Prompt(props: PromptProps) {
   async function uploadAndAttachClipboard(mime: string, base64Data: string) {
     // Enforce image-count cap before the upload round-trip.
     if (mime.startsWith("image/") && !checkImageLimit()) return
-    toast.show({
-      variant: "info",
-      message: `Uploading clipboard ${bucketForMime(mime).toLowerCase()}…`,
-      duration: 3000,
-    })
+
+    // ASCII braille spinner — updates every 80ms via setInterval so the
+    // user sees a live "cool ascii" animation next to the upload label
+    // instead of a static banner. Frames are the standard "dots" spinner
+    // used widely in TUIs (0x2800-0x28ff block).
+    const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    const bucket = bucketForMime(mime).toLowerCase()
+    let frame = 0
+    const renderToast = () => {
+      toast.show({
+        variant: "info",
+        // Long duration so the toast stays until we explicitly dismiss.
+        // Each setInterval tick calls show() again to swap the frame;
+        // show() replaces the current toast, which effectively animates.
+        duration: 60000,
+        message: `${spinnerFrames[frame]} Uploading clipboard ${bucket}…`,
+      })
+      frame = (frame + 1) % spinnerFrames.length
+    }
+    renderToast()
+    const spinnerTimer = setInterval(renderToast, 80)
+
     try {
       const bytes = Buffer.from(base64Data, "base64")
       const blob = new Blob([bytes], { type: mime })
@@ -1148,7 +1239,11 @@ export function Prompt(props: PromptProps) {
         mime,
         url: ref.url,
       })
+      // Upload done — stop the spinner and dismiss the toast.
+      clearInterval(spinnerTimer)
+      toast.dismiss()
     } catch (e) {
+      clearInterval(spinnerTimer)
       toast.show({
         variant: "error",
         message: `Upload failed: ${(e as Error).message}`,
@@ -1759,21 +1854,30 @@ export function Prompt(props: PromptProps) {
                   input.cursorColor = theme.text
                 }, 0)
               }}
-              onMouseDown={async (evt: MouseEvent) => {
-                // Right-click = paste from clipboard. Works alongside
-                // Ctrl+V and gives users a mouse-based alternative that
-                // handles both text and media (images/PDFs auto-upload
-                // and attach as chips; text inserts at the cursor).
+              onMouseDown={(evt: MouseEvent) => {
+                // Right-click = paste from clipboard (text OR media).
+                // Runs alongside Ctrl+V.
+                //
+                // Fire-and-forget via `void`: opentui mouse handlers
+                // are synchronous, and awaiting the async upload flow
+                // inside the handler was preventing the image path
+                // from completing cleanly. Firing the promise lets
+                // the mouse event return immediately and the upload
+                // runs on its own microtask queue.
+                //
+                // Focus the textarea ref directly rather than
+                // `evt.target` — target can resolve to a nested
+                // renderable (cursor layer, placeholder) that isn't
+                // focusable, and we need the input itself focused
+                // before pasteAttachment reads input.visualCursor.
                 if (evt.button === MouseButton.RIGHT) {
                   evt.preventDefault()
-                  // Focus the textarea first so any subsequent typing
-                  // (and the newly inserted content) land in it.
-                  evt.target?.focus()
-                  await pasteClipboard()
+                  if (input && !input.isDestroyed) input.focus()
+                  void pasteClipboard()
                   return
                 }
                 // Left / middle click: just focus the textarea.
-                evt.target?.focus()
+                if (input && !input.isDestroyed) input.focus()
               }}
               focusedBackgroundColor={theme.backgroundElement}
               cursorColor={theme.text}
