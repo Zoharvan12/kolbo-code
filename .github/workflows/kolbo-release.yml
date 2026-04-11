@@ -1,12 +1,6 @@
 name: kolbo-release
 
 on:
-  push:
-    branches:
-      - dev
-    paths:
-      - "packages/opencode/**"
-      - ".github/workflows/kolbo-release.yml"
   workflow_dispatch:
     inputs:
       tag:
