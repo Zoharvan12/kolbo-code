@@ -1,0 +1,14 @@
+[
+  {
+    "id": "sapir",
+    "name": "Sapir Code",
+    "apiBase": "https://sapirapi.kolbo.ai/api",
+    "appBase": "https://sapir.kolbo.ai"
+  },
+  {
+    "id": "nakedjim",
+    "name": "NakedJim Code",
+    "apiBase": "https://nakedjimapi.kolbo.ai/api",
+    "appBase": "https://nakedjim.kolbo.ai"
+  }
+]

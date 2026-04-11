@@ -58,38 +58,28 @@ Minimal version — these two fields are enough, the CLI fills in the rest:
 }
 ```
 
-## Partner installer recipe
+## Partner install commands
 
-Each partner hosts an install script that writes the profile and installs the
-published CLI:
+Each whitelabel is published as its own npm package that automatically
+installs the CLI and drops the correct `partner.json` into the user's
+config directory. One command, works on all platforms (Windows/Mac/Linux),
+no shell scripts, no antivirus issues.
 
-```bash
-#!/bin/bash
-# https://sapir.kolbo.ai/install.sh
-set -e
+| Whitelabel | Install command |
+|---|---|
+| Sapir | `npm i -g @kolbo/sapir` |
+| NakedJim | `npm i -g @kolbo/nakedjim` |
 
-CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/kolbo"
-mkdir -p "$CONFIG_DIR"
-cat > "$CONFIG_DIR/partner.json" <<'EOF'
-{
-  "id": "sapir",
-  "name": "Sapir Code",
-  "apiBase": "https://sapir.kolbo.ai/api"
-}
-EOF
+After install, users just run `kolbo` — no extra steps needed. The CLI
+automatically authenticates against the partner's backend and shows the
+partner branding.
 
-npm install -g @kolbo/kolbo-code@latest
-```
+### Adding a new whitelabel
 
-Users run:
+1. Add an entry to `packages/opencode/whitelabels.json`
+2. Trigger the **kolbo-whitelabels** GitHub Actions workflow (manual dispatch)
 
-```bash
-curl -fsSL https://sapir.kolbo.ai/install.sh | sh
-kolbo auth login
-```
-
-...and the CLI authenticates against Sapir's backend, routes chat traffic
-through it, and shows Sapir's branding throughout the UI.
+That's it — the workflow publishes `@kolbo/<id>` to npm automatically.
 
 ## Backend contract
 

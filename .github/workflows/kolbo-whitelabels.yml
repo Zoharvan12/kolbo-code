@@ -1,0 +1,47 @@
+name: kolbo-whitelabels
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: endsWith(github.repository, '/kolbo-code')
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 1
+
+      - uses: ./.github/actions/setup-bun
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Publish whitelabel packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd packages/opencode
+          bun run script/publish-whitelabels.ts
+
+      - name: Summary
+        run: |
+          echo "### Kolbo whitelabels published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Whitelabel | Install command |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Sapir | \`npm i -g @kolbo/sapir\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| NakedJim | \`npm i -g @kolbo/nakedjim\` |" >> "$GITHUB_STEP_SUMMARY"
