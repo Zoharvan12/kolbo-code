@@ -22,7 +22,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: endsWith(github.repository, '/kolbo-cli')
+    if: endsWith(github.repository, '/kolbo-code')
     steps:
       # Pinned by commit SHA to defend against tag-move attacks
       # (Shai-Hulud class). Update via dependabot or by bumping the SHA
