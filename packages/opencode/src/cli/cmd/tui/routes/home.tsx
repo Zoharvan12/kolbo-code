@@ -17,6 +17,11 @@ import { useI18n } from "@/i18n"
 let once = false
 // Track whether language was picked this session (module-level = survives re-renders)
 let languagePickedThisSession = false
+// Once the user connects, never auto-show the connect dialog again this session.
+// This prevents a re-trigger loop: after auth + language selection the dialog
+// stack empties which re-fires this effect; if provider_next.connected has not
+// refreshed yet the effect would re-open the connect dialog in a tight loop.
+let wasEverConnected = false
 
 export function Home() {
   const { t } = useI18n()
@@ -37,7 +42,11 @@ export function Home() {
   const connected = createMemo(() => sync.data.provider_next.connected.length > 0)
   createEffect(() => {
     if (!sync.ready) return
-    if (connected()) return
+    if (connected()) {
+      wasEverConnected = true
+      return
+    }
+    if (wasEverConnected) return
     if (dialog.stack.length > 0) return
     if (!languagePickedThisSession) {
       dialog.replace(() => (

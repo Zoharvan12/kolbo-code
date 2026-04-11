@@ -9,20 +9,31 @@ import bidiFactory from "bidi-js"
 const { getReorderedString, getEmbeddingLevels } = bidiFactory()
 import { createSignal, createContext, useContext, type ParentComponent } from "solid-js"
 
+// Static imports so Bun bundles all locale files into the binary.
+// Dynamic template-literal imports (`./locales/${lang}.json`) are not statically
+// analyzable and therefore NOT bundled — the language would silently fall back to
+// English in the published binary even though it works fine in local dev.
+import en from "./locales/en.json"
+import he from "./locales/he.json"
+import ar from "./locales/ar.json"
+import ru from "./locales/ru.json"
+import zh from "./locales/zh.json"
+import es from "./locales/es.json"
+import hi from "./locales/hi.json"
+import ja from "./locales/ja.json"
+import de from "./locales/de.json"
+import ko from "./locales/ko.json"
+import fr from "./locales/fr.json"
+import pt from "./locales/pt.json"
+
 export const RTL_LANGUAGES = ["he", "ar"]
 
 export type SupportedLang = "en" | "he" | "ar" | "ru" | "zh" | "es" | "hi" | "ja" | "de" | "ko" | "fr" | "pt"
 
-// Lazy-load locale files
-async function loadLocale(lang: SupportedLang) {
-  try {
-    const mod = await import(`./locales/${lang}.json`, { assert: { type: "json" } })
-    return mod.default ?? mod
-  } catch {
-    // Fallback to English if locale file missing
-    const mod = await import("./locales/en.json", { assert: { type: "json" } })
-    return mod.default ?? mod
-  }
+const LOCALES: Record<SupportedLang, Record<string, unknown>> = { en, he, ar, ru, zh, es, hi, ja, de, ko, fr, pt }
+
+function loadLocale(lang: SupportedLang): Record<string, unknown> {
+  return LOCALES[lang] ?? LOCALES["en"]
 }
 
 let initialized = false
@@ -33,7 +44,7 @@ export async function initI18n(lang: SupportedLang = "en") {
     return
   }
   initialized = true
-  const resources = await loadLocale(lang)
+  const resources = loadLocale(lang)
   await i18next.init({
     lng: lang,
     fallbackLng: "en",
@@ -103,7 +114,7 @@ export const I18nProvider: ParentComponent<{ lang?: SupportedLang; languageConfi
   const [langConfigured, setLangConfigured] = createSignal(props.languageConfigured ?? false)
 
   const setLang = async (next: SupportedLang) => {
-    const resources = await loadLocale(next)
+    const resources = loadLocale(next)
     if (!i18next.hasResourceBundle(next, "translation")) {
       i18next.addResourceBundle(next, "translation", resources)
     }
