@@ -20,5 +20,5 @@
       }
     ]
   },
-  "exclude": ["skills"]
+  "exclude": ["skills", "dist"]
 }
