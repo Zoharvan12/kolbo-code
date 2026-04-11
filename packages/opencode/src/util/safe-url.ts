@@ -39,9 +39,22 @@ function isPrivateIPv6(ip: string): boolean {
   if (lower.startsWith("fe80:") || lower.startsWith("fe80::")) return true // link-local
   if (/^f[cd][0-9a-f]{2}:/.test(lower)) return true // unique local
   if (lower.startsWith("ff")) return true // multicast
-  // IPv4-mapped: ::ffff:a.b.c.d
-  const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)
-  if (mapped) return isPrivateIPv4(mapped[1])
+  // IPv4-mapped (decimal form): ::ffff:a.b.c.d
+  const mappedDec = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)
+  if (mappedDec) return isPrivateIPv4(mappedDec[1])
+  // IPv4-mapped (hex form): ::ffff:hhhh:hhhh — this is what Node's URL
+  // parser normalizes `::ffff:10.0.0.1` to (`::ffff:a00:1`). Without
+  // this branch the hex form would slip past the private-IP check.
+  const mappedHex = lower.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/)
+  if (mappedHex) {
+    const high = parseInt(mappedHex[1], 16)
+    const low = parseInt(mappedHex[2], 16)
+    const a = (high >> 8) & 0xff
+    const b = high & 0xff
+    const c = (low >> 8) & 0xff
+    const d = low & 0xff
+    return isPrivateIPv4(`${a}.${b}.${c}.${d}`)
+  }
   // Deprecated IPv4-compatible: ::a.b.c.d
   const compat = lower.match(/^::(\d+\.\d+\.\d+\.\d+)$/)
   if (compat) return isPrivateIPv4(compat[1])
@@ -60,6 +73,44 @@ function isBlockedHostname(host: string): boolean {
   if (h === "metadata.google.internal") return true
   if (h === "metadata") return true
   return false
+}
+
+/**
+ * Weaker-than-assertPublicUrl URL check for config-supplied endpoints
+ * (MCP remote URLs, model catalogs, etc.). Rejects anything that isn't
+ * http/https, and refuses plaintext http to non-localhost hosts. Does
+ * NOT block private IPs or internal hostnames — admins legitimately
+ * point MCP servers at `mcp.internal.corp` or `10.0.0.5`, and we don't
+ * want to break those deployments.
+ *
+ * The threat this closes is accidental plaintext exfiltration: a poisoned
+ * config file setting `mcp.url = "http://evil.exfil.com"` would otherwise
+ * silently ship every tool invocation over cleartext.
+ */
+export function assertSafeConfigUrl(source: string, urlString: string): void {
+  let url: URL
+  try {
+    url = new URL(urlString)
+  } catch {
+    throw new Error(`[kolbo] ${source} is not a valid URL: ${urlString}`)
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new Error(`[kolbo] ${source} must use https:// (got ${url.protocol})`)
+  }
+  if (url.protocol === "http:") {
+    const host = url.hostname.toLowerCase().replace(/\.+$/, "")
+    const isLocal =
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1" ||
+      host === "0.0.0.0" ||
+      host.endsWith(".localhost")
+    if (!isLocal) {
+      throw new Error(
+        `[kolbo] ${source} must use https:// for non-local hosts (refusing ${urlString}).`,
+      )
+    }
+  }
 }
 
 /**

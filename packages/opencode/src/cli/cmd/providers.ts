@@ -20,6 +20,20 @@ import { assertPublicUrl } from "../../util/safe-url"
 
 const KOLBO_API_BASE = Partner.apiBase
 
+/**
+ * Atomic JSON write: serialize to a sibling .tmp, set permissions on the
+ * temp file BEFORE it becomes the real file, then rename. Prevents torn
+ * reads and world-readable windows. Mode is a no-op on Windows but is
+ * still applied for cross-platform hygiene.
+ */
+function writeJsonAtomic(target: string, data: unknown, mode: number) {
+  const content = JSON.stringify(data, null, 2)
+  const tmp = `${target}.tmp.${process.pid}.${Math.random().toString(36).slice(2, 10)}`
+  fs.writeFileSync(tmp, content, { mode })
+  try { fs.chmodSync(tmp, mode) } catch {}
+  fs.renameSync(tmp, target)
+}
+
 const KOLBO_SKILL_MD = `---
 name: kolbo
 description: Generate images, videos, music, speech, and sound effects using Kolbo AI. Use when asked to create any visual, audio, or video content — or to list available AI models or check credit balance.
@@ -133,12 +147,13 @@ export async function ensureKolboMcpWired(): Promise<void> {
     }
 
     if (needsWrite) {
-      // 0o600: kolbo.json stores KOLBO_API_KEY in plaintext for the MCP
-      // subprocess to read. Restrict to owner read/write so other local
-      // users can't pick up the key. (No-op on Windows, which ignores
-      // Unix permission bits — OS keystore migration is a separate item.)
-      fs.writeFileSync(configFile, JSON.stringify(existing, null, 2), { mode: 0o600 })
-      try { fs.chmodSync(configFile, 0o600) } catch {}
+      // Atomic write pattern: tmp file → chmod → rename. Keeps readers
+      // from seeing a half-written kolbo.json (JSON parse errors) and
+      // closes the window where the file is briefly world-readable
+      // between writeFileSync and chmodSync.
+      // 0o600 is a no-op on Windows; OS-keystore migration is tracked
+      // separately.
+      writeJsonAtomic(configFile, existing, 0o600)
     }
 
     // Write skill file if missing
@@ -157,10 +172,14 @@ async function kolboDeviceLogin(): Promise<string | null> {
   // 1. Request a device code from kolbo-api
   let init: { device_code: string; user_code: string; verification_uri: string; interval?: number; expires_in?: number }
   try {
+    // redirect:"error" — the device-code endpoint must never redirect.
+    // A 302 here could steer the token exchange to an attacker-controlled
+    // host after the https+allowlist check has already passed.
     const r = await fetch(`${KOLBO_API_BASE}/auth/kolbo-cli/device/code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}",
+      redirect: "error",
     })
     if (!r.ok) {
       prompts.log.error(`Failed to start device login (${r.status})`)
@@ -191,6 +210,7 @@ async function kolboDeviceLogin(): Promise<string | null> {
       try {
         r = await fetch(
           `${KOLBO_API_BASE}/auth/kolbo-cli/device/token?code=${encodeURIComponent(device_code)}`,
+          { redirect: "error" },
         )
       } catch {
         continue
@@ -740,9 +760,8 @@ export const ProvidersLoginCommand = cmd({
                   environment: mcpEnv,
                 },
               }
-              // Restrict to 0o600 — file contains the Kolbo API key.
-              fs.writeFileSync(configFile, JSON.stringify(existing, null, 2), { mode: 0o600 })
-              try { fs.chmodSync(configFile, 0o600) } catch {}
+              // Atomic write — file contains the Kolbo API key.
+              writeJsonAtomic(configFile, existing, 0o600)
             }
 
             // 2. Write the Kolbo skill file so the agent knows how to use the MCP tools

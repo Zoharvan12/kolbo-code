@@ -364,8 +364,12 @@ export const GithubInstallCommand = cmd({
             s.stop("Installed GitHub app")
 
             async function getInstallation() {
+              // redirect:"error" for consistency with other auth-adjacent
+              // fetches — this endpoint carries app-installation state and
+              // should never redirect off the pinned Partner.apiBase host.
               return await fetch(
                 `${Partner.apiBase.replace(/\/api$/, "")}/get_github_app_installation?owner=${app.owner}&repo=${app.repo}`,
+                { redirect: "error" },
               )
                 .then((res) => res.json())
                 .then((data) => data.installation)
@@ -837,12 +841,16 @@ export const GithubRunCommand = cmd({
           const start = m.index
           const filename = path.basename(url)
 
-          // Download image
+          // Download image. redirect:"error" keeps the GitHub app token in
+          // the Authorization header from being replayed to an attacker-
+          // controlled redirect target (GitHub image URLs shouldn't
+          // redirect off-site).
           const res = await fetch(url, {
             headers: {
               Authorization: `Bearer ${appToken}`,
               Accept: "application/vnd.github.v3+json",
             },
+            redirect: "error",
           })
           if (!res.ok) {
             console.error(`Failed to download image: ${url}`)

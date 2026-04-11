@@ -12,6 +12,7 @@ import { NamedError } from "@opencode-ai/util/error"
 import { Flag } from "../flag/flag"
 import { Auth } from "../auth"
 import { Env } from "../env"
+import { assertPublicUrl } from "../util/safe-url"
 import {
   type ParseError as JsoncParseError,
   applyEdits,
@@ -1363,9 +1364,26 @@ export namespace Config {
           for (const [key, value] of Object.entries(auth)) {
             if (value.type === "wellknown") {
               const url = key.replace(/\/+$/, "")
+              // Harden the well-known config fetch:
+              //   1. URL must be a real public host (no loopback, no private
+              //      IPs, no cloud metadata). Without this, a poisoned auth
+              //      entry could pull config from 169.254.169.254/ or an
+              //      internal service during startup.
+              //   2. redirect:"error" closes the bypass where a trusted
+              //      public host 302s us into an internal address after the
+              //      public-URL check has already passed.
+              try {
+                yield* Effect.promise(() => assertPublicUrl(url))
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e)
+                log.error("refusing unsafe well-known config url", { url, error: msg })
+                throw new Error(`Refusing to load remote config from ${url}: ${msg}`)
+              }
               process.env[value.key] = value.token
               log.debug("fetching remote config", { url: `${url}/.well-known/kolbo` })
-              const response = yield* Effect.promise(() => fetch(`${url}/.well-known/kolbo`))
+              const response = yield* Effect.promise(() =>
+                fetch(`${url}/.well-known/kolbo`, { redirect: "error" }),
+              )
               if (!response.ok) {
                 throw new Error(`failed to fetch remote config from ${url}: ${response.status}`)
               }

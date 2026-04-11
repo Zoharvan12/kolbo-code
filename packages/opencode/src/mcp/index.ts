@@ -20,6 +20,7 @@ import { AppFileSystem } from "@/filesystem"
 import { McpOAuthProvider } from "./oauth-provider"
 import { McpOAuthCallback } from "./oauth-callback"
 import { McpAuth } from "./auth"
+import { assertSafeConfigUrl } from "../util/safe-url"
 import { BusEvent } from "../bus/bus-event"
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
@@ -274,6 +275,20 @@ export namespace MCP {
         key: string,
         mcp: Config.Mcp & { type: "remote" },
       ) {
+        // Reject MCP remote URLs that would ship tool calls (and any auth
+        // tokens we attach) over cleartext http to a non-local host. A
+        // compromised config used to be enough to redirect every MCP
+        // invocation to http://evil.exfil.com silently; this closes that.
+        try {
+          assertSafeConfigUrl(`mcp.${key}.url`, mcp.url)
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e)
+          log.error("rejecting unsafe mcp remote url", { key, url: mcp.url, error: msg })
+          return {
+            client: undefined as MCPClient | undefined,
+            status: { status: "failed" as const, error: msg } as Status,
+          }
+        }
         const oauthDisabled = mcp.oauth === false
         const oauthConfig = typeof mcp.oauth === "object" ? mcp.oauth : undefined
         let authProvider: McpOAuthProvider | undefined

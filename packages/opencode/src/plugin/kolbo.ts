@@ -25,6 +25,9 @@ export async function KolboAuthPlugin(_input: PluginInput): Promise<Hooks> {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: "{}",
+              // Never follow redirects on an auth endpoint — a 302 would
+              // let a compromised edge steer the token exchange elsewhere.
+              redirect: "error",
             })
             // Status code is the only thing we surface — body may contain
             // unbounded server text.
@@ -52,6 +55,7 @@ export async function KolboAuthPlugin(_input: PluginInput): Promise<Hooks> {
                   try {
                     response = await fetch(
                       `${KOLBO_API_BASE}/auth/kolbo-cli/device/token?code=${encodeURIComponent(data.device_code)}`,
+                      { redirect: "error" },
                     )
                   } catch {
                     continue
