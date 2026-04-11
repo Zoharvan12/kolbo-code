@@ -118,18 +118,22 @@ Goal: pull in upstream bug-fixes and improvements that do NOT touch Kolbo brandi
 
 ## Phase 5 — Trigger npm publish
 
-Trigger the GitHub Actions workflow to publish to npm:
+Trigger both workflows in parallel:
 ```bash
 gh workflow run kolbo-release.yml \
-  --repo Zoharvan12/kolbo-cli \
+  --repo Zoharvan12/kolbo-code \
   --ref dev \
   --field tag=latest \
   --field version=<new_version>
+
+gh workflow run kolbo-whitelabels.yml \
+  --repo Zoharvan12/kolbo-code \
+  --ref dev
 ```
 
-Wait ~5 seconds then check the run was queued:
+Wait ~5 seconds then confirm both are queued:
 ```bash
-gh run list --repo Zoharvan12/kolbo-cli --workflow=kolbo-release.yml --limit 3
+gh run list --repo Zoharvan12/kolbo-code --limit 5
 ```
 
 ---
@@ -142,8 +146,10 @@ Print a clean summary:
 ✓ Phase 2 — Upstream synced (N commits merged, M skipped)
 ✓ Phase 3 — Version bumped to vX.Y.Z
 ✓ Phase 4 — Pushed to origin/dev + tagged vX.Y.Z
-✓ Phase 5 — Publish workflow queued (run ID: ...)
+✓ Phase 5 — Publish workflows queued (main CLI + whitelabels)
 
 Install when CI completes:
-  npm i -g @kolbo-cli/kolbo
+  npm i -g @kolbo/kolbo-code     # main CLI
+  npm i -g @kolbo/sapir          # Sapir whitelabel
+  npm i -g @kolbo/nakedjim       # NakedJim whitelabel
 ```
