@@ -78,7 +78,7 @@ cat > "$CONFIG_DIR/partner.json" <<'EOF'
 }
 EOF
 
-npm install -g @kolbo-cli/kolbo@latest
+npm install -g @kolbo/kolbo-code@latest
 ```
 
 Users run:
@@ -130,7 +130,7 @@ A few strings intentionally stay hardcoded to Kolbo even for whitelabels:
   attribution metadata, not brand-visible to end users.
 - **JSON `$schema` URLs** — these are IDE autocomplete hints pointing at
   static schema files. Hosting per-partner schemas isn't worth the complexity.
-- **`@kolbo-cli/kolbo` npm package name** — partners install the same package
+- **`@kolbo/kolbo-code` npm package name** — partners install the same package
   via their own installer scripts.
 - **Internal auth provider id `"kolbo"`** — the key used in `auth.json` and
   `kolbo.db`. Keeping this constant means users can switch profiles without
