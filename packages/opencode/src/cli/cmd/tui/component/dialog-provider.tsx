@@ -63,11 +63,17 @@ export function createDialogProviderOptions() {
           gutter: connected ? <text fg={theme.success}>✓</text> : undefined,
           async onSelect() {
             if (consoleManaged) return
-            // Already connected (green ✓) — never silently re-mint an API key.
-            // If the user genuinely wants to switch accounts they use /logout.
+            // Already connected (green ✓) — but if the user explicitly selects
+            // Kolbo again it usually means their token expired and they need to
+            // re-authenticate. Clear the stale token so the OAuth flow runs.
+            // For non-Kolbo providers keep the old behaviour (just close).
             if (connected) {
-              dialog.clear()
-              return
+              if (provider.id !== "kolbo") {
+                dialog.clear()
+                return
+              }
+              // Clear the expired Kolbo token so we fall through to re-auth below
+              await sdk.client.auth.remove({ providerID: "kolbo" })
             }
 
             const methods = sync.data.provider_auth[provider.id] ?? [
