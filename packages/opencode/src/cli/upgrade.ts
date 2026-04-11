@@ -17,15 +17,8 @@ export async function upgrade() {
   if (Installation.VERSION === latest) return
   if (config.autoupdate === false || Flag.KOLBO_DISABLE_AUTOUPDATE) return
 
-  const kind = Installation.getReleaseType(Installation.VERSION, latest)
-
-  if (config.autoupdate === "notify" || kind !== "patch") {
-    await Bus.publish(Installation.Event.UpdateAvailable, { version: latest })
-    return
-  }
-
-  if (method === "unknown") return
-  await Installation.upgrade(method, latest)
-    .then(() => Bus.publish(Installation.Event.Updated, { version: latest }))
-    .catch(() => {})
+  // Always notify — never silently auto-upgrade. A silent upgrade via npm
+  // install can leave the user with a broken install if the platform-specific
+  // binary package hasn't been published yet when the wrapper is fetched.
+  await Bus.publish(Installation.Event.UpdateAvailable, { version: latest })
 }
