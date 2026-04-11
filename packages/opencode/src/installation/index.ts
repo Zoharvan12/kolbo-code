@@ -192,7 +192,7 @@ export namespace Installation {
           for (const check of checks) {
             const output = yield* check.command()
             const installedName =
-              check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "kolbo" : "opencode-ai"
+              check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "kolbo" : "kolbo-cli"
             if (output.includes(installedName)) {
               return check.name
             }
@@ -252,13 +252,14 @@ export namespace Installation {
             return data.version
           }
 
-          const response = yield* httpOk.execute(
-            HttpClientRequest.get("https://api.github.com/repos/Zoharvan12/kolbo-cli/releases/latest").pipe(
-              HttpClientRequest.acceptJson,
-            ),
+          // Fallback: check npm registry for the latest published version
+          const r = (yield* text(["npm", "config", "get", "registry"])).trim()
+          const reg = (r || "https://registry.npmjs.org").replace(/\/$/, "")
+          const fallbackResponse = yield* httpOk.execute(
+            HttpClientRequest.get(`${reg}/@kolbo-cli/kolbo/${CHANNEL}`).pipe(HttpClientRequest.acceptJson),
           )
-          const data = yield* HttpClientResponse.schemaBodyJson(GitHubRelease)(response)
-          return data.tag_name.replace(/^v/, "")
+          const fallbackData = yield* HttpClientResponse.schemaBodyJson(NpmPackage)(fallbackResponse)
+          return fallbackData.version
         }, Effect.orDie)
 
         const upgradeImpl = Effect.fn("Installation.upgrade")(function* (m: Method, target: string) {
