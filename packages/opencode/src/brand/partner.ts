@@ -114,9 +114,12 @@ export namespace Partner {
 
   /**
    * Derive a partial profile from the API base (and optionally the app base).
-   * The API base sets the domain/id, but user-visible URLs like docs and
-   * pricing are always anchored to the APP base — that's where the web UI
-   * lives.
+   *
+   * id / name / domain describe the *product* the user sees, so they always
+   * derive from the APP host when one is given — this is what makes
+   * `staging.kolbo.ai` + `stagingapi.kolbo.ai` come out as id="staging"
+   * instead of id="stagingapi". When only an apiBase is given (e.g. simple
+   * sapir.kolbo.ai/api setups), we fall back to deriving everything from it.
    *
    * Scheme is preserved from the source URL so http://localhost works.
    */
@@ -124,15 +127,15 @@ export namespace Partner {
     const apiUrl = parseUrl(apiBase)
     if (!apiUrl) return { apiBase }
     const appUrl = (appBaseOverride && parseUrl(appBaseOverride)) || apiUrl
-    const apiHost = apiUrl.host
-    // Use hostname (no port) for id/name/domain so "localhost:5050" becomes "localhost".
-    const apiHostname = stripPort(apiHost)
-    const firstLabel = apiHostname.split(".")[0] || "partner"
+    // The "branding host" is the user-facing app host. When app and api are
+    // on different subdomains, this is what id/name/domain are derived from.
+    const brandHostname = stripPort(appUrl.host)
+    const firstLabel = brandHostname.split(".")[0] || "partner"
     const appOrigin = `${appUrl.protocol}//${appUrl.host}`
     return {
       id: firstLabel,
       name: firstLabel.charAt(0).toUpperCase() + firstLabel.slice(1),
-      domain: apiHostname,
+      domain: brandHostname,
       apiBase,
       appBase: appOrigin,
       docsUrl: `${appOrigin}/docs`,
@@ -181,20 +184,26 @@ export namespace Partner {
       // Loud warning on stderr — env-var overrides are a high-risk surface.
       // If an attacker poisoned a shell RC, we want the user to see it.
       // Only emit ANSI color when attached to a TTY so file-redirected
-      // stderr stays clean.
-      try {
-        const isTty = Boolean((process.stderr as any).isTTY)
-        const open = isTty ? "\x1b[33m" : ""
-        const close = isTty ? "\x1b[0m" : ""
-        process.stderr.write(
-          open +
-            "[kolbo] warning: backend overridden by env var —" +
-            (envApiBase ? ` KOLBO_API_BASE=${envApiBase}` : "") +
-            (envAppBase ? ` KOLBO_APP_BASE=${envAppBase}` : "") +
-            close +
-            "\n",
-        )
-      } catch {}
+      // stderr stays clean. Dedupe via an inherited sentinel env var so
+      // spawned kolbo subprocesses don't re-print the same warning.
+      if (!process.env["KOLBO_OVERRIDE_WARNED"]) {
+        try {
+          const isTty = Boolean((process.stderr as any).isTTY)
+          const open = isTty ? "\x1b[33m" : ""
+          const close = isTty ? "\x1b[0m" : ""
+          process.stderr.write(
+            open +
+              "[kolbo] warning: backend overridden by env var —" +
+              (envApiBase ? ` KOLBO_API_BASE=${envApiBase}` : "") +
+              (envAppBase ? ` KOLBO_APP_BASE=${envAppBase}` : "") +
+              close +
+              "\n",
+          )
+        } catch {}
+        try {
+          process.env["KOLBO_OVERRIDE_WARNED"] = "1"
+        } catch {}
+      }
       const derived = envApiBase
         ? derive(envApiBase, envAppBase)
         : derive(envAppBase!, envAppBase)

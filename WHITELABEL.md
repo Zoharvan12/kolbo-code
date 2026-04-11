@@ -33,7 +33,7 @@ First match wins:
   "id": "sapir",
   "name": "Sapir Code",
   "domain": "sapir.kolbo.ai",
-  "apiBase": "https://sapir.kolbo.ai/api",
+  "apiBase": "https://sapirapi.kolbo.ai",
   "appBase": "https://sapir.kolbo.ai",
   "docsUrl": "https://sapir.kolbo.ai/docs",
   "upsellUrl": "https://sapir.kolbo.ai/pricing",
@@ -42,14 +42,19 @@ First match wins:
 }
 ```
 
-Only `apiBase` is strictly required — everything else is derived from it if
-omitted. You can ship a minimal two-field profile and the CLI fills in the
-rest:
+Whitelabels follow a consistent two-subdomain convention: `<partner>.kolbo.ai`
+for the user-facing app and `<partner>api.kolbo.ai` for the backend. The CLI
+derives `id`, `domain`, and all user-visible URLs from the **app** host (so
+the brand never accidentally surfaces as e.g. "Sapirapi"), and only uses
+`apiBase` for actual network calls.
+
+Minimal version — these two fields are enough, the CLI fills in the rest:
 
 ```json
 {
   "name": "Sapir Code",
-  "apiBase": "https://sapir.kolbo.ai/api"
+  "apiBase": "https://sapirapi.kolbo.ai",
+  "appBase": "https://sapir.kolbo.ai"
 }
 ```
 
@@ -73,7 +78,7 @@ cat > "$CONFIG_DIR/partner.json" <<'EOF'
 }
 EOF
 
-npm install -g @kolbo-cli/kolbo
+npm install -g @kolbo-cli/kolbo@latest
 ```
 
 Users run:

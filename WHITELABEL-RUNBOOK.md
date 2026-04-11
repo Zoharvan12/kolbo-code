@@ -9,9 +9,24 @@ you can copy and adapt.
 
 > **Assumptions for this runbook**
 > - Partner name: `acme` (replace throughout)
-> - Partner domain: `acme.kolbo.ai` (or `acme.com` — either works, just keep it consistent)
+> - Web app: `acme.kolbo.ai` (where users see the branded UI)
+> - Backend API: `acmeapi.kolbo.ai` (where the kolbo-api droplet listens)
 > - Droplet IP: `X.X.X.X` (provision before starting)
 > - All three repos checked out locally under `G:\Projects\Kolbo.AI\github\`
+>
+> **Subdomain convention:** every Kolbo whitelabel uses two sibling subdomains:
+> `<partner>.kolbo.ai` for the app and `<partner>api.kolbo.ai` for the backend.
+> Examples:
+>
+> | Partner | App | API |
+> |---|---|---|
+> | Production | kolbo.ai | api.kolbo.ai |
+> | Staging | staging.kolbo.ai | stagingapi.kolbo.ai |
+> | Sapir | sapir.kolbo.ai | sapirapi.kolbo.ai |
+> | Acme | acme.kolbo.ai | acmeapi.kolbo.ai |
+>
+> The CLI's partner profile loader derives the brand id/name from the **app**
+> host, so `acmeapi.kolbo.ai` won't accidentally show up as the product name.
 
 ---
 
@@ -227,7 +242,7 @@ Host this at `https://acme.kolbo.ai/partner.json`:
   "id": "acme",
   "name": "Acme Code",
   "domain": "acme.kolbo.ai",
-  "apiBase": "https://acme.kolbo.ai/api",
+  "apiBase": "https://acmeapi.kolbo.ai",
   "appBase": "https://acme.kolbo.ai",
   "docsUrl": "https://acme.kolbo.ai/docs",
   "upsellUrl": "https://acme.kolbo.ai/pricing",
@@ -235,14 +250,20 @@ Host this at `https://acme.kolbo.ai/partner.json`:
 }
 ```
 
-**Minimal version** (everything derived from `apiBase`):
+**Minimal version** — only the two hosts are required, the CLI derives
+everything else:
 
 ```json
 {
   "name": "Acme Code",
-  "apiBase": "https://acme.kolbo.ai/api"
+  "apiBase": "https://acmeapi.kolbo.ai",
+  "appBase": "https://acme.kolbo.ai"
 }
 ```
+
+The CLI derives `id`, `domain`, `docsUrl`, `upsellUrl`, and `shareBase` from
+the **app** host (`acme.kolbo.ai`), so the brand never accidentally surfaces
+as "Acmeapi".
 
 ### 3.2 Create the install script
 
@@ -261,7 +282,8 @@ cat > "$CONFIG_DIR/partner.json" <<'EOF'
 {
   "id": "acme",
   "name": "Acme Code",
-  "apiBase": "https://acme.kolbo.ai/api"
+  "apiBase": "https://acmeapi.kolbo.ai",
+  "appBase": "https://acme.kolbo.ai"
 }
 EOF
 
@@ -271,7 +293,7 @@ if ! command -v npm &> /dev/null; then
   exit 1
 fi
 
-npm install -g @kolbo-cli/kolbo
+npm install -g @kolbo-cli/kolbo@latest
 
 echo ""
 echo "Done. Run 'kolbo auth login' to sign in."
@@ -288,11 +310,12 @@ New-Item -ItemType Directory -Force -Path $configDir | Out-Null
 {
   "id": "acme",
   "name": "Acme Code",
-  "apiBase": "https://acme.kolbo.ai/api"
+  "apiBase": "https://acmeapi.kolbo.ai",
+  "appBase": "https://acme.kolbo.ai"
 }
 '@ | Set-Content "$configDir\partner.json"
 
-npm install -g @kolbo-cli/kolbo
+npm install -g @kolbo-cli/kolbo@latest
 Write-Host "Done. Run 'kolbo auth login' to sign in."
 ```
 
@@ -386,7 +409,7 @@ cross-partner key leakage).
 ### 5.1 When Kolbo releases a new CLI version
 
 **Nothing to do per-partner.** Partners automatically get the new version
-when their users run `npm install -g @kolbo-cli/kolbo` or when the CLI's
+when their users run `npm install -g @kolbo-cli/kolbo@latest` or when the CLI's
 built-in auto-update triggers.
 
 ### 5.2 When kolbo-api gets a new feature

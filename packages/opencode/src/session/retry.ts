@@ -52,6 +52,24 @@ export namespace SessionRetry {
     return cap(Math.min(RETRY_INITIAL_DELAY * Math.pow(RETRY_BACKOFF_FACTOR, attempt - 1), RETRY_MAX_DELAY_NO_HEADERS))
   }
 
+  /**
+   * True if the error represents an "out of credits" condition from
+   * kolbo-api. Covers three shapes defensively so backend wording changes
+   * don't silently regress the upsell UX:
+   *   - HTTP 402 with `{error:{type:"insufficient_credits"}}` (paid runout)
+   *   - `FreeUsageLimitError` marker in responseBody (free-tier exhaustion)
+   *   - literal "Insufficient credits" in error.message
+   */
+  export function isInsufficientCredits(error: Err | undefined): boolean {
+    if (!error || !MessageV2.APIError.isInstance(error)) return false
+    if (error.data.statusCode === 402) return true
+    if (error.data.message?.toLowerCase().includes("insufficient credit")) return true
+    const body = error.data.responseBody ?? ""
+    if (body.includes("InsufficientCredits") || body.includes("insufficient_credits")) return true
+    if (body.includes("FreeUsageLimitError")) return true
+    return false
+  }
+
   export function retryable(error: Err) {
     // context overflow errors should not be retried
     if (MessageV2.ContextOverflowError.isInstance(error)) return undefined

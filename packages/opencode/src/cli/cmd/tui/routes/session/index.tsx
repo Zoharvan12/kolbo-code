@@ -85,37 +85,17 @@ import { getScrollAcceleration } from "../../util/scroll"
 import { TuiPluginRuntime } from "../../plugin"
 import { DialogGoUpsell } from "../../component/dialog-go-upsell"
 import { Partner } from "@/brand/partner"
-import { Link } from "../../ui/link"
+import { Link } from "@tui/ui/link"
 import { SessionRetry } from "@/session/retry"
 import { DialogProvider as DialogProviderConnect } from "../../component/dialog-provider"
 import { useI18n, toVisual, toVisualLines } from "@/i18n"
 
 addDefaultParsers(parsers.parsers)
 
-// Short anti-spam window for the retry-sentinel path only: during a burst of
-// retries the same status event can fire many times per turn. This prevents
-// stacking the dialog — it does NOT suppress future sessions. The hard 402
-// path below bypasses this entirely.
-const GO_UPSELL_RETRY_DEBOUNCE_MS = 10_000
-
-// Detect any "out of credits" error from kolbo-api. The backend may surface
-// this as a hard 402 with body {"error":{"message":"Insufficient credits",
-// "type":"insufficient_credits"}}, or — for free-tier users — as a retryable
-// APIError whose response body contains "FreeUsageLimitError". Match all
-// signals defensively so a wording change on the server doesn't silently
-// regress the upsell UX (and so both free-tier and paid-runout render the
-// same friendly localized line in the chat).
-function isInsufficientCreditsError(error: AssistantMessage["error"] | undefined): boolean {
-  if (!error || error.name !== "APIError") return false
-  const data = error.data as { message?: string; statusCode?: number; responseBody?: string }
-  if (data.statusCode === 402) return true
-  const msg = (data.message ?? "").toLowerCase()
-  if (msg.includes("insufficient credit")) return true
-  const body = data.responseBody ?? ""
-  if (body.includes("InsufficientCredits") || body.includes("insufficient_credits")) return true
-  if (body.includes("FreeUsageLimitError")) return true
-  return false
-}
+// Anti-spam window covering both the retry-sentinel path (status events can
+// fire many times per turn during a burst) and the final-error path. Short
+// enough that a fresh user action always gets a fresh dialog.
+const GO_UPSELL_DEBOUNCE_MS = 10_000
 
 const context = createContext<{
   width: number
@@ -258,7 +238,7 @@ export function Session() {
   let lastUpsellShownAt = 0
   const showGoUpsell = () => {
     if (dialog.stack.length > 0) return
-    if (Date.now() - lastUpsellShownAt < GO_UPSELL_RETRY_DEBOUNCE_MS) return
+    if (Date.now() - lastUpsellShownAt < GO_UPSELL_DEBOUNCE_MS) return
     lastUpsellShownAt = Date.now()
     DialogGoUpsell.show(dialog)
   }
@@ -285,7 +265,7 @@ export function Session() {
   createEffect(() => {
     const last = lastAssistant()
     if (!last || last.role !== "assistant") return
-    if (!isInsufficientCreditsError(last.error)) return
+    if (!SessionRetry.isInsufficientCredits(last.error)) return
     showGoUpsell()
   })
 
@@ -1442,7 +1422,7 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
           gap={1}
         >
           <Show
-            when={isInsufficientCreditsError(props.message.error)}
+            when={SessionRetry.isInsufficientCredits(props.message.error)}
             fallback={<text fg={theme.textMuted}>{props.message.error?.data.message}</text>}
           >
             <text fg={theme.textMuted}>{t("error.insufficientCredits", { name: Partner.name })}</text>
