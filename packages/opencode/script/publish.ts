@@ -76,6 +76,13 @@ await Bun.file(`${wrapperDir}/package.json`).write(
 const tasks = Object.entries(binaries).map(async ([name]) => {
   const scoped = name.split("/")
   const subdir = scoped.length === 2 ? `./dist/${name}` : `./dist/${name}`
+  // Inject repository so npm provenance validation passes
+  const binPkgFile = Bun.file(`${subdir}/package.json`)
+  const binPkg = await binPkgFile.json()
+  if (!binPkg.repository?.url) {
+    binPkg.repository = pkg.repository
+    await binPkgFile.write(JSON.stringify(binPkg, null, 2))
+  }
   if (process.platform !== "win32") {
     await $`chmod -R 755 .`.cwd(subdir)
   }
