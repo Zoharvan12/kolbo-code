@@ -453,7 +453,18 @@ export function Autocomplete(props: {
   function select() {
     const selected = options()[store.selected]
     if (!selected) return
+    // When picking a slash command (e.g. "/models"), always wipe the typed
+    // command from the prompt input so it doesn't linger after the dialog
+    // opens. hide() has its own conditional clear that doesn't always fire.
+    const wasSlash = store.visible === "/"
     hide()
+    if (wasSlash) {
+      props.input().setText("")
+      props.setPrompt((draft) => {
+        draft.input = ""
+        draft.parts = []
+      })
+    }
     selected.onSelect?.()
   }
 

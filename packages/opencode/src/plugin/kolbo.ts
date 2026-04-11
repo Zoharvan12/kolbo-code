@@ -3,6 +3,7 @@ import { setTimeout as sleep } from "node:timers/promises"
 import { Partner } from "../brand/partner"
 
 const KOLBO_API_BASE = Partner.apiBase
+const KOLBO_APP_BASE = Partner.appBase
 const OAUTH_POLLING_SAFETY_MARGIN_MS = 3000
 
 export async function KolboAuthPlugin(_input: PluginInput): Promise<Hooks> {
@@ -21,7 +22,7 @@ export async function KolboAuthPlugin(_input: PluginInput): Promise<Hooks> {
           type: "oauth",
           label: `Login with ${Partner.name}`,
           async authorize() {
-            const r = await fetch(`${KOLBO_API_BASE}/auth/kolbo-cli/device/code`, {
+            const r = await fetch(`${KOLBO_API_BASE}/auth/kolbo-code/device/code`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: "{}",
@@ -41,6 +42,21 @@ export async function KolboAuthPlugin(_input: PluginInput): Promise<Hooks> {
               expires_in?: number
             }
 
+            // Defense in depth: even though we fetched this from Partner.apiBase
+            // over HTTPS with `redirect: "error"`, we still refuse to open a
+            // verification_uri whose origin doesn't match the configured
+            // appBase. If the backend is ever compromised, the attacker cannot
+            // steer the user's browser to an arbitrary phishing page.
+            try {
+              const got = new URL(data.verification_uri).origin
+              const expected = new URL(KOLBO_APP_BASE).origin
+              if (got !== expected) {
+                throw new Error(`Refusing untrusted verification_uri origin (${got} != ${expected})`)
+              }
+            } catch (e) {
+              throw new Error(`Invalid verification_uri from device code endpoint: ${(e as Error).message}`)
+            }
+
             const interval = Math.max(1, data.interval ?? 5) * 1000
             const expiresAt = Date.now() + (data.expires_in ?? 900) * 1000
 
@@ -54,7 +70,7 @@ export async function KolboAuthPlugin(_input: PluginInput): Promise<Hooks> {
                   let response: Response
                   try {
                     response = await fetch(
-                      `${KOLBO_API_BASE}/auth/kolbo-cli/device/token?code=${encodeURIComponent(data.device_code)}`,
+                      `${KOLBO_API_BASE}/auth/kolbo-code/device/token?code=${encodeURIComponent(data.device_code)}`,
                       { redirect: "error" },
                     )
                   } catch {

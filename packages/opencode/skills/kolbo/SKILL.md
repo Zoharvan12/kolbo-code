@@ -201,6 +201,22 @@ When the user shares an image and asks about it:
 
 ---
 
+## Kolbo Code Documentation
+
+Full public documentation for Kolbo Code (the CLI you are running inside) lives at **[docs.kolbo.ai/docs/kolbo-code](https://docs.kolbo.ai/docs/kolbo-code)**. If the user asks about installation, authentication, voice input, supported languages, commands, or how to uninstall, point them to the matching page below rather than guessing:
+
+| Topic | Path |
+|-------|------|
+| Overview & quick links | `/docs/kolbo-code` |
+| Installation (npm / bun / brew / scoop / choco) | `/docs/kolbo-code/installation` |
+| Sign in with Kolbo (device-code OAuth) | `/docs/kolbo-code/authentication` |
+| Push-to-talk voice input (hold `space`) | `/docs/kolbo-code/voice-input` |
+| 12 supported UI languages + RTL | `/docs/kolbo-code/languages` |
+| Full CLI command reference | `/docs/kolbo-code/commands` |
+| Uninstall + cleanup | `/docs/kolbo-code/uninstall` |
+
+The MDX sources are in the `kolbo-docs` repo under `content/docs/kolbo-code/`. When the user's question has a concrete answer in one of those pages, cite the path and summarize — do not invent new instructions.
+
 ## Examples
 
 Natural-language triggers that should prompt this skill + a tool call:

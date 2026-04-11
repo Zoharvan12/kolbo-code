@@ -312,117 +312,29 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
       return
     }
 
+    // Kolbo forces dark mode + kolbo theme on every machine. We ignore:
+    //   - kv `theme` / `theme_mode` / `theme_mode_lock` (stale values from prior
+    //     installs shouldn't flip us to light or some other theme)
+    //   - config.theme (user config file override)
+    //   - terminal palette detection (renderer.getPalette / resolveSystemTheme)
+    //   - custom themes loaded from disk
+    // This eliminates a class of platform-specific theme bugs (especially on
+    // macOS Terminal.app where OSC 11/4 queries silently fail).
     setStore(
       produce((draft) => {
-        const lock = pick(kv.get("theme_mode_lock"))
-        const mode = pick(kv.get("theme_mode", props.mode))
-        draft.mode = lock ?? mode ?? props.mode
-        draft.lock = lock
-        const active = config.theme ?? kv.get("theme", "kolbo")
-        draft.active = typeof active === "string" ? active : "kolbo"
-        draft.ready = false
+        draft.mode = "dark"
+        draft.lock = "dark"
+        draft.active = "kolbo"
+        draft.ready = true
       }),
     )
 
-    createEffect(() => {
-      const theme = config.theme
-      if (theme) setStore("active", theme)
-    })
+    // No-op hooks: the rest of the codebase still calls setMode/lock/unlock/set
+    // (e.g. from the theme picker dialog). We keep the signatures but make them
+    // no-ops so the theme is permanently locked to kolbo dark.
+    const noop = () => {}
 
-    function init() {
-      Promise.allSettled([
-        resolveSystemTheme(store.mode),
-        getCustomThemes()
-          .then((custom) => {
-            customThemes = custom
-            syncThemes()
-          })
-          .catch(() => {
-            setStore("active", "kolbo")
-          }),
-      ]).finally(() => {
-        setStore("ready", true)
-      })
-    }
-
-    onMount(init)
-
-    function resolveSystemTheme(mode: "dark" | "light" = store.mode) {
-      return renderer
-        .getPalette({
-          size: 16,
-        })
-        .then((colors: TerminalColors) => {
-          if (!colors.palette[0]) {
-            systemTheme = undefined
-            syncThemes()
-            if (store.active === "system") {
-              setStore("active", "kolbo")
-            }
-            return
-          }
-          systemTheme = generateSystem(colors, mode)
-          syncThemes()
-        })
-        .catch(() => {
-          systemTheme = undefined
-          syncThemes()
-          if (store.active === "system") {
-            setStore("active", "kolbo")
-          }
-        })
-    }
-
-    function apply(mode: "dark" | "light") {
-      kv.set("theme_mode", mode)
-      if (store.mode === mode) return
-      setStore("mode", mode)
-      renderer.clearPaletteCache()
-      resolveSystemTheme(mode)
-    }
-
-    function pin(mode: "dark" | "light" = store.mode) {
-      setStore("lock", mode)
-      kv.set("theme_mode_lock", mode)
-      apply(mode)
-    }
-
-    function free() {
-      setStore("lock", undefined)
-      kv.set("theme_mode_lock", undefined)
-      const mode = renderer.themeMode
-      if (mode) apply(mode)
-    }
-
-    const handle = (mode: "dark" | "light") => {
-      if (store.lock) return
-      apply(mode)
-    }
-    renderer.on(CliRenderEvents.THEME_MODE, handle)
-
-    const refresh = () => {
-      renderer.clearPaletteCache()
-      init()
-    }
-    process.on("SIGUSR2", refresh)
-
-    onCleanup(() => {
-      renderer.off(CliRenderEvents.THEME_MODE, handle)
-      process.off("SIGUSR2", refresh)
-    })
-
-    const values = createMemo(() => {
-      const active = store.themes[store.active]
-      if (active) return resolveTheme(active, store.mode)
-
-      const saved = kv.get("theme")
-      if (typeof saved === "string") {
-        const theme = store.themes[saved]
-        if (theme) return resolveTheme(theme, store.mode)
-      }
-
-      return resolveTheme(store.themes.kolbo, store.mode)
-    })
+    const values = createMemo(() => resolveTheme(store.themes.kolbo, "dark"))
 
     createEffect(() => {
       renderer.setBackgroundColor(values().background)
@@ -450,25 +362,17 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
       syntax,
       subtleSyntax,
       mode() {
-        return store.mode
+        return "dark" as const
       },
       locked() {
-        return store.lock !== undefined
-      },
-      lock() {
-        pin(store.mode)
-      },
-      unlock() {
-        free()
-      },
-      setMode(mode: "dark" | "light") {
-        pin(mode)
-      },
-      set(theme: string) {
-        if (!hasTheme(theme)) return false
-        setStore("active", theme)
-        kv.set("theme", theme)
         return true
+      },
+      lock: noop,
+      unlock: noop,
+      setMode: (_mode?: "dark" | "light") => {},
+      set(_theme: string) {
+        // Theme is permanently locked to kolbo dark across all platforms.
+        return false
       },
       get ready() {
         return store.ready

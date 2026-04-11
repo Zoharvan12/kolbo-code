@@ -7,6 +7,8 @@
       "tokensAndPct": "{{n}} tokens ({{pct}}% of context window)",
       "creditsLeft": "{{n}} credits left",
       "creditsLoading": "credits loading...",
+      "creditsUsed": "{{n}} credits used",
+      "creditsCompact": "{{n}} credits",
       "spent": "{{amount}} spent"
     },
     "gettingStarted": {
@@ -49,6 +51,7 @@
   },
   "tips": {
     "label": "Tip",
+    "voice": "Hold {{key}} anywhere to dictate with your voice",
     "tip_0": "Type {highlight}@{/highlight} followed by a filename to fuzzy search and attach files",
     "tip_1": "Start a message with {highlight}!{/highlight} to run shell commands directly (e.g., {highlight}!ls -la{/highlight})",
     "tip_2": "Press {highlight}Tab{/highlight} to toggle between Build, Plan and Auto-Approve modes",
@@ -74,12 +77,12 @@
     "tip_22": "Use {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} to navigate through conversation history",
     "tip_23": "Press {highlight}Ctrl+G{/highlight} or {highlight}Home{/highlight} to jump to the beginning of the conversation",
     "tip_24": "Press {highlight}Ctrl+Alt+G{/highlight} or {highlight}End{/highlight} to jump to the most recent message",
-    "tip_25": "Press {highlight}Shift+Enter{/highlight} or {highlight}Ctrl+J{/highlight} to add newlines in your prompt",
+    "tip_25": "Press {highlight}Ctrl+J{/highlight} to add newlines in your prompt",
     "tip_26": "Press {highlight}Ctrl+C{/highlight} when typing to clear the input field",
     "tip_27": "Press {highlight}Escape{/highlight} to stop the AI mid-response",
     "tip_28": "Switch to {highlight}Plan{/highlight} agent to get suggestions without making actual changes",
     "tip_29": "Use {highlight}@agent-name{/highlight} in prompts to invoke specialized subagents",
-    "tip_30": "Press {highlight}Ctrl+X Right/Left{/highlight} to cycle through parent and child sessions",
+    "tip_30": "Press {highlight}Left{/highlight}/{highlight}Right{/highlight} to cycle child sessions, {highlight}Up{/highlight} to jump to parent",
     "tip_31": "Create {highlight}kolbo.json{/highlight} for server settings and {highlight}tui.json{/highlight} for TUI settings",
     "tip_32": "Place TUI settings in {highlight}~/.config/kolbo/tui.json{/highlight} for global config",
     "tip_33": "Add {highlight}$schema{/highlight} to your config for autocomplete in your editor",
@@ -117,7 +120,7 @@
     "tip_65": "Use {highlight}/kolbo{/highlight} in GitHub issues/PRs to trigger AI actions",
     "tip_66": "Run {highlight}kolbo github install{/highlight} to set up the GitHub workflow",
     "tip_67": "Comment {highlight}/kolbo fix this{/highlight} on issues to auto-create PRs",
-    "tip_68": "Comment {highlight}/oc{/highlight} on PR code lines for targeted code reviews",
+    "tip_68": "Comment {highlight}/kolbo{/highlight} on PR code lines for targeted code reviews",
     "tip_69": "Use {highlight}\"theme\": \"system\"{/highlight} to match your terminal's colors",
     "tip_70": "Create JSON theme files in {highlight}.kolbo/themes/{/highlight} directory",
     "tip_71": "Themes support dark/light variants for both modes",
@@ -142,11 +145,10 @@
     "tip_90": "Press {highlight}Ctrl+X S{/highlight} or {highlight}/status{/highlight} to see system status info",
     "tip_91": "Enable {highlight}scroll_acceleration{/highlight} in {highlight}tui.json{/highlight} for smooth macOS-style scrolling",
     "tip_92": "Toggle username display in chat via command palette ({highlight}Ctrl+P{/highlight})",
-    "tip_93": "Run {highlight}docker run -it --rm ghcr.io/Zoharvan12/kolbo-cli{/highlight} for containerized use",
     "tip_94": "Use {highlight}/connect{/highlight} to add your Kolbo.AI account or another provider",
     "tip_95": "Commit your project's {highlight}KOLBO.md{/highlight} file to Git for team sharing",
     "tip_96": "Use {highlight}/review{/highlight} to review uncommitted changes, branches, or PRs",
-    "tip_97": "Run {highlight}/help{/highlight} or {highlight}Ctrl+X H{/highlight} to show the help dialog",
+    "tip_97": "Run {highlight}/help{/highlight} to show the help dialog",
     "tip_98": "Use {highlight}/rename{/highlight} to rename the current session",
     "tip_99_win": "Press {highlight}Ctrl+Z{/highlight} to undo changes in your prompt",
     "tip_99_unix": "Press {highlight}Ctrl+Z{/highlight} to suspend the terminal and return to your shell"
@@ -157,7 +159,10 @@
     "commands": "commands",
     "agents": "toggle mode",
     "escAgainToClear": "again to clear",
+    "ctrlCAgainToExit": "again to exit",
     "newline": "new line",
+    "voice": "voice",
+    "promptFooterHint": "{{newlineKey}} new line   {{voiceKey}} dictate",
     "interrupted": "interrupted",
     "exitShellMode": "exit shell mode",
     "parent": "Parent",
@@ -297,7 +302,10 @@
   },
   "dialog": {
     "sessions": "Sessions",
+    "commands": "Commands",
+    "search": "Search",
     "selectModel": "Select model",
+    "ollamaHint": "Run local models with Ollama → ollama.com",
     "connectProvider": "Connect a provider",
     "selectAuthMethod": "Select auth method",
     "cancel": "cancel",
@@ -420,7 +428,20 @@
     "completeMessage": "Successfully updated to Kolbo v{{version}}. Please restart the application.",
     "heapSnapshotWritten": "Heap snapshot written to {{files}}"
   },
+  "voice": {
+    "recording": "Recording…",
+    "errors": {
+      "notLoggedIn": "Not logged in to Kolbo — run /login first",
+      "noMicBackend": "Voice input could not find a working mic backend. Reinstall kolbo (bundled ffmpeg may have failed to download) or install ffmpeg/sox manually.",
+      "micSpawnFailed": "Failed to start {{kind}}: {{error}}",
+      "micRuntime": "Microphone error ({{kind}}): {{error}}",
+      "transportFailed": "Voice transport failed: {{error}}",
+      "backendTimeout": "Backend did not start transcription session within 5 seconds. Is the realtime scribe route running?",
+      "serverError": "Transcription error: {{error}}"
+    }
+  },
   "toast": {
+    "pasting": "Pasting…",
     "copiedToClipboard": "Copied to clipboard",
     "invalidModelFormat": "Invalid model format: {{model}}",
     "noAssistantMessages": "No assistant messages found",

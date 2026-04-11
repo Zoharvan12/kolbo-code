@@ -7,6 +7,8 @@
       "tokensAndPct": "{{n}} 个 tokens (上下文窗口的 {{pct}}%)",
       "creditsLeft": "剩余 {{n}} 个 credits",
       "creditsLoading": "正在加载 credits...",
+      "creditsUsed": "已使用 {{n}} 个 credits",
+      "creditsCompact": "{{n}} credits",
       "spent": "已花费 {{amount}}"
     },
     "gettingStarted": {
@@ -49,6 +51,7 @@
   },
   "tips": {
     "label": "提示",
+    "voice": "在任何地方按住 {{key}} 即可语音输入",
     "tip_0": "输入 {highlight}@{/highlight} 后跟文件名，可以进行模糊搜索并附加文件",
     "tip_1": "以 {highlight}!{/highlight} 开始消息可以直接运行 shell 命令 (例如，{highlight}!ls -la{/highlight})",
     "tip_2": "按 {highlight}Tab{/highlight} 键可以在构建、计划和自动批准模式之间切换",
@@ -74,12 +77,12 @@
     "tip_22": "使用 {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} 浏览对话历史记录",
     "tip_23": "按 {highlight}Ctrl+G{/highlight} 或 {highlight}Home{/highlight} 跳转到对话开头",
     "tip_24": "按 {highlight}Ctrl+Alt+G{/highlight} 或 {highlight}End{/highlight} 跳转到最新消息",
-    "tip_25": "按 {highlight}Shift+Enter{/highlight} 或 {highlight}Ctrl+J{/highlight} 在提示中添加换行符",
+    "tip_25": "按 {highlight}Ctrl+J{/highlight} 在提示中添加换行符",
     "tip_26": "输入时按 {highlight}Ctrl+C{/highlight} 可清除输入字段",
     "tip_27": "按 {highlight}Escape{/highlight} 停止 AI 的中间响应",
     "tip_28": "切换到 {highlight}Plan{/highlight} 代理以获取建议，而无需进行实际更改",
     "tip_29": "在提示中使用 {highlight}@agent-name{/highlight} 来调用专门的子代理",
-    "tip_30": "按 {highlight}Ctrl+X Right/Left{/highlight} 循环浏览父会话和子会话",
+    "tip_30": "按 {highlight}Left{/highlight}/{highlight}Right{/highlight} 循环浏览子会话，按 {highlight}Up{/highlight} 跳转到父会话",
     "tip_31": "创建 {highlight}kolbo.json{/highlight} 用于服务器设置，创建 {highlight}tui.json{/highlight} 用于 TUI 设置",
     "tip_32": "将 TUI 设置放在 {highlight}~/.config/kolbo/tui.json{/highlight} 中以进行全局配置",
     "tip_33": "将 {highlight}$schema{/highlight} 添加到您的配置，以便在编辑器中自动完成",
@@ -117,7 +120,7 @@
     "tip_65": "在 GitHub 问题/PR 中使用 {highlight}/kolbo{/highlight} 来触发 AI 操作",
     "tip_66": "运行 {highlight}kolbo github install{/highlight} 以设置 GitHub 工作流程",
     "tip_67": "在问题上评论 {highlight}/kolbo fix this{/highlight} 以自动创建 PR",
-    "tip_68": "在 PR 代码行上评论 {highlight}/oc{/highlight} 以进行有针对性的代码审查",
+    "tip_68": "在 PR 代码行上评论 {highlight}/kolbo{/highlight} 以进行有针对性的代码审查",
     "tip_69": "使用 {highlight}\"theme\": \"system\"{/highlight} 来匹配你的终端颜色",
     "tip_70": "在 {highlight}.kolbo/themes/{/highlight} 目录下创建 JSON 主题文件",
     "tip_71": "主题支持黑暗/光明模式的变体",
@@ -142,11 +145,10 @@
     "tip_90": "按 {highlight}Ctrl+X S{/highlight} 或 {highlight}/status{/highlight} 来查看系统状态信息",
     "tip_91": "在 {highlight}tui.json{/highlight} 中启用 {highlight}scroll_acceleration{/highlight} 以获得流畅的 macOS 风格滚动",
     "tip_92": "通过命令面板（{highlight}Ctrl+P{/highlight}）切换聊天中的用户名显示",
-    "tip_93": "运行 {highlight}docker run -it --rm ghcr.io/Zoharvan12/kolbo-cli{/highlight} 以进行容器化使用",
     "tip_94": "使用 {highlight}/connect{/highlight} 来添加您的 Kolbo.AI 账户或其他提供商",
     "tip_95": "将您项目的 {highlight}KOLBO.md{/highlight} 文件提交到 Git 以便团队共享",
     "tip_96": "使用 {highlight}/review{/highlight} 来审查未提交的更改、分支或 PR",
-    "tip_97": "运行 {highlight}/help{/highlight} 或 {highlight}Ctrl+X H{/highlight} 来显示帮助对话框",
+    "tip_97": "运行 {highlight}/help{/highlight} 来显示帮助对话框",
     "tip_98": "使用 {highlight}/rename{/highlight} 来重命名当前会话",
     "tip_99_win": "按下 {highlight}Ctrl+Z{/highlight} 以撤销提示中的更改",
     "tip_99_unix": "按下 {highlight}Ctrl+Z{/highlight} 以暂停终端并返回到您的 shell"
@@ -177,8 +179,12 @@
     "transcriptCopied": "会话记录已复制到剪贴板！",
     "failedToCopyTranscript": "无法复制会话记录",
     "escAgainToClear": "再次清除",
+    "ctrlCAgainToExit": "再次退出",
     "interrupted": "已中断",
-    "failedToShare": "共享会话失败"
+    "failedToShare": "共享会话失败",
+    "newline": "new line",
+    "voice": "语音输入",
+    "promptFooterHint": "{{newlineKey}} 换行   {{voiceKey}} 语音输入"
   },
   "commands": {
     "categories": {
@@ -279,7 +285,10 @@
   },
   "dialog": {
     "sessions": "会话",
+    "commands": "命令",
+    "search": "搜索",
     "selectModel": "选择模型",
+    "ollamaHint": "用 Ollama 运行本地模型 → ollama.com",
     "connectProvider": "连接提供商",
     "selectAuthMethod": "选择认证方法",
     "cancel": "取消",
@@ -403,6 +412,7 @@
     "heapSnapshotWritten": "堆快照已写入 {{files}}"
   },
   "toast": {
+    "pasting": "正在粘贴…",
     "copiedToClipboard": "已复制到剪贴板",
     "invalidModelFormat": "无效的模型格式：{{model}}",
     "noAssistantMessages": "未找到助手消息",
@@ -433,6 +443,18 @@
     "autoApprove": {
       "name": "自动批准",
       "description": "自动批准模式。跳过所有权限提示 — 请谨慎使用。"
+    }
+  },
+  "voice": {
+    "recording": "正在录音…",
+    "errors": {
+      "notLoggedIn": "未登录 Kolbo — 请先运行 /login",
+      "noMicBackend": "语音输入未找到可用的麦克风后端。请重新安装 kolbo（捆绑的 ffmpeg 可能下载失败）或手动安装 ffmpeg/sox。",
+      "micSpawnFailed": "启动 {{kind}} 失败：{{error}}",
+      "micRuntime": "麦克风错误 ({{kind}})：{{error}}",
+      "transportFailed": "语音传输失败：{{error}}",
+      "backendTimeout": "后端在 5 秒内未启动转录会话。实时转录路由是否正在运行？",
+      "serverError": "转录错误：{{error}}"
     }
   }
 }

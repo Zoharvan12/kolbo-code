@@ -23,6 +23,13 @@ let languagePickedThisSession = false
 // refreshed yet the effect would re-open the connect dialog in a tight loop.
 let wasEverConnected = false
 
+// Called by the auth flow the moment an OAuth/API login succeeds, so the
+// onboarding effect below doesn't re-open the connect dialog if the backend's
+// provider_next.connected hasn't caught up yet.
+export function markOnboardingConnected() {
+  wasEverConnected = true
+}
+
 export function Home() {
   const { t } = useI18n()
   const placeholder = createMemo(() => ({
@@ -41,12 +48,14 @@ export function Home() {
   // Always show language → auth flow if not connected — re-shows on ESC
   const connected = createMemo(() => sync.data.provider_next.connected.length > 0)
   createEffect(() => {
+    // Cheapest short-circuit first: once we've latched "connected", nothing
+    // below this line should ever reopen the onboarding dialogs.
+    if (wasEverConnected) return
     if (!sync.ready) return
     if (connected()) {
       wasEverConnected = true
       return
     }
-    if (wasEverConnected) return
     if (dialog.stack.length > 0) return
     if (!languagePickedThisSession) {
       dialog.replace(() => (

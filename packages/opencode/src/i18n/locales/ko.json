@@ -7,6 +7,8 @@
       "tokensAndPct": "{{n}} 토큰 (컨텍스트 창의 {{pct}}%)",
       "creditsLeft": "{{n}} 크레딧 남음",
       "creditsLoading": "크레딧 로딩 중...",
+      "creditsUsed": "{{n}} 크레딧 사용됨",
+      "creditsCompact": "{{n}} 크레딧",
       "spent": "{{amount}} 사용됨"
     },
     "gettingStarted": {
@@ -49,6 +51,7 @@
   },
   "tips": {
     "label": "팁",
+    "voice": "어디에서나 {{key}}를 누른 채로 음성으로 입력할 수 있습니다",
     "tip_0": "{highlight}@{/highlight}를 입력하고 파일 이름을 입력하여 퍼지 검색하고 파일을 첨부합니다.",
     "tip_1": "{highlight}!{/highlight}로 메시지를 시작하여 셸 명령을 직접 실행합니다 (예: {highlight}!ls -la{/highlight}).",
     "tip_2": "{highlight}Tab{/highlight} 키를 눌러 빌드, 계획 및 자동 승인 모드 간에 전환합니다.",
@@ -74,12 +77,12 @@
     "tip_22": "{highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} 키를 사용하여 대화 기록을 탐색합니다.",
     "tip_23": "{highlight}Ctrl+G{/highlight} 또는 {highlight}Home{/highlight} 키를 누르면 대화의 시작 부분으로 이동합니다.",
     "tip_24": "{highlight}Ctrl+Alt+G{/highlight} 또는 {highlight}End{/highlight} 키를 누르면 가장 최근 메시지로 이동합니다.",
-    "tip_25": "{highlight}Shift+Enter{/highlight} 또는 {highlight}Ctrl+J{/highlight} 키를 누르면 프롬프트에 새 줄을 추가합니다.",
+    "tip_25": "{highlight}Ctrl+J{/highlight} 키를 누르면 프롬프트에 새 줄을 추가합니다.",
     "tip_26": "입력 필드를 지우려면 입력하는 동안 {highlight}Ctrl+C{/highlight} 키를 누르십시오.",
     "tip_27": "AI 응답을 중지하려면 {highlight}Escape{/highlight} 키를 누르십시오.",
     "tip_28": "실제 변경을 하지 않고 제안을 받으려면 {highlight}Plan{/highlight} 에이전트로 전환합니다.",
     "tip_29": "특정 하위 에이전트를 호출하려면 프롬프트에서 {highlight}@agent-name{/highlight}을 사용하십시오.",
-    "tip_30": "{highlight}Ctrl+X Right/Left{/highlight} 키를 눌러 상위 및 하위 세션을 순환합니다.",
+    "tip_30": "{highlight}Left{/highlight}/{highlight}Right{/highlight} 키로 하위 세션을 순환하고, {highlight}Up{/highlight} 키로 상위 세션으로 이동합니다.",
     "tip_31": "서버 설정에는 {highlight}kolbo.json{/highlight}을, TUI 설정에는 {highlight}tui.json{/highlight}을 만드십시오.",
     "tip_32": "전역 구성의 경우 TUI 설정을 {highlight}~/.config/kolbo/tui.json{/highlight}에 넣으십시오.",
     "tip_33": "편집기에서 자동 완성을 위해 구성에 {highlight}$schema{/highlight}를 추가하십시오.",
@@ -117,7 +120,7 @@
     "tip_65": "AI 작업을 트리거하려면 GitHub 이슈/PR에서 {highlight}/kolbo{/highlight}를 사용합니다.",
     "tip_66": "GitHub 워크플로우를 설정하려면 {highlight}kolbo github install{/highlight}을 실행합니다.",
     "tip_67": "이슈에 {highlight}/kolbo fix this{/highlight}를 댓글로 달아 PR을 자동 생성합니다.",
-    "tip_68": "타겟 코드 검토를 위해 PR 코드 라인에 {highlight}/oc{/highlight}를 댓글로 답니다.",
+    "tip_68": "타겟 코드 검토를 위해 PR 코드 라인에 {highlight}/kolbo{/highlight}를 댓글로 답니다.",
     "tip_69": "터미널 색상에 맞추려면 {highlight}\"theme\": \"system\"{/highlight}을 사용합니다.",
     "tip_70": "{highlight}.kolbo/themes/{/highlight} 디렉터리에 JSON 테마 파일을 생성합니다.",
     "tip_71": "테마는 다크/라이트 모드 모두에 대한 변형을 지원합니다.",
@@ -142,11 +145,10 @@
     "tip_90": "시스템 상태 정보를 보려면 {highlight}Ctrl+X S{/highlight} 또는 {highlight}/status{/highlight}를 누릅니다.",
     "tip_91": "부드러운 macOS 스타일 스크롤을 위해 {highlight}tui.json{/highlight}에서 {highlight}scroll_acceleration{/highlight}을 활성화합니다.",
     "tip_92": "명령 팔레트({highlight}Ctrl+P{/highlight})를 통해 채팅에서 사용자 이름 표시를 전환합니다.",
-    "tip_93": "컨테이너화된 사용을 위해 {highlight}docker run -it --rm ghcr.io/Zoharvan12/kolbo-cli{/highlight}를 실행합니다.",
     "tip_94": "{highlight}/connect{/highlight}를 사용하여 Kolbo.AI 계정 또는 다른 공급자를 추가합니다.",
     "tip_95": "프로젝트의 {highlight}KOLBO.md{/highlight} 파일을 Git에 커밋하여 팀과 공유합니다.",
     "tip_96": "{highlight}/review{/highlight}를 사용하여 커밋되지 않은 변경 사항, 브랜치 또는 PR을 검토합니다.",
-    "tip_97": "{highlight}/help{/highlight} 또는 {highlight}Ctrl+X H{/highlight}를 실행하여 도움말 대화 상자를 표시합니다.",
+    "tip_97": "{highlight}/help{/highlight}를 실행하여 도움말 대화 상자를 표시합니다.",
     "tip_98": "{highlight}/rename{/highlight}을 사용하여 현재 세션의 이름을 변경합니다.",
     "tip_99_win": "{highlight}Ctrl+Z{/highlight}를 눌러 프롬프트의 변경 사항을 취소합니다.",
     "tip_99_unix": "{highlight}Ctrl+Z{/highlight}를 눌러 터미널을 일시 중단하고 셸로 돌아갑니다."
@@ -177,8 +179,12 @@
     "transcriptCopied": "세션 기록이 클립보드에 복사되었습니다!",
     "failedToCopyTranscript": "세션 기록 복사에 실패했습니다.",
     "escAgainToClear": "다시 누르면 지워집니다.",
+    "ctrlCAgainToExit": "다시 누르면 종료됩니다.",
     "interrupted": "중단되었습니다.",
-    "failedToShare": "세션을 공유하지 못했습니다."
+    "failedToShare": "세션을 공유하지 못했습니다.",
+    "newline": "new line",
+    "voice": "받아쓰기",
+    "promptFooterHint": "{{newlineKey}} 줄바꿈   {{voiceKey}} 음성 받아쓰기"
   },
   "commands": {
     "categories": {
@@ -279,7 +285,10 @@
   },
   "dialog": {
     "sessions": "세션",
+    "commands": "명령",
+    "search": "검색",
     "selectModel": "모델 선택",
+    "ollamaHint": "Ollama로 로컬 모델 실행 → ollama.com",
     "connectProvider": "공급자 연결",
     "selectAuthMethod": "인증 방법 선택",
     "cancel": "취소",
@@ -403,6 +412,7 @@
     "heapSnapshotWritten": "힙 스냅샷이 {{files}}에 쓰여졌습니다."
   },
   "toast": {
+    "pasting": "붙여넣는 중…",
     "copiedToClipboard": "클립보드에 복사되었습니다.",
     "invalidModelFormat": "잘못된 모델 형식: {{model}}",
     "noAssistantMessages": "어시스턴트 메시지가 없습니다.",
@@ -433,6 +443,18 @@
     "autoApprove": {
       "name": "자동 승인",
       "description": "자동 승인 모드입니다. 모든 권한 확인 메시지를 건너뜁니다. 주의해서 사용하십시오."
+    }
+  },
+  "voice": {
+    "recording": "녹음 중…",
+    "errors": {
+      "notLoggedIn": "Kolbo에 로그인되어 있지 않습니다 — 먼저 /login을 실행하세요",
+      "noMicBackend": "음성 입력에서 작동하는 마이크 백엔드를 찾을 수 없습니다. kolbo를 다시 설치하거나(번들된 ffmpeg 다운로드가 실패했을 수 있습니다) ffmpeg/sox를 수동으로 설치하세요.",
+      "micSpawnFailed": "{{kind}} 시작 실패: {{error}}",
+      "micRuntime": "마이크 오류 ({{kind}}): {{error}}",
+      "transportFailed": "음성 전송 실패: {{error}}",
+      "backendTimeout": "백엔드가 5초 이내에 전사 세션을 시작하지 않았습니다. 실시간 scribe 경로가 실행 중입니까?",
+      "serverError": "전사 오류: {{error}}"
     }
   }
 }

@@ -7,6 +7,8 @@
       "tokensAndPct": "{{n}} jetons ({{pct}}% de la fenêtre de contexte)",
       "creditsLeft": "{{n}} crédits restants",
       "creditsLoading": "chargement des crédits...",
+      "creditsUsed": "{{n}} crédits utilisés",
+      "creditsCompact": "{{n}} crédits",
       "spent": "{{amount}} dépensés"
     },
     "gettingStarted": {
@@ -49,6 +51,7 @@
   },
   "tips": {
     "label": "Astuce",
+    "voice": "Maintenez {{key}} n'importe où pour dicter à la voix",
     "tip_0": "Tapez {highlight}@{/highlight} suivi d'un nom de fichier pour effectuer une recherche floue et joindre des fichiers",
     "tip_1": "Commencez un message par {highlight}!{/highlight} pour exécuter des commandes shell directement (par exemple, {highlight}!ls -la{/highlight})",
     "tip_2": "Appuyez sur {highlight}Tab{/highlight} pour basculer entre les modes Build, Plan et Auto-Approve",
@@ -74,12 +77,12 @@
     "tip_22": "Utilisez {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} pour naviguer dans l'historique des conversations",
     "tip_23": "Appuyez sur {highlight}Ctrl+G{/highlight} ou {highlight}Home{/highlight} pour accéder au début de la conversation",
     "tip_24": "Appuyez sur {highlight}Ctrl+Alt+G{/highlight} ou {highlight}End{/highlight} pour accéder au message le plus récent",
-    "tip_25": "Appuyez sur {highlight}Shift+Enter{/highlight} ou {highlight}Ctrl+J{/highlight} pour ajouter des sauts de ligne dans votre invite",
+    "tip_25": "Appuyez sur {highlight}Ctrl+J{/highlight} pour ajouter des sauts de ligne dans votre invite",
     "tip_26": "Appuyez sur {highlight}Ctrl+C{/highlight} pendant la saisie pour effacer le champ de saisie",
     "tip_27": "Appuyez sur {highlight}Escape{/highlight} pour arrêter l'IA en cours de réponse",
     "tip_28": "Passez à l'agent {highlight}Plan{/highlight} pour obtenir des suggestions sans apporter de modifications réelles",
     "tip_29": "Utilisez {highlight}@agent-name{/highlight} dans les invites pour invoquer des sous-agents spécialisés",
-    "tip_30": "Appuyez sur {highlight}Ctrl+X Right/Left{/highlight} pour parcourir les sessions parent et enfant",
+    "tip_30": "Appuyez sur {highlight}Left{/highlight}/{highlight}Right{/highlight} pour parcourir les sessions enfants, {highlight}Up{/highlight} pour aller à la session parent",
     "tip_31": "Créez {highlight}kolbo.json{/highlight} pour les paramètres du serveur et {highlight}tui.json{/highlight} pour les paramètres de l'interface utilisateur TUI",
     "tip_32": "Placez les paramètres de l'interface utilisateur TUI dans {highlight}~/.config/kolbo/tui.json{/highlight} pour une configuration globale",
     "tip_33": "Ajoutez {highlight}$schema{/highlight} à votre configuration pour l'autocomplétion dans votre éditeur",
@@ -117,7 +120,7 @@
     "tip_65": "Utilisez {highlight}/kolbo{/highlight} dans les issues/PRs GitHub pour déclencher des actions d'IA",
     "tip_66": "Exécutez {highlight}kolbo github install{/highlight} pour configurer le workflow GitHub",
     "tip_67": "Commentez {highlight}/kolbo fix this{/highlight} sur les issues pour créer automatiquement des PRs",
-    "tip_68": "Commentez {highlight}/oc{/highlight} sur les lignes de code des PRs pour des revues de code ciblées",
+    "tip_68": "Commentez {highlight}/kolbo{/highlight} sur les lignes de code des PRs pour des revues de code ciblées",
     "tip_69": "Utilisez {highlight}\"theme\": \"system\"{/highlight} pour faire correspondre les couleurs de votre terminal",
     "tip_70": "Créez des fichiers de thème JSON dans le répertoire {highlight}.kolbo/themes/{/highlight}",
     "tip_71": "Les thèmes prennent en charge les variantes sombre/clair pour les deux modes",
@@ -142,11 +145,10 @@
     "tip_90": "Appuyez sur {highlight}Ctrl+X S{/highlight} ou {highlight}/status{/highlight} pour afficher les informations d'état du système",
     "tip_91": "Activez {highlight}scroll_acceleration{/highlight} dans {highlight}tui.json{/highlight} pour un défilement fluide de type macOS",
     "tip_92": "Basculez l'affichage du nom d'utilisateur dans le chat via la palette de commandes ({highlight}Ctrl+P{/highlight})",
-    "tip_93": "Exécutez {highlight}docker run -it --rm ghcr.io/Zoharvan12/kolbo-cli{/highlight} pour une utilisation conteneurisée",
     "tip_94": "Utilisez {highlight}/connect{/highlight} pour ajouter votre compte Kolbo.AI ou un autre fournisseur",
     "tip_95": "Validez le fichier {highlight}KOLBO.md{/highlight} de votre projet dans Git pour le partage en équipe",
     "tip_96": "Utilisez {highlight}/review{/highlight} pour examiner les modifications non validées, les branches ou les demandes de tirage",
-    "tip_97": "Exécutez {highlight}/help{/highlight} ou {highlight}Ctrl+X H{/highlight} pour afficher la boîte de dialogue d'aide",
+    "tip_97": "Exécutez {highlight}/help{/highlight} pour afficher la boîte de dialogue d'aide",
     "tip_98": "Utilisez {highlight}/rename{/highlight} pour renommer la session actuelle",
     "tip_99_win": "Appuyez sur {highlight}Ctrl+Z{/highlight} pour annuler les modifications dans votre invite",
     "tip_99_unix": "Appuyez sur {highlight}Ctrl+Z{/highlight} pour suspendre le terminal et revenir à votre shell"
@@ -177,8 +179,12 @@
     "transcriptCopied": "La transcription de la session a été copiée dans le presse-papiers !",
     "failedToCopyTranscript": "Échec de la copie de la transcription de la session",
     "escAgainToClear": "De nouveau pour effacer",
+    "ctrlCAgainToExit": "De nouveau pour quitter",
     "interrupted": "interrompue",
-    "failedToShare": "Le partage de la session a échoué"
+    "failedToShare": "Le partage de la session a échoué",
+    "newline": "new line",
+    "voice": "dicter",
+    "promptFooterHint": "{{newlineKey}} nouvelle ligne   {{voiceKey}} dictée vocale"
   },
   "commands": {
     "categories": {
@@ -279,7 +285,10 @@
   },
   "dialog": {
     "sessions": "Sessions",
+    "commands": "Commandes",
+    "search": "Rechercher",
     "selectModel": "Sélectionner le modèle",
+    "ollamaHint": "Exécutez des modèles locaux avec Ollama → ollama.com",
     "connectProvider": "Connecter un fournisseur",
     "selectAuthMethod": "Sélectionner la méthode d'authentification",
     "cancel": "Annuler",
@@ -403,6 +412,7 @@
     "heapSnapshotWritten": "Instantané de la mémoire écrit dans {{files}}"
   },
   "toast": {
+    "pasting": "Collage en cours…",
     "copiedToClipboard": "Copié dans le presse-papiers",
     "invalidModelFormat": "Format de modèle invalide : {{model}}",
     "noAssistantMessages": "Aucun message d'assistant trouvé",
@@ -433,6 +443,18 @@
     "autoApprove": {
       "name": "Approbation automatique",
       "description": "Mode d'approbation automatique. Ignore toutes les invites d'autorisation - à utiliser avec précaution."
+    }
+  },
+  "voice": {
+    "recording": "Enregistrement…",
+    "errors": {
+      "notLoggedIn": "Non connecté à Kolbo — exécutez /login d'abord",
+      "noMicBackend": "L'entrée vocale n'a pas trouvé de backend micro fonctionnel. Réinstallez kolbo (le téléchargement de ffmpeg intégré a peut-être échoué) ou installez ffmpeg/sox manuellement.",
+      "micSpawnFailed": "Échec du démarrage de {{kind}} : {{error}}",
+      "micRuntime": "Erreur de microphone ({{kind}}) : {{error}}",
+      "transportFailed": "Échec du transport vocal : {{error}}",
+      "backendTimeout": "Le backend n'a pas démarré la session de transcription dans les 5 secondes. La route de transcription en temps réel est-elle active ?",
+      "serverError": "Erreur de transcription : {{error}}"
     }
   }
 }

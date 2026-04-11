@@ -151,7 +151,7 @@ export namespace ModelsDev {
         temperature: true,
         release_date: "2026-04-10",
         last_updated: "2026-04-10",
-        modalities: { input: ["text", "image"], output: ["text"] },
+        modalities: { input: ["text", "image", "audio", "video", "pdf"], output: ["text"] },
         open_weights: false,
         cost: { input: 0.4, output: 1.6 },
         limit: { context: 1_000_000, output: 32_768 },

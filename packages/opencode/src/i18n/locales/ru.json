@@ -7,6 +7,8 @@
       "tokensAndPct": "{{n}} токенов ({{pct}}% окна контекста)",
       "creditsLeft": "Осталось {{n}} кредитов",
       "creditsLoading": "загрузка кредитов...",
+      "creditsUsed": "Использовано {{n}} кредитов",
+      "creditsCompact": "{{n}} кредитов",
       "spent": "Потрачено {{amount}}"
     },
     "gettingStarted": {
@@ -49,6 +51,7 @@
   },
   "tips": {
     "label": "Совет",
+    "voice": "Удерживайте {{key}}, чтобы диктовать голосом в любом месте",
     "tip_0": "Введите {highlight}@{/highlight}, а затем имя файла для нечеткого поиска и прикрепления файлов",
     "tip_1": "Начните сообщение с {highlight}!{/highlight}, чтобы напрямую запускать команды оболочки (например, {highlight}!ls -la{/highlight})",
     "tip_2": "Нажмите {highlight}Tab{/highlight} для переключения между режимами Build, Plan и Auto-Approve",
@@ -74,12 +77,12 @@
     "tip_22": "Используйте {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} для навигации по истории разговоров",
     "tip_23": "Нажмите {highlight}Ctrl+G{/highlight} или {highlight}Home{/highlight}, чтобы перейти к началу разговора",
     "tip_24": "Нажмите {highlight}Ctrl+Alt+G{/highlight} или {highlight}End{/highlight}, чтобы перейти к последнему сообщению",
-    "tip_25": "Нажмите {highlight}Shift+Enter{/highlight} или {highlight}Ctrl+J{/highlight}, чтобы добавить новые строки в ваш запрос",
+    "tip_25": "Нажмите {highlight}Ctrl+J{/highlight}, чтобы добавить новые строки в ваш запрос",
     "tip_26": "Нажмите {highlight}Ctrl+C{/highlight} во время ввода, чтобы очистить поле ввода",
     "tip_27": "Нажмите {highlight}Escape{/highlight}, чтобы остановить ИИ в середине ответа",
     "tip_28": "Переключитесь на агента {highlight}Plan{/highlight}, чтобы получать предложения без внесения фактических изменений",
     "tip_29": "Используйте {highlight}@agent-name{/highlight} в запросах, чтобы вызвать специализированных субагентов",
-    "tip_30": "Нажмите {highlight}Ctrl+X Right/Left{/highlight}, чтобы перемещаться по родительским и дочерним сессиям",
+    "tip_30": "Нажмите {highlight}Left{/highlight}/{highlight}Right{/highlight}, чтобы переключаться между дочерними сессиями, {highlight}Up{/highlight}, чтобы перейти к родительской",
     "tip_31": "Создайте {highlight}kolbo.json{/highlight} для настроек сервера и {highlight}tui.json{/highlight} для настроек TUI",
     "tip_32": "Поместите настройки TUI в {highlight}~/.config/kolbo/tui.json{/highlight} для глобальной конфигурации",
     "tip_33": "Добавьте {highlight}$schema{/highlight} в вашу конфигурацию для автозаполнения в вашем редакторе",
@@ -117,7 +120,7 @@
     "tip_65": "Используйте {highlight}/kolbo{/highlight} в issues/PRs GitHub, чтобы запускать действия AI",
     "tip_66": "Запустите {highlight}kolbo github install{/highlight}, чтобы настроить рабочий процесс GitHub",
     "tip_67": "Прокомментируйте {highlight}/kolbo fix this{/highlight} в issues, чтобы автоматически создавать PRs",
-    "tip_68": "Прокомментируйте {highlight}/oc{/highlight} в строках кода PR для целевых обзоров кода",
+    "tip_68": "Прокомментируйте {highlight}/kolbo{/highlight} в строках кода PR для целевых обзоров кода",
     "tip_69": "Используйте {highlight}\"theme\": \"system\"{/highlight}, чтобы соответствовать цветам Вашего терминала",
     "tip_70": "Создавайте JSON-файлы тем в директории {highlight}.kolbo/themes/{/highlight}",
     "tip_71": "Темы поддерживают темные/светлые варианты для обоих режимов",
@@ -142,11 +145,10 @@
     "tip_90": "Нажмите {highlight}Ctrl+X S{/highlight} или {highlight}/status{/highlight}, чтобы увидеть информацию о состоянии системы",
     "tip_91": "Включите {highlight}scroll_acceleration{/highlight} в {highlight}tui.json{/highlight} для плавной прокрутки в стиле macOS",
     "tip_92": "Переключите отображение имени пользователя в чате через палитру команд ({highlight}Ctrl+P{/highlight})",
-    "tip_93": "Запустите {highlight}docker run -it --rm ghcr.io/Zoharvan12/kolbo-cli{/highlight} для использования в контейнере",
     "tip_94": "Используйте {highlight}/connect{/highlight}, чтобы добавить вашу учетную запись Kolbo.AI или другого провайдера",
     "tip_95": "Зафиксируйте файл {highlight}KOLBO.md{/highlight} вашего проекта в Git для совместного использования командой",
     "tip_96": "Используйте {highlight}/review{/highlight}, чтобы просмотреть незафиксированные изменения, ветки или PR",
-    "tip_97": "Выполните {highlight}/help{/highlight} или {highlight}Ctrl+X H{/highlight}, чтобы отобразить диалоговое окно справки",
+    "tip_97": "Выполните {highlight}/help{/highlight}, чтобы отобразить диалоговое окно справки",
     "tip_98": "Используйте {highlight}/rename{/highlight}, чтобы переименовать текущую сессию",
     "tip_99_win": "Нажмите {highlight}Ctrl+Z{/highlight}, чтобы отменить изменения в вашем запросе",
     "tip_99_unix": "Нажмите {highlight}Ctrl+Z{/highlight}, чтобы приостановить работу терминала и вернуться в вашу оболочку"
@@ -177,8 +179,12 @@
     "transcriptCopied": "Транскрипт сессии скопирован в буфер обмена!",
     "failedToCopyTranscript": "Не удалось скопировать транскрипт сессии",
     "escAgainToClear": "ещё раз, чтобы очистить",
+    "ctrlCAgainToExit": "ещё раз, чтобы выйти",
     "interrupted": "прервано",
-    "failedToShare": "Не удалось поделиться сессией"
+    "failedToShare": "Не удалось поделиться сессией",
+    "newline": "new line",
+    "voice": "диктовка",
+    "promptFooterHint": "{{newlineKey}} новая строка   {{voiceKey}} диктовка"
   },
   "commands": {
     "categories": {
@@ -279,7 +285,10 @@
   },
   "dialog": {
     "sessions": "Сессии",
+    "commands": "Команды",
+    "search": "Поиск",
     "selectModel": "Выберите модель",
+    "ollamaHint": "Запускайте локальные модели с Ollama → ollama.com",
     "connectProvider": "Подключите провайдера",
     "selectAuthMethod": "Выберите метод аутентификации",
     "cancel": "отмена",
@@ -403,6 +412,7 @@
     "heapSnapshotWritten": "Снимок кучи записан в {{files}}"
   },
   "toast": {
+    "pasting": "Вставка…",
     "copiedToClipboard": "Скопировано в буфер обмена",
     "invalidModelFormat": "Неверный формат модели: {{model}}",
     "noAssistantMessages": "Сообщения ассистента не найдены",
@@ -433,6 +443,18 @@
     "autoApprove": {
       "name": "Автоматическое подтверждение",
       "description": "Режим автоматического подтверждения. Пропускает все запросы разрешений — используйте с осторожностью."
+    }
+  },
+  "voice": {
+    "recording": "Идёт запись…",
+    "errors": {
+      "notLoggedIn": "Вы не вошли в Kolbo — выполните /login",
+      "noMicBackend": "Голосовой ввод не нашёл рабочий микрофонный бэкенд. Переустановите kolbo (загрузка встроенного ffmpeg могла завершиться неудачей) или установите ffmpeg/sox вручную.",
+      "micSpawnFailed": "Не удалось запустить {{kind}}: {{error}}",
+      "micRuntime": "Ошибка микрофона ({{kind}}): {{error}}",
+      "transportFailed": "Сбой голосового соединения: {{error}}",
+      "backendTimeout": "Сервер не начал сеанс транскрипции за 5 секунд. Запущен ли маршрут realtime scribe?",
+      "serverError": "Ошибка транскрипции: {{error}}"
     }
   }
 }

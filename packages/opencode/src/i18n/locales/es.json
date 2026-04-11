@@ -7,6 +7,8 @@
       "tokensAndPct": "{{n}} tokens ({{pct}}% de la ventana de contexto)",
       "creditsLeft": "{{n}} créditos restantes",
       "creditsLoading": "Cargando créditos...",
+      "creditsUsed": "{{n}} créditos usados",
+      "creditsCompact": "{{n}} créditos",
       "spent": "{{amount}} gastado"
     },
     "gettingStarted": {
@@ -49,6 +51,7 @@
   },
   "tips": {
     "label": "Consejo",
+    "voice": "Mantén pulsada {{key}} en cualquier lugar para dictar con tu voz",
     "tip_0": "Escriba {highlight}@{/highlight} seguido de un nombre de archivo para buscar y adjuntar archivos de forma difusa",
     "tip_1": "Comience un mensaje con {highlight}!{/highlight} para ejecutar comandos de shell directamente (p. ej., {highlight}!ls -la{/highlight})",
     "tip_2": "Presione {highlight}Tab{/highlight} para alternar entre los modos Construir, Planificar y Aprobación automática",
@@ -74,12 +77,12 @@
     "tip_22": "Use {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} para navegar por el historial de la conversación",
     "tip_23": "Presione {highlight}Ctrl+G{/highlight} u {highlight}Home{/highlight} para saltar al principio de la conversación",
     "tip_24": "Presione {highlight}Ctrl+Alt+G{/highlight} o {highlight}End{/highlight} para saltar al mensaje más reciente",
-    "tip_25": "Presione {highlight}Shift+Enter{/highlight} o {highlight}Ctrl+J{/highlight} para añadir nuevas líneas en su prompt",
+    "tip_25": "Presione {highlight}Ctrl+J{/highlight} para añadir nuevas líneas en su prompt",
     "tip_26": "Presione {highlight}Ctrl+C{/highlight} mientras escribe para borrar el campo de entrada",
     "tip_27": "Presione {highlight}Escape{/highlight} para detener la IA a mitad de la respuesta",
     "tip_28": "Cambie al agente {highlight}Plan{/highlight} para obtener sugerencias sin realizar cambios reales",
     "tip_29": "Use {highlight}@agent-name{/highlight} en los prompts para invocar subagentes especializados",
-    "tip_30": "Presione {highlight}Ctrl+X Derecha/Izquierda{/highlight} para alternar entre las sesiones padre e hijo",
+    "tip_30": "Presione {highlight}Left{/highlight}/{highlight}Right{/highlight} para alternar entre sesiones hijo, {highlight}Up{/highlight} para ir a la sesión padre",
     "tip_31": "Cree {highlight}kolbo.json{/highlight} para la configuración del servidor y {highlight}tui.json{/highlight} para la configuración de la TUI",
     "tip_32": "Coloque la configuración de la TUI en {highlight}~/.config/kolbo/tui.json{/highlight} para una configuración global",
     "tip_33": "Añada {highlight}$schema{/highlight} a su configuración para el autocompletado en su editor",
@@ -117,7 +120,7 @@
     "tip_65": "Use {highlight}/kolbo{/highlight} en incidencias/PRs de GitHub para activar acciones de IA",
     "tip_66": "Ejecute {highlight}kolbo github install{/highlight} para configurar el flujo de trabajo de GitHub",
     "tip_67": "Comente {highlight}/kolbo fix this{/highlight} en las incidencias para crear automáticamente PRs",
-    "tip_68": "Comente {highlight}/oc{/highlight} en las líneas de código de la PR para revisiones de código específicas",
+    "tip_68": "Comente {highlight}/kolbo{/highlight} en las líneas de código de la PR para revisiones de código específicas",
     "tip_69": "Use {highlight}\"theme\": \"system\"{/highlight} para que coincida con los colores de su terminal",
     "tip_70": "Cree archivos de tema JSON en el directorio {highlight}.kolbo/themes/{/highlight}",
     "tip_71": "Los temas admiten variantes oscuras/claras para ambos modos",
@@ -142,11 +145,10 @@
     "tip_90": "Presione {highlight}Ctrl+X S{/highlight} o {highlight}/status{/highlight} para ver información del estado del sistema",
     "tip_91": "Habilite {highlight}scroll_acceleration{/highlight} en {highlight}tui.json{/highlight} para un desplazamiento suave al estilo macOS",
     "tip_92": "Active o desactive la visualización del nombre de usuario en el chat a través de la paleta de comandos ({highlight}Ctrl+P{/highlight})",
-    "tip_93": "Ejecute {highlight}docker run -it --rm ghcr.io/Zoharvan12/kolbo-cli{/highlight} para uso en contenedores",
     "tip_94": "Use {highlight}/connect{/highlight} para añadir su cuenta de Kolbo.AI u otro proveedor",
     "tip_95": "Guarde el archivo {highlight}KOLBO.md{/highlight} de su proyecto en Git para compartirlo con el equipo",
     "tip_96": "Use {highlight}/review{/highlight} para revisar cambios no guardados, ramas o PRs",
-    "tip_97": "Ejecute {highlight}/help{/highlight} o {highlight}Ctrl+X H{/highlight} para mostrar el diálogo de ayuda",
+    "tip_97": "Ejecute {highlight}/help{/highlight} para mostrar el diálogo de ayuda",
     "tip_98": "Use {highlight}/rename{/highlight} para renombrar la sesión actual",
     "tip_99_win": "Presione {highlight}Ctrl+Z{/highlight} para deshacer cambios en su prompt",
     "tip_99_unix": "Presione {highlight}Ctrl+Z{/highlight} para suspender la terminal y volver a su shell"
@@ -177,8 +179,12 @@
     "transcriptCopied": "¡Transcripción de la sesión copiada al portapapeles!",
     "failedToCopyTranscript": "No se pudo copiar la transcripción de la sesión",
     "escAgainToClear": "otra vez para borrar",
+    "ctrlCAgainToExit": "otra vez para salir",
     "interrupted": "interrumpido",
-    "failedToShare": "No se pudo compartir la sesión"
+    "failedToShare": "No se pudo compartir la sesión",
+    "newline": "new line",
+    "voice": "dictar",
+    "promptFooterHint": "{{newlineKey}} nueva línea   {{voiceKey}} dictado por voz"
   },
   "commands": {
     "categories": {
@@ -279,7 +285,10 @@
   },
   "dialog": {
     "sessions": "Sesiones",
+    "commands": "Comandos",
+    "search": "Buscar",
     "selectModel": "Seleccione el modelo",
+    "ollamaHint": "Ejecuta modelos locales con Ollama → ollama.com",
     "connectProvider": "Conecte un proveedor",
     "selectAuthMethod": "Seleccione el método de autenticación",
     "cancel": "cancelar",
@@ -403,6 +412,7 @@
     "heapSnapshotWritten": "Instantánea de la memoria escrita en {{files}}"
   },
   "toast": {
+    "pasting": "Pegando…",
     "copiedToClipboard": "Copiado al portapapeles",
     "invalidModelFormat": "Formato de modelo no válido: {{model}}",
     "noAssistantMessages": "No se encontraron mensajes del asistente",
@@ -433,6 +443,18 @@
     "autoApprove": {
       "name": "Aprobación automática",
       "description": "Modo de aprobación automática. Omite todos los avisos de permiso; utilícelo con cuidado."
+    }
+  },
+  "voice": {
+    "recording": "Grabando…",
+    "errors": {
+      "notLoggedIn": "No has iniciado sesión en Kolbo — ejecuta /login primero",
+      "noMicBackend": "La entrada de voz no encontró un backend de micrófono funcional. Reinstala kolbo (la descarga del ffmpeg incluido puede haber fallado) o instala ffmpeg/sox manualmente.",
+      "micSpawnFailed": "Error al iniciar {{kind}}: {{error}}",
+      "micRuntime": "Error de micrófono ({{kind}}): {{error}}",
+      "transportFailed": "Fallo en el transporte de voz: {{error}}",
+      "backendTimeout": "El backend no inició la sesión de transcripción en 5 segundos. ¿Está activa la ruta de transcripción en tiempo real?",
+      "serverError": "Error de transcripción: {{error}}"
     }
   }
 }

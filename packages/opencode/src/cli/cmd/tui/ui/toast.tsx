@@ -64,6 +64,16 @@ function init() {
         setStore("currentToast", null)
       }, duration).unref()
     },
+    /**
+     * Hide the current toast immediately. Useful for long-running flows
+     * that show a "working…" toast and want to clear it the moment the
+     * work finishes instead of waiting for the full duration.
+     */
+    dismiss() {
+      if (timeoutHandle) clearTimeout(timeoutHandle)
+      timeoutHandle = null
+      setStore("currentToast", null)
+    },
     error: (err: any) => {
       if (err instanceof Error)
         return toast.show({

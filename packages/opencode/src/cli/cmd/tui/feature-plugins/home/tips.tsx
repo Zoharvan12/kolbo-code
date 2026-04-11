@@ -5,8 +5,13 @@ import { Tips } from "./tips-view"
 const id = "internal:home-tips"
 
 function View(props: { show: boolean }) {
+  // paddingTop used to be 3 (plus height=4), which pushed the tip down to
+  // the bottom of its own container and — on short terminals — ended up
+  // overlapping the directory footer. paddingTop=1 keeps the tip close to
+  // the prompt above and leaves the flexGrow spacer in home.tsx to hold
+  // the footer well below it.
   return (
-    <box height={4} minHeight={0} width="100%" maxWidth={75} alignItems="center" paddingTop={3} flexShrink={1}>
+    <box height={2} minHeight={0} width="100%" maxWidth={75} alignItems="center" paddingTop={1} flexShrink={1}>
       <Show when={props.show}>
         <Tips />
       </Show>

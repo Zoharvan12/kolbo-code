@@ -1,63 +1,63 @@
 {
-  "timestamp": "2026-04-10T15:28:56.488Z",
-  "totalKeysAdded": 165,
+  "timestamp": "2026-04-11T12:07:54.517Z",
+  "totalKeysAdded": 98,
   "languagesUpdated": 11,
-  "duration": 21.4,
+  "duration": 2.8,
   "details": [
     {
       "language": "Hebrew",
       "code": "he",
-      "keysAdded": 15
+      "keysAdded": 8
     },
     {
       "language": "Arabic",
       "code": "ar",
-      "keysAdded": 15
+      "keysAdded": 9
     },
     {
       "language": "Russian",
       "code": "ru",
-      "keysAdded": 15
+      "keysAdded": 9
     },
     {
       "language": "Chinese",
       "code": "zh",
-      "keysAdded": 15
+      "keysAdded": 9
     },
     {
       "language": "Spanish",
       "code": "es",
-      "keysAdded": 15
+      "keysAdded": 9
     },
     {
       "language": "Hindi",
       "code": "hi",
-      "keysAdded": 15
+      "keysAdded": 9
     },
     {
       "language": "Japanese",
       "code": "ja",
-      "keysAdded": 15
+      "keysAdded": 9
     },
     {
       "language": "German",
       "code": "de",
-      "keysAdded": 15
+      "keysAdded": 9
     },
     {
       "language": "Korean",
       "code": "ko",
-      "keysAdded": 15
+      "keysAdded": 9
     },
     {
       "language": "French",
       "code": "fr",
-      "keysAdded": 15
+      "keysAdded": 9
     },
     {
       "language": "Portuguese",
       "code": "pt",
-      "keysAdded": 15
+      "keysAdded": 9
     }
   ]
 }

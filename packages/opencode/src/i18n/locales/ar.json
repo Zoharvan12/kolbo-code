@@ -7,6 +7,8 @@
       "tokensAndPct": "{{n}} رمزًا ({{pct}}% من نافذة السياق)",
       "creditsLeft": "{{n}} رصيدًا متبقيًا",
       "creditsLoading": "جارٍ تحميل الأرصدة...",
+      "creditsUsed": "{{n}} رصيد مُستخدَم",
+      "creditsCompact": "{{n}} رصيد",
       "spent": "تم إنفاق {{amount}}"
     },
     "gettingStarted": {
@@ -49,6 +51,7 @@
   },
   "tips": {
     "label": "نصيحة",
+    "voice": "استمر بالضغط على {{key}} للإملاء الصوتي في أي مكان",
     "tip_0": "اكتب {highlight}@{/highlight} متبوعًا باسم ملف للبحث الضبابي وإرفاق الملفات",
     "tip_1": "ابدأ رسالة بـ {highlight}!{/highlight} لتشغيل أوامر shell مباشرة (على سبيل المثال، {highlight}!ls -la{/highlight})",
     "tip_2": "اضغط على {highlight}Tab{/highlight} للتبديل بين أوضاع الإنشاء والتخطيط والموافقة التلقائية",
@@ -74,12 +77,12 @@
     "tip_22": "استخدم {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} للتنقل خلال سجل المحادثات",
     "tip_23": "اضغط {highlight}Ctrl+G{/highlight} أو {highlight}Home{/highlight} للانتقال إلى بداية المحادثة",
     "tip_24": "اضغط {highlight}Ctrl+Alt+G{/highlight} أو {highlight}End{/highlight} للانتقال إلى أحدث رسالة",
-    "tip_25": "اضغط {highlight}Shift+Enter{/highlight} أو {highlight}Ctrl+J{/highlight} لإضافة أسطر جديدة في مطالبتك",
+    "tip_25": "اضغط {highlight}Ctrl+J{/highlight} لإضافة أسطر جديدة في مطالبتك",
     "tip_26": "اضغط {highlight}Ctrl+C{/highlight} أثناء الكتابة لمسح حقل الإدخال",
     "tip_27": "اضغط {highlight}Escape{/highlight} لإيقاف الذكاء الاصطناعي أثناء الاستجابة",
     "tip_28": "قم بالتبديل إلى وكيل {highlight}Plan{/highlight} للحصول على اقتراحات دون إجراء تغييرات فعلية",
     "tip_29": "استخدم {highlight}@agent-name{/highlight} في المطالبات لاستدعاء وكلاء فرعيين متخصصين",
-    "tip_30": "اضغط {highlight}Ctrl+X Right/Left{/highlight} للتنقل بين الجلسات الأصل والفرعية",
+    "tip_30": "اضغط {highlight}Left{/highlight}/{highlight}Right{/highlight} للتنقل بين الجلسات الفرعية، {highlight}Up{/highlight} للانتقال إلى الجلسة الأصل",
     "tip_31": "أنشئ {highlight}kolbo.json{/highlight} لإعدادات الخادم و {highlight}tui.json{/highlight} لإعدادات TUI",
     "tip_32": "ضع إعدادات TUI في {highlight}~/.config/kolbo/tui.json{/highlight} للتكوين العام",
     "tip_33": "أضف {highlight}$schema{/highlight} إلى التكوين الخاص بك للإكمال التلقائي في محرر النصوص الخاص بك",
@@ -117,7 +120,7 @@
     "tip_65": "استخدم {highlight}/kolbo{/highlight} في مشكلات GitHub / طلبات السحب لتشغيل إجراءات الذكاء الاصطناعي.",
     "tip_66": "شغل {highlight}kolbo github install{/highlight} لإعداد سير عمل GitHub.",
     "tip_67": "علّق {highlight}/kolbo fix this{/highlight} على المشكلات لإنشاء طلبات سحب تلقائيًا.",
-    "tip_68": "علّق {highlight}/oc{/highlight} على سطور كود PR لمراجعات الكود المستهدفة.",
+    "tip_68": "علّق {highlight}/kolbo{/highlight} على سطور كود PR لمراجعات الكود المستهدفة.",
     "tip_69": "استخدم {highlight}\"theme\": \"system\"{/highlight} لمطابقة ألوان جهازك الطرفي.",
     "tip_70": "أنشئ ملفات سمات JSON في الدليل {highlight}.kolbo/themes/{/highlight}.",
     "tip_71": "تدعم السمات متغيرات الوضع الداكن/الفاتح لكلا النمطين.",
@@ -142,11 +145,10 @@
     "tip_90": "اضغط على {highlight}Ctrl+X S{/highlight} أو {highlight}/status{/highlight} لرؤية معلومات حالة النظام.",
     "tip_91": "قم بتمكين {highlight}scroll_acceleration{/highlight} في {highlight}tui.json{/highlight} للتمرير السلس بنمط macOS.",
     "tip_92": "تبديل عرض اسم المستخدم في الدردشة عبر لوحة الأوامر ({highlight}Ctrl+P{/highlight}).",
-    "tip_93": "قم بتشغيل {highlight}docker run -it --rm ghcr.io/Zoharvan12/kolbo-cli{/highlight} للاستخدام في حاويات.",
     "tip_94": "استخدم {highlight}/connect{/highlight} لإضافة حساب Kolbo.AI الخاص بك أو موفر خدمة آخر",
     "tip_95": "قم بتثبيت ملف {highlight}KOLBO.md{/highlight} الخاص بمشروعك في Git لمشاركته مع الفريق",
     "tip_96": "استخدم {highlight}/review{/highlight} لمراجعة التغييرات غير المثبتة أو الفروع أو طلبات السحب",
-    "tip_97": "شغل {highlight}/help{/highlight} أو {highlight}Ctrl+X H{/highlight} لإظهار مربع حوار التعليمات",
+    "tip_97": "شغل {highlight}/help{/highlight} لإظهار مربع حوار التعليمات",
     "tip_98": "استخدم {highlight}/rename{/highlight} لإعادة تسمية الجلسة الحالية",
     "tip_99_win": "اضغط {highlight}Ctrl+Z{/highlight} للتراجع عن التغييرات في مطالبتك",
     "tip_99_unix": "اضغط {highlight}Ctrl+Z{/highlight} لتعليق المحطة الطرفية والعودة إلى الصدفة الخاصة بك"
@@ -177,8 +179,12 @@
     "transcriptCopied": "تم نسخ نص الجلسة إلى الحافظة!",
     "failedToCopyTranscript": "فشل نسخ نص الجلسة",
     "escAgainToClear": "مرة أخرى للمسح",
+    "ctrlCAgainToExit": "مرة أخرى للخروج",
     "interrupted": "تمت المقاطعة",
-    "failedToShare": "فشل مشاركة الجلسة"
+    "failedToShare": "فشل مشاركة الجلسة",
+    "newline": "new line",
+    "voice": "إملاء",
+    "promptFooterHint": "{{newlineKey}} سطر جديد   {{voiceKey}} إملاء صوتي"
   },
   "commands": {
     "categories": {
@@ -279,7 +285,10 @@
   },
   "dialog": {
     "sessions": "الجلسات",
+    "commands": "الأوامر",
+    "search": "بحث",
     "selectModel": "اختر النموذج",
+    "ollamaHint": "شغّل النماذج المحلية باستخدام Ollama ← ollama.com",
     "connectProvider": "توصيل مزود الخدمة",
     "selectAuthMethod": "اختر طريقة المصادقة",
     "cancel": "إلغاء",
@@ -403,6 +412,7 @@
     "heapSnapshotWritten": "تمت كتابة لقطة الذاكرة المكدسة إلى {{files}}"
   },
   "toast": {
+    "pasting": "جارٍ اللصق…",
     "copiedToClipboard": "تم النسخ إلى الحافظة",
     "invalidModelFormat": "تنسيق نموذج غير صالح: {{model}}",
     "noAssistantMessages": "لم يتم العثور على رسائل للمساعد",
@@ -433,6 +443,18 @@
     "autoApprove": {
       "name": "الموافقة التلقائية",
       "description": "وضع الموافقة التلقائية. يتخطى جميع مطالبات الأذونات - استخدمه بحذر."
+    }
+  },
+  "voice": {
+    "recording": "جارٍ التسجيل…",
+    "errors": {
+      "notLoggedIn": "غير مسجّل الدخول إلى Kolbo — شغّل /login أولاً",
+      "noMicBackend": "لم يعثر الإدخال الصوتي على خلفية ميكروفون صالحة. أعد تثبيت kolbo (قد يكون تنزيل ffmpeg المرفق قد فشل) أو ثبّت ffmpeg/sox يدوياً.",
+      "micSpawnFailed": "فشل في بدء {{kind}}: {{error}}",
+      "micRuntime": "خطأ في الميكروفون ({{kind}}): {{error}}",
+      "transportFailed": "فشل نقل الصوت: {{error}}",
+      "backendTimeout": "لم تبدأ الخدمة الخلفية جلسة النسخ في غضون 5 ثوانٍ. هل مسار النسخ الفوري يعمل؟",
+      "serverError": "خطأ في النسخ: {{error}}"
     }
   }
 }

@@ -1,4 +1,4 @@
-import { createMemo, createSignal, onMount, Show } from "solid-js"
+import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js"
 import { useSync } from "@tui/context/sync"
 import { useLocal } from "@tui/context/local"
 import { map, pipe, sortBy } from "remeda"
@@ -11,7 +11,7 @@ import { useTheme } from "../context/theme"
 import { TextAttributes } from "@opentui/core"
 import type { ProviderAuthAuthorization, ProviderAuthMethod } from "@opencode-ai/sdk/v2"
 import { DialogModel } from "./dialog-model"
-import { DialogLanguage } from "./dialog-language"
+import { markOnboardingConnected } from "../routes/home"
 import { useKeyboard } from "@opentui/solid"
 import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "../ui/toast"
@@ -28,6 +28,11 @@ const PROVIDER_PRIORITY: Record<string, number> = {
   anthropic: 4,
   google: 5,
 }
+
+// Guards a single in-flight OAuth `authorize()` call so two parallel clicks
+// can't mint two device codes on the backend. Cleared in finally so a failed
+// flow (network error, user esc at the browser) still allows a retry.
+let oauthInFlight = false
 
 export function createDialogProviderOptions() {
   const sync = useSync()
@@ -58,6 +63,12 @@ export function createDialogProviderOptions() {
           gutter: connected ? <text fg={theme.success}>✓</text> : undefined,
           async onSelect() {
             if (consoleManaged) return
+            // Already connected (green ✓) — never silently re-mint an API key.
+            // If the user genuinely wants to switch accounts they use /logout.
+            if (connected) {
+              dialog.clear()
+              return
+            }
 
             const methods = sync.data.provider_auth[provider.id] ?? [
               {
@@ -86,48 +97,57 @@ export function createDialogProviderOptions() {
             if (index == null) return
             const method = methods[index]
             if (method.type === "oauth") {
-              let inputs: Record<string, string> | undefined
-              if (method.prompts?.length) {
-                const value = await PromptsMethod({
-                  dialog,
-                  prompts: method.prompts,
-                })
-                if (!value) return
-                inputs = value
-              }
+              // Prevent two concurrent authorize() calls from minting two
+              // device codes on the backend. Cleared in finally so retries
+              // after a failure still work.
+              if (oauthInFlight) return
+              oauthInFlight = true
+              try {
+                let inputs: Record<string, string> | undefined
+                if (method.prompts?.length) {
+                  const value = await PromptsMethod({
+                    dialog,
+                    prompts: method.prompts,
+                  })
+                  if (!value) return
+                  inputs = value
+                }
 
-              const result = await sdk.client.provider.oauth.authorize({
-                providerID: provider.id,
-                method: index,
-                inputs,
-              })
-              if (result.error) {
-                toast.show({
-                  variant: "error",
-                  message: JSON.stringify(result.error),
+                const result = await sdk.client.provider.oauth.authorize({
+                  providerID: provider.id,
+                  method: index,
+                  inputs,
                 })
-                dialog.clear()
-                return
-              }
-              if (result.data?.method === "code") {
-                dialog.replace(() => (
-                  <CodeMethod
-                    providerID={provider.id}
-                    title={method.label}
-                    index={index}
-                    authorization={result.data!}
-                  />
-                ))
-              }
-              if (result.data?.method === "auto") {
-                dialog.replace(() => (
-                  <AutoMethod
-                    providerID={provider.id}
-                    title={method.label}
-                    index={index}
-                    authorization={result.data!}
-                  />
-                ))
+                if (result.error) {
+                  toast.show({
+                    variant: "error",
+                    message: JSON.stringify(result.error),
+                  })
+                  dialog.clear()
+                  return
+                }
+                if (result.data?.method === "code") {
+                  dialog.replace(() => (
+                    <CodeMethod
+                      providerID={provider.id}
+                      title={method.label}
+                      index={index}
+                      authorization={result.data!}
+                    />
+                  ))
+                }
+                if (result.data?.method === "auto") {
+                  dialog.replace(() => (
+                    <AutoMethod
+                      providerID={provider.id}
+                      title={method.label}
+                      index={index}
+                      authorization={result.data!}
+                    />
+                  ))
+                }
+              } finally {
+                oauthInFlight = false
               }
             }
             if (method.type === "api") {
@@ -188,21 +208,35 @@ function AutoMethod(props: AutoMethodProps) {
       .catch(toast.error)
   }
 
+  // If the user dismisses this dialog (esc) while the device-code poll is
+  // still running, we can't cancel the server-side poll (no such endpoint)
+  // but we must stop the resolved result from writing stale auth state.
+  let cancelled = false
+  onCleanup(() => {
+    cancelled = true
+  })
+
   onMount(async () => {
     open(props.authorization.url).catch(() => {})
     const result = await sdk.client.provider.oauth.callback({
       providerID: props.providerID,
       method: props.index,
     })
+    if (cancelled) return
     if (result.error) {
       dialog.clear()
       return
     }
     await sdk.client.instance.dispose()
     await sync.bootstrap()
+    if (cancelled) return
+    // Latch onboarding state BEFORE clearing the dialog stack, otherwise
+    // home.tsx's effect re-runs on an empty stack and (if provider_next.connected
+    // hasn't refreshed yet) re-opens the connect flow from scratch.
+    markOnboardingConnected()
     if (props.providerID === "kolbo") {
       local.model.set({ providerID: "kolbo", modelID: "kolbo-default" }, { recent: true })
-      dialog.replace(() => <DialogLanguage onSelect={() => dialog.clear()} />)
+      dialog.clear()
       return
     }
     dialog.replace(() => <DialogModel providerID={props.providerID} />)
@@ -265,6 +299,7 @@ function CodeMethod(props: CodeMethodProps) {
         if (!error) {
           await sdk.client.instance.dispose()
           await sync.bootstrap()
+          markOnboardingConnected()
           dialog.replace(() => <DialogModel providerID={props.providerID} />)
           return
         }
@@ -325,6 +360,7 @@ function ApiMethod(props: ApiMethodProps) {
         })
         await sdk.client.instance.dispose()
         await sync.bootstrap()
+        markOnboardingConnected()
         dialog.replace(() => <DialogModel providerID={props.providerID} />)
       }}
     />

@@ -123,15 +123,22 @@ export async function ensureKolboMcpWired(): Promise<void> {
     if (fs.existsSync(configFile)) {
       try { existing = JSON.parse(fs.readFileSync(configFile, "utf8")) } catch {}
     }
+    // Pin @latest so npx re-resolves against the npm registry on every
+    // launch instead of reusing its cache. This gives Kolbo MCP users
+    // auto-updates without us running any upgrade machinery ourselves.
+    // Offline? npx silently falls back to the cached version.
+    const expectedCommand = ["npx", "-y", "@kolbo/mcp@latest"]
     const currentKey = existing.mcp?.kolbo?.environment?.KOLBO_API_KEY
     const currentUrl = existing.mcp?.kolbo?.environment?.KOLBO_API_URL
-    let needsWrite = currentKey !== apiKey || currentUrl !== mcpEnv.KOLBO_API_URL
+    const currentCommand = existing.mcp?.kolbo?.command
+    const commandDrift = JSON.stringify(currentCommand) !== JSON.stringify(expectedCommand)
+    let needsWrite = currentKey !== apiKey || currentUrl !== mcpEnv.KOLBO_API_URL || commandDrift
     if (needsWrite) {
       existing.mcp = {
         ...existing.mcp,
         kolbo: {
           type: "local",
-          command: ["npx", "-y", "@kolbo/mcp"],
+          command: expectedCommand,
           environment: mcpEnv,
         },
       }
@@ -156,12 +163,31 @@ export async function ensureKolboMcpWired(): Promise<void> {
       writeJsonAtomic(configFile, existing, 0o600)
     }
 
-    // Write skill file if missing
+    // Fetch the latest skill from kolbo-docs so we can ship skill updates
+    // without cutting a new CLI release. raw.githubusercontent.com has a
+    // ~5min CDN cache, so updates propagate within minutes of a commit.
+    // If the fetch fails (offline, GitHub down, broken commit), fall back
+    // to the compiled-in KOLBO_SKILL_MD so the skill is always present.
     const skillDir = path.join(configDir, "skills", "kolbo")
     fs.mkdirSync(skillDir, { recursive: true })
     const skillDest = path.join(skillDir, "SKILL.md")
-    if (!fs.existsSync(skillDest)) {
-      fs.writeFileSync(skillDest, KOLBO_SKILL_MD)
+
+    const SKILL_URL = "https://raw.githubusercontent.com/Zoharvan12/kolbo-docs/main/skills/kolbo/SKILL.md"
+    let skillContent = KOLBO_SKILL_MD
+    try {
+      const r = await fetch(SKILL_URL, { signal: AbortSignal.timeout(3000) })
+      if (r.ok) {
+        const remote = await r.text()
+        // Sanity check: the real skill file starts with YAML frontmatter.
+        // Guards against a GitHub error page being written as SKILL.md.
+        if (remote.startsWith("---")) skillContent = remote
+      }
+    } catch {}
+
+    let currentSkill: string | null = null
+    try { currentSkill = fs.readFileSync(skillDest, "utf8") } catch {}
+    if (currentSkill !== skillContent) {
+      fs.writeFileSync(skillDest, skillContent)
     }
   } catch {
     // Non-fatal
@@ -175,7 +201,7 @@ async function kolboDeviceLogin(): Promise<string | null> {
     // redirect:"error" — the device-code endpoint must never redirect.
     // A 302 here could steer the token exchange to an attacker-controlled
     // host after the https+allowlist check has already passed.
-    const r = await fetch(`${KOLBO_API_BASE}/auth/kolbo-cli/device/code`, {
+    const r = await fetch(`${KOLBO_API_BASE}/auth/kolbo-code/device/code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}",
@@ -209,7 +235,7 @@ async function kolboDeviceLogin(): Promise<string | null> {
       let r: Response
       try {
         r = await fetch(
-          `${KOLBO_API_BASE}/auth/kolbo-cli/device/token?code=${encodeURIComponent(device_code)}`,
+          `${KOLBO_API_BASE}/auth/kolbo-code/device/token?code=${encodeURIComponent(device_code)}`,
           { redirect: "error" },
         )
       } catch {

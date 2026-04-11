@@ -145,10 +145,14 @@ export namespace Skill {
   ) {
     // Scan built-in skills bundled with the CLI.
     // In dev: src/skill/ → ../../skills = packages/opencode/skills/
-    // In built binary: bin/ → ../skills = dist/{platform}/skills/
+    // In built binary: import.meta.dirname points at a bunfs virtual path
+    // (e.g. /$bunfs/root/src/skill) that doesn't exist on disk, so we also
+    // resolve relative to process.execPath which is the real binary path:
+    // node_modules/@kolbo/kolbo-code-{os}-{arch}/bin/kolbo → ../skills
     const candidates = [
       path.join(import.meta.dirname, "../../skills"),
       path.join(import.meta.dirname, "../skills"),
+      path.join(path.dirname(process.execPath), "..", "skills"),
     ]
     for (const builtinSkillsDir of candidates) {
       if (yield* fsys.isDir(builtinSkillsDir)) {

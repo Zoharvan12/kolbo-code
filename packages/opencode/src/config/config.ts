@@ -687,11 +687,28 @@ export namespace Config {
       variant_list: z.string().optional().default("none").describe("List model variants"),
       input_clear: z.string().optional().default("ctrl+c").describe("Clear input field"),
       input_paste: z.string().optional().default("ctrl+v").describe("Paste from clipboard"),
+      input_voice: z
+        .string()
+        .optional()
+        // Alt+V is the primary binding — it's the most terminal-agnostic
+        // modifier combo we've found (passes through Windows Terminal,
+        // iTerm2, GNOME Terminal, Kitty, Wezterm, etc.). F2 is listed as
+        // a fallback for users on terminals where Alt combos are grabbed
+        // by the window manager. Ctrl+Space is intentionally omitted from
+        // the default — Windows Terminal silently swallows it.
+        .default("alt+v,f2")
+        .describe("Hold to dictate (push-to-talk voice input)"),
       input_submit: z.string().optional().default("return").describe("Submit input"),
       input_newline: z
         .string()
         .optional()
-        .default("shift+return,ctrl+return,alt+return,ctrl+j")
+        // ctrl+j is listed first so the keybind.print() tooltip shows it
+        // as the primary binding. Many terminals (notably Windows Terminal
+        // without full kitty support) don't distinguish shift+return from
+        // plain return — the shift modifier never makes it to the app —
+        // so shift+return silently fails. ctrl+j is a distinct control
+        // character that survives every terminal we've tested.
+        .default("ctrl+j,shift+return,ctrl+return,alt+return")
         .describe("Insert newline in input"),
       input_move_left: z.string().optional().default("left,ctrl+b").describe("Move cursor left in input"),
       input_move_right: z.string().optional().default("right,ctrl+f").describe("Move cursor right in input"),

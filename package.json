@@ -106,6 +106,7 @@
   },
   "trustedDependencies": [
     "esbuild",
+    "ffmpeg-static",
     "node-pty",
     "protobufjs",
     "tree-sitter",

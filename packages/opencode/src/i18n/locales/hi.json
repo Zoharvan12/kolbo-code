@@ -7,6 +7,8 @@
       "tokensAndPct": "{{n}} टोकन (संदर्भ विंडो का {{pct}}%)",
       "creditsLeft": "{{n}} क्रेडिट शेष",
       "creditsLoading": "क्रेडिट लोड हो रहे हैं...",
+      "creditsUsed": "{{n}} क्रेडिट उपयोग किए",
+      "creditsCompact": "{{n}} क्रेडिट",
       "spent": "{{amount}} खर्च हुए"
     },
     "gettingStarted": {
@@ -49,6 +51,7 @@
   },
   "tips": {
     "label": "टिप",
+    "voice": "कहीं भी आवाज़ से बोलने के लिए {{key}} दबाए रखें",
     "tip_0": "फजी सर्च करने और फ़ाइलें अटैच करने के लिए {highlight}@{/highlight} टाइप करें, जिसके बाद फ़ाइल का नाम लिखें",
     "tip_1": "शेल कमांड सीधे चलाने के लिए {highlight}!{/highlight} से मैसेज शुरू करें (उदाहरण के लिए, {highlight}!ls -la{/highlight})",
     "tip_2": "बिल्ड, प्लान और ऑटो-अप्रूव मोड के बीच टॉगल करने के लिए {highlight}Tab{/highlight} दबाएं",
@@ -74,12 +77,12 @@
     "tip_22": "वार्तालाप इतिहास में नेविगेट करने के लिए {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} का उपयोग करें",
     "tip_23": "वार्तालाप की शुरुआत पर जाने के लिए {highlight}Ctrl+G{/highlight} या {highlight}Home{/highlight} दबाएं",
     "tip_24": "सबसे हाल के संदेश पर जाने के लिए {highlight}Ctrl+Alt+G{/highlight} या {highlight}End{/highlight} दबाएं",
-    "tip_25": "अपने प्रॉम्प्ट में नई लाइनें जोड़ने के लिए {highlight}Shift+Enter{/highlight} या {highlight}Ctrl+J{/highlight} दबाएं",
+    "tip_25": "अपने प्रॉम्प्ट में नई लाइनें जोड़ने के लिए {highlight}Ctrl+J{/highlight} दबाएं",
     "tip_26": "इनपुट फ़ील्ड को साफ़ करने के लिए टाइप करते समय {highlight}Ctrl+C{/highlight} दबाएं",
     "tip_27": "एआई को मध्य-प्रतिक्रिया में रोकने के लिए {highlight}Escape{/highlight} दबाएं",
     "tip_28": "वास्तविक परिवर्तन किए बिना सुझाव प्राप्त करने के लिए {highlight}Plan{/highlight} एजेंट पर स्विच करें",
     "tip_29": "विशेषीकृत सबएजेंट्स को लागू करने के लिए प्रॉम्प्ट में {highlight}@agent-name{/highlight} का उपयोग करें",
-    "tip_30": "पैरेंट और चाइल्ड सेशन के माध्यम से साइकिल चलाने के लिए {highlight}Ctrl+X Right/Left{/highlight} दबाएं",
+    "tip_30": "चाइल्ड सेशन के बीच साइकिल चलाने के लिए {highlight}Left{/highlight}/{highlight}Right{/highlight} दबाएं, पैरेंट पर जाने के लिए {highlight}Up{/highlight}",
     "tip_31": "सर्वर सेटिंग्स के लिए {highlight}kolbo.json{/highlight} और TUI सेटिंग्स के लिए {highlight}tui.json{/highlight} बनाएं",
     "tip_32": "वैश्विक कॉन्फ़िग के लिए TUI सेटिंग्स को {highlight}~/.config/kolbo/tui.json{/highlight} में रखें",
     "tip_33": "अपने संपादक में ऑटो-कंप्लीट के लिए अपनी कॉन्फ़िग में {highlight}$schema{/highlight} जोड़ें",
@@ -117,7 +120,7 @@
     "tip_65": "AI क्रियाओं को ट्रिगर करने के लिए GitHub मुद्दों/PR में {highlight}/kolbo{/highlight} का उपयोग करें",
     "tip_66": "GitHub वर्कफ़्लो स्थापित करने के लिए {highlight}kolbo github install{/highlight} चलाएँ",
     "tip_67": "ऑटो-क्रिएट PRs के लिए मुद्दों पर {highlight}/kolbo fix this{/highlight} पर टिप्पणी करें",
-    "tip_68": "लक्षित कोड समीक्षाओं के लिए PR कोड लाइनों पर {highlight}/oc{/highlight} पर टिप्पणी करें",
+    "tip_68": "लक्षित कोड समीक्षाओं के लिए PR कोड लाइनों पर {highlight}/kolbo{/highlight} पर टिप्पणी करें",
     "tip_69": "अपने टर्मिनल के रंगों से मेल खाने के लिए {highlight}\"theme\": \"system\"{/highlight} का उपयोग करें",
     "tip_70": "{highlight}.kolbo/themes/{/highlight} निर्देशिका में JSON थीम फ़ाइलें बनाएँ",
     "tip_71": "थीम दोनों मोड के लिए डार्क/लाइट वेरिएंट का समर्थन करते हैं",
@@ -142,11 +145,10 @@
     "tip_90": "सिस्टम स्थिति जानकारी देखने के लिए {highlight}Ctrl+X S{/highlight} या {highlight}/status{/highlight} दबाएँ",
     "tip_91": "चिकनी macOS-शैली स्क्रॉलिंग के लिए {highlight}tui.json{/highlight} में {highlight}scroll_acceleration{/highlight} सक्षम करें",
     "tip_92": "कमांड पैलेट ({highlight}Ctrl+P{/highlight}) के माध्यम से चैट में उपयोगकर्ता नाम प्रदर्शन को टॉगल करें",
-    "tip_93": "कंटेनरीकृत उपयोग के लिए {highlight}docker run -it --rm ghcr.io/Zoharvan12/kolbo-cli{/highlight} चलाएँ",
     "tip_94": "अपना Kolbo.AI खाता या कोई अन्य प्रदाता जोड़ने के लिए {highlight}/connect{/highlight} का उपयोग करें",
     "tip_95": "टीम के साथ साझा करने के लिए अपनी परियोजना की {highlight}KOLBO.md{/highlight} फ़ाइल को Git में कमिट करें",
     "tip_96": "बिना कमिट किए गए बदलावों, शाखाओं या पीआर की समीक्षा करने के लिए {highlight}/review{/highlight} का उपयोग करें",
-    "tip_97": "मदद संवाद दिखाने के लिए {highlight}/help{/highlight} या {highlight}Ctrl+X H{/highlight} चलाएँ",
+    "tip_97": "मदद संवाद दिखाने के लिए {highlight}/help{/highlight} चलाएँ",
     "tip_98": "वर्तमान सत्र का नाम बदलने के लिए {highlight}/rename{/highlight} का उपयोग करें",
     "tip_99_win": "अपने प्रॉम्प्ट में बदलावों को पूर्ववत करने के लिए {highlight}Ctrl+Z{/highlight} दबाएँ",
     "tip_99_unix": "टर्मिनल को निलंबित करने और अपने शेल पर वापस जाने के लिए {highlight}Ctrl+Z{/highlight} दबाएँ"
@@ -177,8 +179,12 @@
     "transcriptCopied": "सेशन ट्रांसक्रिप्ट को क्लिपबोर्ड पर कॉपी किया गया!",
     "failedToCopyTranscript": "सेशन ट्रांसक्रिप्ट कॉपी करने में विफल",
     "escAgainToClear": "फिर से साफ़ करने के लिए",
+    "ctrlCAgainToExit": "फिर से बाहर निकलने के लिए",
     "interrupted": "बाधित",
-    "failedToShare": "सेशन साझा करने में विफल"
+    "failedToShare": "सेशन साझा करने में विफल",
+    "newline": "new line",
+    "voice": "बोलें",
+    "promptFooterHint": "{{newlineKey}} नई पंक्ति   {{voiceKey}} आवाज़ से बोलें"
   },
   "commands": {
     "categories": {
@@ -279,7 +285,10 @@
   },
   "dialog": {
     "sessions": "सत्र",
+    "commands": "कमांड",
+    "search": "खोजें",
     "selectModel": "मॉडल चुनें",
+    "ollamaHint": "Ollama के साथ लोकल मॉडल चलाएँ → ollama.com",
     "connectProvider": "एक प्रदाता कनेक्ट करें",
     "selectAuthMethod": "प्रमाणीकरण विधि चुनें",
     "cancel": "रद्द करें",
@@ -403,6 +412,7 @@
     "heapSnapshotWritten": "हीप स्नैपशॉट {{files}} में लिखा गया"
   },
   "toast": {
+    "pasting": "चिपकाया जा रहा है…",
     "copiedToClipboard": "क्लिपबोर्ड पर कॉपी किया गया",
     "invalidModelFormat": "अमान्य मॉडल प्रारूप: {{model}}",
     "noAssistantMessages": "कोई सहायक संदेश नहीं मिला",
@@ -433,6 +443,18 @@
     "autoApprove": {
       "name": "स्वतः-अनुमोदन",
       "description": "स्वतः-अनुमोदन मोड. सभी अनुमति संकेतों को छोड़ देता है - सावधानी से उपयोग करें।"
+    }
+  },
+  "voice": {
+    "recording": "रिकॉर्डिंग हो रही है…",
+    "errors": {
+      "notLoggedIn": "Kolbo में लॉग इन नहीं हैं — पहले /login चलाएं",
+      "noMicBackend": "वॉइस इनपुट को कोई कार्यशील माइक बैकएंड नहीं मिला। kolbo को पुनः इंस्टॉल करें (बंडल किए गए ffmpeg का डाउनलोड विफल हो सकता है) या मैन्युअल रूप से ffmpeg/sox इंस्टॉल करें।",
+      "micSpawnFailed": "{{kind}} शुरू करने में विफल: {{error}}",
+      "micRuntime": "माइक्रोफ़ोन त्रुटि ({{kind}}): {{error}}",
+      "transportFailed": "वॉइस ट्रांसपोर्ट विफल: {{error}}",
+      "backendTimeout": "बैकएंड ने 5 सेकंड के भीतर ट्रांसक्रिप्शन सत्र शुरू नहीं किया। क्या रियलटाइम स्क्राइब रूट चल रहा है?",
+      "serverError": "ट्रांसक्रिप्शन त्रुटि: {{error}}"
     }
   }
 }

@@ -12,6 +12,7 @@ import { Keybind } from "@/util/keybind"
 import { Locale } from "@/util/locale"
 import { getScrollAcceleration } from "../util/scroll"
 import { useTuiConfig } from "../context/tui-config"
+import { useI18n, toVisual, isRTL } from "@/i18n"
 
 export interface DialogSelectProps<T> {
   title: string
@@ -30,6 +31,7 @@ export interface DialogSelectProps<T> {
     disabled?: boolean
     onTrigger: (option: DialogSelectOption<T>) => void
   }[]
+  footer?: JSX.Element | string
   current?: T
 }
 
@@ -54,6 +56,7 @@ export type DialogSelectRef<T> = {
 export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const dialog = useDialog()
   const { theme } = useTheme()
+  const { t } = useI18n()
   const tuiConfig = useTuiConfig()
   const scrollAcceleration = createMemo(() => getScrollAcceleration(tuiConfig))
 
@@ -239,13 +242,32 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   return (
     <box gap={1} paddingBottom={1}>
       <box paddingLeft={4} paddingRight={4}>
+        {/*
+          Title + "esc" row. `justifyContent="space-between"` pushes the
+          first child to the left edge and the last to the right. In RTL
+          locales we swap the two children so the title (logically the
+          "leading" element) lands on the right edge and "esc" on the left.
+        */}
         <box flexDirection="row" justifyContent="space-between">
-          <text fg={theme.text} attributes={TextAttributes.BOLD}>
-            {props.title}
-          </text>
-          <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
-            esc
-          </text>
+          {isRTL() ? (
+            <>
+              <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
+                {t("dialog.esc")}
+              </text>
+              <text fg={theme.text} attributes={TextAttributes.BOLD}>
+                {props.title}
+              </text>
+            </>
+          ) : (
+            <>
+              <text fg={theme.text} attributes={TextAttributes.BOLD}>
+                {props.title}
+              </text>
+              <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
+                {t("dialog.esc")}
+              </text>
+            </>
+          )}
         </box>
         <box paddingTop={1}>
           <input
@@ -266,8 +288,53 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                 if (input.isDestroyed) return
                 input.focus()
               }, 1)
+              // ---- RTL wrapper for the filter input -----------------
+              // Same pattern as the prompt textarea: opentui doesn't bidi
+              // its cells, so for Hebrew/Arabic we maintain a logicalText
+              // mirror and push a visually-reordered copy to the native
+              // buffer. plainText reads logicalText so the onInput
+              // callback (which feeds into the fuzzysort filter) gets
+              // correct logical-order text to match against.
+              if (isRTL()) {
+                let logicalText = ""
+                const _origSetText = r.setText.bind(r)
+                const _origClear = r.clear.bind(r)
+                const syncVisual = () => {
+                  const visual = toVisual(logicalText)
+                  _origSetText(visual)
+                  // Cursor at visual column 0 for RTL content (newest
+                  // char lives there); end-of-line for LTR content.
+                  r.cursorOffset = visual !== logicalText ? 0 : Bun.stringWidth(visual)
+                }
+                r.insertText = (text: string) => {
+                  logicalText = logicalText + text.replace(/[\n\r]/g, "")
+                  syncVisual()
+                  ;(r as any).emit?.("input", logicalText)
+                }
+                r.deleteCharBackward = () => {
+                  if (logicalText.length === 0) return false
+                  logicalText = logicalText.slice(0, -1)
+                  syncVisual()
+                  ;(r as any).emit?.("input", logicalText)
+                  return true
+                }
+                r.setText = (value: string) => {
+                  logicalText = value.replace(/[\n\r]/g, "")
+                  _origSetText(toVisual(logicalText))
+                  r.cursorOffset = 0
+                }
+                r.clear = () => {
+                  logicalText = ""
+                  _origClear()
+                  r.cursorOffset = 0
+                }
+                Object.defineProperty(r, "plainText", {
+                  get: () => logicalText,
+                  configurable: true,
+                })
+              }
             }}
-            placeholder={props.placeholder ?? "Search"}
+            placeholder={props.placeholder ?? t("dialog.search")}
             placeholderColor={theme.textMuted}
           />
         </box>
@@ -276,7 +343,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         when={grouped().length > 0}
         fallback={
           <box paddingLeft={4} paddingRight={4} paddingTop={1}>
-            <text fg={theme.textMuted}>No results found</text>
+            <text fg={theme.textMuted}>{t("dialog.noResultsFound")}</text>
           </box>
         }
       >
@@ -368,6 +435,13 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
               </text>
             )}
           </For>
+        </box>
+      </Show>
+      <Show when={props.footer}>
+        <box paddingRight={2} paddingLeft={4} flexShrink={0} paddingTop={1}>
+          <text>
+            <span style={{ fg: theme.textMuted }}>{props.footer}</span>
+          </text>
         </box>
       </Show>
     </box>

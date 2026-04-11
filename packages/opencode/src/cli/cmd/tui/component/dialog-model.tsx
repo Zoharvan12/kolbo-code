@@ -30,6 +30,8 @@ export function DialogModel(props: { providerID?: string }) {
 
   const showExtra = createMemo(() => connected() && !props.providerID)
 
+  const hasOllama = createMemo(() => sync.data.provider.some((x) => x.id === "ollama"))
+
   const options = createMemo(() => {
     const needle = query().trim()
     const showSections = showExtra() && needle.length === 0
@@ -179,6 +181,7 @@ export function DialogModel(props: { providerID?: string }) {
       flat={true}
       skipFilter={true}
       title={title()}
+      footer={!hasOllama() && !props.providerID ? t("dialog.ollamaHint") : undefined}
       current={local.model.current()}
     />
   )

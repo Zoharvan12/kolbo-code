@@ -236,11 +236,13 @@ for (const item of targets) {
 
   await $`rm -rf ./dist/${name}/bin/tui`
 
-  // Copy built-in skills alongside the binary
+  // Copy built-in skills alongside the binary.
+  // Use fs.cpSync (not `cp -r`) because Bun's shell cp flag parsing
+  // differs on Windows and fails with "illegal option -- r".
   const skillsSrc = path.join(dir, "skills")
-  const skillsDest = `dist/${name}/skills`
+  const skillsDest = path.join("dist", name, "skills")
   if (fs.existsSync(skillsSrc)) {
-    await $`cp -r ${skillsSrc} ${skillsDest}`
+    fs.cpSync(skillsSrc, skillsDest, { recursive: true })
   }
 
   await Bun.file(`dist/${name}/package.json`).write(

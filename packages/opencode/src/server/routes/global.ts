@@ -360,5 +360,95 @@ export const GlobalRoutes = lazy(() =>
           return c.json({ available: 0, reserved: 0, total: 0 })
         }
       },
+    )
+    .get(
+      "/kolbo-pricing",
+      describeRoute({
+        summary: "Get Kolbo model pricing",
+        description:
+          "Fetch per-model credit pricing (credits per 1M input/output tokens) for Kolbo models from kolbo-api. Used to compute per-session credit consumption client-side.",
+        operationId: "global.kolbo-pricing",
+        responses: {
+          200: {
+            description: "Map of model identifier to credit rates",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.record(
+                    z.string(),
+                    z.object({
+                      input: z.number(),
+                      output: z.number(),
+                    }),
+                  ),
+                ),
+              },
+            },
+          },
+          ...errors(401, 502),
+        },
+      }),
+      async (c) => {
+        const base = Partner.apiBase
+        try {
+          // Public endpoint — no auth needed for model metadata.
+          const res = await fetch(`${base}/kolbo/v1/models`)
+          if (!res.ok) return c.json({})
+          const data = (await res.json()) as {
+            data?: Array<{
+              id: string
+              pricing?: {
+                input_credits_per_million?: number
+                output_credits_per_million?: number
+              }
+            }>
+          }
+          const out: Record<string, { input: number; output: number }> = {}
+          for (const m of data.data ?? []) {
+            const inRate = m.pricing?.input_credits_per_million
+            const outRate = m.pricing?.output_credits_per_million
+            if (typeof inRate === "number" && typeof outRate === "number") {
+              out[m.id] = { input: inRate, output: outRate }
+            }
+          }
+          return c.json(out)
+        } catch {
+          return c.json({})
+        }
+      },
+    )
+    .get(
+      "/kolbo-auth-context",
+      describeRoute({
+        summary: "Expose Kolbo API key + base URL to the TUI",
+        description:
+          "Returns the current user's Kolbo API key and the API base URL so the TUI can call kolbo-api directly from the process that owns the terminal, without going through the internal worker-fetch RPC bridge (which doesn't handle binary bodies). Used exclusively for multipart file uploads to POST /kolbo/v1/files, because the RPC bridge stringifies request bodies via Request.text() and corrupts multipart boundaries on binary content. Same-process exposure — the TUI and the server worker share a Bun runtime, so this is a memory-local hand-off, not a network disclosure.",
+        operationId: "global.kolbo-auth-context",
+        responses: {
+          200: {
+            description: "Authenticated — returns apiKey and apiBase",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    apiKey: z.string(),
+                    apiBase: z.string(),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(401),
+        },
+      }),
+      async (c) => {
+        const auth = await Auth.get("kolbo")
+        const apiKey =
+          auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+        if (!apiKey) {
+          return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+        }
+        return c.json({ apiKey, apiBase: Partner.apiBase })
+      },
     ),
 )

@@ -38,9 +38,16 @@ function loadLocale(lang: SupportedLang): Record<string, unknown> {
 
 let initialized = false
 
+// Module-level reactive language signal. Every call to t() or isRTL() reads this,
+// so any SolidJS reactive scope (memo / effect / JSX expression) that calls them
+// re-runs automatically when the user switches language at runtime. This is what
+// makes live language switching work across the TUI without restarting.
+const [currentLang, setCurrentLang] = createSignal<SupportedLang>("en")
+
 export async function initI18n(lang: SupportedLang = "en") {
   if (initialized) {
     await i18next.changeLanguage(lang)
+    setCurrentLang(lang)
     return
   }
   initialized = true
@@ -53,15 +60,29 @@ export async function initI18n(lang: SupportedLang = "en") {
     },
     interpolation: { escapeValue: false },
   })
+  setCurrentLang(lang)
 }
 
-/** Translate a key with optional interpolation variables */
+/**
+ * Translate a key with optional interpolation variables.
+ * Subscribes to the module-level language signal, so calls inside a reactive
+ * scope (memo / effect / JSX expression) re-run when the language changes.
+ * Applies bidi visual reordering for RTL languages (skipped for strings
+ * containing {highlight} markup — see toVisual).
+ */
 export function t(key: string, vars?: Record<string, string | number>): string {
-  return i18next.t(key, vars as any) as string
+  const lang = currentLang() // subscribe
+  const result = i18next.t(key, vars as any) as string
+  return RTL_LANGUAGES.includes(lang) ? toVisual(result) : result
 }
 
+/**
+ * Reactive RTL check. Subscribes to the module-level language signal so callers
+ * inside reactive scopes re-run on language change. The optional `lang` arg
+ * bypasses the signal (useful when you already have a specific language code).
+ */
 export function isRTL(lang?: string): boolean {
-  return RTL_LANGUAGES.includes(lang ?? i18next.language)
+  return RTL_LANGUAGES.includes(lang ?? currentLang())
 }
 
 // RTL Unicode block ranges
@@ -84,11 +105,18 @@ export function toVisualLines(text: string): string {
     .join("\n")
 }
 
+// macOS terminals (Terminal.app, iTerm2) run their own bidi reordering pass when
+// they encounter RTL characters. If we also pre-reorder with bidi-js the text ends
+// up double-flipped. On macOS we skip our reorder and let the terminal handle it.
+// Linux/Windows terminals do NOT do this, so we still need to reorder there.
+const TERMINAL_DOES_BIDI = process.platform === "darwin"
+
 export function toVisual(text: string): string {
   if (!text || !RTL_REGEX.test(text)) return text
   // Skip strings with custom markup like {highlight}...{/highlight} — bidi reordering
   // would reposition the tags and break the markup parser in tips-view
   if (text.includes("{highlight}") || text.includes("{/highlight}")) return text
+  if (TERMINAL_DOES_BIDI) return text
   try {
     const levels = getEmbeddingLevels(text, "rtl")
     return getReorderedString(text, levels)
@@ -110,7 +138,13 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue>()
 
 export const I18nProvider: ParentComponent<{ lang?: SupportedLang; languageConfigured?: boolean }> = (props) => {
-  const [lang, setLangSignal] = createSignal<SupportedLang>(props.lang ?? "en")
+  // Seed the module-level signal from props on mount. Live language changes go
+  // through setLang below, which also updates currentLang. The provider itself
+  // no longer owns a separate signal — context `t` / `lang` / `isRTL` all read
+  // the module signal, so components importing them directly (e.g. via
+  // `import { t, isRTL } from "@/i18n"`) stay in sync with components using
+  // `useI18n()`. This is what enables live language switching everywhere.
+  if (props.lang) setCurrentLang(props.lang)
   const [langConfigured, setLangConfigured] = createSignal(props.languageConfigured ?? false)
 
   const setLang = async (next: SupportedLang) => {
@@ -119,7 +153,7 @@ export const I18nProvider: ParentComponent<{ lang?: SupportedLang; languageConfi
       i18next.addResourceBundle(next, "translation", resources)
     }
     await i18next.changeLanguage(next)
-    setLangSignal(next)
+    setCurrentLang(next)
     setLangConfigured(true)
     // Persist language choice to tui.json for next session
     try {
@@ -128,24 +162,12 @@ export const I18nProvider: ParentComponent<{ lang?: SupportedLang; languageConfi
     } catch {}
   }
 
-  // Reactive t(): reads lang() signal so SolidJS re-runs any memo/JSX that calls t() when language changes.
-  // For RTL languages, applies Unicode BiDi visual reordering so cell-based terminal renderers show
-  // Hebrew/Arabic text in correct right-to-left visual order.
-  const reactiveT = (key: string, vars?: Record<string, string | number>): string => {
-    const currentLang = lang() // subscribe to language signal
-    const result = i18next.t(key, vars as any) as string
-    if (RTL_LANGUAGES.includes(currentLang)) {
-      return toVisual(result)
-    }
-    return result
-  }
-
   return (
     <I18nContext.Provider
       value={{
-        t: reactiveT,
-        lang,
-        isRTL: () => RTL_LANGUAGES.includes(lang()),
+        t,
+        lang: currentLang,
+        isRTL: () => isRTL(),
         setLang,
         isLanguageConfigured: langConfigured,
       }}

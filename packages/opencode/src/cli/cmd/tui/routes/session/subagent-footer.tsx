@@ -1,6 +1,7 @@
-import { createMemo, createSignal, Show } from "solid-js"
+import { createMemo, createSignal, onMount, Show } from "solid-js"
 import { useRouteData } from "@tui/context/route"
 import { useSync } from "@tui/context/sync"
+import { useSDK } from "@tui/context/sdk"
 import { useTheme } from "@tui/context/theme"
 import { SplitBorder } from "@tui/component/border"
 import type { AssistantMessage } from "@opencode-ai/sdk/v2"
@@ -9,13 +10,27 @@ import { useKeybind } from "../../context/keybind"
 import { Locale } from "@/util/locale"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useI18n } from "@/i18n"
+import { sessionKolboCredits, type ModelPricing } from "@/util/kolbo-credits"
 
 export function SubagentFooter() {
   const { t } = useI18n()
   const route = useRouteData("session")
   const sync = useSync()
+  const sdk = useSDK()
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
   const session = createMemo(() => sync.session.get(route.sessionID))
+
+  const [kolboPricing, setKolboPricing] = createSignal<Record<string, ModelPricing>>({})
+
+  // Pricing is stable across a session — fetch once on mount.
+  onMount(() => {
+    sdk.client.global
+      .kolboPricing()
+      .then((res) => {
+        if (res.data) setKolboPricing(res.data as Record<string, ModelPricing>)
+      })
+      .catch(() => {})
+  })
 
   const subagentInfo = createMemo(() => {
     const s = session()
@@ -47,6 +62,19 @@ export function SubagentFooter() {
     const isKolbo = last.providerID === "kolbo"
     const cost = isKolbo ? 0 : msg.reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
 
+    // Per-session Kolbo credit consumption — mirrors the backend per-request
+    // ceil() formula, and swaps to kolbo-vision pricing once any user message
+    // in the conversation has a media attachment (because the backend will
+    // then route every subsequent request to Gemini). Hidden silently if
+    // pricing hasn't loaded yet.
+    const credits = isKolbo
+      ? sessionKolboCredits({
+          messages: msg,
+          partsByMessageID: (id) => sync.data.part[id],
+          pricing: kolboPricing(),
+        })
+      : 0
+
     const money = new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
@@ -54,7 +82,13 @@ export function SubagentFooter() {
 
     return {
       context: pct ? `${Locale.number(tokens)} (${pct})` : Locale.number(tokens),
-      cost: cost > 0 ? money.format(cost) : undefined,
+      cost: isKolbo
+        ? credits > 0
+          ? t("sidebar.context.creditsCompact", { n: credits.toLocaleString() })
+          : undefined
+        : cost > 0
+          ? money.format(cost)
+          : undefined,
     }
   })
 
