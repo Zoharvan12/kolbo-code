@@ -5,11 +5,14 @@
  * For each entry in whitelabels.json, builds and publishes a tiny npm package
  * @kolbo/<id> that:
  *   1. Depends on @kolbo/kolbo-code (installs the CLI automatically)
- *   2. Runs a postinstall script that drops partner.json into the user's
- *      config directory (~/.config/kolbo/partner.json)
+ *   2. Exposes a branded binary named after the whitelabel (e.g. `sapir`)
+ *      that sets KOLBO_PARTNER_PROFILE and delegates to the kolbo launcher
+ *   3. Bundles partner.json so no file-system writes are needed at runtime
  *
- * Install command for end users:
- *   npm i -g @kolbo/<id>
+ * Install + usage:
+ *   npm i -g @kolbo/sapir
+ *   sapir          ← branded command, always uses Sapir config
+ *   kolbo          ← still works if user wants the generic name
  */
 
 import { $ } from "bun"
@@ -36,27 +39,42 @@ for (const wl of whitelabels) {
   console.log(`\n→ Building ${pkgName}@${version}`)
 
   await $`rm -rf ${outDir}`
-  await $`mkdir -p ${outDir}`
+  await $`mkdir -p ${outDir}/bin`
 
-  // postinstall.js — writes partner.json to the user's config dir
-  const postinstall = `#!/usr/bin/env node
-const os = require("os")
+  // partner.json bundled inside the package — no disk writes needed
+  const profile = { id: wl.id, name: wl.name, apiBase: wl.apiBase, appBase: wl.appBase }
+  await Bun.file(`${outDir}/partner.json`).write(JSON.stringify(profile, null, 2))
+
+  // bin/<id> — sets KOLBO_PARTNER_PROFILE to the bundled file, then execs kolbo
+  const binScript = `#!/usr/bin/env node
 const path = require("path")
-const fs = require("fs")
+const { spawnSync } = require("child_process")
 
-const profile = ${JSON.stringify({ id: wl.id, name: wl.name, apiBase: wl.apiBase, appBase: wl.appBase }, null, 2)}
+// Point to the partner profile bundled inside this package
+process.env.KOLBO_PARTNER_PROFILE = path.join(__dirname, "..", "partner.json")
 
-const xdg = process.env.XDG_CONFIG_HOME
-const configDir = xdg
-  ? path.join(xdg, "kolbo")
-  : path.join(os.homedir(), ".config", "kolbo")
+// Resolve the kolbo launcher from @kolbo/kolbo-code installed alongside
+let kolboLauncher
+try {
+  kolboLauncher = path.join(
+    path.dirname(require.resolve("@kolbo/kolbo-code/package.json")),
+    "bin", "kolbo"
+  )
+} catch {
+  console.error("Could not find @kolbo/kolbo-code. Try: npm i -g @kolbo/${wl.id}")
+  process.exit(1)
+}
 
-fs.mkdirSync(configDir, { recursive: true })
-const dest = path.join(configDir, "partner.json")
-fs.writeFileSync(dest, JSON.stringify(profile, null, 2))
-console.log("✓ " + ${JSON.stringify(wl.name)} + " configured at " + dest)
+const result = spawnSync(process.execPath, [kolboLauncher, ...process.argv.slice(2)], {
+  stdio: "inherit",
+  env: process.env,
+})
+process.exit(result.status ?? 0)
 `
-  await Bun.file(`${outDir}/postinstall.js`).write(postinstall)
+  await Bun.file(`${outDir}/bin/${wl.id}`).write(binScript)
+  if (process.platform !== "win32") {
+    await $`chmod +x ${outDir}/bin/${wl.id}`
+  }
 
   await Bun.file(`${outDir}/package.json`).write(
     JSON.stringify(
@@ -68,11 +86,9 @@ console.log("✓ " + ${JSON.stringify(wl.name)} + " configured at " + dest)
         homepage: pkg.homepage,
         repository: pkg.repository,
         publishConfig: { access: "public" },
+        bin: { [wl.id]: `./bin/${wl.id}` },
         dependencies: {
           [mainPkg]: version,
-        },
-        scripts: {
-          postinstall: "node postinstall.js",
         },
       },
       null,
@@ -86,7 +102,7 @@ console.log("✓ " + ${JSON.stringify(wl.name)} + " configured at " + dest)
 }
 
 console.log(`\n✅ All whitelabels published.`)
-console.log(`\nInstall commands:`)
+console.log(`\nInstall + usage:`)
 for (const wl of whitelabels) {
-  console.log(`  npm i -g @kolbo/${wl.id}   # ${wl.name}`)
+  console.log(`  npm i -g @kolbo/${wl.id}   →   ${wl.id}`)
 }
