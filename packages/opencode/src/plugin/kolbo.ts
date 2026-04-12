@@ -9,7 +9,9 @@ const OAUTH_POLLING_SAFETY_MARGIN_MS = 3000
 export async function KolboAuthPlugin(_input: PluginInput): Promise<Hooks> {
   return {
     auth: {
-      provider: Partner.authProviderID,
+      // Keep provider as bare "kolbo" so the TUI can look up auth methods via
+      // provider.id. The namespaced storage key is handled separately.
+      provider: "kolbo",
       async loader(getAuth) {
         const info = await getAuth()
         if (!info) return {}

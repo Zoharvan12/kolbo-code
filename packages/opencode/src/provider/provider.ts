@@ -795,12 +795,7 @@ export namespace Provider {
       kolbo: Effect.fnUntraced(function* (input: Info) {
         const env = Env.all()
         const hasEnvKey = input.env.some((item) => env[item])
-        // Auth is namespaced by API host (e.g. "kolbo@api.kolbo.ai") so dev,
-        // prod, and whitelabel backends don't clobber each other's keys.
-        // Fall back to the bare "kolbo" key for backwards compat with existing
-        // auth.json files that were written before namespacing was added.
-        const auth =
-          (yield* dep.auth(Partner.authProviderID)) ?? (yield* dep.auth(Partner.authProviderIDLegacy))
+        const auth = yield* dep.auth("kolbo")
         const apiKey =
           auth?.type === "api"
             ? auth.key

@@ -336,7 +336,7 @@ export const GlobalRoutes = lazy(() =>
         },
       }),
       async (c) => {
-        const auth = await Auth.get(Partner.authProviderID) ?? await Auth.get(Partner.authProviderIDLegacy)
+        const auth = await Auth.get("kolbo")
         const apiKey =
           auth?.type === "api"
             ? auth.key
@@ -442,7 +442,7 @@ export const GlobalRoutes = lazy(() =>
         },
       }),
       async (c) => {
-        const auth = await Auth.get(Partner.authProviderID) ?? await Auth.get(Partner.authProviderIDLegacy)
+        const auth = await Auth.get("kolbo")
         const apiKey =
           auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
         if (!apiKey) {
@@ -479,7 +479,7 @@ export const GlobalRoutes = lazy(() =>
         },
       }),
       async (c) => {
-        const auth = await Auth.get(Partner.authProviderID) ?? await Auth.get(Partner.authProviderIDLegacy)
+        const auth = await Auth.get("kolbo")
         const apiKey =
           auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
         if (!apiKey) {

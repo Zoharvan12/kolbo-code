@@ -4,12 +4,26 @@ import { makeRuntime } from "@/effect/run-service"
 import { zod } from "@/util/effect-zod"
 import { Global } from "../global"
 import { AppFileSystem } from "../filesystem"
+import { Partner } from "../brand/partner"
 
 export const OAUTH_DUMMY_KEY = "opencode-oauth-dummy-key"
 
 const file = path.join(Global.Path.data, "auth.json")
 
 const fail = (message: string) => (cause: unknown) => new Auth.AuthError({ message, cause })
+
+/**
+ * Transparently namespace the "kolbo" auth key by API host so that dev, prod,
+ * and whitelabel backends each get their own slot in auth.json.
+ *
+ * The plugin system and TUI use the bare "kolbo" provider ID for UI lookup,
+ * but storage uses "kolbo@api.kolbo.ai" (or "kolbo@localhost:5050", etc.)
+ * to prevent key clobbering when switching environments.
+ */
+function storageKey(providerID: string): string {
+  if (providerID === "kolbo") return Partner.authProviderID
+  return providerID
+}
 
 export namespace Auth {
   export class Oauth extends Schema.Class<Oauth>("OAuth")({
@@ -63,24 +77,34 @@ export namespace Auth {
       })
 
       const get = Effect.fn("Auth.get")(function* (providerID: string) {
-        return (yield* all())[providerID]
+        const data = yield* all()
+        const key = storageKey(providerID)
+        // Try namespaced key first, fall back to bare key for backwards compat
+        return data[key] ?? (key !== providerID ? data[providerID] : undefined)
       })
 
       const set = Effect.fn("Auth.set")(function* (key: string, info: Info) {
-        const norm = key.replace(/\/+$/, "")
+        const mapped = storageKey(key)
+        const norm = mapped.replace(/\/+$/, "")
         const data = yield* all()
-        if (norm !== key) delete data[key]
+        if (norm !== mapped) delete data[mapped]
         delete data[norm + "/"]
+        // Also clean up the bare "kolbo" key if we're writing a namespaced one,
+        // so there's no stale legacy entry
+        if (norm !== key) delete data[key]
         yield* fsys
           .writeJson(file, { ...data, [norm]: info }, 0o600)
           .pipe(Effect.mapError(fail("Failed to write auth data")))
       })
 
       const remove = Effect.fn("Auth.remove")(function* (key: string) {
-        const norm = key.replace(/\/+$/, "")
+        const mapped = storageKey(key)
+        const norm = mapped.replace(/\/+$/, "")
         const data = yield* all()
-        delete data[key]
+        delete data[mapped]
         delete data[norm]
+        // Also remove the bare key if different
+        if (mapped !== key) delete data[key]
         yield* fsys.writeJson(file, data, 0o600).pipe(Effect.mapError(fail("Failed to write auth data")))
       })
 
