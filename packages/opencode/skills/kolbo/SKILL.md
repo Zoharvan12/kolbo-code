@@ -105,6 +105,14 @@ Creative generations bill against the user's Kolbo credit balance. Order of expe
 
 Rule of thumb: confirm intent before firing off a video generation unless the user was explicit. For images, just generate.
 
+### Rate Limiting
+When making multiple generation calls in sequence (batch images, multi-step workflows), add a small delay between calls to avoid rate limiting:
+- **2–3 seconds** between image/speech/sound calls
+- **5 seconds** between video/music/lipsync/3D calls
+- **Do NOT fire all calls in parallel** — stagger them. Parallel bursts trigger rate limits and cause failures.
+
+If you get a rate limit error (429), wait 10 seconds and retry. Do not retry more than 3 times.
+
 ---
 
 ## Transcription & Audio/Video Analysis
