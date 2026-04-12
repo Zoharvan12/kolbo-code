@@ -106,12 +106,12 @@ Creative generations bill against the user's Kolbo credit balance. Order of expe
 Rule of thumb: confirm intent before firing off a video generation unless the user was explicit. For images, just generate.
 
 ### Rate Limiting
-When making multiple generation calls in sequence (batch images, multi-step workflows), add a small delay between calls to avoid rate limiting:
-- **2–3 seconds** between image/speech/sound calls
-- **5 seconds** between video/music/lipsync/3D calls
-- **Do NOT fire all calls in parallel** — stagger them. Parallel bursts trigger rate limits and cause failures.
+Kolbo enforces **10 generation requests per minute per user per tool type** (e.g. 10 image calls + 10 video calls = fine, but 11 image calls in 1 minute = rate limited). General media requests are capped at **300 per minute**.
 
-If you get a rate limit error (429), wait 10 seconds and retry. Do not retry more than 3 times.
+When making multiple generation calls:
+- **Stagger calls** — do NOT fire all in parallel. Space them ~5-10 seconds apart.
+- **Batch images**: use `generate_creative_director` instead of calling `generate_image` 5+ times — it handles multi-scene in one request.
+- If you get a rate limit error (429), wait 60 seconds (the window resets per minute) and retry. Do not retry more than 2 times.
 
 ---
 
