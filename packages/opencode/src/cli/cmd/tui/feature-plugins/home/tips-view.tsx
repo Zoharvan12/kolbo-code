@@ -75,7 +75,7 @@ export function Tips() {
   const keybind = useKeybind()
 
   const tipState = createMemo(() => {
-    const voiceKey = keybind.print("input_voice") || "alt+v"
+    const voiceKey = keybind.print("input_voice") || "ctrl+y"
     // For non-voice tips we don't pass any interpolation; for the voice
     // tip we pass the current keybind.
     const raw =

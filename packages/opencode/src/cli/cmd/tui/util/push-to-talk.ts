@@ -89,9 +89,10 @@ export namespace PushToTalk {
     cachedMicCmd = mic
 
     const sessionId = randomUUID()
-    const origin = socketOrigin()
+    const { origin, path } = socketConfig()
 
     const socket: Socket = io(origin, {
+      path,
       auth: { token },
       // Allow polling as a fallback — raw websocket upgrades can fail on
       // corporate proxies or when kolbo-api is behind certain reverse
@@ -190,7 +191,16 @@ export namespace PushToTalk {
 
     socket.on("connect", () => emitStart())
 
-    socket.on("connect_error", (err: Error) => {
+    socket.on("connect_error", (err: Error & { description?: any; type?: string; context?: any }) => {
+      const detail = [
+        `message=${err.message}`,
+        err.type ? `type=${err.type}` : "",
+        err.description ? `desc=${JSON.stringify(err.description)}` : "",
+        err.context ? `ctx=${JSON.stringify(err.context)}` : "",
+        `origin=${origin}`,
+        `path=${path}`,
+      ].filter(Boolean).join(" | ")
+      fs.appendFileSync(`${Global.Path.data}/ptt-debug.log`, `[${new Date().toISOString()}] ${detail}\n`)
       opts.onError?.({ code: "transportFailed", params: { error: err.message } })
       cleanup()
     })
@@ -311,15 +321,24 @@ export namespace PushToTalk {
   }
 
   /**
-   * Partner.apiBase looks like `https://api.kolbo.ai/api` — Socket.IO connects
-   * to the origin (no /api suffix) since the server mounts `io` at root.
+   * Parse Partner.apiBase into an origin + Socket.IO path.
+   *
+   * Partner.apiBase looks like `https://api.kolbo.ai/api` or
+   * `https://stagingapi.kolbo.ai/api`. Socket.IO needs the origin
+   * (protocol + host) separately, and when the API is mounted at a
+   * sub-path (e.g. `/api`), we must tell the Socket.IO client to use
+   * `<sub-path>/socket.io` instead of the default `/socket.io`.
    */
-  function socketOrigin(): string {
+  function socketConfig(): { origin: string; path: string } {
     try {
       const u = new URL(Partner.apiBase)
-      return `${u.protocol}//${u.host}`
+      const origin = `${u.protocol}//${u.host}`
+      // Strip trailing slash, then append /socket.io
+      const base = u.pathname.replace(/\/+$/, "")
+      const path = base ? `${base}/socket.io` : "/socket.io"
+      return { origin, path }
     } catch {
-      return Partner.apiBase
+      return { origin: Partner.apiBase, path: "/socket.io" }
     }
   }
 

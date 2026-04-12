@@ -690,13 +690,10 @@ export namespace Config {
       input_voice: z
         .string()
         .optional()
-        // Alt+V is the primary binding — it's the most terminal-agnostic
-        // modifier combo we've found (passes through Windows Terminal,
-        // iTerm2, GNOME Terminal, Kitty, Wezterm, etc.). F2 is listed as
-        // a fallback for users on terminals where Alt combos are grabbed
-        // by the window manager. Ctrl+Space is intentionally omitted from
-        // the default — Windows Terminal silently swallows it.
-        .default("alt+v,f2")
+        // Ctrl+Y — layout-independent (Ctrl+letter sends a fixed ASCII
+        // control code regardless of keyboard language). Works on macOS,
+        // Linux and Windows Terminal. No OS or terminal grabs this combo.
+        .default("ctrl+y")
         .describe("Hold to dictate (push-to-talk voice input)"),
       input_submit: z.string().optional().default("return").describe("Submit input"),
       input_newline: z
@@ -726,17 +723,17 @@ export namespace Config {
         .default("ctrl+shift+a")
         .describe("Select to start of line in input"),
       input_select_line_end: z.string().optional().default("ctrl+shift+e").describe("Select to end of line in input"),
-      input_visual_line_home: z.string().optional().default("alt+a").describe("Move to start of visual line in input"),
-      input_visual_line_end: z.string().optional().default("alt+e").describe("Move to end of visual line in input"),
+      input_visual_line_home: z.string().optional().default("ctrl+home").describe("Move to start of visual line in input"),
+      input_visual_line_end: z.string().optional().default("ctrl+end").describe("Move to end of visual line in input"),
       input_select_visual_line_home: z
         .string()
         .optional()
-        .default("alt+shift+a")
+        .default("ctrl+shift+home")
         .describe("Select to start of visual line in input"),
       input_select_visual_line_end: z
         .string()
         .optional()
-        .default("alt+shift+e")
+        .default("ctrl+shift+end")
         .describe("Select to end of visual line in input"),
       input_buffer_home: z.string().optional().default("home").describe("Move to start of buffer in input"),
       input_buffer_end: z.string().optional().default("end").describe("Move to end of buffer in input"),
@@ -756,27 +753,27 @@ export namespace Config {
       input_word_forward: z
         .string()
         .optional()
-        .default("alt+f,alt+right,ctrl+right")
+        .default("alt+right,ctrl+right")
         .describe("Move word forward in input"),
       input_word_backward: z
         .string()
         .optional()
-        .default("alt+b,alt+left,ctrl+left")
+        .default("alt+left,ctrl+left")
         .describe("Move word backward in input"),
       input_select_word_forward: z
         .string()
         .optional()
-        .default("alt+shift+f,alt+shift+right")
+        .default("alt+shift+right,ctrl+shift+right")
         .describe("Select word forward in input"),
       input_select_word_backward: z
         .string()
         .optional()
-        .default("alt+shift+b,alt+shift+left")
+        .default("alt+shift+left,ctrl+shift+left")
         .describe("Select word backward in input"),
       input_delete_word_forward: z
         .string()
         .optional()
-        .default("alt+d,alt+delete,ctrl+delete")
+        .default("alt+delete,ctrl+delete")
         .describe("Delete word forward in input"),
       input_delete_word_backward: z
         .string()

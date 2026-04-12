@@ -294,7 +294,7 @@ export function Prompt(props: PromptProps) {
   )
 
   // ==========================================================================
-  // Push-to-talk (hold Ctrl+Q → realtime transcription)
+  // Push-to-talk (hold Ctrl+Y → realtime transcription)
   //
   // Why a dedicated keybind (not just "hold space"):
   //
@@ -308,7 +308,7 @@ export function Prompt(props: PromptProps) {
   //       don't emit reliable kitty repeat events for space, so holding
   //       never promoted into recording.
   //
-  //   A dedicated modifier-based keybind (default: Ctrl+Q) sidesteps
+  //   A dedicated modifier-based keybind (default: Ctrl+Y) sidesteps
   //   both problems. Press = start recording immediately, release = stop,
   //   no hold detection needed. The keybind is configurable via the
   //   `input_voice` key in the TUI config.
@@ -380,17 +380,17 @@ export function Prompt(props: PromptProps) {
   // fires on the renderer-level KeyHandler.
   //
   // PTT stops on release of the base key of the voice keybind (default:
-  // "q", from "ctrl+q"). When the user lets go of q — whether or not
+  // "y", from "ctrl+y"). When the user lets go of y — whether or not
   // they're still holding ctrl — recording stops. This matches the
   // natural "let go to stop talking" PTT gesture.
   //
   // Note: we match on the base key name rather than re-checking the full
-  // keybind, because kitty releases come per-key — `q release` arrives
+  // keybind, because kitty releases come per-key — `y release` arrives
   // separately from `ctrl release`, and we want either to end the session.
   onMount(() => {
     const handleRelease = (e: KeyEvent) => {
       if (!isPttBusy()) return
-      if (e.name === "q") {
+      if (e.name === "y") {
         stopPtt("stop")
       }
     }
@@ -1430,7 +1430,7 @@ export function Prompt(props: PromptProps) {
                   return
                 }
                 // ---- Push-to-talk: voice keybind press ------------------
-                // Default keybind is "ctrl+q". On
+                // Default keybind is "ctrl+y". On
                 // press, start recording immediately (no hold timer, no
                 // rollback). Release is handled in the renderer.keyInput
                 // keyrelease subscription above.
@@ -1938,7 +1938,7 @@ export function Prompt(props: PromptProps) {
                       <text fg={theme.textMuted}>
                         {tI18n("session.promptFooterHint", {
                           newlineKey: keybind.print("input_newline") || "ctrl+j",
-                          voiceKey: keybind.print("input_voice") || "ctrl+q",
+                          voiceKey: keybind.print("input_voice") || "ctrl+y",
                         })}
                       </text>
                     )
