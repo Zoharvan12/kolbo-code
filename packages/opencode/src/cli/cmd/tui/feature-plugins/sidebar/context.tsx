@@ -44,7 +44,8 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
     const model = props.api.state.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
     const isKolbo = last.providerID === "kolbo"
-    const cost = isKolbo ? 0 : msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
+    const isLocal = last.providerID === "ollama" || last.providerID === "lmstudio"
+    const cost = isKolbo || isLocal ? 0 : msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
 
     const creditsUsed = isKolbo ? sessionCredits(msg(), kolboPricing()) : 0
 
@@ -59,6 +60,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       tokens,
       percent: model?.limit.context ? Math.round((tokens / model.limit.context) * 100) : null,
       isKolbo,
+      isLocal,
       cost,
       creditsUsed,
     }
@@ -79,7 +81,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
             <text fg={theme().textMuted}>{t("sidebar.context.creditsUsed", { n: state().creditsUsed.toLocaleString() })}</text>
           </Show>
         </Show>
-        <Show when={!state().isKolbo}>
+        <Show when={!state().isKolbo && !state().isLocal}>
           <text fg={theme().textMuted}>{t("sidebar.context.spent", { amount: money.format(state().cost) })}</text>
         </Show>
       </Show>

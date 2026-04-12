@@ -246,7 +246,8 @@ export function Prompt(props: PromptProps) {
     const model = sync.data.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
     const pct = model?.limit.context ? `${Math.round((tokens / model.limit.context) * 100)}%` : undefined
     const isKolbo = last.providerID === "kolbo"
-    const cost = isKolbo ? 0 : msg.reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
+    const isLocal = last.providerID === "ollama" || last.providerID === "lmstudio"
+    const cost = isKolbo || isLocal ? 0 : msg.reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
 
     const credits = isKolbo ? sessionCredits(msg, kolboPricing()) : 0
 
@@ -256,9 +257,11 @@ export function Prompt(props: PromptProps) {
         ? credits > 0
           ? tI18n("sidebar.context.creditsCompact", { n: credits.toLocaleString() })
           : undefined
-        : cost > 0
-          ? money.format(cost)
-          : undefined,
+        : isLocal
+          ? undefined
+          : cost > 0
+            ? money.format(cost)
+            : undefined,
     }
   })
 
