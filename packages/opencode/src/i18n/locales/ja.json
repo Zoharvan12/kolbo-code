@@ -152,7 +152,8 @@
     "tip_97": "{highlight}/help{/highlight} を実行して、ヘルプダイアログを表示してください。",
     "tip_98": "{highlight}/rename{/highlight} を使用して、現在のセッションの名前を変更してください。",
     "tip_99_win": "プロンプトの変更を元に戻すには、{highlight}Ctrl+Z{/highlight} を押してください。",
-    "tip_99_unix": "ターミナルを一時停止してシェルに戻るには、{highlight}Ctrl+Z{/highlight} を押してください。"
+    "tip_99_unix": "ターミナルを一時停止してシェルに戻るには、{highlight}Ctrl+Z{/highlight} を押してください。",
+    "tip_5_rewind": "Double-tap {highlight}Esc{/highlight} on an empty prompt or type {highlight}/rewind{/highlight} to restore code and conversation to any earlier point"
   },
   "session": {
     "interrupt": "中断",

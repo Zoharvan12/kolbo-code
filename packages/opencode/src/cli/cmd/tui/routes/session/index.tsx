@@ -549,6 +549,7 @@ export function Session() {
     {
       title: t("commands.rewind"),
       value: "session.rewind",
+      keybind: "session_rewind",
       category: t("commands.categories.session"),
       slash: {
         name: "rewind",

@@ -152,7 +152,8 @@
     "tip_97": "Execute {highlight}/help{/highlight} para mostrar a caixa de diálogo de ajuda",
     "tip_98": "Use {highlight}/rename{/highlight} para renomear a sessão atual",
     "tip_99_win": "Pressione {highlight}Ctrl+Z{/highlight} para desfazer as alterações em seu prompt",
-    "tip_99_unix": "Pressione {highlight}Ctrl+Z{/highlight} para suspender o terminal e retornar ao seu shell"
+    "tip_99_unix": "Pressione {highlight}Ctrl+Z{/highlight} para suspender o terminal e retornar ao seu shell",
+    "tip_5_rewind": "Double-tap {highlight}Esc{/highlight} on an empty prompt or type {highlight}/rewind{/highlight} to restore code and conversation to any earlier point"
   },
   "session": {
     "interrupt": "interromper",

@@ -59,6 +59,7 @@
     "tip_2": "Press {highlight}Tab{/highlight} to toggle between Build, Plan and Auto-Approve modes",
     "tip_3": "Use {highlight}/undo{/highlight} to revert the last message and file changes",
     "tip_4": "Use {highlight}/redo{/highlight} to restore previously undone messages and file changes",
+    "tip_5_rewind": "Double-tap {highlight}Esc{/highlight} on an empty prompt or type {highlight}/rewind{/highlight} to restore code and conversation to any earlier point",
     "tip_5": "Run {highlight}/share{/highlight} to create a public link to your conversation at kolbo.ai",
     "tip_6": "Drag and drop images or PDFs into the terminal to add them as context",
     "tip_7": "Press {highlight}Ctrl+V{/highlight} to paste images from your clipboard into the prompt",
