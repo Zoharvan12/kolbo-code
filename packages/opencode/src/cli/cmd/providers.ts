@@ -132,7 +132,8 @@ export async function ensureKolboMcpWired(): Promise<void> {
     const currentUrl = existing.mcp?.kolbo?.environment?.KOLBO_API_URL
     const currentCommand = existing.mcp?.kolbo?.command
     const commandDrift = JSON.stringify(currentCommand) !== JSON.stringify(expectedCommand)
-    let needsWrite = currentKey !== apiKey || currentUrl !== mcpEnv.KOLBO_API_URL || commandDrift
+    const currentTimeout = existing.mcp?.kolbo?.timeout
+    let needsWrite = currentKey !== apiKey || currentUrl !== mcpEnv.KOLBO_API_URL || commandDrift || currentTimeout !== 1800000
     if (needsWrite) {
       existing.mcp = {
         ...existing.mcp,
@@ -140,6 +141,7 @@ export async function ensureKolboMcpWired(): Promise<void> {
           type: "local",
           command: expectedCommand,
           environment: mcpEnv,
+          timeout: 1800000,
         },
       }
     }
@@ -784,6 +786,7 @@ export const ProvidersLoginCommand = cmd({
                   type: "local",
                   command: ["npx", "-y", "@kolbo/mcp"],
                   environment: mcpEnv,
+                  timeout: 1800000,
                 },
               }
               // Atomic write — file contains the Kolbo API key.
