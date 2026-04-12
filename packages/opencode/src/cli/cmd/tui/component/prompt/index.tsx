@@ -41,6 +41,7 @@ import { Locale } from "@/util/locale"
 import { formatDuration } from "@/util/format"
 import { sessionCredits, type ModelPricing } from "@/util/kolbo-credits"
 import { createColors, createFrames } from "../../ui/spinner.ts"
+import { supportsAlphaBlending } from "../../util/terminal-caps"
 import { useDialog } from "@tui/ui/dialog"
 import { DialogProvider as DialogProviderConnect } from "../dialog-provider"
 import { DialogAlert } from "../../ui/dialog-alert"
@@ -293,7 +294,7 @@ export function Prompt(props: PromptProps) {
   )
 
   // ==========================================================================
-  // Push-to-talk (hold Ctrl+Space → realtime transcription)
+  // Push-to-talk (hold Ctrl+Q → realtime transcription)
   //
   // Why a dedicated keybind (not just "hold space"):
   //
@@ -307,7 +308,7 @@ export function Prompt(props: PromptProps) {
   //       don't emit reliable kitty repeat events for space, so holding
   //       never promoted into recording.
   //
-  //   A dedicated modifier-based keybind (default: Ctrl+Space) sidesteps
+  //   A dedicated modifier-based keybind (default: Ctrl+Q) sidesteps
   //   both problems. Press = start recording immediately, release = stop,
   //   no hold detection needed. The keybind is configurable via the
   //   `input_voice` key in the TUI config.
@@ -379,17 +380,17 @@ export function Prompt(props: PromptProps) {
   // fires on the renderer-level KeyHandler.
   //
   // PTT stops on release of the base key of the voice keybind (default:
-  // "space", from "ctrl+space"). When the user lets go of space — whether
-  // or not they're still holding ctrl — recording stops. This matches the
+  // "q", from "ctrl+q"). When the user lets go of q — whether or not
+  // they're still holding ctrl — recording stops. This matches the
   // natural "let go to stop talking" PTT gesture.
   //
   // Note: we match on the base key name rather than re-checking the full
-  // keybind, because kitty releases come per-key — `space release` arrives
+  // keybind, because kitty releases come per-key — `q release` arrives
   // separately from `ctrl release`, and we want either to end the session.
   onMount(() => {
     const handleRelease = (e: KeyEvent) => {
       if (!isPttBusy()) return
-      if (e.name === "space") {
+      if (e.name === "q") {
         stopPtt("stop")
       }
     }
@@ -1320,6 +1321,9 @@ export function Prompt(props: PromptProps) {
 
   const spinnerDef = createMemo(() => {
     const color = local.agent.color(local.agent.current().name)
+    // On 256-color terminals (Terminal.app), pre-composite spinner alpha
+    // colors against the background so they render correctly.
+    const bg = supportsAlphaBlending() ? undefined : theme.backgroundElement
     return {
       frames: createFrames({
         color,
@@ -1327,6 +1331,7 @@ export function Prompt(props: PromptProps) {
         inactiveFactor: 0.6,
         // enableFading: false,
         minAlpha: 0.3,
+        background: bg,
       }),
       color: createColors({
         color,
@@ -1334,6 +1339,7 @@ export function Prompt(props: PromptProps) {
         inactiveFactor: 0.6,
         // enableFading: false,
         minAlpha: 0.3,
+        background: bg,
       }),
     }
   })
@@ -1424,7 +1430,7 @@ export function Prompt(props: PromptProps) {
                   return
                 }
                 // ---- Push-to-talk: voice keybind press ------------------
-                // Default keybind is "alt+v,f2" — either triggers PTT. On
+                // Default keybind is "ctrl+q". On
                 // press, start recording immediately (no hold timer, no
                 // rollback). Release is handled in the renderer.keyInput
                 // keyrelease subscription above.
@@ -1849,6 +1855,7 @@ export function Prompt(props: PromptProps) {
                 }, 0)
               }}
               onMouseDown={(r: MouseEvent) => r.target?.focus()}
+              backgroundColor={theme.backgroundElement}
               focusedBackgroundColor={theme.backgroundElement}
               cursorColor={theme.text}
               syntaxStyle={syntax()}
@@ -1931,7 +1938,7 @@ export function Prompt(props: PromptProps) {
                       <text fg={theme.textMuted}>
                         {tI18n("session.promptFooterHint", {
                           newlineKey: keybind.print("input_newline") || "ctrl+j",
-                          voiceKey: keybind.print("input_voice") || "alt+v",
+                          voiceKey: keybind.print("input_voice") || "ctrl+q",
                         })}
                       </text>
                     )

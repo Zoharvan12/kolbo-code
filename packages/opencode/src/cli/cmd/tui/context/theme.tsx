@@ -3,6 +3,7 @@ import path from "path"
 import { createEffect, createMemo, onCleanup, onMount } from "solid-js"
 import { createSimpleContext } from "./helper"
 import { Glob } from "../../../../util/glob"
+import { supportsAlphaBlending } from "../util/terminal-caps"
 import aura from "./theme/aura.json" with { type: "json" }
 import ayu from "./theme/ayu.json" with { type: "json" }
 import catppuccin from "./theme/catppuccin.json" with { type: "json" }
@@ -614,10 +615,27 @@ function generateSyntax(theme: Theme) {
 
 function generateSubtleSyntax(theme: Theme) {
   const rules = getSyntaxRules(theme)
+  const needsPrecomposite = !supportsAlphaBlending()
+  const bg = theme.background
+  const alpha = theme.thinkingOpacity
+
   return SyntaxStyle.fromTheme(
     rules.map((rule) => {
       if (rule.style.foreground) {
         const fg = rule.style.foreground
+
+        if (needsPrecomposite) {
+          // Pre-composite: blend foreground at thinkingOpacity against background
+          // so 256-color terminals get an opaque dimmed color instead of alpha.
+          const r = Math.round((fg.r * alpha + bg.r * (1 - alpha)) * 255)
+          const g = Math.round((fg.g * alpha + bg.g * (1 - alpha)) * 255)
+          const b = Math.round((fg.b * alpha + bg.b * (1 - alpha)) * 255)
+          return {
+            ...rule,
+            style: { ...rule.style, foreground: RGBA.fromInts(r, g, b, 255) },
+          }
+        }
+
         return {
           ...rule,
           style: {
@@ -626,7 +644,7 @@ function generateSubtleSyntax(theme: Theme) {
               Math.round(fg.r * 255),
               Math.round(fg.g * 255),
               Math.round(fg.b * 255),
-              Math.round(theme.thinkingOpacity * 255),
+              Math.round(alpha * 255),
             ),
           },
         }

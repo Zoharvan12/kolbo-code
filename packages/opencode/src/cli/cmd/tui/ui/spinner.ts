@@ -2,6 +2,19 @@ import type { ColorInput } from "@opentui/core"
 import { RGBA } from "@opentui/core"
 import type { ColorGenerator } from "opentui-spinner"
 
+/**
+ * Pre-composites an RGBA color with fractional alpha against a solid background,
+ * returning a fully opaque RGBA. Needed for terminals that don't support alpha
+ * blending (e.g. macOS Terminal.app in 256-color mode).
+ */
+function precomposite(color: RGBA, bg: RGBA): RGBA {
+  const a = color.a
+  const r = color.r * a + bg.r * (1 - a)
+  const g = color.g * a + bg.g * (1 - a)
+  const b = color.b * a + bg.b * (1 - a)
+  return RGBA.fromValues(r, g, b, 1.0)
+}
+
 interface AdvancedGradientOptions {
   colors: ColorInput[]
   trailLength: number
@@ -10,6 +23,7 @@ interface AdvancedGradientOptions {
   holdFrames?: { start?: number; end?: number }
   enableFading?: boolean
   minAlpha?: number
+  background?: RGBA
 }
 
 interface ScannerState {
@@ -139,7 +153,7 @@ function calculateColorIndex(
 }
 
 function createKnightRiderTrail(options: AdvancedGradientOptions): ColorGenerator {
-  const { colors, defaultColor, enableFading = true, minAlpha = 0 } = options
+  const { colors, defaultColor, enableFading = true, minAlpha = 0, background } = options
 
   // Use the provided defaultColor if it's an RGBA instance, otherwise convert/default
   // We use RGBA.fromHex for the fallback to ensure we have an RGBA object.
@@ -148,6 +162,9 @@ function createKnightRiderTrail(options: AdvancedGradientOptions): ColorGenerato
 
   // Store the base alpha from the inactive factor
   const baseInactiveAlpha = defaultRgba.a
+
+  // Pre-composite active colors against background for 256-color terminals
+  const resolvedColors = background ? colors.map((c) => (c instanceof RGBA ? precomposite(c, background) : c)) : colors
 
   let cachedFrameIndex = -1
   let cachedState: ScannerState | null = null
@@ -178,6 +195,14 @@ function createKnightRiderTrail(options: AdvancedGradientOptions): ColorGenerato
       }
     }
 
+    // For 256-color terminals, pre-composite the faded default color
+    if (background) {
+      const faded = RGBA.fromValues(defaultRgba.r, defaultRgba.g, defaultRgba.b, baseInactiveAlpha * fadeFactor)
+      const resolved = precomposite(faded, background)
+      if (index === -1) return resolved
+      return resolvedColors[index] ?? resolved
+    }
+
     // Combine base inactive alpha with the fade factor
     // This ensures inactiveFactor is respected while still allowing fading animation
     defaultRgba.a = baseInactiveAlpha * fadeFactor
@@ -196,7 +221,7 @@ function createKnightRiderTrail(options: AdvancedGradientOptions): ColorGenerato
  * @param steps Number of gradient steps (default: 6)
  * @returns Array of RGBA colors with alpha-based trail fade (background-independent)
  */
-export function deriveTrailColors(brightColor: ColorInput, steps: number = 6): RGBA[] {
+export function deriveTrailColors(brightColor: ColorInput, steps: number = 6, background?: RGBA): RGBA[] {
   const baseRgba = brightColor instanceof RGBA ? brightColor : RGBA.fromHex(brightColor as string)
 
   const colors: RGBA[] = []
@@ -224,7 +249,9 @@ export function deriveTrailColors(brightColor: ColorInput, steps: number = 6): R
     const g = Math.min(1.0, baseRgba.g * brightnessFactor)
     const b = Math.min(1.0, baseRgba.b * brightnessFactor)
 
-    colors.push(RGBA.fromValues(r, g, b, alpha))
+    let color = RGBA.fromValues(r, g, b, alpha)
+    if (background) color = precomposite(color, background)
+    colors.push(color)
   }
 
   return colors
@@ -236,11 +263,13 @@ export function deriveTrailColors(brightColor: ColorInput, steps: number = 6): R
  * @param factor Alpha factor for inactive color (default: 0.2, range: 0-1)
  * @returns The same color with reduced alpha for background-independent dimming
  */
-export function deriveInactiveColor(brightColor: ColorInput, factor: number = 0.2): RGBA {
+export function deriveInactiveColor(brightColor: ColorInput, factor: number = 0.2, background?: RGBA): RGBA {
   const baseRgba = brightColor instanceof RGBA ? brightColor : RGBA.fromHex(brightColor as string)
 
   // Use the full color brightness but adjust alpha for background-independent dimming
-  return RGBA.fromValues(baseRgba.r, baseRgba.g, baseRgba.b, factor)
+  const color = RGBA.fromValues(baseRgba.r, baseRgba.g, baseRgba.b, factor)
+  if (background) return precomposite(color, background)
+  return color
 }
 
 export type KnightRiderStyle = "blocks" | "diamonds"
@@ -262,6 +291,8 @@ export interface KnightRiderOptions {
   enableFading?: boolean
   /** Minimum alpha value when fading (default: 0, range: 0-1) */
   minAlpha?: number
+  /** Background color for pre-compositing on 256-color terminals */
+  background?: RGBA
 }
 
 /**
@@ -275,10 +306,11 @@ export function createFrames(options: KnightRiderOptions = {}): string[] {
   const holdStart = options.holdStart ?? 30
   const holdEnd = options.holdEnd ?? 9
 
+  const bg = options.background
   const colors =
     options.colors ??
     (options.color
-      ? deriveTrailColors(options.color, options.trailSteps)
+      ? deriveTrailColors(options.color, options.trailSteps, bg)
       : [
           RGBA.fromHex("#ff0000"), // Brightest Red (Center)
           RGBA.fromHex("#ff5555"), // Glare/Bloom
@@ -290,7 +322,7 @@ export function createFrames(options: KnightRiderOptions = {}): string[] {
 
   const defaultColor =
     options.defaultColor ??
-    (options.color ? deriveInactiveColor(options.color, options.inactiveFactor) : RGBA.fromHex("#330000"))
+    (options.color ? deriveInactiveColor(options.color, options.inactiveFactor, bg) : RGBA.fromHex("#330000"))
 
   const trailOptions = {
     colors,
@@ -300,6 +332,7 @@ export function createFrames(options: KnightRiderOptions = {}): string[] {
     holdFrames: { start: holdStart, end: holdEnd },
     enableFading: options.enableFading,
     minAlpha: options.minAlpha,
+    background: bg,
   }
 
   // Bidirectional cycle: Forward (width) + Hold End + Backward (width-1) + Hold Start
@@ -337,10 +370,11 @@ export function createColors(options: KnightRiderOptions = {}): ColorGenerator {
   const holdStart = options.holdStart ?? 30
   const holdEnd = options.holdEnd ?? 9
 
+  const bg = options.background
   const colors =
     options.colors ??
     (options.color
-      ? deriveTrailColors(options.color, options.trailSteps)
+      ? deriveTrailColors(options.color, options.trailSteps, bg)
       : [
           RGBA.fromHex("#ff0000"), // Brightest Red (Center)
           RGBA.fromHex("#ff5555"), // Glare/Bloom
@@ -352,7 +386,7 @@ export function createColors(options: KnightRiderOptions = {}): ColorGenerator {
 
   const defaultColor =
     options.defaultColor ??
-    (options.color ? deriveInactiveColor(options.color, options.inactiveFactor) : RGBA.fromHex("#330000"))
+    (options.color ? deriveInactiveColor(options.color, options.inactiveFactor, bg) : RGBA.fromHex("#330000"))
 
   const trailOptions = {
     colors,
@@ -362,6 +396,7 @@ export function createColors(options: KnightRiderOptions = {}): ColorGenerator {
     holdFrames: { start: holdStart, end: holdEnd },
     enableFading: options.enableFading,
     minAlpha: options.minAlpha,
+    background: bg,
   }
 
   return createKnightRiderTrail(trailOptions)

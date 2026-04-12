@@ -84,6 +84,13 @@ function rendererConfig(_config: TuiConfig.Info): CliRendererConfig {
     autoFocus: false,
     openConsoleOnError: false,
     useMouse: mouseEnabled,
+    // Set initial background to match the kolbo dark theme (#0a0a0a) so the
+    // renderer paints the correct color from the first frame — before the
+    // ThemeProvider effect runs setBackgroundColor.
+    backgroundColor: "#0a0a0a",
+    // Forward COLORTERM so the native thread picks up whatever we set in
+    // index.ts (which now correctly omits truecolor for Terminal.app).
+    forwardEnvKeys: ["COLORTERM"],
     consoleOptions: {
       keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
       onCopySelection: (text) => {
@@ -126,14 +133,6 @@ export function tui(input: {
   return new Promise<void>(async (resolve) => {
     const unguard = win32InstallCtrlCGuard()
     win32DisableProcessedInput()
-
-    // Ensure truecolor rendering on all terminals. macOS Terminal.app (and some
-    // Linux terminals) don't set COLORTERM, which causes opentui's native
-    // renderer to fall back to 256 or 16 colors — making theme colors look
-    // wrong. Terminal.app supports truecolor since macOS Sierra (2016).
-    if (!process.env.COLORTERM) {
-      process.env.COLORTERM = "truecolor"
-    }
 
     // Kolbo forces dark mode on every machine — no terminal background detection.
     const mode = "dark" as const
@@ -331,6 +330,15 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
 
   const args = useArgs()
   onMount(() => {
+    if (process.env.TERM_PROGRAM === "Apple_Terminal") {
+      toast.show({
+        title: tc("toast.terminalAppUnsupportedTitle"),
+        variant: "warning",
+        message: tc("toast.terminalAppUnsupported"),
+        duration: 8000,
+      })
+    }
+
     batch(() => {
       if (args.agent) local.agent.set(args.agent)
       if (args.model) {

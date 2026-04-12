@@ -451,7 +451,9 @@
     "failedToCopy": "Failed to copy to clipboard",
     "failedToCopyConsoleSelection": "Failed to copy console selection to clipboard: {{error}}",
     "noProviderForPrompts": "Connect a provider to send prompts",
-    "sessionCreateFailed": "Creating a session failed. Open console for more details."
+    "sessionCreateFailed": "Creating a session failed. Open console for more details.",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "Session",

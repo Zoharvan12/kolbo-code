@@ -240,7 +240,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   const keybinds = createMemo(() => props.keybind?.filter((x) => !x.disabled && x.keybind) ?? [])
 
   return (
-    <box gap={1} paddingBottom={1}>
+    <box gap={1} paddingBottom={1} backgroundColor={theme.backgroundPanel}>
       <box paddingLeft={4} paddingRight={4}>
         {/*
           Title + "esc" row. `justifyContent="space-between"` pushes the
@@ -277,9 +277,11 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                 props.onFilter?.(e)
               })
             }}
+            backgroundColor={theme.backgroundPanel}
             focusedBackgroundColor={theme.backgroundPanel}
+            textColor={theme.text}
             cursorColor={theme.primary}
-            focusedTextColor={theme.textMuted}
+            focusedTextColor={theme.text}
             ref={(r) => {
               input = r
               input.traits = { status: "FILTER" }
@@ -401,7 +403,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                           if (index === -1) return
                           moveTo(index)
                         }}
-                        backgroundColor={active() ? (option.bg ?? theme.primary) : RGBA.fromInts(0, 0, 0, 0)}
+                        backgroundColor={active() ? (option.bg ?? theme.primary) : theme.backgroundPanel}
                         paddingLeft={current() || option.gutter ? 1 : 3}
                         paddingRight={3}
                         gap={1}

@@ -422,7 +422,9 @@
     "failedToCopy": "ההעתקה ללוח הגזירים נכשלה",
     "failedToCopyConsoleSelection": "ההעתקה של בחירת המסוף ללוח הגזירים נכשלה: {{error}}",
     "noProviderForPrompts": "חבר ספק כדי לשלוח בקשות",
-    "sessionCreateFailed": "יצירת הסשן נכשלה. פתח את המסוף לפרטים נוספים."
+    "sessionCreateFailed": "יצירת הסשן נכשלה. פתח את המסוף לפרטים נוספים.",
+    "terminalAppUnsupported": "Terminal.app לא תומך ב-truecolor\nטקסט שמקלידים לא ייראה\nהריצו: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "טרמינל לא נתמך"
   },
   "exitMessage": {
     "session": "סשן",

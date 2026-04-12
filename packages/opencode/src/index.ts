@@ -1,3 +1,12 @@
+// Force truecolor BEFORE any module loads — the @opentui/core native renderer
+// reads COLORTERM at import time to choose 24-bit vs 256-color output.
+// macOS Terminal.app doesn't advertise truecolor but can parse 24-bit SGR
+// sequences well enough for our UI. Without this, the renderer falls back to
+// 256-color mode which produces worse results.
+if (!process.env.COLORTERM) {
+  process.env.COLORTERM = "truecolor"
+}
+
 import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
 import { RunCommand } from "./cli/cmd/run"
