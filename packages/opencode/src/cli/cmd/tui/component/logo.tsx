@@ -1,7 +1,7 @@
 import { TextAttributes, RGBA } from "@opentui/core"
 import { For, type JSX } from "solid-js"
 import { useTheme, tint } from "@tui/context/theme"
-import { logo, marks } from "@/cli/logo"
+import { logo, marks, getPartnerLogo } from "@/cli/logo"
 
 // Shadow markers (rendered chars in parens):
 // _ = full shadow cell (space with bg=shadow)
@@ -11,6 +11,7 @@ const SHADOW_MARKER = new RegExp(`[${marks}]`)
 
 export function Logo() {
   const { theme } = useTheme()
+  const partnerLogo = getPartnerLogo()
 
   const renderLine = (line: string, fg: RGBA, bold: boolean): JSX.Element[] => {
     const shadow = tint(theme.background, fg, 0.25)
@@ -68,6 +69,22 @@ export function Logo() {
     }
 
     return elements
+  }
+
+  if (partnerLogo) {
+    return (
+      <box>
+        <For each={partnerLogo}>
+          {(line) => (
+            <box flexDirection="row">
+              <text fg={theme.text} attributes={TextAttributes.BOLD} selectable={false}>
+                {line}
+              </text>
+            </box>
+          )}
+        </For>
+      </box>
+    )
   }
 
   return (

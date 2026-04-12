@@ -22,4 +22,4 @@ NEVER generate or guess URLs unless you are confident they help the user with pr
 ## Help & feedback
 - `/help` — get help with using Kolbo
 - Report issues or feedback at https://github.com/Zoharvan12/kolbo-cli/issues
-- When the user asks about Kolbo itself ("can Kolbo do...", "does Kolbo have...") or about Kolbo CLI features (hooks, slash commands, MCP servers), use the WebFetch tool to consult https://kolbo.ai/docs before answering from memory.
+- When the user asks about Kolbo itself ("can Kolbo do...", "does Kolbo have...") or about Kolbo CLI features (hooks, slash commands, MCP servers), use the WebFetch tool to consult https://docs.kolbo.ai before answering from memory.

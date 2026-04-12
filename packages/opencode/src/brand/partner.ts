@@ -40,6 +40,8 @@ export namespace Partner {
     upsellMessage: string
     /** URL the /share command produces links against (usually same as domain root). */
     shareBase: string
+    /** Optional ASCII-art logo lines for the TUI home screen. Falls back to default Kolbo logo when absent. */
+    logo?: string[]
   }
 
   const KOLBO_DEFAULTS: Profile = {
@@ -48,9 +50,9 @@ export namespace Partner {
     domain: "kolbo.ai",
     apiBase: "https://api.kolbo.ai/api",
     appBase: "https://app.kolbo.ai",
-    docsUrl: "https://kolbo.ai/docs",
+    docsUrl: "https://docs.kolbo.ai",
     upsellUrl: "https://app.kolbo.ai/pricing",
-    upsellMessage: "Free usage exceeded, subscribe to Go https://kolbo.ai/go",
+    upsellMessage: "Free usage exceeded, upgrade at https://app.kolbo.ai/pricing",
     shareBase: "https://kolbo.ai",
   }
 

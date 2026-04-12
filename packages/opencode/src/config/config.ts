@@ -938,7 +938,7 @@ export namespace Config {
       command: z
         .record(z.string(), Command)
         .optional()
-        .describe("Command configuration, see https://kolbo.ai/docs/commands"),
+        .describe("Command configuration, see https://docs.kolbo.ai/commands"),
       skills: Skills.optional().describe("Additional skill folder paths"),
       watcher: z
         .object({
@@ -1010,7 +1010,7 @@ export namespace Config {
         })
         .catchall(Agent)
         .optional()
-        .describe("Agent configuration, see https://kolbo.ai/docs/agents"),
+        .describe("Agent configuration, see https://docs.kolbo.ai/agents"),
       provider: z
         .record(z.string(), Provider)
         .optional()

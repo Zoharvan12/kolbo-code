@@ -1367,12 +1367,9 @@ export function Prompt(props: PromptProps) {
   const placeholderText = createMemo(() => {
     if (props.showPlaceholder === false) return undefined
     if (store.mode === "shell") {
-      if (!shell().length) return undefined
-      const example = shell()[store.placeholder % shell().length]
-      return `${tI18n("home.runCommand")} "${example}"`
+      return tI18n("home.runCommand")
     }
-    if (!list().length) return undefined
-    return `${tI18n("home.askAnything")} "${list()[store.placeholder % list().length]}"`
+    return tI18n("home.askAnything")
   })
 
   const spinnerDef = createMemo(() => {
