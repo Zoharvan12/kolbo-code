@@ -185,7 +185,8 @@
     "failedToShare": "فشل مشاركة الجلسة",
     "newline": "new line",
     "voice": "إملاء",
-    "promptFooterHint": "{{newlineKey}} سطر جديد   {{voiceKey}} إملاء صوتي"
+    "promptFooterHint": "{{newlineKey}} سطر جديد   {{voiceKey}} إملاء صوتي",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +283,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "الجلسات",
@@ -423,7 +425,9 @@
     "failedToCopy": "فشل النسخ إلى الحافظة",
     "failedToCopyConsoleSelection": "فشل نسخ تحديد وحدة التحكم إلى الحافظة: {{error}}",
     "noProviderForPrompts": "قم بتوصيل مزود لإرسال المطالبات",
-    "sessionCreateFailed": "فشل إنشاء جلسة. افتح وحدة التحكم لمزيد من التفاصيل."
+    "sessionCreateFailed": "فشل إنشاء جلسة. افتح وحدة التحكم لمزيد من التفاصيل.",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "الجلسة",
@@ -457,5 +461,18 @@
       "backendTimeout": "لم تبدأ الخدمة الخلفية جلسة النسخ في غضون 5 ثوانٍ. هل مسار النسخ الفوري يعمل؟",
       "serverError": "خطأ في النسخ: {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

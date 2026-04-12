@@ -185,7 +185,8 @@
     "failedToShare": "सेशन साझा करने में विफल",
     "newline": "new line",
     "voice": "बोलें",
-    "promptFooterHint": "{{newlineKey}} नई पंक्ति   {{voiceKey}} आवाज़ से बोलें"
+    "promptFooterHint": "{{newlineKey}} नई पंक्ति   {{voiceKey}} आवाज़ से बोलें",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +283,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "सत्र",
@@ -423,7 +425,9 @@
     "failedToCopy": "क्लिपबोर्ड पर कॉपी करने में विफल",
     "failedToCopyConsoleSelection": "कंसोल चयन को क्लिपबोर्ड पर कॉपी करने में विफल: {{error}}",
     "noProviderForPrompts": "प्रॉम्प्ट भेजने के लिए एक प्रदाता कनेक्ट करें",
-    "sessionCreateFailed": "सेशन बनाने में विफल। अधिक जानकारी के लिए कंसोल खोलें।"
+    "sessionCreateFailed": "सेशन बनाने में विफल। अधिक जानकारी के लिए कंसोल खोलें।",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "सेशन",
@@ -457,5 +461,18 @@
       "backendTimeout": "बैकएंड ने 5 सेकंड के भीतर ट्रांसक्रिप्शन सत्र शुरू नहीं किया। क्या रियलटाइम स्क्राइब रूट चल रहा है?",
       "serverError": "ट्रांसक्रिप्शन त्रुटि: {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

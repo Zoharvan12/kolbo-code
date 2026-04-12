@@ -185,7 +185,8 @@
     "failedToShare": "共享会话失败",
     "newline": "new line",
     "voice": "语音输入",
-    "promptFooterHint": "{{newlineKey}} 换行   {{voiceKey}} 语音输入"
+    "promptFooterHint": "{{newlineKey}} 换行   {{voiceKey}} 语音输入",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +283,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "会话",
@@ -423,7 +425,9 @@
     "failedToCopy": "复制到剪贴板失败",
     "failedToCopyConsoleSelection": "无法复制控制台选定内容到剪贴板：{{error}}",
     "noProviderForPrompts": "连接一个提供商以发送提示词",
-    "sessionCreateFailed": "创建会话失败。打开控制台查看更多详细信息。"
+    "sessionCreateFailed": "创建会话失败。打开控制台查看更多详细信息。",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "会话",
@@ -457,5 +461,18 @@
       "backendTimeout": "后端在 5 秒内未启动转录会话。实时转录路由是否正在运行？",
       "serverError": "转录错误：{{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

@@ -185,7 +185,8 @@
     "failedToShare": "세션을 공유하지 못했습니다.",
     "newline": "new line",
     "voice": "받아쓰기",
-    "promptFooterHint": "{{newlineKey}} 줄바꿈   {{voiceKey}} 음성 받아쓰기"
+    "promptFooterHint": "{{newlineKey}} 줄바꿈   {{voiceKey}} 음성 받아쓰기",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +283,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "세션",
@@ -423,7 +425,9 @@
     "failedToCopy": "클립보드에 복사하지 못했습니다.",
     "failedToCopyConsoleSelection": "콘솔 선택 영역을 클립보드에 복사하지 못했습니다: {{error}}",
     "noProviderForPrompts": "프롬프트를 보내려면 공급자를 연결하십시오.",
-    "sessionCreateFailed": "세션 생성에 실패했습니다. 자세한 내용은 콘솔을 여십시오."
+    "sessionCreateFailed": "세션 생성에 실패했습니다. 자세한 내용은 콘솔을 여십시오.",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "세션",
@@ -457,5 +461,18 @@
       "backendTimeout": "백엔드가 5초 이내에 전사 세션을 시작하지 않았습니다. 실시간 scribe 경로가 실행 중입니까?",
       "serverError": "전사 오류: {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

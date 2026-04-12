@@ -185,7 +185,8 @@
     "failedToShare": "Falha ao compartilhar a sessão",
     "newline": "new line",
     "voice": "ditar",
-    "promptFooterHint": "{{newlineKey}} nova linha   {{voiceKey}} ditado por voz"
+    "promptFooterHint": "{{newlineKey}} nova linha   {{voiceKey}} ditado por voz",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +283,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "Sessões",
@@ -423,7 +425,9 @@
     "failedToCopy": "Falha ao copiar para a área de transferência",
     "failedToCopyConsoleSelection": "Falha ao copiar a seleção do console para a área de transferência: {{error}}",
     "noProviderForPrompts": "Conecte um provedor para enviar prompts",
-    "sessionCreateFailed": "Falha ao criar uma sessão. Abra o console para mais detalhes."
+    "sessionCreateFailed": "Falha ao criar uma sessão. Abra o console para mais detalhes.",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "Sessão",
@@ -457,5 +461,18 @@
       "backendTimeout": "O backend não iniciou a sessão de transcrição em 5 segundos. A rota de transcrição em tempo real está em execução?",
       "serverError": "Erro de transcrição: {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

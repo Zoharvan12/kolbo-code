@@ -185,7 +185,8 @@
     "failedToShare": "セッションの共有に失敗しました。",
     "newline": "new line",
     "voice": "音声入力",
-    "promptFooterHint": "{{newlineKey}} 改行   {{voiceKey}} 音声入力"
+    "promptFooterHint": "{{newlineKey}} 改行   {{voiceKey}} 音声入力",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +283,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "セッション",
@@ -423,7 +425,9 @@
     "failedToCopy": "クリップボードへのコピーに失敗しました。",
     "failedToCopyConsoleSelection": "コンソールの選択内容をクリップボードにコピーできませんでした: {{error}}",
     "noProviderForPrompts": "プロンプトを送信するにはプロバイダーを接続してください。",
-    "sessionCreateFailed": "セッションの作成に失敗しました。詳細はコンソールを開いてください。"
+    "sessionCreateFailed": "セッションの作成に失敗しました。詳細はコンソールを開いてください。",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "セッション",
@@ -457,5 +461,18 @@
       "backendTimeout": "バックエンドが 5 秒以内に文字起こしセッションを開始しませんでした。リアルタイム scribe ルートは動作していますか？",
       "serverError": "文字起こしエラー: {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

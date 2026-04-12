@@ -185,7 +185,8 @@
     "failedToShare": "Не удалось поделиться сессией",
     "newline": "new line",
     "voice": "диктовка",
-    "promptFooterHint": "{{newlineKey}} новая строка   {{voiceKey}} диктовка"
+    "promptFooterHint": "{{newlineKey}} новая строка   {{voiceKey}} диктовка",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +283,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "Сессии",
@@ -423,7 +425,9 @@
     "failedToCopy": "Не удалось скопировать в буфер обмена",
     "failedToCopyConsoleSelection": "Не удалось скопировать выделенный фрагмент консоли в буфер обмена: {{error}}",
     "noProviderForPrompts": "Подключите провайдера, чтобы отправлять запросы",
-    "sessionCreateFailed": "Не удалось создать сессию. Для получения более подробной информации откройте консоль."
+    "sessionCreateFailed": "Не удалось создать сессию. Для получения более подробной информации откройте консоль.",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "Сессия",
@@ -457,5 +461,18 @@
       "backendTimeout": "Сервер не начал сеанс транскрипции за 5 секунд. Запущен ли маршрут realtime scribe?",
       "serverError": "Ошибка транскрипции: {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

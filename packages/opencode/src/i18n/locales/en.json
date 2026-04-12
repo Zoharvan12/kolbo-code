@@ -160,6 +160,7 @@
     "commands": "commands",
     "agents": "toggle mode",
     "escAgainToClear": "again to clear",
+    "escAgainToRewind": "again to rewind",
     "ctrlCAgainToExit": "again to exit",
     "newline": "new line",
     "voice": "voice",
@@ -186,6 +187,19 @@
     "failedToExport": "Failed to export session",
     "transcriptCopied": "Session transcript copied to clipboard!",
     "failedToCopyTranscript": "Failed to copy session transcript"
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before\u2026",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "\u26a0 Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   },
   "commands": {
     "categories": {
@@ -250,6 +264,7 @@
     "forkFromMessage": "Fork from message",
     "compactSession": "Compact session",
     "unshareSession": "Unshare session",
+    "rewind": "Rewind",
     "undoPreviousMessage": "Undo previous message",
     "redo": "Redo",
     "showSidebar": "Show sidebar",

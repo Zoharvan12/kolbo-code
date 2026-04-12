@@ -185,7 +185,8 @@
     "voice": "הכתבה",
     "promptFooterHint": "{{newlineKey}} שורה חדשה   {{voiceKey}} הכתבת דיבור",
     "interrupted": "הופסק",
-    "failedToShare": "שיתוף הסשן נכשל"
+    "failedToShare": "שיתוף הסשן נכשל",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +283,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "סשנים",
@@ -459,5 +461,18 @@
       "backendTimeout": "השרת לא התחיל את שיחת התמלול בתוך 5 שניות. האם נתיב התמלול בזמן אמת פועל?",
       "serverError": "שגיאת תמלול: {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

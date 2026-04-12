@@ -1680,6 +1680,23 @@ export function Prompt(props: PromptProps) {
                   e.preventDefault()
                   return
                 }
+                // Double-tap ESC on empty prompt → open rewind
+                if (e.name === "escape" && store.prompt.input === "" && store.mode === "normal" && props.sessionID) {
+                  const now = Date.now()
+                  if (store.escPressedAt !== null && now - store.escPressedAt < 1500) {
+                    setStore("escPressedAt", null)
+                    command.trigger("session.rewind")
+                    e.preventDefault()
+                    return
+                  }
+                  setStore("escPressedAt", now)
+                  const armed = now
+                  setTimeout(() => {
+                    if (store.escPressedAt === armed) setStore("escPressedAt", null)
+                  }, 1500)
+                  e.preventDefault()
+                  return
+                }
                 if (store.mode === "normal") autocomplete.onKeyDown(e)
                 if (!autocomplete.visible) {
                   if (
@@ -2105,7 +2122,12 @@ export function Prompt(props: PromptProps) {
                   }
                 >
                   <text fg={theme.warning}>
-                    esc <span style={{ fg: theme.textMuted }}>{tI18n("session.escAgainToClear")}</span>
+                    esc{" "}
+                    <span style={{ fg: theme.textMuted }}>
+                      {store.prompt.input !== ""
+                        ? tI18n("session.escAgainToClear")
+                        : tI18n("session.escAgainToRewind")}
+                    </span>
                   </text>
                 </Show>
               }

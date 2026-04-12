@@ -185,7 +185,8 @@
     "failedToShare": "Le partage de la session a échoué",
     "newline": "new line",
     "voice": "dicter",
-    "promptFooterHint": "{{newlineKey}} nouvelle ligne   {{voiceKey}} dictée vocale"
+    "promptFooterHint": "{{newlineKey}} nouvelle ligne   {{voiceKey}} dictée vocale",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +283,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "Sessions",
@@ -423,7 +425,9 @@
     "failedToCopy": "Impossible de copier dans le presse-papiers",
     "failedToCopyConsoleSelection": "Impossible de copier la sélection de la console dans le presse-papiers : {{error}}",
     "noProviderForPrompts": "Connectez un fournisseur pour envoyer des invites de commande",
-    "sessionCreateFailed": "La création d'une session a échoué. Veuillez consulter la console pour plus de détails."
+    "sessionCreateFailed": "La création d'une session a échoué. Veuillez consulter la console pour plus de détails.",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "Session",
@@ -457,5 +461,18 @@
       "backendTimeout": "Le backend n'a pas démarré la session de transcription dans les 5 secondes. La route de transcription en temps réel est-elle active ?",
       "serverError": "Erreur de transcription : {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }
