@@ -162,9 +162,11 @@ export namespace PushToTalk {
      * silently. The web client dodges this because getUserMedia() adds a
      * natural ~200ms delay.
      *
-     * Fix: retry the scribe:start emit up to 5 times at 300ms intervals until
-     * the server responds with `scribe:session_started`. The server's
-     * connection setup typically completes in <300ms but we give it headroom.
+     * Fix: wait 300ms after connect before emitting scribe:start once.
+     * Each emission creates a new ElevenLabs WebSocket on the server, so
+     * retrying creates orphaned sessions that cause "WebSocket not open"
+     * errors when audio arrives. One attempt + the 5s readyWatchdog is
+     * sufficient.
      */
     const startPayload = {
       sessionId,
@@ -178,18 +180,15 @@ export namespace PushToTalk {
         enable_diarization: false,
       },
     }
-    let startAttempts = 0
-    const MAX_START_ATTEMPTS = 5
-    const emitStart = () => {
-      if (stopped || sessionReady) return
-      startAttempts++
-      socket.emit("scribe:start", startPayload)
-      if (startAttempts < MAX_START_ATTEMPTS) {
-        startRetryTimer = setTimeout(emitStart, 300)
-      }
-    }
 
-    socket.on("connect", () => emitStart())
+    socket.on("connect", () => {
+      // Delay the start emit to let the server finish its async connection
+      // setup (updateLiveUsers, registering socket handlers, etc.).
+      startRetryTimer = setTimeout(() => {
+        if (stopped || sessionReady) return
+        socket.emit("scribe:start", startPayload)
+      }, 300)
+    })
 
     socket.on("connect_error", (err: Error & { description?: any; type?: string; context?: any }) => {
       const detail = [
@@ -231,14 +230,27 @@ export namespace PushToTalk {
 
     socket.on("scribe:error", (data: { sessionId: string; error: string }) => {
       if (data.sessionId !== sessionId) return
-      opts.onError?.({ code: "serverError", params: { error: data.error } })
-      cleanup()
+      // Only treat session-ending errors as fatal. Transient audio-send
+      // failures (e.g. "WebSocket connection not open" during startup race)
+      // should not tear down the whole session — the server may still be
+      // setting up and subsequent chunks will succeed.
+      const fatal =
+        /rate limit/i.test(data.error) ||
+        /session id is required/i.test(data.error) ||
+        /failed to start/i.test(data.error)
+      if (fatal) {
+        opts.onError?.({ code: "serverError", params: { error: data.error } })
+        cleanup()
+      }
     })
 
     socket.on("scribe:stopped", (data: { sessionId: string }) => {
       if (data.sessionId !== sessionId) return
+      // Notify the UI that the server acked the stop, but do NOT cleanup
+      // yet — late committed_transcript events from ElevenLabs can still
+      // arrive after the server's stop ack. The 1.5s timeout in stop()
+      // will handle final teardown.
       opts.onStopped?.()
-      cleanup()
     })
 
     socket.on("scribe:closed", (data: { sessionId: string }) => {
@@ -284,7 +296,6 @@ export namespace PushToTalk {
           try {
             if (sessionReady) {
               flushQueue()
-              socket.emit("scribe:audio", { sessionId, audio: "", commit: true })
             }
             socket.emit("scribe:stop", { sessionId })
           } catch {}
@@ -333,10 +344,10 @@ export namespace PushToTalk {
     try {
       const u = new URL(Partner.apiBase)
       const origin = `${u.protocol}//${u.host}`
-      // Strip trailing slash, then append /socket.io
-      const base = u.pathname.replace(/\/+$/, "")
-      const path = base ? `${base}/socket.io` : "/socket.io"
-      return { origin, path }
+      // Socket.IO is mounted at the server root, NOT under the /api sub-path.
+      // Partner.apiBase includes "/api" for REST routes, but the Socket.IO
+      // server listens on the default "/socket.io" path.
+      return { origin, path: "/socket.io" }
     } catch {
       return { origin: Partner.apiBase, path: "/socket.io" }
     }

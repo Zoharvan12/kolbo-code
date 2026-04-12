@@ -220,7 +220,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
   const toast = useToast()
   const themeState = useTheme()
   const { t: tc } = useI18n()
-  const { theme, mode, setMode, locked, lock, unlock } = themeState
+  const { theme } = themeState
   const sync = useSync()
   const exit = useExit()
   const promptRef = usePromptRef()
@@ -414,8 +414,8 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       category: tc("commands.categories.session"),
       suggested: sync.data.session.length > 0,
       slash: {
-        name: "sessions",
-        aliases: ["resume", "continue"],
+        name: "resume",
+        aliases: ["sessions", "continue"],
       },
       onSelect: () => {
         dialog.replace(() => <DialogSessionList />)
@@ -444,8 +444,8 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       keybind: "session_new",
       category: tc("commands.categories.session"),
       slash: {
-        name: "new",
-        aliases: ["clear"],
+        name: "clear",
+        aliases: ["new"],
       },
       onSelect: () => {
         const current = promptRef.current
@@ -629,25 +629,6 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
       onSelect: () => {
         dialog.replace(() => <DialogLanguage />)
-      },
-      category: tc("commands.categories.system"),
-    },
-    {
-      title: tc("commands.toggleThemeMode"),
-      value: "theme.switch_mode",
-      onSelect: (dialog) => {
-        setMode(mode() === "dark" ? "light" : "dark")
-        dialog.clear()
-      },
-      category: tc("commands.categories.system"),
-    },
-    {
-      title: locked() ? tc("commands.unlockThemeMode") : tc("commands.lockThemeMode"),
-      value: "theme.mode.lock",
-      onSelect: (dialog) => {
-        if (locked()) unlock()
-        else lock()
-        dialog.clear()
       },
       category: tc("commands.categories.system"),
     },

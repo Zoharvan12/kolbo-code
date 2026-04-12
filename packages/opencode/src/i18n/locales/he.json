@@ -38,6 +38,8 @@
     }
   },
   "home": {
+    "askAnything": "מה תרצה ליצור...",
+    "runCommand": "הרץ פקודה...",
     "placeholder": {
       "fixTodo": "תקן משימת TODO בבסיס הקוד",
       "techStack": "מהו המערך הטכנולוגי של פרויקט זה?",
@@ -64,12 +66,11 @@
     "tip_9": "הריצו {highlight}/init{/highlight} כדי ליצור באופן אוטומטי כללי פרויקט המבוססים על בסיס הקוד שלכם",
     "tip_10": "הריצו {highlight}/models{/highlight} או {highlight}Ctrl+X M{/highlight} כדי לראות ולעבור בין מודלים זמינים של בינה מלאכותית",
     "tip_11": "השתמשו ב-{highlight}/themes{/highlight} או {highlight}Ctrl+X T{/highlight} כדי לעבור בין ערכות נושא מובנות",
-    "tip_12": "לחצו על {highlight}Ctrl+X N{/highlight} או {highlight}/new{/highlight} כדי להתחיל סשן שיחה חדש",
-    "tip_13": "השתמשו ב-{highlight}/sessions{/highlight} או {highlight}Ctrl+X L{/highlight} כדי לרשום ולהמשיך שיחות קודמות",
-    "tip_14": "הריצו {highlight}/compact{/highlight} כדי לסכם סשנים ארוכים ליד מגבלות ההקשר",
+    "tip_12": "הקלידו {highlight}/clear{/highlight} כדי להתחיל סשן שיחה חדש",
+    "tip_13": "השתמשו ב-{highlight}/resume{/highlight} או {highlight}Ctrl+X L{/highlight} כדי לרשום ולהמשיך שיחות קודמות",
     "tip_15": "לחצו על {highlight}Ctrl+X X{/highlight} או {highlight}/export{/highlight} כדי לשמור את השיחה כ-Markdown",
     "tip_16": "לחצו על {highlight}Ctrl+X Y{/highlight} כדי להעתיק את ההודעה האחרונה של העוזר ללוח",
-    "tip_17": "לחצו על {highlight}Ctrl+P{/highlight} כדי לראות את כל הפעולות והפקודות הזמינות",
+    "tip_17": "לחצו על {highlight}Ctrl+N{/highlight} כדי לראות את כל הפעולות והפקודות הזמינות",
     "tip_18": "הריצו {highlight}/connect{/highlight} כדי להוסיף מפתחות API עבור 75+ ספקי LLM נתמכים",
     "tip_19": "מקש הליבה הוא {highlight}Ctrl+X{/highlight}; שלבו עם מקשים אחרים לפעולות מהירות",
     "tip_20": "לחצו על {highlight}F2{/highlight} כדי לעבור במהירות בין מודלים שהיו בשימוש לאחרונה",
@@ -77,7 +78,7 @@
     "tip_22": "השתמשו ב-{highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} כדי לנווט בהיסטוריית השיחות",
     "tip_23": "לחצו על {highlight}Ctrl+G{/highlight} או {highlight}Home{/highlight} כדי לקפוץ לתחילת השיחה",
     "tip_24": "לחצו על {highlight}Ctrl+Alt+G{/highlight} או {highlight}End{/highlight} כדי לקפוץ להודעה האחרונה ביותר",
-    "tip_25": "לחצו על {highlight}Ctrl+J{/highlight} כדי להוסיף שורות חדשות בהנחיה שלכם",
+    "tip_25": "לחצו על {highlight}Shift+Enter{/highlight} כדי להוסיף שורות חדשות בהנחיה שלכם",
     "tip_26": "לחצו על {highlight}Ctrl+C{/highlight} בזמן ההקלדה כדי לנקות את שדה הקלט",
     "tip_27": "לחצו על {highlight}Escape{/highlight} כדי לעצור את הבינה המלאכותית באמצע תגובה",
     "tip_28": "עברו לסוכן {highlight}Plan{/highlight} כדי לקבל הצעות בלי לבצע שינויים ממשיים",
@@ -144,7 +145,7 @@
     "tip_89": "הקישו {highlight}Ctrl+X H{/highlight} כדי להחליף את הנראות של בלוק קוד בהודעות",
     "tip_90": "הקישו {highlight}Ctrl+X S{/highlight} או {highlight}/status{/highlight} כדי לראות מידע על מצב המערכת",
     "tip_91": "אפשרו {highlight}scroll_acceleration{/highlight} ב-{highlight}tui.json{/highlight} לגלילה חלקה בסגנון macOS",
-    "tip_92": "הפעילו/כבו תצוגת שם משתמש בצ'אט באמצעות לוח הפקודות ({highlight}Ctrl+P{/highlight})",
+    "tip_92": "הפעילו/כבו תצוגת שם משתמש בצ'אט באמצעות לוח הפקודות ({highlight}Ctrl+N{/highlight})",
     "tip_94": "השתמש ב-{highlight}/connect{/highlight} כדי להוסיף את חשבון ה-Kolbo.AI שלך או ספק אחר",
     "tip_95": "בצע Commit לקובץ ה-{highlight}KOLBO.md{/highlight} של הפרויקט שלך ל-Git לשיתוף צוותי",
     "tip_96": "השתמש ב-{highlight}/review{/highlight} כדי לסקור שינויים שלא בוצעו להם Commit, סניפים או בקשות משיכה",
@@ -216,7 +217,7 @@
     "switchOrg": "החלפת ארגון",
     "viewStatus": "הצגת סטטוס",
     "switchLanguage": "החלפת שפה",
-    "switchTheme": "החלפת ערכת נושא",
+    "switchTheme": "Switch theme",
     "toggleThemeMode": "החלפת מצב ערכת נושא",
     "lockThemeMode": "נעילת מצב ערכת נושא",
     "unlockThemeMode": "שחרור נעילת מצב ערכת נושא",
@@ -237,7 +238,7 @@
     "copyShareLink": "העתקת קישור שיתוף",
     "renameSession": "שינוי שם הסשן",
     "jumpToMessage": "מעבר להודעה",
-    "forkFromMessage": "יצירת fork מהודעה",
+    "forkFromMessage": "Fork from message",
     "compactSession": "כיווץ הסשן",
     "unshareSession": "ביטול שיתוף הסשן",
     "undoPreviousMessage": "ביטול ההודעה הקודמת",
@@ -278,10 +279,10 @@
     "paste": "הדבק",
     "interruptSession": "הפסק סשן",
     "openEditor": "פתח עורך",
-    "skills": "מיומנויות",
-    "stashPrompt": "שמור בקשה בצד",
-    "stashPop": "שלוף בקשה שמורה",
-    "stashList": "רשימת בקשות שמורות"
+    "skills": "Skills",
+    "stashPrompt": "Stash prompt",
+    "stashPop": "Stash pop",
+    "stashList": "Stash list"
   },
   "dialog": {
     "sessions": "סשנים",
@@ -395,10 +396,10 @@
     "noMcpServers": "אין שרתי MCP",
     "mcpServers": "{{count}} שרתי MCP",
     "lspServers": "{{count}} שרתי LSP",
-    "noFormatters": "אין מעצבים",
-    "formatters": "{{count}} מעצבים",
-    "noPlugins": "אין תוספים",
-    "plugins": "{{count}} תוספים"
+    "noFormatters": "No Formatters",
+    "formatters": "{{count}} Formatters",
+    "noPlugins": "No Plugins",
+    "plugins": "{{count}} Plugins"
   },
   "update": {
     "available": "עדכון זמין",
@@ -435,20 +436,20 @@
     "native": "מקומי",
     "shell": "Shell",
     "build": {
-      "name": "בנייה",
+      "name": "Build",
       "description": "סוכן ברירת המחדל. מבצע כלים בהתבסס על הרשאות מוגדרות."
     },
     "plan": {
-      "name": "תוכנית",
+      "name": "Plan",
       "description": "מצב תכנון. אוסר על כל כלי העריכה."
     },
     "autoApprove": {
-      "name": "אישור אוטומטי",
+      "name": "Auto-Approve",
       "description": "מצב אישור אוטומטי. מדלג על כל הנחיות ההרשאה - השתמש בזהירות."
     }
   },
   "voice": {
-    "recording": "מקליט…",
+    "recording": "מקליט — המשיכו ללחוץ כדי להקליט, שחררו כדי לעצור",
     "errors": {
       "notLoggedIn": "לא מחובר ל-Kolbo — הפעל /login תחילה",
       "noMicBackend": "הקלט הקולי לא מצא רכיב מיקרופון תקין. התקן מחדש את kolbo (ייתכן שהורדת ffmpeg המצורף נכשלה) או התקן ffmpeg/sox ידנית.",

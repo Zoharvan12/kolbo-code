@@ -38,6 +38,8 @@
     }
   },
   "home": {
+    "askAnything": "随便问...",
+    "runCommand": "运行命令...",
     "placeholder": {
       "fixTodo": "修复代码库中的 TODO",
       "techStack": "这个项目的技术栈是什么？",
@@ -64,12 +66,11 @@
     "tip_9": "运行 {highlight}/init{/highlight} 以根据您的代码库自动生成项目规则",
     "tip_10": "运行 {highlight}/models{/highlight} 或 {highlight}Ctrl+X M{/highlight} 以查看和切换可用的 AI 模型",
     "tip_11": "使用 {highlight}/themes{/highlight} 或 {highlight}Ctrl+X T{/highlight} 切换内置主题",
-    "tip_12": "按 {highlight}Ctrl+X N{/highlight} 或 {highlight}/new{/highlight} 开始新的对话会话",
-    "tip_13": "使用 {highlight}/sessions{/highlight} 或 {highlight}Ctrl+X L{/highlight} 列出并继续以前的对话",
-    "tip_14": "运行 {highlight}/compact{/highlight} 以在接近上下文限制时总结冗长的会话",
+    "tip_12": "输入 {highlight}/clear{/highlight} 开始新的对话会话",
+    "tip_13": "使用 {highlight}/resume{/highlight} 或 {highlight}Ctrl+X L{/highlight} 列出并继续以前的对话",
     "tip_15": "按 {highlight}Ctrl+X X{/highlight} 或 {highlight}/export{/highlight} 将对话保存为 Markdown",
     "tip_16": "按 {highlight}Ctrl+X Y{/highlight} 将助手的最后一条消息复制到剪贴板",
-    "tip_17": "按 {highlight}Ctrl+P{/highlight} 查看所有可用的操作和命令",
+    "tip_17": "按 {highlight}Ctrl+N{/highlight} 查看所有可用的操作和命令",
     "tip_18": "运行 {highlight}/connect{/highlight} 以添加对 75+ 个受支持的 LLM 提供商的 API 密钥",
     "tip_19": "引导键是 {highlight}Ctrl+X{/highlight}；与其他键组合可实现快速操作",
     "tip_20": "按 {highlight}F2{/highlight} 可快速切换最近使用的模型",
@@ -77,7 +78,7 @@
     "tip_22": "使用 {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} 浏览对话历史记录",
     "tip_23": "按 {highlight}Ctrl+G{/highlight} 或 {highlight}Home{/highlight} 跳转到对话开头",
     "tip_24": "按 {highlight}Ctrl+Alt+G{/highlight} 或 {highlight}End{/highlight} 跳转到最新消息",
-    "tip_25": "按 {highlight}Ctrl+J{/highlight} 在提示中添加换行符",
+    "tip_25": "按 {highlight}Shift+Enter{/highlight} 在提示中添加换行符",
     "tip_26": "输入时按 {highlight}Ctrl+C{/highlight} 可清除输入字段",
     "tip_27": "按 {highlight}Escape{/highlight} 停止 AI 的中间响应",
     "tip_28": "切换到 {highlight}Plan{/highlight} 代理以获取建议，而无需进行实际更改",
@@ -144,7 +145,7 @@
     "tip_89": "按 {highlight}Ctrl+X H{/highlight} 来切换消息中的代码块可见性",
     "tip_90": "按 {highlight}Ctrl+X S{/highlight} 或 {highlight}/status{/highlight} 来查看系统状态信息",
     "tip_91": "在 {highlight}tui.json{/highlight} 中启用 {highlight}scroll_acceleration{/highlight} 以获得流畅的 macOS 风格滚动",
-    "tip_92": "通过命令面板（{highlight}Ctrl+P{/highlight}）切换聊天中的用户名显示",
+    "tip_92": "通过命令面板（{highlight}Ctrl+N{/highlight}）切换聊天中的用户名显示",
     "tip_94": "使用 {highlight}/connect{/highlight} 来添加您的 Kolbo.AI 账户或其他提供商",
     "tip_95": "将您项目的 {highlight}KOLBO.md{/highlight} 文件提交到 Git 以便团队共享",
     "tip_96": "使用 {highlight}/review{/highlight} 来审查未提交的更改、分支或 PR",
@@ -216,7 +217,7 @@
     "switchOrg": "切换组织",
     "viewStatus": "查看状态",
     "switchLanguage": "切换语言",
-    "switchTheme": "切换主题",
+    "switchTheme": "Switch theme",
     "toggleThemeMode": "切换主题模式",
     "lockThemeMode": "锁定主题模式",
     "unlockThemeMode": "解锁主题模式",
@@ -237,7 +238,7 @@
     "copyShareLink": "复制分享链接",
     "renameSession": "重命名会话",
     "jumpToMessage": "跳转至消息",
-    "forkFromMessage": "从此消息分叉",
+    "forkFromMessage": "Fork from message",
     "compactSession": "压缩会话",
     "unshareSession": "取消共享会话",
     "undoPreviousMessage": "撤销上一条消息",
@@ -278,10 +279,10 @@
     "paste": "粘贴",
     "interruptSession": "中断会话",
     "openEditor": "打开编辑器",
-    "skills": "技能",
-    "stashPrompt": "暂存提示词",
-    "stashPop": "弹出暂存",
-    "stashList": "暂存列表"
+    "skills": "Skills",
+    "stashPrompt": "Stash prompt",
+    "stashPop": "Stash pop",
+    "stashList": "Stash list"
   },
   "dialog": {
     "sessions": "会话",
@@ -395,10 +396,10 @@
     "noMcpServers": "没有 MCP 服务器",
     "mcpServers": "{{count}} 个 MCP 服务器",
     "lspServers": "{{count}} 个 LSP 服务器",
-    "noFormatters": "没有格式化器",
-    "formatters": "{{count}} 个格式化器",
-    "noPlugins": "没有插件",
-    "plugins": "{{count}} 个插件"
+    "noFormatters": "No Formatters",
+    "formatters": "{{count}} Formatters",
+    "noPlugins": "No Plugins",
+    "plugins": "{{count}} Plugins"
   },
   "update": {
     "available": "有可用更新",
@@ -433,20 +434,20 @@
     "native": "本地",
     "shell": "Shell",
     "build": {
-      "name": "构建",
+      "name": "Build",
       "description": "默认代理。根据配置的权限执行工具。"
     },
     "plan": {
-      "name": "计划",
+      "name": "Plan",
       "description": "计划模式。禁止所有编辑工具。"
     },
     "autoApprove": {
-      "name": "自动批准",
+      "name": "Auto-Approve",
       "description": "自动批准模式。跳过所有权限提示 — 请谨慎使用。"
     }
   },
   "voice": {
-    "recording": "正在录音…",
+    "recording": "正在录音 — 按住继续录音，松开停止",
     "errors": {
       "notLoggedIn": "未登录 Kolbo — 请先运行 /login",
       "noMicBackend": "语音输入未找到可用的麦克风后端。请重新安装 kolbo（捆绑的 ffmpeg 可能下载失败）或手动安装 ffmpeg/sox。",

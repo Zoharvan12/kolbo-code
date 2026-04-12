@@ -38,6 +38,8 @@
     }
   },
   "home": {
+    "askAnything": "Ask anything...",
+    "runCommand": "Run a command...",
     "placeholder": {
       "fixTodo": "Fix a TODO in the codebase",
       "techStack": "What is the tech stack of this project?",
@@ -64,12 +66,11 @@
     "tip_9": "Run {highlight}/init{/highlight} to auto-generate project rules based on your codebase",
     "tip_10": "Run {highlight}/models{/highlight} or {highlight}Ctrl+X M{/highlight} to see and switch between available AI models",
     "tip_11": "Use {highlight}/themes{/highlight} or {highlight}Ctrl+X T{/highlight} to switch between built-in themes",
-    "tip_12": "Press {highlight}Ctrl+X N{/highlight} or {highlight}/new{/highlight} to start a fresh conversation session",
-    "tip_13": "Use {highlight}/sessions{/highlight} or {highlight}Ctrl+X L{/highlight} to list and continue previous conversations",
-    "tip_14": "Run {highlight}/compact{/highlight} to summarize long sessions near context limits",
+    "tip_12": "Type {highlight}/clear{/highlight} to start a fresh conversation session",
+    "tip_13": "Use {highlight}/resume{/highlight} or {highlight}Ctrl+X L{/highlight} to list and continue previous conversations",
     "tip_15": "Press {highlight}Ctrl+X X{/highlight} or {highlight}/export{/highlight} to save the conversation as Markdown",
     "tip_16": "Press {highlight}Ctrl+X Y{/highlight} to copy the assistant's last message to clipboard",
-    "tip_17": "Press {highlight}Ctrl+P{/highlight} to see all available actions and commands",
+    "tip_17": "Press {highlight}Ctrl+N{/highlight} to see all available actions and commands",
     "tip_18": "Run {highlight}/connect{/highlight} to add API keys for 75+ supported LLM providers",
     "tip_19": "The leader key is {highlight}Ctrl+X{/highlight}; combine with other keys for quick actions",
     "tip_20": "Press {highlight}F2{/highlight} to quickly switch between recently used models",
@@ -77,7 +78,7 @@
     "tip_22": "Use {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} to navigate through conversation history",
     "tip_23": "Press {highlight}Ctrl+G{/highlight} or {highlight}Home{/highlight} to jump to the beginning of the conversation",
     "tip_24": "Press {highlight}Ctrl+Alt+G{/highlight} or {highlight}End{/highlight} to jump to the most recent message",
-    "tip_25": "Press {highlight}Ctrl+J{/highlight} to add newlines in your prompt",
+    "tip_25": "Press {highlight}Shift+Enter{/highlight} to add newlines in your prompt",
     "tip_26": "Press {highlight}Ctrl+C{/highlight} when typing to clear the input field",
     "tip_27": "Press {highlight}Escape{/highlight} to stop the AI mid-response",
     "tip_28": "Switch to {highlight}Plan{/highlight} agent to get suggestions without making actual changes",
@@ -144,7 +145,7 @@
     "tip_89": "Press {highlight}Ctrl+X H{/highlight} to toggle code block visibility in messages",
     "tip_90": "Press {highlight}Ctrl+X S{/highlight} or {highlight}/status{/highlight} to see system status info",
     "tip_91": "Enable {highlight}scroll_acceleration{/highlight} in {highlight}tui.json{/highlight} for smooth macOS-style scrolling",
-    "tip_92": "Toggle username display in chat via command palette ({highlight}Ctrl+P{/highlight})",
+    "tip_92": "Toggle username display in chat via command palette ({highlight}Ctrl+N{/highlight})",
     "tip_94": "Use {highlight}/connect{/highlight} to add your Kolbo.AI account or another provider",
     "tip_95": "Commit your project's {highlight}KOLBO.md{/highlight} file to Git for team sharing",
     "tip_96": "Use {highlight}/review{/highlight} to review uncommitted changes, branches, or PRs",
@@ -429,7 +430,7 @@
     "heapSnapshotWritten": "Heap snapshot written to {{files}}"
   },
   "voice": {
-    "recording": "Recording…",
+    "recording": "Recording — hold to keep recording, release to stop",
     "errors": {
       "notLoggedIn": "Not logged in to Kolbo — run /login first",
       "noMicBackend": "Voice input could not find a working mic backend. Reinstall kolbo (bundled ffmpeg may have failed to download) or install ffmpeg/sox manually.",

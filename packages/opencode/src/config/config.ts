@@ -633,7 +633,7 @@ export namespace Config {
       username_toggle: z.string().optional().default("none").describe("Toggle username visibility"),
       status_view: z.string().optional().default("<leader>s").describe("View status"),
       session_export: z.string().optional().default("<leader>x").describe("Export session to editor"),
-      session_new: z.string().optional().default("<leader>n").describe("Create a new session"),
+      session_new: z.string().optional().default("none").describe("Create a new session"),
       session_list: z.string().optional().default("<leader>l").describe("List all sessions"),
       session_timeline: z.string().optional().default("<leader>g").describe("Show session timeline"),
       session_fork: z.string().optional().default("none").describe("Fork session from message"),
@@ -679,7 +679,7 @@ export namespace Config {
       model_cycle_recent_reverse: z.string().optional().default("shift+f2").describe("Previous recently used model"),
       model_cycle_favorite: z.string().optional().default("none").describe("Next favorite model"),
       model_cycle_favorite_reverse: z.string().optional().default("none").describe("Previous favorite model"),
-      command_list: z.string().optional().default("ctrl+p").describe("List available commands"),
+      command_list: z.string().optional().default("ctrl+n").describe("List available commands"),
       agent_list: z.string().optional().default("<leader>a").describe("List agents"),
       agent_cycle: z.string().optional().default("tab").describe("Next agent"),
       agent_cycle_reverse: z.string().optional().default("shift+tab").describe("Previous agent"),
@@ -699,13 +699,11 @@ export namespace Config {
       input_newline: z
         .string()
         .optional()
-        // ctrl+j is listed first so the keybind.print() tooltip shows it
-        // as the primary binding. Many terminals (notably Windows Terminal
-        // without full kitty support) don't distinguish shift+return from
-        // plain return — the shift modifier never makes it to the app —
-        // so shift+return silently fails. ctrl+j is a distinct control
-        // character that survives every terminal we've tested.
-        .default("ctrl+j,shift+return,ctrl+return,alt+return")
+        // shift+return is the most intuitive binding and is shown as the
+        // primary tooltip. ctrl+j is kept as a fallback because some
+        // terminals (notably Windows Terminal without full kitty support)
+        // don't distinguish shift+return from plain return.
+        .default("shift+return,ctrl+return,alt+return,ctrl+j")
         .describe("Insert newline in input"),
       input_move_left: z.string().optional().default("left,ctrl+b").describe("Move cursor left in input"),
       input_move_right: z.string().optional().default("right,ctrl+f").describe("Move cursor right in input"),

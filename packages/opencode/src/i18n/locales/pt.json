@@ -38,6 +38,8 @@
     }
   },
   "home": {
+    "askAnything": "Pergunte qualquer coisa...",
+    "runCommand": "Execute um comando...",
     "placeholder": {
       "fixTodo": "Corrija um TODO na base de código",
       "techStack": "Qual é o stack tecnológico deste projeto?",
@@ -64,12 +66,11 @@
     "tip_9": "Execute {highlight}/init{/highlight} para gerar automaticamente regras de projeto com base em sua base de código",
     "tip_10": "Execute {highlight}/models{/highlight} ou {highlight}Ctrl+X M{/highlight} para ver e alternar entre os modelos de IA disponíveis",
     "tip_11": "Use {highlight}/themes{/highlight} ou {highlight}Ctrl+X T{/highlight} para alternar entre temas integrados",
-    "tip_12": "Pressione {highlight}Ctrl+X N{/highlight} ou {highlight}/new{/highlight} para iniciar uma nova sessão de conversa",
-    "tip_13": "Use {highlight}/sessions{/highlight} ou {highlight}Ctrl+X L{/highlight} para listar e continuar conversas anteriores",
-    "tip_14": "Execute {highlight}/compact{/highlight} para resumir sessões longas próximas aos limites de contexto",
+    "tip_12": "Digite {highlight}/clear{/highlight} para iniciar uma nova sessão de conversa",
+    "tip_13": "Use {highlight}/resume{/highlight} ou {highlight}Ctrl+X L{/highlight} para listar e continuar conversas anteriores",
     "tip_15": "Pressione {highlight}Ctrl+X X{/highlight} ou {highlight}/export{/highlight} para salvar a conversa como Markdown",
     "tip_16": "Pressione {highlight}Ctrl+X Y{/highlight} para copiar a última mensagem do assistente para a área de transferência",
-    "tip_17": "Pressione {highlight}Ctrl+P{/highlight} para ver todas as ações e comandos disponíveis",
+    "tip_17": "Pressione {highlight}Ctrl+N{/highlight} para ver todas as ações e comandos disponíveis",
     "tip_18": "Execute {highlight}/connect{/highlight} para adicionar chaves de API para mais de 75 provedores de LLM suportados",
     "tip_19": "A tecla líder é {highlight}Ctrl+X{/highlight}; combine com outras teclas para ações rápidas",
     "tip_20": "Pressione {highlight}F2{/highlight} para alternar rapidamente entre os modelos usados recentemente",
@@ -77,7 +78,7 @@
     "tip_22": "Use {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} para navegar pelo histórico da conversa",
     "tip_23": "Pressione {highlight}Ctrl+G{/highlight} ou {highlight}Home{/highlight} para ir para o início da conversa",
     "tip_24": "Pressione {highlight}Ctrl+Alt+G{/highlight} ou {highlight}End{/highlight} para ir para a mensagem mais recente",
-    "tip_25": "Pressione {highlight}Ctrl+J{/highlight} para adicionar novas linhas em seu prompt",
+    "tip_25": "Pressione {highlight}Shift+Enter{/highlight} para adicionar novas linhas em seu prompt",
     "tip_26": "Pressione {highlight}Ctrl+C{/highlight} ao digitar para limpar o campo de entrada",
     "tip_27": "Pressione {highlight}Escape{/highlight} para interromper a IA no meio da resposta",
     "tip_28": "Mude para o agente {highlight}Plan{/highlight} para obter sugestões sem fazer alterações reais",
@@ -144,7 +145,7 @@
     "tip_89": "Pressione {highlight}Ctrl+X H{/highlight} para alternar a visibilidade do bloco de código nas mensagens",
     "tip_90": "Pressione {highlight}Ctrl+X S{/highlight} ou {highlight}/status{/highlight} para ver informações de status do sistema",
     "tip_91": "Habilite {highlight}scroll_acceleration{/highlight} em {highlight}tui.json{/highlight} para rolagem suave no estilo macOS",
-    "tip_92": "Alterne a exibição do nome de usuário no chat através da paleta de comandos ({highlight}Ctrl+P{/highlight})",
+    "tip_92": "Alterne a exibição do nome de usuário no chat através da paleta de comandos ({highlight}Ctrl+N{/highlight})",
     "tip_94": "Use {highlight}/connect{/highlight} para adicionar sua conta Kolbo.AI ou outro provedor",
     "tip_95": "Inclua o arquivo {highlight}KOLBO.md{/highlight} do seu projeto no Git para compartilhamento em equipe",
     "tip_96": "Use {highlight}/review{/highlight} para revisar alterações não commitadas, branches ou PRs",
@@ -216,7 +217,7 @@
     "switchOrg": "Trocar organização",
     "viewStatus": "Visualizar status",
     "switchLanguage": "Trocar idioma",
-    "switchTheme": "Trocar tema",
+    "switchTheme": "Switch theme",
     "toggleThemeMode": "Alternar modo do tema",
     "lockThemeMode": "Bloquear modo do tema",
     "unlockThemeMode": "Desbloquear modo do tema",
@@ -237,7 +238,7 @@
     "copyShareLink": "Copiar link de compartilhamento",
     "renameSession": "Renomear sessão",
     "jumpToMessage": "Ir para a mensagem",
-    "forkFromMessage": "Derivar da mensagem",
+    "forkFromMessage": "Fork from message",
     "compactSession": "Compactar sessão",
     "unshareSession": "Cancelar compartilhamento da sessão",
     "undoPreviousMessage": "Desfazer mensagem anterior",
@@ -278,10 +279,10 @@
     "paste": "Colar",
     "interruptSession": "Interromper sessão",
     "openEditor": "Abrir editor",
-    "skills": "Habilidades",
-    "stashPrompt": "Salvar prompt",
-    "stashPop": "Recuperar prompt salvo",
-    "stashList": "Listar prompts salvos"
+    "skills": "Skills",
+    "stashPrompt": "Stash prompt",
+    "stashPop": "Stash pop",
+    "stashList": "Stash list"
   },
   "dialog": {
     "sessions": "Sessões",
@@ -395,9 +396,9 @@
     "noMcpServers": "Nenhum Servidor MCP",
     "mcpServers": "{{count}} Servidores MCP",
     "lspServers": "{{count}} Servidores LSP",
-    "noFormatters": "Nenhum Formatador",
-    "formatters": "{{count}} Formatadores",
-    "noPlugins": "Nenhum Plugin",
+    "noFormatters": "No Formatters",
+    "formatters": "{{count}} Formatters",
+    "noPlugins": "No Plugins",
     "plugins": "{{count}} Plugins"
   },
   "update": {
@@ -433,20 +434,20 @@
     "native": "nativo",
     "shell": "Shell",
     "build": {
-      "name": "Construir",
+      "name": "Build",
       "description": "O agente padrão. Executa ferramentas com base nas permissões configuradas."
     },
     "plan": {
-      "name": "Planejar",
+      "name": "Plan",
       "description": "Modo de planejamento. Desativa todas as ferramentas de edição."
     },
     "autoApprove": {
-      "name": "Aprovação Automática",
+      "name": "Auto-Approve",
       "description": "Modo de aprovação automática. Ignora todos os avisos de permissão — use com cuidado."
     }
   },
   "voice": {
-    "recording": "Gravando…",
+    "recording": "Gravando — mantenha pressionado para gravar, solte para parar",
     "errors": {
       "notLoggedIn": "Não conectado ao Kolbo — execute /login primeiro",
       "noMicBackend": "A entrada de voz não encontrou um backend de microfone funcional. Reinstale o kolbo (o download do ffmpeg incluído pode ter falhado) ou instale ffmpeg/sox manualmente.",

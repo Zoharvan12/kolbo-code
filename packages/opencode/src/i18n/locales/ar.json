@@ -38,6 +38,8 @@
     }
   },
   "home": {
+    "askAnything": "ماذا تريد أن تنشئ...",
+    "runCommand": "نفّذ أمرًا...",
     "placeholder": {
       "fixTodo": "إصلاح TODO في قاعدة التعليمات البرمجية",
       "techStack": "ما هي مجموعة التقنيات المستخدمة في هذا المشروع؟",
@@ -64,12 +66,11 @@
     "tip_9": "شغل {highlight}/init{/highlight} لإنشاء قواعد المشروع تلقائيًا بناءً على قاعدة التعليمات البرمجية الخاصة بك",
     "tip_10": "شغل {highlight}/models{/highlight} أو {highlight}Ctrl+X M{/highlight} لرؤية النماذج الذكاء الاصطناعي المتاحة والتبديل بينها",
     "tip_11": "استخدم {highlight}/themes{/highlight} أو {highlight}Ctrl+X T{/highlight} للتبديل بين السمات المضمنة",
-    "tip_12": "اضغط على {highlight}Ctrl+X N{/highlight} أو {highlight}/new{/highlight} لبدء جلسة محادثة جديدة",
-    "tip_13": "استخدم {highlight}/sessions{/highlight} أو {highlight}Ctrl+X L{/highlight} لسرد المحادثات السابقة ومتابعتها",
-    "tip_14": "شغل {highlight}/compact{/highlight} لتلخيص الجلسات الطويلة بالقرب من حدود السياق",
+    "tip_12": "اكتب {highlight}/clear{/highlight} لبدء جلسة محادثة جديدة",
+    "tip_13": "استخدم {highlight}/resume{/highlight} أو {highlight}Ctrl+X L{/highlight} لسرد المحادثات السابقة ومتابعتها",
     "tip_15": "اضغط على {highlight}Ctrl+X X{/highlight} أو {highlight}/export{/highlight} لحفظ المحادثة بتنسيق Markdown",
     "tip_16": "اضغط على {highlight}Ctrl+X Y{/highlight} لنسخ آخر رسالة للمساعد إلى الحافظة",
-    "tip_17": "اضغط على {highlight}Ctrl+P{/highlight} لرؤية جميع الإجراءات والأوامر المتاحة",
+    "tip_17": "اضغط على {highlight}Ctrl+N{/highlight} لرؤية جميع الإجراءات والأوامر المتاحة",
     "tip_18": "شغل {highlight}/connect{/highlight} لإضافة مفاتيح API لأكثر من 75 مزود LLM مدعوم",
     "tip_19": "مفتاح القائد هو {highlight}Ctrl+X{/highlight}؛ ادمجه مع مفاتيح أخرى لإجراءات سريعة",
     "tip_20": "اضغط {highlight}F2{/highlight} للتبديل بسرعة بين النماذج المستخدمة مؤخرًا",
@@ -77,7 +78,7 @@
     "tip_22": "استخدم {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} للتنقل خلال سجل المحادثات",
     "tip_23": "اضغط {highlight}Ctrl+G{/highlight} أو {highlight}Home{/highlight} للانتقال إلى بداية المحادثة",
     "tip_24": "اضغط {highlight}Ctrl+Alt+G{/highlight} أو {highlight}End{/highlight} للانتقال إلى أحدث رسالة",
-    "tip_25": "اضغط {highlight}Ctrl+J{/highlight} لإضافة أسطر جديدة في مطالبتك",
+    "tip_25": "اضغط {highlight}Shift+Enter{/highlight} لإضافة أسطر جديدة في مطالبتك",
     "tip_26": "اضغط {highlight}Ctrl+C{/highlight} أثناء الكتابة لمسح حقل الإدخال",
     "tip_27": "اضغط {highlight}Escape{/highlight} لإيقاف الذكاء الاصطناعي أثناء الاستجابة",
     "tip_28": "قم بالتبديل إلى وكيل {highlight}Plan{/highlight} للحصول على اقتراحات دون إجراء تغييرات فعلية",
@@ -144,7 +145,7 @@
     "tip_89": "اضغط على {highlight}Ctrl+X H{/highlight} لتبديل رؤية كتلة التعليمات البرمجية في الرسائل.",
     "tip_90": "اضغط على {highlight}Ctrl+X S{/highlight} أو {highlight}/status{/highlight} لرؤية معلومات حالة النظام.",
     "tip_91": "قم بتمكين {highlight}scroll_acceleration{/highlight} في {highlight}tui.json{/highlight} للتمرير السلس بنمط macOS.",
-    "tip_92": "تبديل عرض اسم المستخدم في الدردشة عبر لوحة الأوامر ({highlight}Ctrl+P{/highlight}).",
+    "tip_92": "تبديل عرض اسم المستخدم في الدردشة عبر لوحة الأوامر ({highlight}Ctrl+N{/highlight}).",
     "tip_94": "استخدم {highlight}/connect{/highlight} لإضافة حساب Kolbo.AI الخاص بك أو موفر خدمة آخر",
     "tip_95": "قم بتثبيت ملف {highlight}KOLBO.md{/highlight} الخاص بمشروعك في Git لمشاركته مع الفريق",
     "tip_96": "استخدم {highlight}/review{/highlight} لمراجعة التغييرات غير المثبتة أو الفروع أو طلبات السحب",
@@ -216,7 +217,7 @@
     "switchOrg": "تبديل المؤسسة",
     "viewStatus": "عرض الحالة",
     "switchLanguage": "تبديل اللغة",
-    "switchTheme": "تبديل النمط",
+    "switchTheme": "Switch theme",
     "toggleThemeMode": "تبديل وضع النمط",
     "lockThemeMode": "تأمين وضع النمط",
     "unlockThemeMode": "إلغاء تأمين وضع النمط",
@@ -237,7 +238,7 @@
     "copyShareLink": "نسخ رابط المشاركة",
     "renameSession": "إعادة تسمية الجلسة",
     "jumpToMessage": "الانتقال إلى الرسالة",
-    "forkFromMessage": "تفرّع من الرسالة",
+    "forkFromMessage": "Fork from message",
     "compactSession": "ضغط الجلسة",
     "unshareSession": "إلغاء مشاركة الجلسة",
     "undoPreviousMessage": "تراجع عن الرسالة السابقة",
@@ -278,10 +279,10 @@
     "paste": "لصق",
     "interruptSession": "مقاطعة الجلسة",
     "openEditor": "فتح المحرر",
-    "skills": "المهارات",
-    "stashPrompt": "تخبئة المطالبة",
-    "stashPop": "إخراج المطالبة المخفية",
-    "stashList": "قائمة المطالبات المخفية"
+    "skills": "Skills",
+    "stashPrompt": "Stash prompt",
+    "stashPop": "Stash pop",
+    "stashList": "Stash list"
   },
   "dialog": {
     "sessions": "الجلسات",
@@ -395,10 +396,10 @@
     "noMcpServers": "لا توجد خوادم MCP",
     "mcpServers": "{{count}} خوادم MCP",
     "lspServers": "{{count}} خوادم LSP",
-    "noFormatters": "لا توجد مُنسِّقات",
-    "formatters": "{{count}} مُنسِّق",
-    "noPlugins": "لا توجد إضافات",
-    "plugins": "{{count}} إضافة"
+    "noFormatters": "No Formatters",
+    "formatters": "{{count}} Formatters",
+    "noPlugins": "No Plugins",
+    "plugins": "{{count}} Plugins"
   },
   "update": {
     "available": "تحديث مُتاح",
@@ -433,20 +434,20 @@
     "native": "أصلي",
     "shell": "Shell",
     "build": {
-      "name": "إنشاء",
+      "name": "Build",
       "description": "الوكيل الافتراضي. ينفذ الأدوات بناءً على الأذونات المكونة."
     },
     "plan": {
-      "name": "خطة",
+      "name": "Plan",
       "description": "وضع الخطة. يمنع جميع أدوات التحرير."
     },
     "autoApprove": {
-      "name": "الموافقة التلقائية",
+      "name": "Auto-Approve",
       "description": "وضع الموافقة التلقائية. يتخطى جميع مطالبات الأذونات - استخدمه بحذر."
     }
   },
   "voice": {
-    "recording": "جارٍ التسجيل…",
+    "recording": "جارٍ التسجيل — استمر بالضغط للتسجيل، حرر للإيقاف",
     "errors": {
       "notLoggedIn": "غير مسجّل الدخول إلى Kolbo — شغّل /login أولاً",
       "noMicBackend": "لم يعثر الإدخال الصوتي على خلفية ميكروفون صالحة. أعد تثبيت kolbo (قد يكون تنزيل ffmpeg المرفق قد فشل) أو ثبّت ffmpeg/sox يدوياً.",

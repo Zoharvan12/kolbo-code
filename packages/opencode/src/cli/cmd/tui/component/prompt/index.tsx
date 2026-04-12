@@ -314,19 +314,63 @@ export function Prompt(props: PromptProps) {
   //   `input_voice` key in the TUI config.
   // ==========================================================================
   const [pttRecording, setPttRecording] = createSignal(false)
-  const [pttPartial, setPttPartial] = createSignal("")
   let pttSession: PushToTalk.Session | null = null
   let pttStarting = false // true between triggerPtt() call and session assignment
 
+  /**
+   * Realtime insertion strategy: we type partial text directly into the
+   * textarea and track how many characters we inserted so we can backspace
+   * them when a new partial (or committed) transcript arrives. This gives
+   * the user live feedback inside the actual input field instead of a
+   * separate preview line.
+   *
+   * `pttInsertedPartialLen` = number of characters we last inserted for a
+   * partial transcript. When the next partial or committed arrives, we
+   * delete that many chars first, then insert the replacement.
+   */
+  let pttInsertedPartialLen = 0
+
+  /** Normalize voice transcription text: collapse whitespace, trim. */
+  const cleanVoice = (text: string) => text.replace(/\s+/g, " ").trim()
+
+  /** Delete the last N characters from the textarea (undo partial insert). */
+  const deleteLastN = (n: number) => {
+    if (n <= 0 || !input || input.isDestroyed) return
+    for (let i = 0; i < n; i++) input.deleteCharBackward()
+  }
+
+  /** Insert text into the textarea with smart spacing. */
+  const pttInsert = (text: string) => {
+    if (!input || input.isDestroyed || !text) return
+    const current = input.plainText
+    const needsSpace = current.length > 0 && !current.endsWith(" ")
+    const toInsert = (needsSpace ? " " : "") + text
+    input.insertText(toInsert)
+    setStore("prompt", "input", input.plainText)
+    renderer.requestRender()
+    return toInsert.length
+  }
+
   const stopPtt = (mode: "stop" | "cancel") => {
     if (pttSession) {
-      if (mode === "stop") pttSession.stop()
-      else pttSession.cancel()
+      if (mode === "stop") {
+        // Graceful stop: let the session flush final transcripts.
+        // onStopped callback will finalize state.
+        pttSession.stop()
+        pttSession = null
+        pttStarting = false
+        return
+      }
+      // Cancel: undo any uncommitted partial text and tear down.
+      deleteLastN(pttInsertedPartialLen)
+      pttInsertedPartialLen = 0
+      setStore("prompt", "input", input?.plainText ?? "")
+      renderer.requestRender()
+      pttSession.cancel()
       pttSession = null
     }
     pttStarting = false
     setPttRecording(false)
-    setPttPartial("")
   }
 
   /** True when PTT is in any active state (starting, recording, or session live). */
@@ -343,26 +387,38 @@ export function Prompt(props: PromptProps) {
 
     pttStarting = true
     setPttRecording(true)
-    setPttPartial("")
+    pttInsertedPartialLen = 0
 
     const result = await PushToTalk.start({
-      onPartial: (text) => setPttPartial(text),
+      onPartial: (text) => {
+        if (!input || input.isDestroyed) return
+        const cleaned = cleanVoice(text)
+        // Remove previous partial, insert updated one
+        deleteLastN(pttInsertedPartialLen)
+        pttInsertedPartialLen = 0
+        if (cleaned) {
+          pttInsertedPartialLen = pttInsert(cleaned) ?? 0
+        }
+      },
       onCommitted: (text) => {
         if (!input || input.isDestroyed) return
-        // Append with a trailing space so successive committed chunks
-        // don't jam together.
-        input.insertText(text + " ")
-        setStore("prompt", "input", input.plainText)
-        setPttPartial("")
-        renderer.requestRender()
+        const cleaned = cleanVoice(text)
+        // Remove the partial preview — committed text replaces it
+        deleteLastN(pttInsertedPartialLen)
+        pttInsertedPartialLen = 0
+        if (cleaned) pttInsert(cleaned)
+        // committed text stays — pttInsertedPartialLen remains 0
       },
       onError: (err) => {
         toast.show({ variant: "error", message: formatPttError(err), duration: 4000 })
         stopPtt("cancel")
       },
       onStopped: () => {
+        // Any remaining partial text in the textarea is now final —
+        // the server won't send more transcripts. Commit it by
+        // zeroing the partial counter so it won't be deleted.
+        pttInsertedPartialLen = 0
         setPttRecording(false)
-        setPttPartial("")
       },
     })
 
@@ -1313,10 +1369,10 @@ export function Prompt(props: PromptProps) {
     if (store.mode === "shell") {
       if (!shell().length) return undefined
       const example = shell()[store.placeholder % shell().length]
-      return `Run a command... "${example}"`
+      return `${tI18n("home.runCommand")} "${example}"`
     }
     if (!list().length) return undefined
-    return `Ask anything... "${list()[store.placeholder % list().length]}"`
+    return `${tI18n("home.askAnything")} "${list()[store.placeholder % list().length]}"`
   })
 
   const spinnerDef = createMemo(() => {
@@ -1389,9 +1445,6 @@ export function Prompt(props: PromptProps) {
             <Show when={pttRecording()}>
               <text fg={theme.primary}>
                 {`\u25cf ${tI18n("voice.recording")}`}
-                {pttPartial()
-                  ? ` ${isRTL() ? "\u2190" : "\u2192"} ${toVisual(pttPartial())}`
-                  : ""}
               </text>
             </Show>
             <textarea
@@ -1747,67 +1800,144 @@ export function Prompt(props: PromptProps) {
                 // via plainText so the rest of the app works with correct logical order.
                 if (isRTL()) {
                   let logicalText = ""
+                  // Logical cursor: character index into logicalText where
+                  // the next insert happens / backspace deletes before.
+                  let logicalCursor = 0
 
                   // Save originals before patching
-                  const _origInsertText = r.insertText.bind(r)
-                  const _origDeleteChar = r.deleteCharBackward.bind(r)
                   const _origSetText = r.setText.bind(r)
                   const _origClear = r.clear.bind(r)
 
-                  // Update the visual buffer from current logicalText.
+                  // RTL regex (same as in i18n module)
+                  const RTL_RE = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/
+
+                  // Check whether a line gets bidi-reordered by toVisual
+                  const isReordered = (line: string): boolean => {
+                    if (!line || !RTL_RE.test(line)) return false
+                    return toVisual(line) !== line
+                  }
+
+                  // ── Cursor mapping ──────────────────────────────────
+                  // For single-line text the mapping is simple:
+                  //   RTL reordered → logicalPos = charCount − visualCharPos
+                  //   LTR (no reorder) → logicalPos = visualCharPos
                   //
-                  // Multi-line notes:
-                  //   • toVisualLines reorders EACH line independently so
-                  //     bidi reordering doesn't flow across line boundaries.
-                  //   • For cursor positioning we move to the end of the
-                  //     last line's *visible* content: in RTL, the "newest"
-                  //     visual character sits at column 0 of its row; in LTR
-                  //     it sits at the row's natural end. Rows that are
-                  //     still pure LTR get the natural-end position.
+                  // For multi-line text we find which line the opentui
+                  // cursor sits on, then apply the per-line formula.
+
+                  // Convert width-based offset to character index within a
+                  // string (accounts for potential double-width chars).
+                  const widthToCharIdx = (str: string, widthOff: number): number => {
+                    let w = 0
+                    for (let i = 0; i < str.length; i++) {
+                      const cw = Bun.stringWidth(str[i]!)
+                      if (w + cw > widthOff) return i
+                      w += cw
+                    }
+                    return str.length
+                  }
+
+                  const charIdxToWidth = (str: string, idx: number): number => {
+                    return Bun.stringWidth(str.slice(0, idx))
+                  }
+
+                  // Read current visual cursorOffset and derive logicalCursor
+                  const readLogicalCursor = () => {
+                    if (!logicalText) { logicalCursor = 0; return }
+
+                    const logicalLines = logicalText.split("\n")
+                    const visualText = toVisualLines(logicalText)
+                    const visualLines = visualText.split("\n")
+
+                    // Find which visual line the cursor is on
+                    let remaining = r.cursorOffset
+                    let lineIdx = 0
+                    for (let i = 0; i < visualLines.length; i++) {
+                      const lw = Bun.stringWidth(visualLines[i]!)
+                      if (remaining <= lw || i === visualLines.length - 1) {
+                        lineIdx = i
+                        break
+                      }
+                      remaining -= lw + 1 // +1 for the \n
+                    }
+
+                    const vLine = visualLines[lineIdx]!
+                    const lLine = logicalLines[lineIdx]!
+                    // Character offset within this visual line
+                    const visualCharIdx = widthToCharIdx(vLine, remaining)
+
+                    let charInLine: number
+                    if (isReordered(lLine)) {
+                      // RTL: visual left = logical end
+                      charInLine = lLine.length - visualCharIdx
+                    } else {
+                      charInLine = visualCharIdx
+                    }
+                    charInLine = Math.max(0, Math.min(lLine.length, charInLine))
+
+                    // Convert per-line position to absolute logicalCursor
+                    let abs = 0
+                    for (let i = 0; i < lineIdx; i++) {
+                      abs += logicalLines[i]!.length + 1 // +1 for \n
+                    }
+                    logicalCursor = abs + charInLine
+                  }
+
+                  // Push logicalText + logicalCursor into the opentui visual
+                  // buffer, positioning the cursor correctly.
                   const syncVisual = () => {
                     const visualText = toVisualLines(logicalText)
                     _origSetText(visualText)
-                    // Position the cursor at the end of the last line so
-                    // typing continues where the user left off. For RTL
-                    // reordered lines that's visual column 0 (newest char
-                    // landed there). For LTR-ish lines, it's the line width.
-                    const lastNewlineAt = logicalText.lastIndexOf("\n")
-                    const lastLogicalLine =
-                      lastNewlineAt === -1 ? logicalText : logicalText.slice(lastNewlineAt + 1)
-                    const lastVisualLine = toVisual(lastLogicalLine)
-                    // Row index = number of \n in the logical buffer.
-                    // cursorOffset in opentui is a 1D offset into the visual
-                    // buffer, so we compute: sum(visual line widths) up to
-                    // and including the last row separator, then add the
-                    // end-of-line offset for the current line.
-                    const linesBefore = visualText.split("\n").slice(0, lastNewlineAt === -1 ? 0 : -1)
-                    const offsetBeforeLastRow =
-                      linesBefore.reduce((acc, line) => acc + Bun.stringWidth(line) + 1, 0)
-                    const endOfLastLine =
-                      lastVisualLine !== lastLogicalLine ? 0 : Bun.stringWidth(lastVisualLine)
-                    r.cursorOffset = offsetBeforeLastRow + endOfLastLine
+
+                    if (!logicalText) { r.cursorOffset = 0; return }
+
+                    const logicalLines = logicalText.split("\n")
+                    const visualLines = visualText.split("\n")
+
+                    // Find which logical line logicalCursor falls on
+                    let cursor = logicalCursor
+                    let lineIdx = 0
+                    for (let i = 0; i < logicalLines.length; i++) {
+                      if (cursor <= logicalLines[i]!.length || i === logicalLines.length - 1) {
+                        lineIdx = i
+                        break
+                      }
+                      cursor -= logicalLines[i]!.length + 1
+                    }
+
+                    const lLine = logicalLines[lineIdx]!
+                    const vLine = visualLines[lineIdx]!
+                    const charInLine = Math.max(0, Math.min(lLine.length, cursor))
+
+                    let visualCharIdx: number
+                    if (isReordered(lLine)) {
+                      // RTL: logical end → visual left (0)
+                      visualCharIdx = lLine.length - charInLine
+                    } else {
+                      visualCharIdx = charInLine
+                    }
+
+                    // Sum widths of all lines before this one
+                    let offset = 0
+                    for (let i = 0; i < lineIdx; i++) {
+                      offset += Bun.stringWidth(visualLines[i]!) + 1
+                    }
+                    offset += charIdxToWidth(vLine, visualCharIdx)
+                    r.cursorOffset = offset
                   }
 
                   r.insertText = (text: string) => {
-                    // Preserve newlines (shift+enter / meta+enter). The old
-                    // implementation stripped them, which made line breaks
-                    // silently collapse into the surrounding text — hence
-                    // "shift+enter acts like a space".
-                    logicalText = logicalText + text
+                    readLogicalCursor()
+                    logicalText = logicalText.slice(0, logicalCursor) + text + logicalText.slice(logicalCursor)
+                    logicalCursor += text.length
                     syncVisual()
                     ;(r as any).emit?.("input", logicalText)
                   }
 
-                  // Override newLine so the dedicated newLine() path also
-                  // updates our logicalText. Without this, calling
-                  // `input.newLine()` would hit the unwrapped native method,
-                  // insert \n into the real buffer, and then the NEXT
-                  // syncVisual() (triggered by any subsequent insertText)
-                  // would overwrite that buffer with our stale logicalText
-                  // — silently wiping the line break. That's exactly the
-                  // "line break disappears when the user types more" bug.
                   ;(r as any).newLine = () => {
-                    logicalText = logicalText + "\n"
+                    readLogicalCursor()
+                    logicalText = logicalText.slice(0, logicalCursor) + "\n" + logicalText.slice(logicalCursor)
+                    logicalCursor += 1
                     syncVisual()
                     ;(r as any).emit?.("input", logicalText)
                     return true
@@ -1815,7 +1945,10 @@ export function Prompt(props: PromptProps) {
 
                   r.deleteCharBackward = () => {
                     if (logicalText.length === 0) return false
-                    logicalText = logicalText.slice(0, -1)
+                    readLogicalCursor()
+                    if (logicalCursor <= 0) return false
+                    logicalText = logicalText.slice(0, logicalCursor - 1) + logicalText.slice(logicalCursor)
+                    logicalCursor -= 1
                     syncVisual()
                     ;(r as any).emit?.("input", logicalText)
                     return true
@@ -1830,18 +1963,19 @@ export function Prompt(props: PromptProps) {
                   // setText: external callers (history navigation, pre-fill) update logicalText too
                   r.setText = (value: string) => {
                     logicalText = value
+                    logicalCursor = value.length
                     _origSetText(toVisualLines(logicalText))
-                    r.cursorOffset = 0
+                    // Position cursor at logical end (visual 0 for RTL)
+                    if (isReordered(value)) {
+                      r.cursorOffset = 0
+                    } else {
+                      r.cursorOffset = Bun.stringWidth(value)
+                    }
                   }
 
-                  // Override clear() so any code path that calls it (the
-                  // /prompt.clear command, double-ESC to clear, etc.) also
-                  // resets our logicalText buffer. Without this, the native
-                  // buffer empties but plainText (which returns logicalText
-                  // in RTL) still reports the old text, and onContentChange
-                  // writes the stale value back into the store.
                   r.clear = () => {
                     logicalText = ""
+                    logicalCursor = 0
                     _origClear()
                     r.cursorOffset = 0
                   }
@@ -1937,7 +2071,7 @@ export function Prompt(props: PromptProps) {
                       // them stitched together wrong visually.
                       <text fg={theme.textMuted}>
                         {tI18n("session.promptFooterHint", {
-                          newlineKey: keybind.print("input_newline") || "ctrl+j",
+                          newlineKey: keybind.print("input_newline") || "shift+enter",
                           voiceKey: keybind.print("input_voice") || "ctrl+y",
                         })}
                       </text>

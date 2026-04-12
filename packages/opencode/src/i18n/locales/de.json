@@ -38,6 +38,8 @@
     }
   },
   "home": {
+    "askAnything": "Frag etwas...",
+    "runCommand": "Befehl ausführen...",
     "placeholder": {
       "fixTodo": "Korrigieren Sie ein TODO in der Codebasis",
       "techStack": "Was ist der Tech-Stack dieses Projekts?",
@@ -64,12 +66,11 @@
     "tip_9": "Führen Sie {highlight}/init{/highlight} aus, um automatisch Projektregeln basierend auf Ihrer Codebasis zu generieren",
     "tip_10": "Führen Sie {highlight}/models{/highlight} oder {highlight}Strg+X M{/highlight} aus, um verfügbare KI-Modelle anzuzeigen und zwischen ihnen zu wechseln",
     "tip_11": "Verwenden Sie {highlight}/themes{/highlight} oder {highlight}Strg+X T{/highlight}, um zwischen integrierten Designs zu wechseln",
-    "tip_12": "Drücken Sie {highlight}Strg+X N{/highlight} oder {highlight}/new{/highlight}, um eine neue Gesprächssitzung zu starten",
-    "tip_13": "Verwenden Sie {highlight}/sessions{/highlight} oder {highlight}Strg+X L{/highlight}, um frühere Konversationen aufzulisten und fortzusetzen",
-    "tip_14": "Führen Sie {highlight}/compact{/highlight} aus, um lange Sitzungen in der Nähe von Kontextgrenzen zusammenzufassen",
+    "tip_12": "Geben Sie {highlight}/clear{/highlight} ein, um eine neue Gesprächssitzung zu starten",
+    "tip_13": "Verwenden Sie {highlight}/resume{/highlight} oder {highlight}Strg+X L{/highlight}, um frühere Konversationen aufzulisten und fortzusetzen",
     "tip_15": "Drücken Sie {highlight}Strg+X X{/highlight} oder {highlight}/export{/highlight}, um das Gespräch als Markdown zu speichern",
     "tip_16": "Drücken Sie {highlight}Strg+X Y{/highlight}, um die letzte Nachricht des Assistenten in die Zwischenablage zu kopieren",
-    "tip_17": "Drücken Sie {highlight}Strg+P{/highlight}, um alle verfügbaren Aktionen und Befehle anzuzeigen",
+    "tip_17": "Drücken Sie {highlight}Strg+N{/highlight}, um alle verfügbaren Aktionen und Befehle anzuzeigen",
     "tip_18": "Führen Sie {highlight}/connect{/highlight} aus, um API-Schlüssel für über 75 unterstützte LLM-Anbieter hinzuzufügen",
     "tip_19": "Die Leader-Taste ist {highlight}Strg+X{/highlight}; kombinieren Sie sie mit anderen Tasten für schnelle Aktionen",
     "tip_20": "Drücken Sie {highlight}F2{/highlight}, um schnell zwischen den zuletzt verwendeten Modellen zu wechseln",
@@ -144,7 +145,7 @@
     "tip_89": "Drücken Sie {highlight}Ctrl+X H{/highlight}, um die Sichtbarkeit von Codeblöcken in Nachrichten umzuschalten",
     "tip_90": "Drücken Sie {highlight}Ctrl+X S{/highlight} oder {highlight}/status{/highlight}, um Systemstatusinformationen anzuzeigen",
     "tip_91": "Aktivieren Sie {highlight}scroll_acceleration{/highlight} in {highlight}tui.json{/highlight} für sanftes Scrollen im macOS-Stil",
-    "tip_92": "Schalten Sie die Benutzernamenanzeige im Chat über die Befehlspalette ({highlight}Ctrl+P{/highlight}) um",
+    "tip_92": "Schalten Sie die Benutzernamenanzeige im Chat über die Befehlspalette ({highlight}Ctrl+N{/highlight}) um",
     "tip_94": "Nutzen Sie {highlight}/connect{/highlight}, um Ihr Kolbo.AI-Konto oder einen anderen Anbieter hinzuzufügen",
     "tip_95": "Übertragen Sie die {highlight}KOLBO.md{/highlight}-Datei Ihres Projekts in Git, um sie mit Ihrem Team zu teilen",
     "tip_96": "Nutzen Sie {highlight}/review{/highlight}, um nicht übertragene Änderungen, Branches oder PRs zu überprüfen",
@@ -216,7 +217,7 @@
     "switchOrg": "Organisation wechseln",
     "viewStatus": "Status anzeigen",
     "switchLanguage": "Sprache wechseln",
-    "switchTheme": "Thema wechseln",
+    "switchTheme": "Switch theme",
     "toggleThemeMode": "Themenmodus umschalten",
     "lockThemeMode": "Themenmodus sperren",
     "unlockThemeMode": "Themenmodus entsperren",
@@ -237,7 +238,7 @@
     "copyShareLink": "Link zum Teilen kopieren",
     "renameSession": "Sitzung umbenennen",
     "jumpToMessage": "Zu Nachricht springen",
-    "forkFromMessage": "Abzweigen von Nachricht",
+    "forkFromMessage": "Fork from message",
     "compactSession": "Sitzung komprimieren",
     "unshareSession": "Sitzung freigeben",
     "undoPreviousMessage": "Vorherige Nachricht rückgängig machen",
@@ -278,10 +279,10 @@
     "paste": "Einfügen",
     "interruptSession": "Sitzung unterbrechen",
     "openEditor": "Editor öffnen",
-    "skills": "Fähigkeiten",
-    "stashPrompt": "Eingabeaufforderung zwischenspeichern",
-    "stashPop": "Zwischengespeicherte Eingabeaufforderung abrufen",
-    "stashList": "Zwischengespeicherte Eingabeaufforderungen auflisten"
+    "skills": "Skills",
+    "stashPrompt": "Stash prompt",
+    "stashPop": "Stash pop",
+    "stashList": "Stash list"
   },
   "dialog": {
     "sessions": "Sitzungen",
@@ -395,8 +396,8 @@
     "noMcpServers": "Keine MCP-Server",
     "mcpServers": "{{count}} MCP-Server",
     "lspServers": "{{count}} LSP-Server",
-    "noFormatters": "Keine Formatierer",
-    "formatters": "{{count}} Formatierer",
+    "noFormatters": "No Formatters",
+    "formatters": "{{count}} Formatters",
     "noPlugins": "Keine Plugins",
     "plugins": "{{count}} Plugins"
   },
@@ -433,20 +434,20 @@
     "native": "nativ",
     "shell": "Shell",
     "build": {
-      "name": "Bauen",
+      "name": "Build",
       "description": "Der Standard-Agent. Führt Werkzeuge basierend auf den konfigurierten Berechtigungen aus."
     },
     "plan": {
-      "name": "Planen",
+      "name": "Plan",
       "description": "Planmodus. Erlaubt keine Bearbeitungswerkzeuge."
     },
     "autoApprove": {
-      "name": "Automatisch genehmigen",
+      "name": "Auto-Approve",
       "description": "Modus für automatische Genehmigung. Überspringt alle Berechtigungsabfragen – mit Vorsicht verwenden."
     }
   },
   "voice": {
-    "recording": "Aufnahme läuft…",
+    "recording": "Aufnahme — halten Sie die Taste gedrückt, loslassen zum Stoppen",
     "errors": {
       "notLoggedIn": "Nicht bei Kolbo angemeldet — führe zuerst /login aus",
       "noMicBackend": "Die Spracheingabe konnte kein funktionierendes Mikrofon-Backend finden. Installiere kolbo neu (das mitgelieferte ffmpeg konnte möglicherweise nicht heruntergeladen werden) oder installiere ffmpeg/sox manuell.",

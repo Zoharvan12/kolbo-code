@@ -38,6 +38,8 @@
     }
   },
   "home": {
+    "askAnything": "Спросите что угодно...",
+    "runCommand": "Выполните команду...",
     "placeholder": {
       "fixTodo": "Исправьте TODO в кодовой базе",
       "techStack": "Каков технологический стек этого проекта?",
@@ -64,12 +66,11 @@
     "tip_9": "Запустите {highlight}/init{/highlight}, чтобы автоматически сгенерировать правила проекта на основе вашей кодовой базы",
     "tip_10": "Запустите {highlight}/models{/highlight} или {highlight}Ctrl+X M{/highlight}, чтобы увидеть и переключаться между доступными моделями ИИ",
     "tip_11": "Используйте {highlight}/themes{/highlight} или {highlight}Ctrl+X T{/highlight}, чтобы переключаться между встроенными темами",
-    "tip_12": "Нажмите {highlight}Ctrl+X N{/highlight} или {highlight}/new{/highlight}, чтобы начать новый сеанс разговора",
-    "tip_13": "Используйте {highlight}/sessions{/highlight} или {highlight}Ctrl+X L{/highlight}, чтобы перечислить и продолжить предыдущие разговоры",
-    "tip_14": "Запустите {highlight}/compact{/highlight}, чтобы суммировать длинные сеансы вблизи лимитов контекста",
+    "tip_12": "Введите {highlight}/clear{/highlight}, чтобы начать новый сеанс разговора",
+    "tip_13": "Используйте {highlight}/resume{/highlight} или {highlight}Ctrl+X L{/highlight}, чтобы перечислить и продолжить предыдущие разговоры",
     "tip_15": "Нажмите {highlight}Ctrl+X X{/highlight} или {highlight}/export{/highlight}, чтобы сохранить разговор в формате Markdown",
     "tip_16": "Нажмите {highlight}Ctrl+X Y{/highlight}, чтобы скопировать последнее сообщение помощника в буфер обмена",
-    "tip_17": "Нажмите {highlight}Ctrl+P{/highlight}, чтобы увидеть все доступные действия и команды",
+    "tip_17": "Нажмите {highlight}Ctrl+N{/highlight}, чтобы увидеть все доступные действия и команды",
     "tip_18": "Запустите {highlight}/connect{/highlight}, чтобы добавить ключи API для 75+ поддерживаемых поставщиков LLM",
     "tip_19": "Лидер-клавиша — это {highlight}Ctrl+X{/highlight}; комбинируйте ее с другими клавишами для быстрых действий",
     "tip_20": "Нажмите {highlight}F2{/highlight}, чтобы быстро переключаться между недавно использованными моделями",
@@ -77,7 +78,7 @@
     "tip_22": "Используйте {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} для навигации по истории разговоров",
     "tip_23": "Нажмите {highlight}Ctrl+G{/highlight} или {highlight}Home{/highlight}, чтобы перейти к началу разговора",
     "tip_24": "Нажмите {highlight}Ctrl+Alt+G{/highlight} или {highlight}End{/highlight}, чтобы перейти к последнему сообщению",
-    "tip_25": "Нажмите {highlight}Ctrl+J{/highlight}, чтобы добавить новые строки в ваш запрос",
+    "tip_25": "Нажмите {highlight}Shift+Enter{/highlight}, чтобы добавить новые строки в ваш запрос",
     "tip_26": "Нажмите {highlight}Ctrl+C{/highlight} во время ввода, чтобы очистить поле ввода",
     "tip_27": "Нажмите {highlight}Escape{/highlight}, чтобы остановить ИИ в середине ответа",
     "tip_28": "Переключитесь на агента {highlight}Plan{/highlight}, чтобы получать предложения без внесения фактических изменений",
@@ -144,7 +145,7 @@
     "tip_89": "Нажмите {highlight}Ctrl+X H{/highlight}, чтобы переключить видимость блоков кода в сообщениях",
     "tip_90": "Нажмите {highlight}Ctrl+X S{/highlight} или {highlight}/status{/highlight}, чтобы увидеть информацию о состоянии системы",
     "tip_91": "Включите {highlight}scroll_acceleration{/highlight} в {highlight}tui.json{/highlight} для плавной прокрутки в стиле macOS",
-    "tip_92": "Переключите отображение имени пользователя в чате через палитру команд ({highlight}Ctrl+P{/highlight})",
+    "tip_92": "Переключите отображение имени пользователя в чате через палитру команд ({highlight}Ctrl+N{/highlight})",
     "tip_94": "Используйте {highlight}/connect{/highlight}, чтобы добавить вашу учетную запись Kolbo.AI или другого провайдера",
     "tip_95": "Зафиксируйте файл {highlight}KOLBO.md{/highlight} вашего проекта в Git для совместного использования командой",
     "tip_96": "Используйте {highlight}/review{/highlight}, чтобы просмотреть незафиксированные изменения, ветки или PR",
@@ -216,7 +217,7 @@
     "switchOrg": "Переключить организацию",
     "viewStatus": "Просмотреть статус",
     "switchLanguage": "Сменить язык",
-    "switchTheme": "Сменить тему",
+    "switchTheme": "Switch theme",
     "toggleThemeMode": "Переключить режим темы",
     "lockThemeMode": "Заблокировать режим темы",
     "unlockThemeMode": "Разблокировать режим темы",
@@ -237,7 +238,7 @@
     "copyShareLink": "Скопировать ссылку для общего доступа",
     "renameSession": "Переименовать сессию",
     "jumpToMessage": "Перейти к сообщению",
-    "forkFromMessage": "Создать ответвление от сообщения",
+    "forkFromMessage": "Fork from message",
     "compactSession": "Сжать сессию",
     "unshareSession": "Сделать сессию приватной",
     "undoPreviousMessage": "Отменить предыдущее сообщение",
@@ -278,10 +279,10 @@
     "paste": "Вставить",
     "interruptSession": "Прервать сессию",
     "openEditor": "Открыть редактор",
-    "skills": "Навыки",
-    "stashPrompt": "Сохранить запрос",
-    "stashPop": "Извлечь сохраненный запрос",
-    "stashList": "Список сохраненных запросов"
+    "skills": "Skills",
+    "stashPrompt": "Stash prompt",
+    "stashPop": "Stash pop",
+    "stashList": "Stash list"
   },
   "dialog": {
     "sessions": "Сессии",
@@ -395,10 +396,10 @@
     "noMcpServers": "Нет MCP серверов",
     "mcpServers": "{{count}} MCP серверов",
     "lspServers": "{{count}} LSP серверов",
-    "noFormatters": "Нет форматеров",
-    "formatters": "{{count}} форматеров",
-    "noPlugins": "Нет плагинов",
-    "plugins": "{{count}} плагинов"
+    "noFormatters": "No Formatters",
+    "formatters": "{{count}} Formatters",
+    "noPlugins": "No Plugins",
+    "plugins": "{{count}} Plugins"
   },
   "update": {
     "available": "Доступно обновление",
@@ -431,22 +432,22 @@
   "agent": {
     "selectTitle": "Выберите агента",
     "native": "собственный",
-    "shell": "Оболочка",
+    "shell": "Shell",
     "build": {
-      "name": "Сборка",
+      "name": "Build",
       "description": "Агент по умолчанию. Выполняет инструменты на основе настроенных разрешений."
     },
     "plan": {
-      "name": "План",
+      "name": "Plan",
       "description": "Режим планирования. Отключает все инструменты редактирования."
     },
     "autoApprove": {
-      "name": "Автоматическое подтверждение",
+      "name": "Auto-Approve",
       "description": "Режим автоматического подтверждения. Пропускает все запросы разрешений — используйте с осторожностью."
     }
   },
   "voice": {
-    "recording": "Идёт запись…",
+    "recording": "Запись — удерживайте для записи, отпустите для остановки",
     "errors": {
       "notLoggedIn": "Вы не вошли в Kolbo — выполните /login",
       "noMicBackend": "Голосовой ввод не нашёл рабочий микрофонный бэкенд. Переустановите kolbo (загрузка встроенного ffmpeg могла завершиться неудачей) или установите ffmpeg/sox вручную.",
