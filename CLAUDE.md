@@ -64,6 +64,7 @@ git commit -m "chore: merge upstream/dev ..."
 - `packages/opencode/src/provider/models.ts` — Kolbo provider definition
 - `packages/opencode/src/cli/logo.ts` — Kolbo ASCII logo
 - `packages/opencode/src/flag/flag.ts` — All KOLBO_* feature flags
+- `packages/opencode/src/cli/cmd/tui/routes/session/dialog-rewind.tsx` — Rewind panel (inline, above prompt)
 - `.github/workflows/publish.yml` — CI publish (repo guard: `Zoharvan12/kolbo-cli`)
 
 ## Release Process

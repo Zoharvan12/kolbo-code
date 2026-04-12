@@ -205,6 +205,29 @@ Dahili olarak bu işlem dosya değişikliklerini yönetmek için Git kullanır. 
 
 ---
 
+### rewind
+
+Open the rewind panel to restore code and/or conversation to an earlier point. Shows a timeline of all past messages with their code changes. You can also trigger this by double-tapping `Esc` on an empty prompt.
+
+:::tip
+Choose from multiple restore options: restore code and conversation, restore conversation only, restore code only, or summarize from that point.
+:::
+
+Internally, this uses Git to manage the file changes. So your project **needs to
+be a Git repository**.
+
+:::caution
+Rewinding does not affect files edited manually or via bash.
+:::
+
+```bash frame="none"
+/rewind
+```
+
+**Keybind:** `Esc` `Esc` (on empty prompt)
+
+---
+
 ### sessions
 
 Oturumları listeler ve aralarında geçiş yapar. _Takma adlar_: `/resume`, `/continue`
