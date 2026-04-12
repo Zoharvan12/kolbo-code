@@ -43,69 +43,33 @@ export function creditsForMessage(tokens: TokenCounts, pricing: ModelPricing): n
 }
 
 /**
- * Roll up per-session Kolbo credit consumption with correct text-vs-vision
- * pricing.
+ * Sum per-session credits across all assistant messages for the Kolbo
+ * provider. Uses the pricing entry matching each message's `modelID`
+ * (always "kolbo-default" under the two-step vision pipeline — the
+ * backend combines vision + coding costs in one deduction under MiniMax
+ * pricing). Slightly under-counts vision turns (~1-2 credits) but
+ * accurate for the ~90% text-only case.
  *
- * The CLI always sends `modelID: "kolbo-default"` in its requests — but the
- * kolbo-api controller auto-routes any request containing image/audio/video/
- * pdf parts to `kolbo-vision` (Gemini) which bills at a higher rate. The
- * CLI never sees this routing decision on the way back, so to keep the
- * footer credit display aligned with the authoritative server-side charge
- * we mirror the backend's `hasMultimodalContent()` detection locally.
- *
- * Rule: once any user message in the conversation contains a file part with
- * a media mime, every subsequent assistant response is priced at
- * `kolbo-vision` — because the full history (including that file) rides
- * along on every subsequent request, so the backend keeps routing to Gemini.
- *
- * If `kolbo-vision` pricing isn't in the map (e.g. hasn't been fetched yet,
- * or the server hasn't deployed the second model), falls back to
- * `kolbo-default` pricing. Better to under-count than crash the footer.
+ * Shared by subagent-footer, prompt/index.tsx, and sidebar/context.tsx
+ * so the credit display is computed identically everywhere.
  */
-export function sessionKolboCredits(args: {
+export function sessionCredits(
   messages: ReadonlyArray<{
-    readonly id: string
     readonly role: string
-    readonly providerID?: string
     readonly modelID?: string
+    readonly providerID?: string
     readonly tokens?: TokenCounts
-  }>
-  partsByMessageID: (
-    messageID: string,
-  ) => ReadonlyArray<{ readonly type?: string; readonly mime?: string }> | undefined
-  pricing: Record<string, ModelPricing>
-}): number {
-  let multimodalSeen = false
+    readonly cost?: number
+  }>,
+  pricing: Record<string, ModelPricing>,
+): number {
   let total = 0
-  for (const msg of args.messages) {
-    if (msg.role === "user") {
-      if (!multimodalSeen) {
-        const parts = args.partsByMessageID(msg.id) ?? []
-        for (const p of parts) {
-          if (p.type === "file" && typeof p.mime === "string" && isMultimodalMime(p.mime)) {
-            multimodalSeen = true
-            break
-          }
-        }
-      }
-      continue
-    }
+  for (const msg of messages) {
     if (msg.role !== "assistant") continue
     if (msg.providerID !== "kolbo") continue
-    if (!msg.tokens) continue
-    const key = multimodalSeen ? "kolbo-vision" : (msg.modelID ?? "kolbo-default")
-    const pricing = args.pricing[key] ?? args.pricing[msg.modelID ?? "kolbo-default"]
-    if (!pricing) continue
-    total += creditsForMessage(msg.tokens, pricing)
+    const p = pricing[msg.modelID ?? "kolbo-default"]
+    if (!p || !msg.tokens) continue
+    total += creditsForMessage(msg.tokens, p)
   }
   return total
-}
-
-function isMultimodalMime(mime: string): boolean {
-  return (
-    mime.startsWith("image/") ||
-    mime.startsWith("audio/") ||
-    mime.startsWith("video/") ||
-    mime === "application/pdf"
-  )
 }

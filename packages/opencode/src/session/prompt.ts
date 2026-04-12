@@ -1012,6 +1012,14 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             }
             const url = new URL(part.url)
             switch (url.protocol) {
+              case "https:":
+              case "http:":
+                // CDN URL from POST /kolbo/v1/files. Pass through unchanged —
+                // the backend auto-injects uploaded media from a pending queue
+                // so the URL doesn't need to survive into the model messages.
+                // But saving it to the DB preserves the attachment in the
+                // session history for replay/export.
+                return [{ ...part, messageID: info.id, sessionID: input.sessionID }]
               case "data:":
                 if (part.mime === "text/plain") {
                   return [

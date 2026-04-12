@@ -250,12 +250,19 @@ export function Session() {
     showGoUpsell()
   })
 
-  // Auto-show provider dialog when auth fails mid-session
+  // Auto-show provider dialog when auth fails mid-session. Latched per
+  // message id so it fires once per errored turn: without this, pressing
+  // esc re-fires the effect (dialog.stack is reactive) and re-opens the
+  // dialog in a loop, and after a successful re-auth the stale errored
+  // message would keep re-triggering the connect flow until a full restart.
+  let handledAuthErrorId: string | undefined
   createEffect(() => {
     const last = lastAssistant()
     if (!last || last.role !== "assistant") return
     if (last.error?.name !== "ProviderAuthError") return
+    if (last.id === handledAuthErrorId) return
     if (dialog.stack.length > 0) return
+    handledAuthErrorId = last.id
     dialog.replace(() => <DialogProviderConnect />)
   })
 

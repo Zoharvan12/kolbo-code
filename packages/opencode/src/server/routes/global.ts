@@ -422,7 +422,7 @@ export const GlobalRoutes = lazy(() =>
       describeRoute({
         summary: "Expose Kolbo API key + base URL to the TUI",
         description:
-          "Returns the current user's Kolbo API key and the API base URL so the TUI can call kolbo-api directly from the process that owns the terminal, without going through the internal worker-fetch RPC bridge (which doesn't handle binary bodies). Used exclusively for multipart file uploads to POST /kolbo/v1/files, because the RPC bridge stringifies request bodies via Request.text() and corrupts multipart boundaries on binary content. Same-process exposure — the TUI and the server worker share a Bun runtime, so this is a memory-local hand-off, not a network disclosure.",
+          "Returns the current user's Kolbo API key and the API base URL so the TUI can call kolbo-api directly from the process that owns the terminal, without going through the worker-fetch RPC bridge (which can't carry binary multipart bodies). Used by the file-attachment upload flow. Same-process exposure — TUI and server worker share a Bun runtime, so this is a memory-local hand-off, not a network disclosure.",
         operationId: "global.kolbo-auth-context",
         responses: {
           200: {
@@ -449,6 +449,100 @@ export const GlobalRoutes = lazy(() =>
           return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
         }
         return c.json({ apiKey, apiBase: Partner.apiBase })
+      },
+    )
+    .post(
+      "/kolbo-files-upload",
+      describeRoute({
+        summary: "Proxy: upload a binary file to kolbo-api for multimodal chat",
+        description:
+          "Multipart form-data with a single 'file' field. Reads the user's Kolbo API key via the server-side auth store, forwards the upload to POST /kolbo/v1/files on kolbo-api with Bearer auth, and returns the upstream JSON response (file_id, url, mime_type, bytes, deduplicated, expires_at, etc.). Available for external clients and the TUI's external mode. Internal-mode TUI bypasses this route and uploads directly to kolbo-api via globalThis.fetch + /kolbo-auth-context, because the worker-RPC bridge that backs sdk.fetch corrupts multipart bodies.",
+        operationId: "global.kolbo-files-upload",
+        responses: {
+          200: {
+            description: "Upload succeeded — returns the upstream file metadata",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    id: z.string().optional(),
+                    url: z.string(),
+                    mime_type: z.string(),
+                    filename: z.string().optional(),
+                    bytes: z.number().optional(),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(400, 401, 502),
+        },
+      }),
+      async (c) => {
+        const auth = await Auth.get("kolbo")
+        const apiKey =
+          auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+        if (!apiKey) {
+          return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+        }
+
+        let incoming: FormData
+        try {
+          incoming = await c.req.formData()
+        } catch (e) {
+          return c.json(
+            { error: { message: `Invalid multipart body: ${(e as Error).message}`, type: "bad_request" } },
+            400,
+          )
+        }
+
+        // FormData field values can be string | Blob. The TS lib we run
+        // against doesn't expose `File` as an instanceof-friendly type, so
+        // we narrow by shape.
+        const rawFile = incoming.get("file")
+        if (!rawFile || typeof rawFile === "string") {
+          return c.json(
+            { error: { message: "Missing 'file' field in multipart body", type: "bad_request" } },
+            400,
+          )
+        }
+        const file = rawFile as Blob & { name?: string }
+
+        const outgoing = new FormData()
+        const filename =
+          (typeof file.name === "string" && file.name) ||
+          (incoming.get("filename") as string | null) ||
+          "upload.bin"
+        outgoing.append("file", file, filename)
+
+        try {
+          const res = await fetch(`${Partner.apiBase}/kolbo/v1/files`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${apiKey}` },
+            body: outgoing,
+          })
+          if (!res.ok) {
+            const body = await res.text().catch(() => "")
+            log.error("kolbo files upload upstream failed", { status: res.status, body: body.slice(0, 500) })
+            return c.json(
+              {
+                error: {
+                  message: `Upload rejected by kolbo-api (${res.status})`,
+                  type: "upstream_error",
+                },
+              },
+              502,
+            )
+          }
+          const data = (await res.json()) as Record<string, unknown>
+          return c.json(data)
+        } catch (e) {
+          log.error("kolbo files upload network error", { error: (e as Error).message })
+          return c.json(
+            { error: { message: `Upload failed: ${(e as Error).message}`, type: "network_error" } },
+            502,
+          )
+        }
       },
     ),
 )

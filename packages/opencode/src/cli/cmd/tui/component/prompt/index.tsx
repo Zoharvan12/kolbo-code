@@ -2,7 +2,6 @@ import {
   BoxRenderable,
   TextareaRenderable,
   MouseEvent,
-  MouseButton,
   PasteEvent,
   decodePasteBytes,
   t,
@@ -40,7 +39,7 @@ import { TuiEvent } from "../../event"
 import { iife } from "@/util/iife"
 import { Locale } from "@/util/locale"
 import { formatDuration } from "@/util/format"
-import { sessionKolboCredits, type ModelPricing } from "@/util/kolbo-credits"
+import { sessionCredits, type ModelPricing } from "@/util/kolbo-credits"
 import { createColors, createFrames } from "../../ui/spinner.ts"
 import { useDialog } from "@tui/ui/dialog"
 import { DialogProvider as DialogProviderConnect } from "../dialog-provider"
@@ -93,23 +92,34 @@ function randomIndex(count: number) {
 // CDN URL to the content array.
 const MAX_IMAGES_PER_PROMPT = 10
 
-type AttachmentBucket = "Image" | "PDF" | "Audio" | "Video" | "File"
+// Chip label for file attachments. Only Image and PDF are reachable via
+// the upload path (isAttachmentMime gates entry). Audio/video drops fall
+// through to the default text-paste handler. See also MessageV2.isMedia()
+// for the broader media classification used in compaction/stripMedia.
+type AttachmentBucket = "Image" | "PDF"
 
 function bucketForMime(mime: string): AttachmentBucket {
-  if (mime === "application/pdf") return "PDF"
-  if (mime.startsWith("image/")) return "Image"
-  if (mime.startsWith("audio/")) return "Audio"
-  if (mime.startsWith("video/")) return "Video"
-  return "File"
+  return mime === "application/pdf" ? "PDF" : "Image"
 }
 
+/** Only images and PDFs take the upload-then-attach path. */
 function isAttachmentMime(mime: string): boolean {
-  // Only images and PDFs take the upload-then-attach path. Audio and video
-  // files dropped into the prompt fall through to the default text-paste
-  // handling, same as any other filepath a user drops — their path gets
-  // inserted verbatim so the user can reference it without any upload.
   return mime === "application/pdf" || mime.startsWith("image/")
 }
+
+/** SHA-256 hex digest for the client-side upload dedup cache. */
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  // Cast needed because TS's lib.dom types narrow Uint8Array's buffer to
+  // ArrayBufferLike which isn't assignable to BufferSource in strict mode.
+  const hash = await crypto.subtle.digest("SHA-256", bytes as unknown as ArrayBuffer)
+  return Buffer.from(hash).toString("hex")
+}
+
+// Upload dedup cache. Keyed by SHA-256 of the original bytes. Capped at
+// 200 entries — backend URLs expire after 24h, so stale entries are
+// harmless but we don't want unbounded growth in long sessions.
+const UPLOAD_CACHE_MAX = 200
+const kolboUploadCache = new Map<string, { url: string; mime_type: string }>()
 
 /**
  * Attempt client-side text extraction for text-based PDFs so they route via
@@ -215,6 +225,11 @@ export function Prompt(props: PromptProps) {
         if (res.data) setKolboPricing(res.data as Record<string, ModelPricing>)
       })
       .catch(() => {})
+    // Pre-warm the Kolbo auth context so the first dropped image doesn't
+    // pay the auth round-trip latency on the user's hot path. Failures are
+    // silent — if auth isn't ready, the upload will fail closed with a
+    // clear toast at attachment time.
+    void getKolboAuthContext().catch(() => {})
   })
 
   const usage = createMemo(() => {
@@ -232,18 +247,7 @@ export function Prompt(props: PromptProps) {
     const isKolbo = last.providerID === "kolbo"
     const cost = isKolbo ? 0 : msg.reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
 
-    // Per-session Kolbo credit consumption — mirrors the backend per-request
-    // ceil() formula, and swaps to kolbo-vision pricing once any user message
-    // in the conversation has a media attachment (because the backend will
-    // then route every subsequent request to Gemini). Hidden silently if
-    // pricing hasn't loaded or the model isn't in the pricing map.
-    const credits = isKolbo
-      ? sessionKolboCredits({
-          messages: msg,
-          partsByMessageID: (id) => sync.data.part[id],
-          pricing: kolboPricing(),
-        })
-      : 0
+    const credits = isKolbo ? sessionCredits(msg, kolboPricing()) : 0
 
     return {
       context: pct ? `${Locale.number(tokens)} (${pct})` : Locale.number(tokens),
@@ -324,6 +328,9 @@ export function Prompt(props: PromptProps) {
     setPttPartial("")
   }
 
+  /** True when PTT is in any active state (starting, recording, or session live). */
+  const isPttBusy = () => pttStarting || pttRecording() || !!pttSession
+
   /** Translate a PushToTalk.ErrorInfo into a localized, user-facing string. */
   const formatPttError = (err: PushToTalk.ErrorInfo): string => {
     return tI18n(`voice.errors.${err.code}`, err.params ?? {})
@@ -331,7 +338,7 @@ export function Prompt(props: PromptProps) {
 
   const triggerPtt = async () => {
     if (!input || input.isDestroyed) return
-    if (pttStarting || pttSession || pttRecording()) return
+    if (isPttBusy()) return
 
     pttStarting = true
     setPttRecording(true)
@@ -381,7 +388,7 @@ export function Prompt(props: PromptProps) {
   // separately from `ctrl release`, and we want either to end the session.
   onMount(() => {
     const handleRelease = (e: KeyEvent) => {
-      if (!pttRecording() && !pttStarting) return
+      if (!isPttBusy()) return
       if (e.name === "space") {
         stopPtt("stop")
       }
@@ -809,6 +816,22 @@ export function Prompt(props: PromptProps) {
       return
     }
 
+    // If the user pressed Enter while one or more attachments are still
+    // being read/compressed/encoded, wait for them to finish before reading
+    // `store.prompt.parts` below. Without this barrier, in-flight
+    // attachments are silently absent from the outgoing request and the
+    // model receives a text-only message — which on the Kolbo backend
+    // routes to MiniMax and produces hallucinated descriptions of images
+    // it never saw.
+    if (inFlightAttachments.size > 0) {
+      toast.show({
+        variant: "info",
+        message: "Finishing attachment processing…",
+        duration: 2000,
+      })
+      await Promise.allSettled([...inFlightAttachments])
+    }
+
     let sessionID = props.sessionID
     if (sessionID == null) {
       const res = await sdk.client.session.create({
@@ -974,92 +997,34 @@ export function Prompt(props: PromptProps) {
     )
   }
 
-  /**
-   * Monotonic counters per attachment bucket for the current prompt. We count
-   * by reading from `store.prompt.parts` at pasteAttachment time, but keep a
-   * "next index" hint cached here so that if the store filter races with an
-   * in-flight upload (second drop reading state before the first has landed),
-   * the chip label still increments. The signal is reset whenever the prompt
-   * is cleared (on submit / stash / ctrl+c). Each call returns the next index
-   * for its bucket AND stores it back so the following call increments.
-   *
-   * Read order in `pasteAttachment` is:
-   *   1. Read the real store count (source of truth).
-   *   2. Read the cached hint.
-   *   3. Use `max(storeCount, hint) + 1` — guarantees strict monotonic
-   *      numbering even if two uploads complete in the same microtask and
-   *      both read a stale storeCount.
-   *   4. Update the hint.
-   */
-  const [imageIdxHint, setImageIdxHint] = createSignal(0)
-  const [pdfIdxHint, setPdfIdxHint] = createSignal(0)
-  const [audioIdxHint, setAudioIdxHint] = createSignal(0)
-  const [videoIdxHint, setVideoIdxHint] = createSignal(0)
-  const [fileIdxHint, setFileIdxHint] = createSignal(0)
+  // Monotonic chip-label counter per bucket (e.g. [Image 1], [Image 2]).
+  // Uses max(storeCount, hint) so two concurrent uploads that both read a
+  // stale store still get unique labels. Resets when the prompt clears.
+  const [idxHints, setIdxHints] = createSignal<Record<AttachmentBucket, number>>({ Image: 0, PDF: 0 })
 
   function nextAttachmentIndex(bucket: AttachmentBucket): number {
-    // Source of truth: live store count for the same bucket.
-    const storeCount = store.prompt.parts.filter((x) => {
-      if (x.type !== "file") return false
-      return bucketForMime((x as { mime: string }).mime) === bucket
-    }).length
-    const hint = (() => {
-      switch (bucket) {
-        case "Image":
-          return imageIdxHint()
-        case "PDF":
-          return pdfIdxHint()
-        case "Audio":
-          return audioIdxHint()
-        case "Video":
-          return videoIdxHint()
-        default:
-          return fileIdxHint()
-      }
-    })()
-    // Take whichever is larger so we're strictly monotonic under races.
+    const storeCount = store.prompt.parts.filter(
+      (x) => x.type === "file" && bucketForMime((x as { mime: string }).mime) === bucket,
+    ).length
+    const hint = idxHints()[bucket] ?? 0
     const next = Math.max(storeCount, hint) + 1
-    switch (bucket) {
-      case "Image":
-        setImageIdxHint(next)
-        break
-      case "PDF":
-        setPdfIdxHint(next)
-        break
-      case "Audio":
-        setAudioIdxHint(next)
-        break
-      case "Video":
-        setVideoIdxHint(next)
-        break
-      default:
-        setFileIdxHint(next)
-        break
-    }
+    setIdxHints((prev) => ({ ...prev, [bucket]: next }))
     return next
   }
 
-  // When the prompt is cleared (submit, stash, ctrl+c, reset), the parts array
-  // goes back to empty. Reset all bucket hints so the next prompt starts at 1.
   createEffect(() => {
-    if (store.prompt.parts.length === 0) {
-      setImageIdxHint(0)
-      setPdfIdxHint(0)
-      setAudioIdxHint(0)
-      setVideoIdxHint(0)
-      setFileIdxHint(0)
-    }
+    if (store.prompt.parts.length === 0) setIdxHints({ Image: 0, PDF: 0 })
   })
 
   /**
-   * Attach a file part to the current prompt. The caller must have already
-   * produced a `url` — either an HTTPS CDN URL from `/kolbo-files-upload`
-   * (preferred, required for anything routed via kolbo-vision) or a
-   * `data:...;base64,...` URL for small inline content when the provider
-   * can handle it. Binary media attachments to the Kolbo provider MUST be
-   * CDN URLs because the chat endpoint caps the request body at 1 MB.
+   * Attach a file part to the current prompt. Takes a `url` — either an
+   * HTTPS CDN URL from POST /kolbo/v1/files (the normal path) or, for
+   * stock-opencode-compatible flows, a `data:` URL. The body of this
+   * function has no awaits, so two pasteAttachment calls back-to-back
+   * can't interleave their setStore writes and the bucket counter stays
+   * strictly monotonic.
    */
-  async function pasteAttachment(file: { filename?: string; filepath?: string; mime: string; url: string }) {
+  function pasteAttachment(file: { filename?: string; filepath?: string; mime: string; url: string }) {
     const currentOffset = input.visualCursor.offset
     const extmarkStart = currentOffset
     const bucket = bucketForMime(file.mime)
@@ -1100,7 +1065,155 @@ export function Prompt(props: PromptProps) {
         draft.extmarkToPartIndex.set(extmarkId, partIndex)
       }),
     )
-    return
+  }
+
+  // Cached Kolbo auth context (apiKey + apiBase). Fetched once on first use
+  // from the local /global/kolbo-auth-context server route, then memoized.
+  // The 401 path below clears it so a re-auth picks up fresh credentials.
+  let kolboAuthContext: { apiKey: string; apiBase: string } | undefined
+  async function getKolboAuthContext(): Promise<{ apiKey: string; apiBase: string }> {
+    if (kolboAuthContext) return kolboAuthContext
+    // Small JSON response over the worker-RPC bridge — sdk.fetch is fine
+    // here. The bridge only mangles binary bodies (multipart), not JSON.
+    const res = await sdk.fetch(`${sdk.url}/global/kolbo-auth-context`, { method: "GET" })
+    if (!res.ok) {
+      if (res.status === 401) throw new Error("Not authenticated with Kolbo — run /auth to sign in")
+      throw new Error(`Failed to load Kolbo auth (${res.status})`)
+    }
+    const data = (await res.json()) as { apiKey: string; apiBase: string }
+    kolboAuthContext = data
+    return data
+  }
+
+  /**
+   * Upload binary attachment bytes to kolbo-api's POST /kolbo/v1/files
+   * endpoint and return the permanent CDN URL.
+   *
+   * Goes DIRECT to kolbo-api via `globalThis.fetch`, NOT through the local
+   * server proxy via `sdk.fetch`, because in the default internal TUI mode
+   * `sdk.fetch` is the worker-RPC bridge (`createWorkerFetch` in
+   * `thread.ts`), which marshals request bodies via `Request.text()` and
+   * irrecoverably corrupts multipart binary content. The proxy route
+   * `/global/kolbo-files-upload` exists in the server for external mode
+   * and external clients, but the TUI itself bypasses it.
+   *
+   * `mime` is REQUIRED — it gets stamped on the Blob's `type` property,
+   * which becomes the multipart part's `Content-Type` header, which is
+   * what multer on the backend reads as `req.file.mimetype`. Without it,
+   * Blobs default to an empty type and multer falls back to
+   * `application/octet-stream`. The backend's image optimizer keys off
+   * `mimetype.startsWith("image/")`, so a wrong content-type bypasses
+   * optimization AND causes the response `mime_type` to be the generic
+   * octet-stream value, which makes the chip label fall back to "File".
+   *
+   * Client-side dedup by SHA-256 of the bytes — re-attaching the same image
+   * in a later turn (after backend optimization, with stable hash) avoids
+   * the round-trip entirely.
+   */
+  async function uploadKolboFile(
+    bytes: Uint8Array,
+    filename: string,
+    mime: string,
+  ): Promise<{ url: string; mime_type: string }> {
+    const hash = await sha256Hex(bytes)
+    const cached = kolboUploadCache.get(hash)
+    if (cached) return cached
+
+    const ctx = await getKolboAuthContext()
+    const blob = new Blob([bytes as unknown as ArrayBuffer], { type: mime })
+    const form = new FormData()
+    form.append("file", blob, filename)
+
+    const res = await globalThis.fetch(`${ctx.apiBase}/kolbo/v1/files`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${ctx.apiKey}` },
+      body: form,
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => "")
+      let serverMessage: string | undefined
+      try {
+        const parsed = JSON.parse(body) as { error?: { message?: string } }
+        if (parsed?.error?.message) serverMessage = parsed.error.message
+      } catch {}
+      // Stale credentials → drop the cached context so the next attempt re-fetches.
+      if (res.status === 401) kolboAuthContext = undefined
+      const message =
+        serverMessage ??
+        (res.status === 401
+          ? "Not authenticated with Kolbo — run /auth to sign in"
+          : res.status === 413
+            ? "File is too large (server limit)"
+            : res.status === 429
+              ? "Too many uploads — rate limited, try again in a moment"
+              : `Upload failed (${res.status})`)
+      throw new Error(message)
+    }
+    const data = (await res.json()) as { url: string; mime_type: string }
+    // Simple LRU eviction: if the cache is full, drop the oldest entry
+    // (Maps iterate in insertion order, so keys().next() is the oldest).
+    if (kolboUploadCache.size >= UPLOAD_CACHE_MAX) {
+      const oldest = kolboUploadCache.keys().next().value
+      if (oldest) kolboUploadCache.delete(oldest)
+    }
+    kolboUploadCache.set(hash, data)
+    return data
+  }
+
+  // Tracks every attachment that's still being processed (read → upload →
+  // pasteAttachment). `submit()` awaits this set to drain before it reads
+  // `store.prompt.parts`, which closes a race where dropping an image and
+  // immediately pressing Enter would ship a request without the image
+  // (because the upload was still in flight). Without this, the backend
+  // would route to text-only and the model would hallucinate.
+  const inFlightAttachments = new Set<Promise<void>>()
+
+  /**
+   * Common tail for both attachment entry points (file drop + clipboard).
+   * Uploads the bytes to kolbo-api and attaches the resulting CDN URL via
+   * pasteAttachment. Errors are surfaced via toast and the attachment is
+   * refused — never leaks raw bytes to the chat completion request as a
+   * fallback. Each call registers itself in `inFlightAttachments` so
+   * `submit()` waits for the upload to complete before reading
+   * `store.prompt.parts`.
+   */
+  async function attachFileBytes(
+    bytes: Uint8Array,
+    mime: string,
+    meta: { filename?: string; filepath?: string },
+  ) {
+    const work = (async () => {
+      let ref: { url: string; mime_type: string }
+      try {
+        ref = await uploadKolboFile(bytes, meta.filename ?? "upload", mime)
+      } catch (e) {
+        toast.show({
+          variant: "error",
+          message: `Couldn't upload attachment: ${(e as Error).message}`,
+          duration: 5000,
+        })
+        return
+      }
+      // Use the ORIGINAL mime from the drop handler / clipboard (always
+      // correct — derived from the file extension or clipboard type), NOT
+      // ref.mime_type from the upload response. The backend's dedup path
+      // can return stale contentType values from DB records that were
+      // uploaded before the Blob-type fix, e.g. "application/octet-stream"
+      // instead of "image/jpeg". Using the original avoids inheriting the
+      // stale value for the chip label and the FilePart's mediaType.
+      pasteAttachment({
+        filename: meta.filename,
+        filepath: meta.filepath,
+        mime,
+        url: ref.url,
+      })
+    })()
+    inFlightAttachments.add(work)
+    try {
+      await work
+    } finally {
+      inFlightAttachments.delete(work)
+    }
   }
 
   /**
@@ -1124,141 +1237,13 @@ export function Prompt(props: PromptProps) {
     return true
   }
 
-  // Cached Kolbo auth context (API key + base URL). Fetched lazily on the
-  // first upload attempt. Kept here, not module-level, so it's scoped to the
-  // component lifetime — if the user re-auths, a fresh Prompt re-fetches.
-  let kolboAuthContext: { apiKey: string; apiBase: string } | undefined
-  async function getKolboAuthContext(): Promise<{ apiKey: string; apiBase: string }> {
-    if (kolboAuthContext) return kolboAuthContext
-    // This call goes through sdk.fetch, which in internal mode is the
-    // worker-RPC bridge. That's fine here — the response is small JSON, no
-    // binary body involved. Only the multipart upload itself needs to dodge
-    // the bridge.
-    const res = await sdk.fetch(`${sdk.url}/global/kolbo-auth-context`, { method: "GET" })
-    if (!res.ok) {
-      if (res.status === 401) {
-        throw new Error("Not authenticated with Kolbo — run /auth to sign in")
-      }
-      throw new Error(`Failed to load Kolbo auth (${res.status})`)
-    }
-    const data = (await res.json()) as { apiKey: string; apiBase: string }
-    kolboAuthContext = data
-    return data
-  }
-
   /**
-   * Upload a Blob (from filesystem or clipboard) directly to kolbo-api's
-   * POST /kolbo/v1/files endpoint. Returns the permanent CDN URL.
+   * Unified "paste whatever's in the clipboard" path. Used by two entry
+   * points: the ctrl+v keypress (input_paste keybind) and the
+   * /prompt.paste slash command. Handles both text and binary content:
    *
-   * We deliberately use `globalThis.fetch` (Bun's native network fetch), NOT
-   * `sdk.fetch`, because in the default internal TUI mode `sdk.fetch` is a
-   * worker-RPC bridge that stringifies request bodies via `Request.text()`
-   * — which lossily mangles multipart boundaries and binary file bytes. See
-   * `createWorkerFetch` in thread.ts. The fix is to skip the bridge entirely
-   * for this one call and talk to kolbo-api over the real network. The API
-   * key is fetched once from the worker-side auth store via a small JSON
-   * route (which the bridge handles fine).
-   */
-  async function uploadKolboBlob(blob: Blob, filename: string): Promise<{ url: string; mime_type: string }> {
-    const ctx = await getKolboAuthContext()
-    const form = new FormData()
-    form.append("file", blob, filename)
-    const res = await globalThis.fetch(`${ctx.apiBase}/kolbo/v1/files`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${ctx.apiKey}` },
-      body: form,
-    })
-    if (!res.ok) {
-      const body = await res.text().catch(() => "")
-      // Extract upstream error message if the body is JSON-shaped like
-      // { error: { message } } — that's the envelope kolbo-api uses. Fall
-      // back to status-specific defaults so users never see a bare code.
-      let serverMessage: string | undefined
-      try {
-        const parsed = JSON.parse(body) as { error?: { message?: string } }
-        if (parsed?.error?.message) serverMessage = parsed.error.message
-      } catch {}
-      // 401 from upstream means the cached key is stale — drop it so the
-      // next upload attempt re-fetches fresh credentials.
-      if (res.status === 401) kolboAuthContext = undefined
-      const message =
-        serverMessage ??
-        (res.status === 401
-          ? "Not authenticated with Kolbo — run /auth to sign in"
-          : res.status === 413
-            ? "File is too large (max 500 MB)"
-            : res.status === 429
-              ? "Too many uploads — rate limited, try again in a moment"
-              : `Upload failed (${res.status})`)
-      throw new Error(message)
-    }
-    return (await res.json()) as { url: string; mime_type: string }
-  }
-
-  /**
-   * Shared helper for both clipboard-paste code paths (the `prompt.paste`
-   * command and the keybind-intercepted Ctrl+V). Decodes the base64 clipboard
-   * payload into a Blob, uploads it, and attaches the resulting CDN URL.
-   * Surfaces errors via the toast system and never inlines base64 into the
-   * prompt — uniform with the file-drop path. Only reached for images and
-   * PDFs; audio/video are filtered out upstream by `isAttachmentMime`.
-   */
-  async function uploadAndAttachClipboard(mime: string, base64Data: string) {
-    // Enforce image-count cap before the upload round-trip.
-    if (mime.startsWith("image/") && !checkImageLimit()) return
-
-    // ASCII braille spinner — updates every 80ms via setInterval so the
-    // user sees a live "cool ascii" animation next to the upload label
-    // instead of a static banner. Frames are the standard "dots" spinner
-    // used widely in TUIs (0x2800-0x28ff block).
-    const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-    const bucket = bucketForMime(mime).toLowerCase()
-    let frame = 0
-    const renderToast = () => {
-      toast.show({
-        variant: "info",
-        // Long duration so the toast stays until we explicitly dismiss.
-        // Each setInterval tick calls show() again to swap the frame;
-        // show() replaces the current toast, which effectively animates.
-        duration: 60000,
-        message: `${spinnerFrames[frame]} Uploading clipboard ${bucket}…`,
-      })
-      frame = (frame + 1) % spinnerFrames.length
-    }
-    renderToast()
-    const spinnerTimer = setInterval(renderToast, 80)
-
-    try {
-      const bytes = Buffer.from(base64Data, "base64")
-      const blob = new Blob([bytes], { type: mime })
-      const extension = mime.split("/")[1]?.split("+")[0] ?? "bin"
-      const filename = `clipboard.${extension}`
-      const ref = await uploadKolboBlob(blob, filename)
-      await pasteAttachment({
-        filename,
-        mime,
-        url: ref.url,
-      })
-      // Upload done — stop the spinner and dismiss the toast.
-      clearInterval(spinnerTimer)
-      toast.dismiss()
-    } catch (e) {
-      clearInterval(spinnerTimer)
-      toast.show({
-        variant: "error",
-        message: `Upload failed: ${(e as Error).message}`,
-        duration: 5000,
-      })
-    }
-  }
-
-  /**
-   * Unified "paste whatever's in the clipboard" path. Used by three entry
-   * points: ctrl+v keypress, right-mouse-button click on the textarea, and
-   * the /prompt.paste slash command. Handles both text and binary content:
-   *
-   *   • Images / PDFs / etc (isAttachmentMime) → upload + attach as a chip
-   *     via uploadAndAttachClipboard.
+   *   • Images / PDFs (isAttachmentMime) → attach inline as a base64 data
+   *     URL chip via pasteAttachment.
    *   • Plain text → either inline insert, or (for long pastes ≥3 lines /
    *     >150 chars) wrapped in a `[Pasted ~N lines]` chip via pasteText,
    *     matching the bracketed-paste behavior in the onPaste handler.
@@ -1268,28 +1253,45 @@ export function Prompt(props: PromptProps) {
    */
   async function pasteClipboard(): Promise<boolean> {
     if (props.disabled || !input || input.isDestroyed) return false
-    const content = await Clipboard.read().catch(() => undefined)
-    if (!content) return false
-    if (isAttachmentMime(content.mime)) {
-      await uploadAndAttachClipboard(content.mime, content.data)
+    // Register the in-flight marker BEFORE Clipboard.read() so submit()
+    // waits for us. Same race rationale as the bracketed-paste handler:
+    // without this, ctrl+v followed by an immediate Enter could ship the
+    // request before the clipboard read had even returned.
+    let releaseInFlight: () => void = () => {}
+    const inFlightMarker = new Promise<void>((r) => {
+      releaseInFlight = r
+    })
+    inFlightAttachments.add(inFlightMarker)
+    try {
+      const content = await Clipboard.read().catch(() => undefined)
+      if (!content) return false
+      if (isAttachmentMime(content.mime)) {
+        if (content.mime.startsWith("image/") && !checkImageLimit()) return true
+        await attachFileBytes(new Uint8Array(Buffer.from(content.data, "base64")), content.mime, {
+          filename: "clipboard",
+        })
+        return true
+      }
+      // Text clipboard. Normalize line endings; the bracketed-paste handler
+      // does the same thing and we want the two paths to stay consistent.
+      const normalized = content.data.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+      if (!normalized) return false
+      const lineCount = (normalized.match(/\n/g)?.length ?? 0) + 1
+      if (
+        (lineCount >= 3 || normalized.length > 150) &&
+        !sync.data.config.experimental?.disable_paste_summary
+      ) {
+        pasteText(normalized, `[Pasted ~${lineCount} lines]`)
+        return true
+      }
+      input.insertText(normalized)
+      setStore("prompt", "input", input.plainText)
+      renderer.requestRender()
       return true
+    } finally {
+      releaseInFlight()
+      inFlightAttachments.delete(inFlightMarker)
     }
-    // Text clipboard. Normalize line endings; the bracketed-paste handler
-    // does the same thing and we want the two paths to stay consistent.
-    const normalized = content.data.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
-    if (!normalized) return false
-    const lineCount = (normalized.match(/\n/g)?.length ?? 0) + 1
-    if (
-      (lineCount >= 3 || normalized.length > 150) &&
-      !sync.data.config.experimental?.disable_paste_summary
-    ) {
-      pasteText(normalized, `[Pasted ~${lineCount} lines]`)
-      return true
-    }
-    input.insertText(normalized)
-    setStore("prompt", "input", input.plainText)
-    renderer.requestRender()
-    return true
   }
 
   const highlight = createMemo(() => {
@@ -1433,7 +1435,7 @@ export function Prompt(props: PromptProps) {
                   input.focused &&
                   keybind.match("input_voice", e)
                 ) {
-                  if (!pttSession && !pttRecording() && !pttStarting) {
+                  if (!isPttBusy()) {
                     void triggerPtt()
                   }
                   e.preventDefault()
@@ -1495,7 +1497,7 @@ export function Prompt(props: PromptProps) {
                   // pending hold timer from firing moments later and starting
                   // recording on an already-cleared prompt, and ensures the
                   // mic/socket are released when the user wants to bail.
-                  if ((pttStarting || pttRecording() || pttSession)) stopPtt("cancel")
+                  if (isPttBusy()) stopPtt("cancel")
                   // Use setText("") rather than clear(). Reason: in RTL mode
                   // the textarea ref callback overrides insertText / setText
                   // to maintain a `logicalText` buffer, but clear() goes
@@ -1540,7 +1542,7 @@ export function Prompt(props: PromptProps) {
                     if (store.ctrlCPressedAt !== null && now - store.ctrlCPressedAt < 3000) {
                       // Second press within the window → actually exit.
                       setStore("ctrlCPressedAt", null)
-                      if (pttStarting || pttRecording() || pttSession) stopPtt("cancel")
+                      if (isPttBusy()) stopPtt("cancel")
                       await exit()
                       e.preventDefault()
                       return
@@ -1626,113 +1628,105 @@ export function Prompt(props: PromptProps) {
                   return
                 }
 
-                // Normalize line endings at the boundary
-                // Windows ConPTY/Terminal often sends CR-only newlines in bracketed paste
-                // Replace CRLF first, then any remaining CR
-                const normalizedText = decodePasteBytes(event.bytes).replace(/\r\n/g, "\n").replace(/\r/g, "\n")
-                const pastedContent = normalizedText.trim()
-
-                // Windows Terminal <1.25 can surface image-only clipboard as an
-                // empty bracketed paste. Windows Terminal 1.25+ does not.
-                if (!pastedContent) {
-                  command.trigger("prompt.paste")
-                  return
-                }
-
-                const filepath = iife(() => {
-                  const raw = pastedContent.replace(/^['"]+|['"]+$/g, "")
-                  if (raw.startsWith("file://")) {
-                    try {
-                      return fileURLToPath(raw)
-                    } catch {}
-                  }
-                  if (process.platform === "win32") return raw
-                  return raw.replace(/\\(.)/g, "$1")
+                // Register an in-flight marker IMMEDIATELY, before any await,
+                // so submit() can't race ahead while we're still parsing the
+                // paste / reading the file from disk / running unpdf. Without
+                // this, dropping a screenshot and pressing Enter while
+                // readArrayBuffer is in flight would slip the file part past
+                // the in-flight barrier — submit reads `inFlightAttachments`
+                // as empty, ships the request without the image, and the
+                // model has nothing to look at. Released in `finally` below.
+                let releaseInFlight: () => void = () => {}
+                const inFlightMarker = new Promise<void>((r) => {
+                  releaseInFlight = r
                 })
-                const isUrl = /^(https?):\/\//.test(filepath)
-                if (!isUrl) {
-                  try {
-                    const mime = Filesystem.mimeType(filepath)
-                    const filename = path.basename(filepath)
-                    // Handle SVG as raw text content, not as base64 image
-                    if (mime === "image/svg+xml") {
-                      event.preventDefault()
-                      const content = await Filesystem.readText(filepath).catch(() => {})
-                      if (content) {
-                        pasteText(content, `[SVG: ${filename ?? "image"}]`)
-                        return
-                      }
+                inFlightAttachments.add(inFlightMarker)
+                try {
+                  // Normalize line endings at the boundary
+                  // Windows ConPTY/Terminal often sends CR-only newlines in bracketed paste
+                  // Replace CRLF first, then any remaining CR
+                  const normalizedText = decodePasteBytes(event.bytes).replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+                  const pastedContent = normalizedText.trim()
+
+                  // Windows Terminal <1.25 can surface image-only clipboard as an
+                  // empty bracketed paste. Windows Terminal 1.25+ does not.
+                  if (!pastedContent) {
+                    command.trigger("prompt.paste")
+                    return
+                  }
+
+                  const filepath = iife(() => {
+                    const raw = pastedContent.replace(/^['"]+|['"]+$/g, "")
+                    if (raw.startsWith("file://")) {
+                      try {
+                        return fileURLToPath(raw)
+                      } catch {}
                     }
-                    if (isAttachmentMime(mime)) {
-                      event.preventDefault()
-
-                      // Enforce image-count cap before we bother reading or
-                      // uploading anything. PDFs are not capped.
-                      if (mime.startsWith("image/") && !checkImageLimit()) return
-
-                      const buffer = await Filesystem.readArrayBuffer(filepath).catch(() => undefined)
-                      if (!buffer) return
-
-                      // Text-based PDFs: extract client-side and send as plain
-                      // text so the backend routes to MiniMax (cheap) instead
-                      // of Gemini (expensive). Scanned / image-only PDFs fall
-                      // through to the upload-as-binary path.
-                      if (mime === "application/pdf") {
-                        const extracted = await tryExtractPdfText(buffer)
-                        if (extracted) {
-                          const lineCount = (extracted.match(/\n/g)?.length ?? 0) + 1
-                          pasteText(extracted, `[PDF: ${filename ?? "document"} ~${lineCount} lines]`)
+                    if (process.platform === "win32") return raw
+                    return raw.replace(/\\(.)/g, "$1")
+                  })
+                  const isUrl = /^(https?):\/\//.test(filepath)
+                  if (!isUrl) {
+                    try {
+                      const mime = Filesystem.mimeType(filepath)
+                      const filename = path.basename(filepath)
+                      // Handle SVG as raw text content, not as base64 image
+                      if (mime === "image/svg+xml") {
+                        event.preventDefault()
+                        const content = await Filesystem.readText(filepath).catch(() => {})
+                        if (content) {
+                          pasteText(content, `[SVG: ${filename ?? "image"}]`)
                           return
                         }
                       }
+                      if (isAttachmentMime(mime)) {
+                        event.preventDefault()
+                        // PDFs are not capped, images are.
+                        if (mime.startsWith("image/") && !checkImageLimit()) return
 
-                      // Binary media → upload to /kolbo/v1/files and keep the
-                      // returned CDN URL in the FilePart. We must NOT inline
-                      // base64 for Kolbo because the chat-completions body is
-                      // capped at 1 MB. Anything over ~750 KB would fail.
-                      toast.show({
-                        variant: "info",
-                        message: `Uploading ${filename ?? "file"}…`,
-                        duration: 3000,
-                      })
-                      try {
-                        const blob = new Blob([buffer], { type: mime })
-                        const ref = await uploadKolboBlob(blob, filename ?? "upload")
-                        await pasteAttachment({
-                          filename,
-                          filepath,
-                          mime,
-                          url: ref.url,
-                        })
-                      } catch (e) {
-                        toast.show({
-                          variant: "error",
-                          message: `Upload failed: ${(e as Error).message}`,
-                          duration: 5000,
-                        })
+                        const buffer = await Filesystem.readArrayBuffer(filepath).catch(() => undefined)
+                        if (!buffer) return
+
+                        // Text-based PDFs: extract client-side and send as plain
+                        // text so the backend routes to MiniMax (cheap) instead
+                        // of Gemini (expensive). Scanned / image-only PDFs fall
+                        // through to the upload-and-attach path below.
+                        if (mime === "application/pdf") {
+                          const extracted = await tryExtractPdfText(buffer)
+                          if (extracted) {
+                            const lineCount = (extracted.match(/\n/g)?.length ?? 0) + 1
+                            pasteText(extracted, `[PDF: ${filename ?? "document"} ~${lineCount} lines]`)
+                            return
+                          }
+                        }
+
+                        await attachFileBytes(new Uint8Array(buffer), mime, { filename, filepath })
+                        return
                       }
-                      return
-                    }
-                  } catch {}
-                }
+                    } catch {}
+                  }
 
-                const lineCount = (pastedContent.match(/\n/g)?.length ?? 0) + 1
-                if (
-                  (lineCount >= 3 || pastedContent.length > 150) &&
-                  !sync.data.config.experimental?.disable_paste_summary
-                ) {
-                  event.preventDefault()
-                  pasteText(pastedContent, `[Pasted ~${lineCount} lines]`)
-                  return
-                }
+                  const lineCount = (pastedContent.match(/\n/g)?.length ?? 0) + 1
+                  if (
+                    (lineCount >= 3 || pastedContent.length > 150) &&
+                    !sync.data.config.experimental?.disable_paste_summary
+                  ) {
+                    event.preventDefault()
+                    pasteText(pastedContent, `[Pasted ~${lineCount} lines]`)
+                    return
+                  }
 
-                // Force layout update and render for the pasted content
-                setTimeout(() => {
-                  // setTimeout is a workaround and needs to be addressed properly
-                  if (!input || input.isDestroyed) return
-                  input.getLayoutNode().markDirty()
-                  renderer.requestRender()
-                }, 0)
+                  // Force layout update and render for the pasted content
+                  setTimeout(() => {
+                    // setTimeout is a workaround and needs to be addressed properly
+                    if (!input || input.isDestroyed) return
+                    input.getLayoutNode().markDirty()
+                    renderer.requestRender()
+                  }, 0)
+                } finally {
+                  releaseInFlight()
+                  inFlightAttachments.delete(inFlightMarker)
+                }
               }}
               ref={(r: TextareaRenderable) => {
                 input = r
@@ -1854,31 +1848,7 @@ export function Prompt(props: PromptProps) {
                   input.cursorColor = theme.text
                 }, 0)
               }}
-              onMouseDown={(evt: MouseEvent) => {
-                // Right-click = paste from clipboard (text OR media).
-                // Runs alongside Ctrl+V.
-                //
-                // Fire-and-forget via `void`: opentui mouse handlers
-                // are synchronous, and awaiting the async upload flow
-                // inside the handler was preventing the image path
-                // from completing cleanly. Firing the promise lets
-                // the mouse event return immediately and the upload
-                // runs on its own microtask queue.
-                //
-                // Focus the textarea ref directly rather than
-                // `evt.target` — target can resolve to a nested
-                // renderable (cursor layer, placeholder) that isn't
-                // focusable, and we need the input itself focused
-                // before pasteAttachment reads input.visualCursor.
-                if (evt.button === MouseButton.RIGHT) {
-                  evt.preventDefault()
-                  if (input && !input.isDestroyed) input.focus()
-                  void pasteClipboard()
-                  return
-                }
-                // Left / middle click: just focus the textarea.
-                if (input && !input.isDestroyed) input.focus()
-              }}
+              onMouseDown={(r: MouseEvent) => r.target?.focus()}
               focusedBackgroundColor={theme.backgroundElement}
               cursorColor={theme.text}
               syntaxStyle={syntax()}

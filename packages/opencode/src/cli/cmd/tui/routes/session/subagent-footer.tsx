@@ -10,7 +10,7 @@ import { useKeybind } from "../../context/keybind"
 import { Locale } from "@/util/locale"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useI18n } from "@/i18n"
-import { sessionKolboCredits, type ModelPricing } from "@/util/kolbo-credits"
+import { sessionCredits, type ModelPricing } from "@/util/kolbo-credits"
 
 export function SubagentFooter() {
   const { t } = useI18n()
@@ -62,18 +62,7 @@ export function SubagentFooter() {
     const isKolbo = last.providerID === "kolbo"
     const cost = isKolbo ? 0 : msg.reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
 
-    // Per-session Kolbo credit consumption — mirrors the backend per-request
-    // ceil() formula, and swaps to kolbo-vision pricing once any user message
-    // in the conversation has a media attachment (because the backend will
-    // then route every subsequent request to Gemini). Hidden silently if
-    // pricing hasn't loaded yet.
-    const credits = isKolbo
-      ? sessionKolboCredits({
-          messages: msg,
-          partsByMessageID: (id) => sync.data.part[id],
-          pricing: kolboPricing(),
-        })
-      : 0
+    const credits = isKolbo ? sessionCredits(msg, kolboPricing()) : 0
 
     const money = new Intl.NumberFormat("en-US", {
       style: "currency",

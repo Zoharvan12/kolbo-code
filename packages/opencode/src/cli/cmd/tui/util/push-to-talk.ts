@@ -32,19 +32,6 @@ import ffmpegStaticPath from "ffmpeg-static"
 import { Global } from "@/global"
 import { Partner } from "@/brand/partner"
 
-// ---- Temporary debug logger ------------------------------------------------
-// The TUI owns stdout/stderr, so console.log is invisible. Write a trace of
-// the PTT lifecycle to a rotating log file the user can tail.
-//   tail -f "$env:LOCALAPPDATA/../../.local/share/kolbo/log/push-to-talk.log"
-// (or just look in Global.Path.log/push-to-talk.log)
-// Remove this block once PTT is stable.
-const PTT_LOG_FILE = path.join(Global.Path.log, "push-to-talk.log")
-function pttLog(msg: string): void {
-  try {
-    fs.appendFileSync(PTT_LOG_FILE, `${new Date().toISOString()} ${msg}\n`)
-  } catch {}
-}
-
 export namespace PushToTalk {
   /**
    * All user-visible errors are returned as structured codes so the prompt
@@ -88,27 +75,21 @@ export namespace PushToTalk {
    * Returns { ok: false } synchronously-ish if prerequisites fail (no auth,
    * no sox binary). Transport/backend errors surface through `onError`.
    */
+  // Caches — survive across PTT sessions to avoid repeated I/O on every press.
+  let cachedToken: string | undefined
+  let cachedMicCmd: MicCommand | undefined
+
   export async function start(opts: StartOptions): Promise<StartResult> {
-    pttLog("start() called")
+    const token = cachedToken ?? loadKolboToken()
+    if (!token) return { ok: false, error: { code: "notLoggedIn" } }
+    cachedToken = token
 
-    const token = loadKolboToken()
-    if (!token) {
-      pttLog("start() aborted: no token in auth.json")
-      return { ok: false, error: { code: "notLoggedIn" } }
-    }
-    pttLog(`start() token loaded, prefix=${token.slice(0, 15)} length=${token.length}`)
-
-    const mic = await resolveMicCommand()
-    if (!mic) {
-      pttLog("start() aborted: resolveMicCommand returned null")
-      return { ok: false, error: { code: "noMicBackend" } }
-    }
-    pttLog(`start() mic=${mic.kind} bin=${mic.bin}`)
-    pttLog(`start() mic args=${JSON.stringify(mic.args)}`)
+    const mic = cachedMicCmd ?? (await resolveMicCommand())
+    if (!mic) return { ok: false, error: { code: "noMicBackend" } }
+    cachedMicCmd = mic
 
     const sessionId = randomUUID()
     const origin = socketOrigin()
-    pttLog(`start() origin=${origin} sessionId=${sessionId}`)
 
     const socket: Socket = io(origin, {
       auth: { token },
@@ -202,35 +183,20 @@ export namespace PushToTalk {
       if (stopped || sessionReady) return
       startAttempts++
       socket.emit("scribe:start", startPayload)
-      pttLog(`scribe:start emitted (attempt ${startAttempts}/${MAX_START_ATTEMPTS})`)
       if (startAttempts < MAX_START_ATTEMPTS) {
         startRetryTimer = setTimeout(emitStart, 300)
       }
     }
 
-    socket.on("connect", () => {
-      pttLog(`socket connect event fired, sid=${socket.id}`)
-      emitStart()
-    })
+    socket.on("connect", () => emitStart())
 
     socket.on("connect_error", (err: Error) => {
-      pttLog(`connect_error: ${err.message}`)
       opts.onError?.({ code: "transportFailed", params: { error: err.message } })
       cleanup()
     })
 
-    socket.on("disconnect", (reason: string) => {
-      pttLog(`disconnect: ${reason}`)
-    })
-
-    // Log ALL incoming events to catch anything unexpected the server sends.
-    socket.onAny((event: string, ...args: unknown[]) => {
-      pttLog(`incoming event: ${event} args=${JSON.stringify(args).slice(0, 300)}`)
-    })
-
     socket.on("scribe:session_started", (data: { sessionId: string }) => {
       if (data.sessionId !== sessionId) return
-      pttLog("scribe:session_started received — session is ready")
       sessionReady = true
       if (readyWatchdog) {
         clearTimeout(readyWatchdog)
@@ -250,27 +216,23 @@ export namespace PushToTalk {
 
     socket.on("scribe:committed_transcript", (data: { sessionId: string; text: string }) => {
       if (data.sessionId !== sessionId || !data.text) return
-      pttLog(`committed_transcript: "${data.text}"`)
       opts.onCommitted?.(data.text)
     })
 
     socket.on("scribe:error", (data: { sessionId: string; error: string }) => {
       if (data.sessionId !== sessionId) return
-      pttLog(`scribe:error: ${data.error}`)
       opts.onError?.({ code: "serverError", params: { error: data.error } })
       cleanup()
     })
 
     socket.on("scribe:stopped", (data: { sessionId: string }) => {
       if (data.sessionId !== sessionId) return
-      pttLog("scribe:stopped received")
       opts.onStopped?.()
       cleanup()
     })
 
     socket.on("scribe:closed", (data: { sessionId: string }) => {
       if (data.sessionId !== sessionId) return
-      pttLog("scribe:closed received")
       cleanup()
     })
 
@@ -278,9 +240,7 @@ export namespace PushToTalk {
 
     try {
       micProc = spawn(mic.bin, mic.args, { stdio: ["ignore", "pipe", "pipe"] })
-      pttLog(`mic spawned, pid=${micProc.pid}`)
     } catch (err) {
-      pttLog(`mic spawn threw: ${(err as Error).message}`)
       cleanup()
       return {
         ok: false,
@@ -289,39 +249,17 @@ export namespace PushToTalk {
     }
 
     micProc.on("error", (err) => {
-      pttLog(`mic process error: ${err.message}`)
       opts.onError?.({ code: "micRuntime", params: { kind: mic.kind, error: err.message } })
       cleanup()
     })
 
-    micProc.on("exit", (code, signal) => {
-      pttLog(`mic process exit code=${code} signal=${signal}`)
-    })
+    micProc.stderr?.on("data", () => {})
 
-    // Capture ffmpeg/sox stderr for diagnostics — normally it prints progress
-    // lines we don't care about, but if the mic fails to open or permissions
-    // are wrong this is where the error shows up.
-    micProc.stderr?.on("data", (d: Buffer) => {
-      const text = d.toString()
-      if (text.trim().length > 0) pttLog(`mic stderr: ${text.trim().slice(0, 300)}`)
-    })
-
-    let sawFirstChunk = false
-    let audioChunksSent = 0
-    let audioBytesSeen = 0
     micProc.stdout?.on("data", (chunk: Buffer) => {
       if (stopped) return
-      audioBytesSeen += chunk.length
-      if (!sawFirstChunk) {
-        sawFirstChunk = true
-        pttLog(`mic first stdout chunk, bytes=${chunk.length}`)
-      }
       const base64 = chunk.toString("base64")
       if (sessionReady) {
         socket.emit("scribe:audio", { sessionId, audio: base64, commit: false })
-        audioChunksSent++
-        if (audioChunksSent === 1) pttLog("first scribe:audio emitted to server")
-        if (audioChunksSent % 50 === 0) pttLog(`${audioChunksSent} chunks sent, ${audioBytesSeen} raw bytes`)
       } else {
         audioQueue.push(base64)
       }

@@ -2,7 +2,7 @@ import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
 import { createMemo, createSignal, onMount, Show } from "solid-js"
 import { useI18n } from "@/i18n"
-import { sessionKolboCredits, type ModelPricing } from "@/util/kolbo-credits"
+import { sessionCredits, type ModelPricing } from "@/util/kolbo-credits"
 
 const id = "internal:sidebar-context"
 
@@ -46,18 +46,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     const isKolbo = last.providerID === "kolbo"
     const cost = isKolbo ? 0 : msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
 
-    // Sum per-message credits across the session for Kolbo — matches how
-    // kolbo-api deducts credits per-request (ceil + min 1), and swaps to
-    // kolbo-vision pricing once any user message has a media attachment
-    // (because the backend will then route every subsequent request to
-    // Gemini, which bills at the higher vision rate).
-    const creditsUsed = isKolbo
-      ? sessionKolboCredits({
-          messages: msg(),
-          partsByMessageID: (id) => props.api.state.part(id),
-          pricing: kolboPricing(),
-        })
-      : 0
+    const creditsUsed = isKolbo ? sessionCredits(msg(), kolboPricing()) : 0
 
     // Refresh balance whenever a new kolbo message arrives
     if (isKolbo) {

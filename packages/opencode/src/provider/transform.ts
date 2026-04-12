@@ -237,117 +237,6 @@ export namespace ProviderTransform {
     return msgs
   }
 
-  /**
-   * Kolbo-specific rewrite for user-message file parts.
-   *
-   * Fixes two problems with the AI SDK chain when the FilePart.url is an
-   * HTTPS CDN URL (our upload-first architecture):
-   *
-   * **Problem 1 — AI SDK never wraps file URLs in a `URL` instance.**
-   * `ai/src/ui/convert-to-model-messages.ts:112` assigns the raw `url`
-   * string to `ModelMessage.FilePart.data`. Then
-   * `@ai-sdk/openai-compatible`'s `convert-to-openai-compatible-chat-messages.ts:67-76`
-   * checks `part.data instanceof URL` — `false` for strings — and falls into
-   * the else branch:
-   *   `data:${mediaType};base64,${convertToBase64(part.data)}`
-   * `convertToBase64` only base64-encodes `Uint8Array`s; for strings it
-   * returns the string unchanged (provider-utils:273). The result is a
-   * garbage data URL: `data:image/jpeg;base64,https://kolboai-development...`.
-   * The backend's multimodal detector doesn't recognize it as a usable image,
-   * routes to MiniMax text-only, and the model hallucinates.
-   *
-   * Fix: walk file parts and upgrade any `data: "<https-url>"` string to
-   * `data: new URL(...)` so the openai-compatible serializer takes the
-   * passthrough branch and emits a clean `image_url: { url: "https://..." }`.
-   *
-   * **Problem 2 — `@ai-sdk/openai-compatible` doesn't support video/audio/PDF
-   * via URL.** It throws on any `video/*` mediaType, and rejects HTTPS URLs
-   * for audio and PDF (only accepts binary, which it then base64-inlines —
-   * useless for us because the chat body is capped at 1 MB).
-   *
-   * Fix: masquerade those three mime types as `image/png` with a URL fragment
-   * sentinel `#kolbo-type=<encoded_mime>`. AI SDK serializes the part as
-   * `image_url` with the sentinel URL; the outgoing fetch wrapper in
-   * `provider.ts` detects the sentinel on Kolbo requests and rewrites each
-   * part into the real OpenAI shape the backend expects:
-   *   video/*         → { type: "video_url",   video_url:   { url } }
-   *   audio/*         → { type: "input_audio", input_audio: { url } }
-   *   application/pdf → { type: "file",        file:        { file_url } }
-   */
-  function kolboMediaSentinel(msgs: ModelMessage[]): ModelMessage[] {
-    return msgs.map((msg) => {
-      if (msg.role !== "user" || !Array.isArray(msg.content)) return msg
-      const content = msg.content.map((part) => {
-        if (part.type !== "file") return part
-        const mime = part.mediaType
-        if (typeof mime !== "string") return part
-
-        // Extract whatever URL string is currently on this part — AI SDK
-        // may have stashed it in `data` (as a string, never a URL instance
-        // per the core converter), and our TUI-side `pasteAttachment` also
-        // writes it onto `url`. Prefer `data` since that's the field AI SDK
-        // serializes downstream.
-        const rawData = (part as { data?: unknown }).data
-        const rawUrl = (part as { url?: unknown }).url
-        const urlStr: string | undefined =
-          typeof rawData === "string"
-            ? rawData
-            : rawData instanceof URL
-              ? rawData.toString()
-              : typeof rawUrl === "string"
-                ? rawUrl
-                : undefined
-        const isHttpsUrl = typeof urlStr === "string" && (urlStr.startsWith("https://") || urlStr.startsWith("http://"))
-
-        // Images: upgrade to URL instance so AI SDK emits a clean image_url
-        // with the CDN URL instead of a garbage double-prefixed data URL.
-        // If the URL isn't HTTPS (e.g. stock opencode's data URLs), leave it
-        // alone so stock behavior is untouched.
-        if (mime.startsWith("image/")) {
-          if (!isHttpsUrl) return part
-          try {
-            return {
-              ...(part as unknown as Record<string, unknown>),
-              data: new URL(urlStr),
-            } as unknown as typeof part
-          } catch {
-            return part
-          }
-        }
-
-        // Only mask the three shapes the backend expects by URL reference.
-        const isVideo = mime.startsWith("video/")
-        const isAudio = mime.startsWith("audio/")
-        const isPdf = mime === "application/pdf"
-        if (!isVideo && !isAudio && !isPdf) return part
-
-        if (!isHttpsUrl) {
-          // No CDN URL — leave as-is. AI SDK will throw/reject downstream and
-          // the error message will surface, which is better than silently
-          // dropping a multimodal attachment.
-          return part
-        }
-
-        const sentinel = urlStr.includes("#kolbo-type=")
-          ? urlStr
-          : `${urlStr}${urlStr.includes("#") ? "&" : "#"}kolbo-type=${encodeURIComponent(mime)}`
-
-        try {
-          return {
-            ...(part as unknown as Record<string, unknown>),
-            type: "file" as const,
-            mediaType: "image/png",
-            data: new URL(sentinel),
-            url: sentinel,
-          } as unknown as typeof part
-        } catch {
-          return part
-        }
-      })
-      return { ...msg, content }
-    })
-  }
-
   function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMessage[] {
     return msgs.map((msg) => {
       if (msg.role !== "user" || !Array.isArray(msg.content)) return msg
@@ -388,14 +277,11 @@ export namespace ProviderTransform {
 
   export function message(msgs: ModelMessage[], model: Provider.Model, options: Record<string, unknown>) {
     msgs = unsupportedParts(msgs, model)
-    // Kolbo-specific masquerade: disguise video/audio/scanned-PDF file parts
-    // as image_url parts with a sentinel URL fragment so AI SDK's
-    // openai-compatible serializer doesn't throw or reject. The outgoing
-    // fetch wrapper in provider.ts unmasks the sentinel before the HTTP
-    // request leaves the process. See `kolboMediaSentinel` for the why.
-    if (model.providerID === "kolbo") {
-      msgs = kolboMediaSentinel(msgs)
-    }
+    // Note: Kolbo file parts no longer need client-side normalization.
+    // The backend auto-injects uploaded media from a pending queue, so
+    // file content parts in the chat request body are never read by the
+    // upstream model. The upload to POST /kolbo/v1/files IS the
+    // attachment — the backend handles injection, routing, and inlining.
     msgs = normalizeMessages(msgs, model, options)
     if (
       (model.providerID === "anthropic" ||
