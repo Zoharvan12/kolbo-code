@@ -150,6 +150,25 @@ The regular `srt_url` groups words into readable subtitle lines (default 12 word
 ### Long Content
 Transcription supports files up to 30 minutes. For longer content, split the file first or provide segments.
 
+### Visual Video/Audio Analysis (what's happening, not just what's said)
+`transcribe_audio` only extracts **speech**. If the user wants to understand **what's visually happening** in a video (scenes, actions, objects, on-screen text) or needs a multimodal AI to reason about the content, use `chat_send_message` with a video-capable model instead.
+
+**Video-capable models**: `gemini-2.5-pro`, `gemini-2.5-flash` — these can watch video and analyze visual content.
+
+**Workflow for visual analysis:**
+1. Upload the video with `upload_media` to get a stable CDN URL
+2. Call `chat_send_message` with the video URL in the message and a video-capable model (e.g. `gemini-2.5-pro`)
+3. Ask your analysis question: "Describe what happens in this video", "What products are shown?", "Summarize the key scenes"
+
+**When to use which:**
+
+| User intent | Tool |
+|-------------|------|
+| "Transcribe this" / "What's being said?" | `transcribe_audio` |
+| "Generate subtitles" / "Word-by-word timing" | `transcribe_audio` |
+| "What's happening in this video?" / "Describe the scenes" | `chat_send_message` + Gemini |
+| "Analyze this video and transcribe it" | Both — `transcribe_audio` for text + `chat_send_message` for visual |
+
 ---
 
 ## Image Prompts
