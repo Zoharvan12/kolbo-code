@@ -443,10 +443,23 @@ export function Prompt(props: PromptProps) {
   // Note: we match on the base key name rather than re-checking the full
   // keybind, because kitty releases come per-key — `y release` arrives
   // separately from `ctrl release`, and we want either to end the session.
+  //
+  // Fallback for terminals without kitty keyboard protocol: if no keyrelease
+  // arrives within 500ms of recording start, switch to toggle mode where
+  // pressing the voice keybind again stops recording.
+  let pttGotRelease = false
+  let pttToggleMode = false
+  let pttFallbackTimer: ReturnType<typeof setTimeout> | null = null
+
   onMount(() => {
     const handleRelease = (e: KeyEvent) => {
       if (!isPttBusy()) return
       if (e.name === "y") {
+        pttGotRelease = true
+        if (pttFallbackTimer) {
+          clearTimeout(pttFallbackTimer)
+          pttFallbackTimer = null
+        }
         stopPtt("stop")
       }
     }
@@ -1491,7 +1504,20 @@ export function Prompt(props: PromptProps) {
                   input.focused &&
                   keybind.match("input_voice", e)
                 ) {
-                  if (!isPttBusy()) {
+                  if (isPttBusy() && pttToggleMode) {
+                    // Toggle mode (no keyrelease support): second press stops
+                    stopPtt("stop")
+                  } else if (!isPttBusy()) {
+                    pttToggleMode = false
+                    pttGotRelease = false
+                    if (pttFallbackTimer) clearTimeout(pttFallbackTimer)
+                    // If no keyrelease arrives within 500ms, switch to toggle mode
+                    pttFallbackTimer = setTimeout(() => {
+                      pttFallbackTimer = null
+                      if (isPttBusy() && !pttGotRelease) {
+                        pttToggleMode = true
+                      }
+                    }, 500)
                     void triggerPtt()
                   }
                   e.preventDefault()
