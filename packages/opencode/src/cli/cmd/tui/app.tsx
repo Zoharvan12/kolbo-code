@@ -30,7 +30,6 @@ import { LocalProvider, useLocal } from "@tui/context/local"
 import { DialogModel, useConnected } from "@tui/component/dialog-model"
 import { DialogMcp } from "@tui/component/dialog-mcp"
 import { DialogStatus } from "@tui/component/dialog-status"
-import { DialogThemeList } from "@tui/component/dialog-theme-list"
 import { DialogLanguage } from "@tui/component/dialog-language"
 import { DialogHelp } from "./ui/dialog-help"
 import { CommandProvider, useCommandDialog } from "@tui/component/dialog-command"
@@ -127,6 +126,14 @@ export function tui(input: {
   return new Promise<void>(async (resolve) => {
     const unguard = win32InstallCtrlCGuard()
     win32DisableProcessedInput()
+
+    // Ensure truecolor rendering on all terminals. macOS Terminal.app (and some
+    // Linux terminals) don't set COLORTERM, which causes opentui's native
+    // renderer to fall back to 256 or 16 colors — making theme colors look
+    // wrong. Terminal.app supports truecolor since macOS Sierra (2016).
+    if (!process.env.COLORTERM) {
+      process.env.COLORTERM = "truecolor"
+    }
 
     // Kolbo forces dark mode on every machine — no terminal background detection.
     const mode = "dark" as const
@@ -602,18 +609,6 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
       onSelect: () => {
         dialog.replace(() => <DialogStatus />)
-      },
-      category: tc("commands.categories.system"),
-    },
-    {
-      title: tc("commands.switchTheme"),
-      value: "theme.switch",
-      keybind: "theme_list",
-      slash: {
-        name: "themes",
-      },
-      onSelect: () => {
-        dialog.replace(() => <DialogThemeList />)
       },
       category: tc("commands.categories.system"),
     },
