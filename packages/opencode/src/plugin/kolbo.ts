@@ -9,7 +9,7 @@ const OAUTH_POLLING_SAFETY_MARGIN_MS = 3000
 export async function KolboAuthPlugin(_input: PluginInput): Promise<Hooks> {
   return {
     auth: {
-      provider: "kolbo",
+      provider: Partner.authProviderID,
       async loader(getAuth) {
         const info = await getAuth()
         if (!info) return {}

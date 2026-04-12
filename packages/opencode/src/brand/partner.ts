@@ -231,4 +231,25 @@ export namespace Partner {
 
   /** True when the CLI is running against a non-Kolbo backend. */
   export const isWhitelabel = apiBase !== KOLBO_DEFAULTS.apiBase
+
+  /**
+   * Auth provider ID namespaced by API host so that dev, prod, and whitelabel
+   * backends each get their own slot in auth.json. This prevents the common
+   * "key expired" issue when switching between environments.
+   *
+   * Examples:
+   *   - prod:  "kolbo@api.kolbo.ai"
+   *   - dev:   "kolbo@localhost:5050"
+   *   - wl:    "kolbo@sapir.kolbo.ai"
+   */
+  export const authProviderID: string = (() => {
+    try {
+      return `kolbo@${new URL(apiBase).host}`
+    } catch {
+      return "kolbo"
+    }
+  })()
+
+  /** Bare fallback key for backwards compat with pre-namespacing auth.json files. */
+  export const authProviderIDLegacy = "kolbo"
 }

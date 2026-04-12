@@ -99,7 +99,7 @@ Use these values with \`list_models\`:
 
 export async function ensureKolboMcpWired(): Promise<void> {
   try {
-    const auth = await Auth.get("kolbo")
+    const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
     if (!auth) return
 
     const apiKey = auth.type === "api" ? auth.key : auth.type === "oauth" ? auth.access : undefined
@@ -761,7 +761,7 @@ export const ProvidersLoginCommand = cmd({
           }
           const metadata: Record<string, string> = {}
           if (Partner.isWhitelabel) metadata.apiBase = KOLBO_API_BASE
-          await Auth.set("kolbo", { type: "api", key, metadata })
+          await Auth.set(Partner.authProviderID, { type: "api", key, metadata })
           prompts.log.success(`Logged into ${Partner.name}`)
 
           // Auto-inject Kolbo MCP + skill into global config (idempotent)

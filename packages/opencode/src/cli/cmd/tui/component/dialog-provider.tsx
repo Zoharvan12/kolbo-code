@@ -73,7 +73,7 @@ export function createDialogProviderOptions() {
                 return
               }
               // Clear the expired Kolbo token so we fall through to re-auth below
-              await sdk.client.auth.remove({ providerID: "kolbo" })
+              await sdk.client.auth.remove({ providerID: Partner.authProviderID })
             }
 
             const methods = sync.data.provider_auth[provider.id] ?? [
