@@ -78,7 +78,7 @@
     "tip_22": "Verwenden Sie {highlight}BildAuf{/highlight}/{highlight}BildAb{/highlight}, um durch den Konversationsverlauf zu navigieren",
     "tip_23": "Drücken Sie {highlight}Strg+G{/highlight} oder {highlight}Pos1{/highlight}, um zum Anfang der Konversation zu springen",
     "tip_24": "Drücken Sie {highlight}Strg+Alt+G{/highlight} oder {highlight}Ende{/highlight}, um zur neuesten Nachricht zu springen",
-    "tip_25": "Drücken Sie {highlight}Strg+J{/highlight}, um neue Zeilen in Ihre Eingabeaufforderung einzufügen",
+    "tip_25": "Drücken Sie {highlight}Ctrl+J{/highlight} (oder Shift+Enter), um neue Zeilen in Ihre Eingabeaufforderung einzufügen",
     "tip_26": "Drücken Sie {highlight}Strg+C{/highlight} während der Eingabe, um das Eingabefeld zu leeren",
     "tip_27": "Drücken Sie {highlight}Escape{/highlight}, um die KI mitten in der Antwort zu stoppen",
     "tip_28": "Wechseln Sie zum {highlight}Plan{/highlight}-Agenten, um Vorschläge zu erhalten, ohne tatsächliche Änderungen vorzunehmen",

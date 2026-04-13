@@ -78,7 +78,7 @@
     "tip_22": "השתמשו ב-{highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} כדי לנווט בהיסטוריית השיחות",
     "tip_23": "לחצו על {highlight}Ctrl+G{/highlight} או {highlight}Home{/highlight} כדי לקפוץ לתחילת השיחה",
     "tip_24": "לחצו על {highlight}Ctrl+Alt+G{/highlight} או {highlight}End{/highlight} כדי לקפוץ להודעה האחרונה ביותר",
-    "tip_25": "לחצו על {highlight}Shift+Enter{/highlight} כדי להוסיף שורות חדשות בהנחיה שלכם",
+    "tip_25": "לחצו על {highlight}Ctrl+J{/highlight} (או Shift+Enter) כדי להוסיף שורות חדשות בהנחיה שלכם",
     "tip_26": "לחצו על {highlight}Ctrl+C{/highlight} בזמן ההקלדה כדי לנקות את שדה הקלט",
     "tip_27": "לחצו על {highlight}Escape{/highlight} כדי לעצור את הבינה המלאכותית באמצע תגובה",
     "tip_28": "עברו לסוכן {highlight}Plan{/highlight} כדי לקבל הצעות בלי לבצע שינויים ממשיים",

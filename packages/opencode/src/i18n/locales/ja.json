@@ -78,7 +78,7 @@
     "tip_22": "{highlight}PageUp{/highlight}/{highlight}PageDown{/highlight}を使用して、会話履歴をナビゲートします。",
     "tip_23": "{highlight}Ctrl+G{/highlight}または{highlight}Home{/highlight}を押すと、会話の最初までジャンプします。",
     "tip_24": "{highlight}Ctrl+Alt+G{/highlight}または{highlight}End{/highlight}を押すと、最新のメッセージまでジャンプします。",
-    "tip_25": "{highlight}Shift+Enter{/highlight}を押すと、プロンプトに改行を追加できます。",
+    "tip_25": "{highlight}Ctrl+J{/highlight}（またはShift+Enter）を押すと、プロンプトに改行を追加できます。",
     "tip_26": "入力中に{highlight}Ctrl+C{/highlight}を押すと、入力フィールドをクリアできます。",
     "tip_27": "{highlight}Escape{/highlight}を押すと、AIの応答を途中で停止できます。",
     "tip_28": "{highlight}Plan{/highlight}エージェントに切り替えると、実際には変更を行わずに提案を得ることができます。",

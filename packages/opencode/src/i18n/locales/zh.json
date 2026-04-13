@@ -78,7 +78,7 @@
     "tip_22": "使用 {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} 浏览对话历史记录",
     "tip_23": "按 {highlight}Ctrl+G{/highlight} 或 {highlight}Home{/highlight} 跳转到对话开头",
     "tip_24": "按 {highlight}Ctrl+Alt+G{/highlight} 或 {highlight}End{/highlight} 跳转到最新消息",
-    "tip_25": "按 {highlight}Shift+Enter{/highlight} 在提示中添加换行符",
+    "tip_25": "按 {highlight}Ctrl+J{/highlight}（或 Shift+Enter）在提示中添加换行符",
     "tip_26": "输入时按 {highlight}Ctrl+C{/highlight} 可清除输入字段",
     "tip_27": "按 {highlight}Escape{/highlight} 停止 AI 的中间响应",
     "tip_28": "切换到 {highlight}Plan{/highlight} 代理以获取建议，而无需进行实际更改",
