@@ -78,7 +78,7 @@
     "tip_22": "वार्तालाप इतिहास में नेविगेट करने के लिए {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} का उपयोग करें",
     "tip_23": "वार्तालाप की शुरुआत पर जाने के लिए {highlight}Ctrl+G{/highlight} या {highlight}Home{/highlight} दबाएं",
     "tip_24": "सबसे हाल के संदेश पर जाने के लिए {highlight}Ctrl+Alt+G{/highlight} या {highlight}End{/highlight} दबाएं",
-    "tip_25": "अपने प्रॉम्प्ट में नई लाइनें जोड़ने के लिए {highlight}Shift+Enter{/highlight} दबाएं",
+    "tip_25": "अपने प्रॉम्प्ट में नई लाइनें जोड़ने के लिए {highlight}Ctrl+J{/highlight} (या Shift+Enter) दबाएं",
     "tip_26": "इनपुट फ़ील्ड को साफ़ करने के लिए टाइप करते समय {highlight}Ctrl+C{/highlight} दबाएं",
     "tip_27": "एआई को मध्य-प्रतिक्रिया में रोकने के लिए {highlight}Escape{/highlight} दबाएं",
     "tip_28": "वास्तविक परिवर्तन किए बिना सुझाव प्राप्त करने के लिए {highlight}Plan{/highlight} एजेंट पर स्विच करें",

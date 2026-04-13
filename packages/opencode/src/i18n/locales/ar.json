@@ -78,7 +78,7 @@
     "tip_22": "استخدم {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} للتنقل خلال سجل المحادثات",
     "tip_23": "اضغط {highlight}Ctrl+G{/highlight} أو {highlight}Home{/highlight} للانتقال إلى بداية المحادثة",
     "tip_24": "اضغط {highlight}Ctrl+Alt+G{/highlight} أو {highlight}End{/highlight} للانتقال إلى أحدث رسالة",
-    "tip_25": "اضغط {highlight}Shift+Enter{/highlight} لإضافة أسطر جديدة في مطالبتك",
+    "tip_25": "اضغط {highlight}Ctrl+J{/highlight} (أو Shift+Enter) لإضافة أسطر جديدة في مطالبتك",
     "tip_26": "اضغط {highlight}Ctrl+C{/highlight} أثناء الكتابة لمسح حقل الإدخال",
     "tip_27": "اضغط {highlight}Escape{/highlight} لإيقاف الذكاء الاصطناعي أثناء الاستجابة",
     "tip_28": "قم بالتبديل إلى وكيل {highlight}Plan{/highlight} للحصول على اقتراحات دون إجراء تغييرات فعلية",

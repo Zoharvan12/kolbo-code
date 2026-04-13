@@ -78,7 +78,7 @@
     "tip_22": "{highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} 키를 사용하여 대화 기록을 탐색합니다.",
     "tip_23": "{highlight}Ctrl+G{/highlight} 또는 {highlight}Home{/highlight} 키를 누르면 대화의 시작 부분으로 이동합니다.",
     "tip_24": "{highlight}Ctrl+Alt+G{/highlight} 또는 {highlight}End{/highlight} 키를 누르면 가장 최근 메시지로 이동합니다.",
-    "tip_25": "{highlight}Shift+Enter{/highlight} 키를 누르면 프롬프트에 새 줄을 추가합니다.",
+    "tip_25": "{highlight}Ctrl+J{/highlight} (또는 Shift+Enter) 키를 누르면 프롬프트에 새 줄을 추가합니다.",
     "tip_26": "입력 필드를 지우려면 입력하는 동안 {highlight}Ctrl+C{/highlight} 키를 누르십시오.",
     "tip_27": "AI 응답을 중지하려면 {highlight}Escape{/highlight} 키를 누르십시오.",
     "tip_28": "실제 변경을 하지 않고 제안을 받으려면 {highlight}Plan{/highlight} 에이전트로 전환합니다.",

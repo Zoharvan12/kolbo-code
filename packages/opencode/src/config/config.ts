@@ -700,11 +700,15 @@ export namespace Config {
       input_newline: z
         .string()
         .optional()
-        // shift+return is the most intuitive binding and is shown as the
-        // primary tooltip. ctrl+j is kept as a fallback because some
-        // terminals (notably Windows Terminal without full kitty support)
-        // don't distinguish shift+return from plain return.
-        .default("shift+return,ctrl+return,alt+return,ctrl+j")
+        // On Windows, ctrl+j is the primary binding because most Windows
+        // terminals (CMD, PowerShell, Windows Terminal without kitty
+        // support) don't distinguish shift+return from plain return.
+        // On other platforms shift+return is the most intuitive choice.
+        .default(
+          process.platform === "win32"
+            ? "ctrl+j,shift+return,ctrl+return,alt+return"
+            : "shift+return,ctrl+return,alt+return,ctrl+j",
+        )
         .describe("Insert newline in input"),
       input_move_left: z.string().optional().default("left,ctrl+b").describe("Move cursor left in input"),
       input_move_right: z.string().optional().default("right,ctrl+f").describe("Move cursor right in input"),

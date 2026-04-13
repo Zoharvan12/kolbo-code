@@ -78,7 +78,7 @@
     "tip_22": "Utilisez {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} pour naviguer dans l'historique des conversations",
     "tip_23": "Appuyez sur {highlight}Ctrl+G{/highlight} ou {highlight}Home{/highlight} pour accéder au début de la conversation",
     "tip_24": "Appuyez sur {highlight}Ctrl+Alt+G{/highlight} ou {highlight}End{/highlight} pour accéder au message le plus récent",
-    "tip_25": "Appuyez sur {highlight}Shift+Enter{/highlight} pour ajouter des sauts de ligne dans votre invite",
+    "tip_25": "Appuyez sur {highlight}Ctrl+J{/highlight} (ou Shift+Enter) pour ajouter des sauts de ligne dans votre invite",
     "tip_26": "Appuyez sur {highlight}Ctrl+C{/highlight} pendant la saisie pour effacer le champ de saisie",
     "tip_27": "Appuyez sur {highlight}Escape{/highlight} pour arrêter l'IA en cours de réponse",
     "tip_28": "Passez à l'agent {highlight}Plan{/highlight} pour obtenir des suggestions sans apporter de modifications réelles",

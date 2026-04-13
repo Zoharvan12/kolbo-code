@@ -78,7 +78,7 @@
     "tip_22": "Use {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} para navegar pelo histórico da conversa",
     "tip_23": "Pressione {highlight}Ctrl+G{/highlight} ou {highlight}Home{/highlight} para ir para o início da conversa",
     "tip_24": "Pressione {highlight}Ctrl+Alt+G{/highlight} ou {highlight}End{/highlight} para ir para a mensagem mais recente",
-    "tip_25": "Pressione {highlight}Shift+Enter{/highlight} para adicionar novas linhas em seu prompt",
+    "tip_25": "Pressione {highlight}Ctrl+J{/highlight} (ou Shift+Enter) para adicionar novas linhas em seu prompt",
     "tip_26": "Pressione {highlight}Ctrl+C{/highlight} ao digitar para limpar o campo de entrada",
     "tip_27": "Pressione {highlight}Escape{/highlight} para interromper a IA no meio da resposta",
     "tip_28": "Mude para o agente {highlight}Plan{/highlight} para obter sugestões sem fazer alterações reais",
