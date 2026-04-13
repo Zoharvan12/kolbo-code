@@ -1,7 +1,7 @@
 import { cmd } from "../cmd"
 import { UI } from "@/cli/ui"
 import { tui } from "./app"
-import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
+import { win32DisableProcessedInput, win32InstallCtrlCGuard, win32RestoreCodePage, win32SetUtf8CodePage } from "./win32"
 import { TuiConfig } from "@/config/tui"
 import { Instance } from "@/project/instance"
 import { existsSync } from "fs"
@@ -40,6 +40,7 @@ export const AttachCommand = cmd({
         describe: "basic auth password (defaults to KOLBO_SERVER_PASSWORD)",
       }),
   handler: async (args) => {
+    win32SetUtf8CodePage()
     const unguard = win32InstallCtrlCGuard()
     try {
       win32DisableProcessedInput()
@@ -83,6 +84,7 @@ export const AttachCommand = cmd({
       })
     } finally {
       unguard?.()
+      win32RestoreCodePage()
     }
   },
 })

@@ -2,6 +2,7 @@ import { dlopen, ptr } from "bun:ffi"
 
 const STD_INPUT_HANDLE = -10
 const ENABLE_PROCESSED_INPUT = 0x0001
+const CP_UTF8 = 65001
 
 const kernel = () =>
   dlopen("kernel32.dll", {
@@ -9,6 +10,10 @@ const kernel = () =>
     GetConsoleMode: { args: ["ptr", "ptr"], returns: "i32" },
     SetConsoleMode: { args: ["ptr", "u32"], returns: "i32" },
     FlushConsoleInputBuffer: { args: ["ptr"], returns: "i32" },
+    SetConsoleOutputCP: { args: ["u32"], returns: "i32" },
+    SetConsoleCP: { args: ["u32"], returns: "i32" },
+    GetConsoleOutputCP: { args: [], returns: "u32" },
+    GetConsoleCP: { args: [], returns: "u32" },
   })
 
 let k32: ReturnType<typeof kernel> | undefined
@@ -20,6 +25,41 @@ function load() {
     return true
   } catch {
     return false
+  }
+}
+
+let previousOutputCP: number | undefined
+let previousInputCP: number | undefined
+
+/**
+ * Switch the Windows console to UTF-8 (code page 65001) so that
+ * non-ASCII scripts (Hebrew, Arabic, CJK, etc.) render correctly.
+ * Saves the original code pages so they can be restored on exit.
+ */
+export function win32SetUtf8CodePage() {
+  if (process.platform !== "win32") return
+  if (!load()) return
+
+  previousOutputCP = k32!.symbols.GetConsoleOutputCP()
+  previousInputCP = k32!.symbols.GetConsoleCP()
+  k32!.symbols.SetConsoleOutputCP(CP_UTF8)
+  k32!.symbols.SetConsoleCP(CP_UTF8)
+}
+
+/**
+ * Restore the original console code pages saved by win32SetUtf8CodePage().
+ */
+export function win32RestoreCodePage() {
+  if (process.platform !== "win32") return
+  if (!load()) return
+
+  if (previousOutputCP !== undefined) {
+    k32!.symbols.SetConsoleOutputCP(previousOutputCP)
+    previousOutputCP = undefined
+  }
+  if (previousInputCP !== undefined) {
+    k32!.symbols.SetConsoleCP(previousInputCP)
+    previousInputCP = undefined
   }
 }
 
