@@ -421,6 +421,35 @@ Full public documentation for Kolbo Code (the CLI you are running inside) lives 
 
 The MDX sources are in the `kolbo-docs` repo under `content/docs/kolbo-code/`. When the user's question has a concrete answer in one of those pages, cite the path and summarize — do not invent new instructions.
 
+## Troubleshooting
+
+### "API key is invalid or expired"
+This usually means the CLI is sending a key to the wrong API endpoint.
+
+**Common cause — whitelabel overlap:** if the user previously used regular `kolbo` and then switched to a whitelabel/partner CLI (e.g. `sapir`), the old API key may still be cached against the main Kolbo API. Running `kolbo` instead of the branded command (`sapir`) overwrites the MCP config with the wrong endpoint.
+
+**Fix:** tell the user to re-authenticate with their branded CLI command:
+```
+sapir auth login
+```
+(Replace `sapir` with their actual CLI command.)
+
+Then **restart the editor/session** so the MCP picks up the new key and endpoint.
+
+**Important:** whitelabel users must always use their branded CLI command (e.g. `sapir`), not `kolbo`, to keep the MCP pointed at the correct API.
+
+### MCP tools not responding or not found
+If Kolbo tools timeout or aren't listed, the MCP server may not be wired. Tell the user to run:
+```
+<their-cli-command> auth login
+```
+This re-wires the MCP configuration automatically. Then restart the session.
+
+### "Rate limited" (429 errors)
+Kolbo allows 10 generation requests per minute per tool type. Wait 60 seconds and retry. Use `generate_creative_director` for batch image work instead of multiple `generate_image` calls.
+
+---
+
 ## Examples
 
 Natural-language triggers that should prompt this skill + a tool call:
