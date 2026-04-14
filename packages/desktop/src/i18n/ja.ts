@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "アップデートを確認...",
   "desktop.menu.installCli": "CLI をインストール...",
@@ -46,7 +48,7 @@ export const dict = {
   "desktop.menu.help.reportBug": "バグを報告",
   "desktop.cli.error.unsupportedPlatform": "CLI のインストールは macOS と Linux のみでサポートされています。",
   "desktop.cli.error.sidecarMissing":
-    "Kolbo Code CLI のバイナリが見つかりません。デスクトップアプリを再インストールしてみてください。",
+    `${BRAND} CLI のバイナリが見つかりません。デスクトップアプリを再インストールしてみてください。`,
   "desktop.cli.error.scriptWriteFailed": "CLI インストーラースクリプトの準備に失敗しました。",
   "desktop.cli.error.scriptPermissionFailed": "CLI インストーラースクリプトに実行権限を付与できませんでした。",
   "desktop.cli.error.scriptRunFailed": "CLI インストーラースクリプトの実行に失敗しました。",

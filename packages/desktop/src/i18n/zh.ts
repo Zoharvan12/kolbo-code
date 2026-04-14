@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "检查更新...",
   "desktop.menu.installCli": "安装 CLI...",
@@ -43,7 +45,7 @@ export const dict = {
   "desktop.menu.help.shareFeedback": "分享反馈",
   "desktop.menu.help.reportBug": "报告错误",
   "desktop.cli.error.unsupportedPlatform": "CLI 安装仅在 macOS 和 Linux 上受支持。",
-  "desktop.cli.error.sidecarMissing": "Kolbo Code CLI 二进制文件缺失。请尝试重新安装桌面应用程序。",
+  "desktop.cli.error.sidecarMissing": `${BRAND} CLI 二进制文件缺失。请尝试重新安装桌面应用程序。`,
   "desktop.cli.error.scriptWriteFailed": "无法准备 CLI 安装脚本。",
   "desktop.cli.error.scriptPermissionFailed": "无法使 CLI 安装脚本可执行。",
   "desktop.cli.error.scriptRunFailed": "无法运行 CLI 安装脚本。",

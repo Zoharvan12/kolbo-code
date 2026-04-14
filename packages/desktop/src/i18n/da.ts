@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "Tjek for opdateringer...",
   "desktop.menu.installCli": "Installer CLI...",
@@ -45,7 +47,7 @@ export const dict = {
   "desktop.menu.help.shareFeedback": "Del feedback",
   "desktop.menu.help.reportBug": "Rapporter en fejl",
   "desktop.cli.error.unsupportedPlatform": "CLI-installation understøttes kun på macOS og Linux.",
-  "desktop.cli.error.sidecarMissing": "Kolbo Code CLI-binærfil mangler. Prøv at geninstallere desktop-appen.",
+  "desktop.cli.error.sidecarMissing": `${BRAND} CLI-binærfil mangler. Prøv at geninstallere desktop-appen.`,
   "desktop.cli.error.scriptWriteFailed": "Kunne ikke forberede CLI-installationsscriptet.",
   "desktop.cli.error.scriptPermissionFailed": "Kunne ikke gøre CLI-installationsscriptet eksekverbart.",
   "desktop.cli.error.scriptRunFailed": "Kunne ikke køre CLI-installationsscriptet.",

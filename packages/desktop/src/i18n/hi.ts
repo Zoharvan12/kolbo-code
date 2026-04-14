@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "अपडेट जाँचें...",
   "desktop.menu.installCli": "CLI इंस्टॉल करें...",
@@ -11,12 +13,12 @@ export const dict = {
   "desktop.updater.checkFailed.title": "अपडेट जाँच विफल",
   "desktop.updater.checkFailed.message": "अपडेट जाँचने में विफल रहा",
   "desktop.updater.none.title": "कोई अपडेट उपलब्ध नहीं",
-  "desktop.updater.none.message": "आप पहले से Kolbo Code का नवीनतम संस्करण उपयोग कर रहे हैं",
+  "desktop.updater.none.message": `आप पहले से ${BRAND} का नवीनतम संस्करण उपयोग कर रहे हैं`,
   "desktop.updater.downloadFailed.title": "अपडेट विफल",
   "desktop.updater.downloadFailed.message": "अपडेट डाउनलोड करने में विफल रहा",
   "desktop.updater.downloaded.title": "अपडेट डाउनलोड हो गया",
   "desktop.updater.downloaded.prompt":
-    "Kolbo Code का संस्करण {{version}} डाउनलोड हो गया है। क्या आप इसे इंस्टॉल करके पुनः प्रारंभ करना चाहते हैं?",
+    `${BRAND} का संस्करण {{version}} डाउनलोड हो गया है। क्या आप इसे इंस्टॉल करके पुनः प्रारंभ करना चाहते हैं?`,
   "desktop.updater.installFailed.title": "अपडेट विफल",
   "desktop.updater.installFailed.message": "अपडेट इंस्टॉल करने में विफल रहा",
 
@@ -40,13 +42,13 @@ export const dict = {
   "desktop.menu.view.forward": "आगे",
   "desktop.menu.view.previousSession": "पिछला सत्र",
   "desktop.menu.view.nextSession": "अगला सत्र",
-  "desktop.menu.help.documentation": "Kolbo Code दस्तावेज़ीकरण",
+  "desktop.menu.help.documentation": `${BRAND} दस्तावेज़ीकरण`,
   "desktop.menu.help.supportForum": "सहायता फ़ोरम",
   "desktop.menu.help.shareFeedback": "प्रतिक्रिया साझा करें",
   "desktop.menu.help.reportBug": "बग रिपोर्ट करें",
   "desktop.cli.error.unsupportedPlatform": "CLI इंस्टॉलेशन केवल macOS और Linux पर समर्थित है।",
   "desktop.cli.error.sidecarMissing":
-    "Kolbo Code CLI बाइनरी गायब है। डेस्कटॉप ऐप को पुनः इंस्टॉल करने का प्रयास करें।",
+    `${BRAND} CLI बाइनरी गायब है। डेस्कटॉप ऐप को पुनः इंस्टॉल करने का प्रयास करें।`,
   "desktop.cli.error.scriptWriteFailed": "CLI इंस्टॉलर स्क्रिप्ट तैयार करने में विफल।",
   "desktop.cli.error.scriptPermissionFailed": "CLI इंस्टॉलर को निष्पादन योग्य बनाने में विफल।",
   "desktop.cli.error.scriptRunFailed": "CLI इंस्टॉलर स्क्रिप्ट चलाने में विफल।",

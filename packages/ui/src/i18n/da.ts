@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "ui.sessionReview.title": "Sessionsændringer",
   "ui.sessionReview.title.git": "Git ændringer",
@@ -48,7 +50,7 @@ export const dict = {
   "ui.sessionTurn.retry.geminiHot": "gemini er meget overbelastet lige nu",
   "ui.sessionTurn.error.freeUsageExceeded": "Gratis forbrug overskredet",
   "ui.sessionTurn.error.addCredits": "Tilføj kreditter",
-  "ui.sessionTurn.error.insufficientCredits": "Du har ikke flere Kolbo credits. Tilføj credits eller opgrader din plan for at fortsætte.",
+  "ui.sessionTurn.error.insufficientCredits": `Du har ikke flere ${BRAND} credits. Tilføj credits eller opgrader din plan for at fortsætte.`,
   "ui.sessionTurn.status.delegating": "Delegerer arbejde",
   "ui.sessionTurn.status.planning": "Planlægger næste trin",
   "ui.sessionTurn.status.gatheringContext": "Udforsker",

@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict: Record<string, string> = {
   "ui.sessionReview.title": "Session changes",
   "ui.sessionReview.title.git": "Git changes",
@@ -52,7 +54,7 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.geminiHot": "gemini is way too hot right now",
   "ui.sessionTurn.error.freeUsageExceeded": "Free usage exceeded",
   "ui.sessionTurn.error.addCredits": "Add credits →",
-  "ui.sessionTurn.error.insufficientCredits": "You're out of Kolbo credits. Add credits or upgrade your plan to continue.",
+  "ui.sessionTurn.error.insufficientCredits": `You're out of ${BRAND} credits. Add credits or upgrade your plan to continue.`,
 
   "ui.sessionTurn.status.delegating": "Delegating work",
   "ui.sessionTurn.status.planning": "Planning next steps",

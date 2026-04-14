@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "التحقق من وجود تحديثات...",
   "desktop.menu.installCli": "تثبيت CLI...",
@@ -43,7 +45,7 @@ export const dict = {
   "desktop.menu.help.shareFeedback": "مشاركة التعليقات",
   "desktop.menu.help.reportBug": "الإبلاغ عن خطأ",
   "desktop.cli.error.unsupportedPlatform": "تثبيت CLI مدعوم فقط على macOS و Linux.",
-  "desktop.cli.error.sidecarMissing": "ملف Kolbo Code CLI الثنائي مفقود. حاول إعادة تثبيت تطبيق سطح المكتب.",
+  "desktop.cli.error.sidecarMissing": `ملف ${BRAND} CLI الثنائي مفقود. حاول إعادة تثبيت تطبيق سطح المكتب.`,
   "desktop.cli.error.scriptWriteFailed": "فشل تحضير برنامج تثبيت CLI.",
   "desktop.cli.error.scriptPermissionFailed": "فشل جعل برنامج تثبيت CLI قابلاً للتنفيذ.",
   "desktop.cli.error.scriptRunFailed": "فشل تشغيل برنامج تثبيت CLI.",

@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "ตรวจสอบการอัปเดต...",
   "desktop.menu.installCli": "ติดตั้ง CLI...",
@@ -11,12 +13,12 @@ export const dict = {
   "desktop.updater.checkFailed.title": "ตรวจสอบการอัปเดตไม่สำเร็จ",
   "desktop.updater.checkFailed.message": "ไม่สามารถตรวจสอบการอัปเดตได้",
   "desktop.updater.none.title": "ไม่มีการอัปเดต",
-  "desktop.updater.none.message": "คุณใช้ Kolbo Code เวอร์ชันล่าสุดอยู่แล้ว",
+  "desktop.updater.none.message": `คุณใช้ ${BRAND} เวอร์ชันล่าสุดอยู่แล้ว`,
   "desktop.updater.downloadFailed.title": "การอัปเดตล้มเหลว",
   "desktop.updater.downloadFailed.message": "ไม่สามารถดาวน์โหลดการอัปเดตได้",
   "desktop.updater.downloaded.title": "ดาวน์โหลดการอัปเดตแล้ว",
   "desktop.updater.downloaded.prompt":
-    "ดาวน์โหลด Kolbo Code เวอร์ชัน {{version}} แล้ว คุณต้องการติดตั้งและเริ่มต้นใหม่หรือไม่?",
+    `ดาวน์โหลด ${BRAND} เวอร์ชัน {{version}} แล้ว คุณต้องการติดตั้งและเริ่มต้นใหม่หรือไม่?`,
   "desktop.updater.installFailed.title": "การอัปเดตล้มเหลว",
   "desktop.updater.installFailed.message": "ไม่สามารถติดตั้งการอัปเดตได้",
 
@@ -40,13 +42,13 @@ export const dict = {
   "desktop.menu.view.forward": "ไปข้างหน้า",
   "desktop.menu.view.previousSession": "เซสชันก่อนหน้า",
   "desktop.menu.view.nextSession": "เซสชันถัดไป",
-  "desktop.menu.help.documentation": "เอกสาร Kolbo Code",
+  "desktop.menu.help.documentation": `เอกสาร ${BRAND}`,
   "desktop.menu.help.supportForum": "ฟอรัมสนับสนุน",
   "desktop.menu.help.shareFeedback": "แบ่งปันความคิดเห็น",
   "desktop.menu.help.reportBug": "รายงานข้อบกพร่อง",
   "desktop.cli.error.unsupportedPlatform": "การติดตั้ง CLI รองรับเฉพาะ macOS และ Linux เท่านั้น",
   "desktop.cli.error.sidecarMissing":
-    "ไม่พบไฟล์ไบนารี Kolbo Code CLI กรุณาลองติดตั้งแอปเดสก์ท็อปใหม่อีกครั้ง",
+    `ไม่พบไฟล์ไบนารี ${BRAND} CLI กรุณาลองติดตั้งแอปเดสก์ท็อปใหม่อีกครั้ง`,
   "desktop.cli.error.scriptWriteFailed": "ไม่สามารถเตรียมสคริปต์ติดตั้ง CLI ได้",
   "desktop.cli.error.scriptPermissionFailed": "ไม่สามารถตั้งค่าสิทธิ์การรันสคริปต์ CLI ได้",
   "desktop.cli.error.scriptRunFailed": "ไม่สามารถรันสคริปต์ติดตั้ง CLI ได้",

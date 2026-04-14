@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "Provjeri ažuriranja...",
   "desktop.menu.installCli": "Instaliraj CLI...",
@@ -46,7 +48,7 @@ export const dict = {
   "desktop.menu.help.reportBug": "Prijavi grešku",
   "desktop.cli.error.unsupportedPlatform": "Instalacija CLI-a je podržana samo na macOS-u i Linux-u.",
   "desktop.cli.error.sidecarMissing":
-    "Nedostaje binarna datoteka Kolbo Code CLI-a. Pokušaj ponovo instalirati desktop aplikaciju.",
+    `Nedostaje binarna datoteka ${BRAND} CLI-a. Pokušaj ponovo instalirati desktop aplikaciju.`,
   "desktop.cli.error.scriptWriteFailed": "Nije uspjela priprema skripte za instalaciju CLI-a.",
   "desktop.cli.error.scriptPermissionFailed": "Nije uspjelo postavljanje izvršnih dozvola za instalaciju CLI-a.",
   "desktop.cli.error.scriptRunFailed": "Nije uspjelo pokretanje skripte za instalaciju CLI-a.",

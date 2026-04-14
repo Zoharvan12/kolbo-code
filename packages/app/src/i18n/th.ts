@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "command.category.suggested": "แนะนำ",
   "command.category.view": "มุมมอง",
@@ -378,7 +380,7 @@ export const dict = {
   "language.tr": "Türkçe",
   "language.he": "עברית",
   "language.hi": "हिंदी",
-  "dialog.login.title": "ยินดีต้อนรับสู่ Kolbo Code",
+  "dialog.login.title": `ยินดีต้อนรับสู่ ${BRAND}`,
   "dialog.login.subtitle": "เข้าสู่ระบบด้วยบัญชี Kolbo.AI ของคุณเพื่อดำเนินการต่อ",
   "dialog.login.button.continue": "ดำเนินการต่อกับ Kolbo",
   "dialog.login.status.browserOpened": "เปิดเบราว์เซอร์ — ลงชื่อเข้าใช้ที่นั่น",

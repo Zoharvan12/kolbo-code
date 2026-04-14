@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "업데이트 확인...",
   "desktop.menu.installCli": "CLI 설치...",
@@ -44,7 +46,7 @@ export const dict = {
   "desktop.menu.help.shareFeedback": "피드백 공유",
   "desktop.menu.help.reportBug": "버그 신고",
   "desktop.cli.error.unsupportedPlatform": "CLI 설치는 macOS 및 Linux에서만 지원됩니다.",
-  "desktop.cli.error.sidecarMissing": "Kolbo Code CLI 바이너리가 누락되었습니다. 데스크톱 앱을 다시 설치해 보세요.",
+  "desktop.cli.error.sidecarMissing": `${BRAND} CLI 바이너리가 누락되었습니다. 데스크톱 앱을 다시 설치해 보세요.`,
   "desktop.cli.error.scriptWriteFailed": "CLI 설치 스크립트를 준비하지 못했습니다.",
   "desktop.cli.error.scriptPermissionFailed": "CLI 설치 스크립트를 실행 가능하게 만들지 못했습니다.",
   "desktop.cli.error.scriptRunFailed": "CLI 설치 스크립트를 실행하지 못했습니다.",

@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "Проверить обновления...",
   "desktop.menu.installCli": "Установить CLI...",
@@ -45,7 +47,7 @@ export const dict = {
   "desktop.menu.help.reportBug": "Сообщить об ошибке",
   "desktop.cli.error.unsupportedPlatform": "Установка CLI поддерживается только в macOS и Linux.",
   "desktop.cli.error.sidecarMissing":
-    "Отсутствует бинарный файл Kolbo Code CLI. Попробуйте переустановить настольное приложение.",
+    `Отсутствует бинарный файл ${BRAND} CLI. Попробуйте переустановить настольное приложение.`,
   "desktop.cli.error.scriptWriteFailed": "Не удалось подготовить скрипт установщика CLI.",
   "desktop.cli.error.scriptPermissionFailed": "Не удалось сделать скрипт установщика CLI исполняемым.",
   "desktop.cli.error.scriptRunFailed": "Не удалось запустить скрипт установщика CLI.",

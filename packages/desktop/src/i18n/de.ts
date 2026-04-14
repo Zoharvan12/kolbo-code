@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "Nach Updates suchen...",
   "desktop.menu.installCli": "CLI installieren...",
@@ -46,7 +48,7 @@ export const dict = {
   "desktop.menu.help.reportBug": "Einen Fehler melden",
   "desktop.cli.error.unsupportedPlatform": "Die CLI-Installation wird nur unter macOS und Linux unterstützt.",
   "desktop.cli.error.sidecarMissing":
-    "Das Kolbo Code CLI-Binary fehlt. Versuchen Sie, die Desktop-App neu zu installieren.",
+    `Das ${BRAND} CLI-Binary fehlt. Versuchen Sie, die Desktop-App neu zu installieren.`,
   "desktop.cli.error.scriptWriteFailed": "Das CLI-Installationsskript konnte nicht vorbereitet werden.",
   "desktop.cli.error.scriptPermissionFailed": "Das CLI-Installationsskript konnte nicht ausführbar gemacht werden.",
   "desktop.cli.error.scriptRunFailed": "Das CLI-Installationsskript konnte nicht ausgeführt werden.",

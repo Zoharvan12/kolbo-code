@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "בדוק עדכונים...",
   "desktop.menu.installCli": "התקן CLI...",
@@ -11,12 +13,12 @@ export const dict = {
   "desktop.updater.checkFailed.title": "בדיקת עדכונים נכשלה",
   "desktop.updater.checkFailed.message": "לא ניתן לבדוק עדכונים",
   "desktop.updater.none.title": "אין עדכון זמין",
-  "desktop.updater.none.message": "אתה כבר משתמש בגרסה העדכנית ביותר של Kolbo Code",
+  "desktop.updater.none.message": `אתה כבר משתמש בגרסה העדכנית ביותר של ${BRAND}`,
   "desktop.updater.downloadFailed.title": "העדכון נכשל",
   "desktop.updater.downloadFailed.message": "הורדת העדכון נכשלה",
   "desktop.updater.downloaded.title": "העדכון הורד",
   "desktop.updater.downloaded.prompt":
-    "גרסה {{version}} של Kolbo Code הורדה. האם ברצונך להתקין אותה ולהפעיל מחדש?",
+    `גרסה {{version}} של ${BRAND} הורדה. האם ברצונך להתקין אותה ולהפעיל מחדש?`,
   "desktop.updater.installFailed.title": "העדכון נכשל",
   "desktop.updater.installFailed.message": "התקנת העדכון נכשלה",
 
@@ -40,13 +42,13 @@ export const dict = {
   "desktop.menu.view.forward": "קדימה",
   "desktop.menu.view.previousSession": "סשן קודם",
   "desktop.menu.view.nextSession": "סשן הבא",
-  "desktop.menu.help.documentation": "תיעוד Kolbo Code",
+  "desktop.menu.help.documentation": `תיעוד ${BRAND}`,
   "desktop.menu.help.supportForum": "פורום תמיכה",
   "desktop.menu.help.shareFeedback": "שתף משוב",
   "desktop.menu.help.reportBug": "דווח על באג",
   "desktop.cli.error.unsupportedPlatform": "התקנת CLI נתמכת רק ב-macOS ו-Linux.",
   "desktop.cli.error.sidecarMissing":
-    "קובץ הבינארי של Kolbo Code CLI חסר. נסה להתקין מחדש את אפליקציית שולחן העבודה.",
+    `קובץ הבינארי של ${BRAND} CLI חסר. נסה להתקין מחדש את אפליקציית שולחן העבודה.`,
   "desktop.cli.error.scriptWriteFailed": "הכנת סקריפט ההתקנה של CLI נכשלה.",
   "desktop.cli.error.scriptPermissionFailed": "הגדרת הרשאות הרצה לסקריפט CLI נכשלה.",
   "desktop.cli.error.scriptRunFailed": "הרצת סקריפט ההתקנה של CLI נכשלה.",

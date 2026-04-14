@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "檢查更新...",
   "desktop.menu.installCli": "安裝 CLI...",
@@ -43,7 +45,7 @@ export const dict = {
   "desktop.menu.help.shareFeedback": "分享意見回饋",
   "desktop.menu.help.reportBug": "回報錯誤",
   "desktop.cli.error.unsupportedPlatform": "CLI 安裝僅支援 macOS 與 Linux。",
-  "desktop.cli.error.sidecarMissing": "Kolbo Code CLI 執行檔遺失。請嘗試重新安裝桌面應用程式。",
+  "desktop.cli.error.sidecarMissing": `${BRAND} CLI 執行檔遺失。請嘗試重新安裝桌面應用程式。`,
   "desktop.cli.error.scriptWriteFailed": "無法準備 CLI 安裝指令碼。",
   "desktop.cli.error.scriptPermissionFailed": "無法將 CLI 安裝指令碼設為可執行。",
   "desktop.cli.error.scriptRunFailed": "無法執行 CLI 安裝指令碼。",

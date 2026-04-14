@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "desktop.menu.checkForUpdates": "Güncellemeleri Kontrol Et...",
   "desktop.menu.installCli": "CLI Kur...",
@@ -11,12 +13,12 @@ export const dict = {
   "desktop.updater.checkFailed.title": "Güncelleme Kontrolü Başarısız",
   "desktop.updater.checkFailed.message": "Güncellemeler kontrol edilemedi",
   "desktop.updater.none.title": "Güncelleme Yok",
-  "desktop.updater.none.message": "Kolbo Code'un en güncel sürümünü zaten kullanıyorsunuz",
+  "desktop.updater.none.message": `${BRAND}'un en güncel sürümünü zaten kullanıyorsunuz`,
   "desktop.updater.downloadFailed.title": "Güncelleme Başarısız",
   "desktop.updater.downloadFailed.message": "Güncelleme indirilemedi",
   "desktop.updater.downloaded.title": "Güncelleme İndirildi",
   "desktop.updater.downloaded.prompt":
-    "Kolbo Code'un {{version}} sürümü indirildi. Yükleyip yeniden başlatmak ister misiniz?",
+    `${BRAND}'un {{version}} sürümü indirildi. Yükleyip yeniden başlatmak ister misiniz?`,
   "desktop.updater.installFailed.title": "Güncelleme Başarısız",
   "desktop.updater.installFailed.message": "Güncelleme yüklenemedi",
 
@@ -40,13 +42,13 @@ export const dict = {
   "desktop.menu.view.forward": "İleri",
   "desktop.menu.view.previousSession": "Önceki Oturum",
   "desktop.menu.view.nextSession": "Sonraki Oturum",
-  "desktop.menu.help.documentation": "Kolbo Code Belgeleri",
+  "desktop.menu.help.documentation": `${BRAND} Belgeleri`,
   "desktop.menu.help.supportForum": "Destek Forumu",
   "desktop.menu.help.shareFeedback": "Geri Bildirim Paylaş",
   "desktop.menu.help.reportBug": "Hata Bildir",
   "desktop.cli.error.unsupportedPlatform": "CLI kurulumu yalnızca macOS ve Linux'ta desteklenmektedir.",
   "desktop.cli.error.sidecarMissing":
-    "Kolbo Code CLI ikili dosyası eksik. Masaüstü uygulamasını yeniden yüklemeyi deneyin.",
+    `${BRAND} CLI ikili dosyası eksik. Masaüstü uygulamasını yeniden yüklemeyi deneyin.`,
   "desktop.cli.error.scriptWriteFailed": "CLI yükleyici betiği hazırlanamadı.",
   "desktop.cli.error.scriptPermissionFailed": "CLI yükleyiciye çalıştırma izni verilemedi.",
   "desktop.cli.error.scriptRunFailed": "CLI yükleyici betiği çalıştırılamadı.",
