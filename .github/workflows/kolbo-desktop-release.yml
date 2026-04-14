@@ -117,19 +117,27 @@ jobs:
           sed -i 's/.title("OpenCode")/.title("Kolbo Code")/g' src-tauri/src/windows.rs || true
 
       - name: Download CLI sidecar
-        working-directory: packages/desktop
         shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          mkdir -p src-tauri/sidecars
-          npm pack @kolbo/kolbo-code-${{ matrix.artifact-suffix == 'windows-x64' && 'windows-x64' || matrix.artifact-suffix }} --pack-destination /tmp/cli-pkg || true
-          # Fallback: install globally and copy
-          npm i -g @kolbo/kolbo-code@latest || true
+          mkdir -p packages/desktop/src-tauri/sidecars
+          # Install outside the monorepo workspace to avoid ENOWORKSPACES errors
+          mkdir -p /tmp/kolbo-cli-install
+          cd /tmp/kolbo-cli-install
+          npm install @kolbo/kolbo-code@latest 2>&1 || true
+          cd "$GITHUB_WORKSPACE"
           if [ "${{ matrix.platform }}" == "windows-latest" ]; then
-            KOLBO_BIN=$(npm config get prefix)/node_modules/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe
-            [ -f "$KOLBO_BIN" ] || KOLBO_BIN=$(npm config get prefix)/node_modules/@kolbo/kolbo-code-windows-x64-baseline/bin/kolbo.exe
-            cp "$KOLBO_BIN" src-tauri/sidecars/opencode-cli-${{ matrix.rust-target }}.exe || echo "Warning: CLI binary not found"
+            BASE="/tmp/kolbo-cli-install/node_modules"
+            KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe"
+            [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe"
+            if [ -f "$KOLBO_BIN" ]; then
+              cp "$KOLBO_BIN" packages/desktop/src-tauri/sidecars/opencode-cli-${{ matrix.rust-target }}.exe
+              echo "✓ CLI sidecar copied from $KOLBO_BIN"
+            else
+              echo "⚠ Binary not found, listing @kolbo packages:"
+              ls "$BASE/@kolbo/" 2>/dev/null || echo "None found"
+            fi
           fi
 
       - name: Build Tauri app
