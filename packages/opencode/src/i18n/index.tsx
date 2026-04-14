@@ -105,11 +105,15 @@ export function toVisualLines(text: string): string {
     .join("\n")
 }
 
-// macOS terminals (Terminal.app, iTerm2) run their own bidi reordering pass when
-// they encounter RTL characters. If we also pre-reorder with bidi-js the text ends
-// up double-flipped. On macOS we skip our reorder and let the terminal handle it.
-// Linux/Windows terminals do NOT do this, so we still need to reorder there.
-const TERMINAL_DOES_BIDI = process.platform === "darwin"
+// Native macOS terminals (Terminal.app, iTerm2) run their own bidi reordering pass
+// when they encounter RTL characters. If we also pre-reorder with bidi-js the text
+// ends up double-flipped. However, xterm.js-based terminals (VS Code, Cursor, etc.)
+// do NOT do native bidi, even on macOS. We whitelist only known bidi-capable
+// terminals via TERM_PROGRAM so xterm.js-based editors get proper reordering.
+const BIDI_TERMINALS = new Set(["apple_terminal", "iterm.app"])
+const TERMINAL_DOES_BIDI =
+  process.platform === "darwin" &&
+  BIDI_TERMINALS.has((process.env.TERM_PROGRAM ?? "").toLowerCase())
 
 export function toVisual(text: string): string {
   if (!text || !RTL_REGEX.test(text)) return text
