@@ -22,7 +22,7 @@ export const dict = {
 
   "desktop.cli.installed.title": "CLI をインストールしました",
   "desktop.cli.installed.message":
-    "CLI を {{path}} にインストールしました\n\nターミナルを再起動して 'kodu' コマンドを使用してください。",
+    "CLI を {{path}} にインストールしました\n\nターミナルを再起動して 'kolbo' コマンドを使用してください。",
   "desktop.cli.failed.title": "インストールに失敗しました",
   "desktop.cli.failed.message": "CLI のインストールに失敗しました: {{error}}",
 
@@ -46,7 +46,7 @@ export const dict = {
   "desktop.menu.help.reportBug": "バグを報告",
   "desktop.cli.error.unsupportedPlatform": "CLI のインストールは macOS と Linux のみでサポートされています。",
   "desktop.cli.error.sidecarMissing":
-    "Kodu CLI のバイナリが見つかりません。デスクトップアプリを再インストールしてみてください。",
+    "Kolbo Code CLI のバイナリが見つかりません。デスクトップアプリを再インストールしてみてください。",
   "desktop.cli.error.scriptWriteFailed": "CLI インストーラースクリプトの準備に失敗しました。",
   "desktop.cli.error.scriptPermissionFailed": "CLI インストーラースクリプトに実行権限を付与できませんでした。",
   "desktop.cli.error.scriptRunFailed": "CLI インストーラースクリプトの実行に失敗しました。",

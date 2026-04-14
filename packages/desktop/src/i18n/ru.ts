@@ -21,7 +21,7 @@ export const dict = {
 
   "desktop.cli.installed.title": "CLI установлен",
   "desktop.cli.installed.message":
-    "CLI установлен в {{path}}\n\nПерезапустите терминал, чтобы использовать команду 'kodu'.",
+    "CLI установлен в {{path}}\n\nПерезапустите терминал, чтобы использовать команду 'kolbo'.",
   "desktop.cli.failed.title": "Ошибка установки",
   "desktop.cli.failed.message": "Не удалось установить CLI: {{error}}",
 
@@ -45,7 +45,7 @@ export const dict = {
   "desktop.menu.help.reportBug": "Сообщить об ошибке",
   "desktop.cli.error.unsupportedPlatform": "Установка CLI поддерживается только в macOS и Linux.",
   "desktop.cli.error.sidecarMissing":
-    "Отсутствует бинарный файл Kodu CLI. Попробуйте переустановить настольное приложение.",
+    "Отсутствует бинарный файл Kolbo Code CLI. Попробуйте переустановить настольное приложение.",
   "desktop.cli.error.scriptWriteFailed": "Не удалось подготовить скрипт установщика CLI.",
   "desktop.cli.error.scriptPermissionFailed": "Не удалось сделать скрипт установщика CLI исполняемым.",
   "desktop.cli.error.scriptRunFailed": "Не удалось запустить скрипт установщика CLI.",

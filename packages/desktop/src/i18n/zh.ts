@@ -20,7 +20,7 @@ export const dict = {
   "desktop.updater.installFailed.message": "无法安装更新",
 
   "desktop.cli.installed.title": "CLI 已安装",
-  "desktop.cli.installed.message": "CLI 已安装到 {{path}}\n\n重启终端以使用 'kodu' 命令。",
+  "desktop.cli.installed.message": "CLI 已安装到 {{path}}\n\n重启终端以使用 'kolbo' 命令。",
   "desktop.cli.failed.title": "安装失败",
   "desktop.cli.failed.message": "无法安装 CLI: {{error}}",
 
@@ -43,7 +43,7 @@ export const dict = {
   "desktop.menu.help.shareFeedback": "分享反馈",
   "desktop.menu.help.reportBug": "报告错误",
   "desktop.cli.error.unsupportedPlatform": "CLI 安装仅在 macOS 和 Linux 上受支持。",
-  "desktop.cli.error.sidecarMissing": "Kodu CLI 二进制文件缺失。请尝试重新安装桌面应用程序。",
+  "desktop.cli.error.sidecarMissing": "Kolbo Code CLI 二进制文件缺失。请尝试重新安装桌面应用程序。",
   "desktop.cli.error.scriptWriteFailed": "无法准备 CLI 安装脚本。",
   "desktop.cli.error.scriptPermissionFailed": "无法使 CLI 安装脚本可执行。",
   "desktop.cli.error.scriptRunFailed": "无法运行 CLI 安装脚本。",

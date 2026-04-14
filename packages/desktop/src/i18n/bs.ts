@@ -22,7 +22,7 @@ export const dict = {
 
   "desktop.cli.installed.title": "CLI instaliran",
   "desktop.cli.installed.message":
-    "CLI je instaliran u {{path}}\n\nRestartuj terminal da bi koristio komandu 'kodu'.",
+    "CLI je instaliran u {{path}}\n\nRestartuj terminal da bi koristio komandu 'kolbo'.",
   "desktop.cli.failed.title": "Instalacija nije uspjela",
   "desktop.cli.failed.message": "Neuspjela instalacija CLI-a: {{error}}",
 
@@ -46,7 +46,7 @@ export const dict = {
   "desktop.menu.help.reportBug": "Prijavi grešku",
   "desktop.cli.error.unsupportedPlatform": "Instalacija CLI-a je podržana samo na macOS-u i Linux-u.",
   "desktop.cli.error.sidecarMissing":
-    "Nedostaje binarna datoteka Kodu CLI-a. Pokušaj ponovo instalirati desktop aplikaciju.",
+    "Nedostaje binarna datoteka Kolbo Code CLI-a. Pokušaj ponovo instalirati desktop aplikaciju.",
   "desktop.cli.error.scriptWriteFailed": "Nije uspjela priprema skripte za instalaciju CLI-a.",
   "desktop.cli.error.scriptPermissionFailed": "Nije uspjelo postavljanje izvršnih dozvola za instalaciju CLI-a.",
   "desktop.cli.error.scriptRunFailed": "Nije uspjelo pokretanje skripte za instalaciju CLI-a.",

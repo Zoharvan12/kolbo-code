@@ -39,11 +39,11 @@ export const dict = {
   "desktop.updater.installFailed.message": "Failed to install update",
 
   "desktop.cli.installed.title": "CLI Installed",
-  "desktop.cli.installed.message": "CLI installed to {{path}}\n\nRestart your terminal to use the 'kodu' command.",
+  "desktop.cli.installed.message": "CLI installed to {{path}}\n\nRestart your terminal to use the 'kolbo' command.",
   "desktop.cli.failed.title": "Installation Failed",
   "desktop.cli.failed.message": "Failed to install CLI: {{error}}",
   "desktop.cli.error.unsupportedPlatform": "CLI installation is only supported on macOS and Linux.",
-  "desktop.cli.error.sidecarMissing": "Kodu CLI binary is missing. Try reinstalling the desktop app.",
+  "desktop.cli.error.sidecarMissing": "Kolbo Code CLI binary is missing. Try reinstalling the desktop app.",
   "desktop.cli.error.scriptWriteFailed": "Failed to prepare CLI installer script.",
   "desktop.cli.error.scriptPermissionFailed": "Failed to make CLI installer executable.",
   "desktop.cli.error.scriptRunFailed": "Failed to run CLI installer script.",

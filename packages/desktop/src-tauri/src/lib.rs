@@ -482,17 +482,26 @@ async fn initialize(app: AppHandle) {
     // This is only used to drive the loading window progress - the main window is shown immediately.
     let loading_task = tokio::spawn({
         async move {
-            if let Some(sqlite_done_rx) = sqlite_done {
-                let _ = sqlite_done_rx.await;
-            }
+            // Run sqlite wait and health check in parallel — finish as soon as health check is done.
+            // The sqlite signal may never arrive when the `serve` command is used (it only emits
+            // sqlite-migration:done in the global middleware path, not in serve), so we must not
+            // block the health check on it.
+            let health_fut = async {
+                let res = timeout(Duration::from_secs(30), health_check.0).await;
+                match res {
+                    Ok(Ok(Ok(()))) => tracing::info!("Sidecar health check OK"),
+                    Ok(Ok(Err(e))) => tracing::error!("Sidecar health check failed: {e}"),
+                    Ok(Err(e)) => tracing::error!("Sidecar health check task failed: {e}"),
+                    Err(_) => tracing::error!("Sidecar health check timed out"),
+                }
+            };
 
-            // Wait for sidecar to become healthy (for loading window progress)
-            let res = timeout(Duration::from_secs(30), health_check.0).await;
-            match res {
-                Ok(Ok(Ok(()))) => tracing::info!("Sidecar health check OK"),
-                Ok(Ok(Err(e))) => tracing::error!("Sidecar health check failed: {e}"),
-                Ok(Err(e)) => tracing::error!("Sidecar health check task failed: {e}"),
-                Err(_) => tracing::error!("Sidecar health check timed out"),
+            if let Some(sqlite_done_rx) = sqlite_done {
+                // Wait for both, but health check drives completion
+                let sqlite_fut = timeout(Duration::from_secs(30), sqlite_done_rx);
+                futures::future::join(health_fut, sqlite_fut).await;
+            } else {
+                health_fut.await;
             }
 
             tracing::info!("Loading task finished");

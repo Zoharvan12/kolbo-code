@@ -36,6 +36,7 @@ import { usePlatform } from "@/context/platform"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { createSessionTabs } from "@/pages/session/helpers"
 import { promptEnabled, promptProbe } from "@/testing/prompt"
+import { detectTextDirection } from "@/utils/rtl"
 import { createTextFragment, getCursorPosition, setCursorPosition, setRangeEdge } from "./prompt-input/editor-dom"
 import { createPromptAttachments } from "./prompt-input/attachments"
 import { ACCEPTED_FILE_TYPES } from "./prompt-input/files"
@@ -880,6 +881,13 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     const hasNonText = rawParts.some((part) => part.type !== "text")
     const shouldReset = !NON_EMPTY_TEXT.test(rawText) && !hasNonText && images.length === 0
 
+    // Dynamic RTL/LTR detection
+    if (editorRef) {
+      const dir = rawText ? detectTextDirection(rawText) : "ltr"
+      editorRef.style.setProperty("direction", dir, "important")
+      editorRef.style.setProperty("text-align", dir === "rtl" ? "right" : "left", "important")
+    }
+
     if (shouldReset) {
       closePopover()
       resetHistoryNavigation()
@@ -1557,30 +1565,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                       </TooltipKeybind>
                     </Show>
                   </div>
-                  <div data-component="prompt-variant-control">
-                    <TooltipKeybind
-                      placement="top"
-                      gutter={4}
-                      title={language.t("command.model.variant.cycle")}
-                      keybind={command.keybind("model.variant.cycle")}
-                    >
-                      <Select
-                        size="normal"
-                        options={variants()}
-                        current={local.model.variant.current() ?? "default"}
-                        label={(x) => (x === "default" ? language.t("common.default") : x)}
-                        onSelect={(value) => {
-                          local.model.variant.set(value === "default" ? undefined : value)
-                          restoreFocus()
-                        }}
-                        class="capitalize max-w-[160px] text-text-base"
-                        valueClass="truncate text-13-regular text-text-base"
-                        triggerStyle={control()}
-                        triggerProps={{ "data-action": "prompt-model-variant" }}
-                        variant="ghost"
-                      />
-                    </TooltipKeybind>
-                  </div>
+                  {/* Thinking effort cycle hidden — not needed for non-technical users */}
                 </Show>
               </div>
             </div>

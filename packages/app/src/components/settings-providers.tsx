@@ -3,7 +3,7 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
 import { Tag } from "@opencode-ai/ui/tag"
 import { showToast } from "@opencode-ai/ui/toast"
-import { popularProviders, useProviders } from "@/hooks/use-providers"
+import { popularProviders, useProviders, ALLOWED_PROVIDERS } from "@/hooks/use-providers"
 import { createMemo, type Component, For, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { useGlobalSDK } from "@/context/global-sdk"
@@ -44,7 +44,7 @@ export const SettingsProviders: Component = () => {
     const connectedIDs = new Set(connected().map((p) => p.id))
     const items = providers
       .popular()
-      .filter((p) => !connectedIDs.has(p.id))
+      .filter((p) => !connectedIDs.has(p.id) && ALLOWED_PROVIDERS.has(p.id))
       .slice()
     items.sort((a, b) => popularProviders.indexOf(a.id) - popularProviders.indexOf(b.id))
     return items
@@ -235,15 +235,7 @@ export const SettingsProviders: Component = () => {
             </div>
           </SettingsList>
 
-          <Button
-            variant="ghost"
-            class="px-0 py-0 mt-5 text-14-medium text-text-interactive-base text-left justify-start hover:bg-transparent active:bg-transparent"
-            onClick={() => {
-              dialog.show(() => <DialogSelectProvider />)
-            }}
-          >
-            {language.t("dialog.provider.viewAll")}
-          </Button>
+          {/* "Show more providers" hidden — only Kolbo and Ollama are supported */}
         </div>
       </div>
     </div>

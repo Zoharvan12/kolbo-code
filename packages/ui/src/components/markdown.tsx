@@ -245,7 +245,7 @@ export function Markdown(
     classList?: Record<string, boolean>
   },
 ) {
-  const [local, others] = splitProps(props, ["text", "cacheKey", "streaming", "class", "classList"])
+  const [local, others] = splitProps(props, ["text", "cacheKey", "streaming", "class", "classList", "dir", "style"])
   const marked = useMarked()
   const i18n = useI18n()
   const [root, setRoot] = createSignal<HTMLDivElement>()
@@ -334,13 +334,24 @@ export function Markdown(
     if (copyCleanup) copyCleanup()
   })
 
+  // Detect RTL text direction from the rendered content
+  const textDir = () => {
+    const text = local.text ?? ""
+    if (!text) return "ltr"
+    const rtlChars = (text.match(/[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/g) || []).length
+    const ltrChars = (text.match(/[A-Za-z\u00C0-\u024F]/g) || []).length
+    return rtlChars > ltrChars ? "rtl" : "ltr"
+  }
+
   return (
     <div
       data-component="markdown"
+      dir={textDir()}
       classList={{
         ...(local.classList ?? {}),
         [local.class ?? ""]: !!local.class,
       }}
+      style={{ "text-align": textDir() === "rtl" ? "right" : "left", "unicode-bidi": "embed" }}
       ref={setRoot}
       {...others}
     />

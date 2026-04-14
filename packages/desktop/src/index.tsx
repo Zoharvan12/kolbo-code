@@ -41,7 +41,7 @@ import { render } from "solid-js/web"
 import pkg from "../package.json"
 import { initI18n, t } from "./i18n"
 import { UPDATER_ENABLED } from "./updater"
-import { webviewZoom } from "./webview-zoom"
+import { webviewZoom, applyZoom } from "./webview-zoom"
 import "./styles.css"
 import { Channel } from "@tauri-apps/api/core"
 import { commands, type InitStep } from "./bindings"
@@ -331,7 +331,7 @@ const createPlatform = (): Platform => {
         .then(() => {
           const notification = new Notification(title, {
             body: description ?? "",
-            icon: "https://opencode.ai/favicon-96x96-v3.png",
+            icon: "/favicon-kolbo.svg",
           })
           notification.onclick = () => {
             const win = getCurrentWindow()
@@ -385,6 +385,9 @@ const createPlatform = (): Platform => {
     parseMarkdown: (markdown: string) => commands.parseMarkdownCommand(markdown),
 
     webviewZoom,
+
+    zoomIn: () => applyZoom(Math.min(webviewZoom() + 0.2, 10)),
+    zoomOut: () => applyZoom(Math.max(webviewZoom() - 0.2, 0.2)),
 
     checkAppExists: async (appName: string) => {
       return commands.checkAppExists(appName)

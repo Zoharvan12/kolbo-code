@@ -158,11 +158,11 @@ export async function createMenu(trigger: (id: string) => void) {
         items: [
           // missing native macos search
           await MenuItem.new({
-            action: () => openUrl("https://kodu.ai/docs"),
+            action: () => openUrl("https://docs.kolbo.ai/kolbo-code"),
             text: t("desktop.menu.help.documentation"),
           }),
           await MenuItem.new({
-            action: () => openUrl("https://discord.com/invite/kodu"),
+            action: () => openUrl("https://discord.com/invite/v9YwBHzt9m"),
             text: t("desktop.menu.help.supportForum"),
           }),
           await PredefinedMenuItem.new({
@@ -175,11 +175,11 @@ export async function createMenu(trigger: (id: string) => void) {
             item: "Separator",
           }),
           await MenuItem.new({
-            action: () => openUrl("https://github.com/anomalyco/kodu/issues/new?template=feature_request.yml"),
+            action: () => openUrl("https://discord.com/invite/v9YwBHzt9m"),
             text: t("desktop.menu.help.shareFeedback"),
           }),
           await MenuItem.new({
-            action: () => openUrl("https://github.com/anomalyco/kodu/issues/new?template=bug_report.yml"),
+            action: () => openUrl("https://discord.com/invite/v9YwBHzt9m"),
             text: t("desktop.menu.help.reportBug"),
           }),
         ],
