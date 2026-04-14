@@ -194,7 +194,10 @@ function ConnectionGate(props: ParentProps<{ disableHealthCheck?: boolean }>) {
       when={checkMode() === "blocking" ? !startupHealthCheck.loading : startupHealthCheck.state !== "pending"}
       fallback={
         <div class="h-dvh w-screen flex flex-col items-center justify-center bg-background-base">
-          <Splash class="w-16 h-20 opacity-50 animate-pulse" />
+          {import.meta.env.VITE_WHITELABEL_LOGO
+            ? <img src={import.meta.env.VITE_WHITELABEL_LOGO} class="w-16 opacity-50 animate-pulse" alt="Logo" />
+            : <Splash class="w-16 h-20 opacity-50 animate-pulse" />
+          }
         </div>
       }
     >
@@ -233,7 +236,10 @@ function ConnectionError(props: { onRetry?: () => void; onServerSelected?: (key:
   return (
     <div class="h-dvh w-screen flex flex-col items-center justify-center bg-background-base gap-6 p-6">
       <div class="flex flex-col items-center max-w-md text-center">
-        <Splash class="w-12 h-15 mb-4" />
+        {import.meta.env.VITE_WHITELABEL_LOGO
+          ? <img src={import.meta.env.VITE_WHITELABEL_LOGO} class="w-12 mb-4" alt="Logo" />
+          : <Splash class="w-12 h-15 mb-4" />
+        }
         <p class="text-14-regular text-text-base">
           {unreachable()[0]}
           <span class="text-text-strong font-medium">{name()}</span>

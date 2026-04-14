@@ -1,3 +1,5 @@
+const BRAND = (import.meta.env.VITE_WHITELABEL_NAME as string | undefined) || "Kolbo Code"
+
 export const dict = {
   "command.category.suggested": "Suggested",
   "command.category.view": "View",
@@ -117,7 +119,7 @@ export const dict = {
   "dialog.model.manage.description": "Customize which models appear in the model selector.",
   "dialog.model.manage.provider.toggle": "Toggle all {{provider}} models",
 
-  "dialog.model.unpaid.freeModels.title": "Free models provided by Kolbo Code",
+  "dialog.model.unpaid.freeModels.title": `Free models provided by ${BRAND}`,
   "dialog.model.unpaid.addMore.title": "Add more models from popular providers",
 
   "dialog.provider.viewAll": "Show more providers",
@@ -130,12 +132,12 @@ export const dict = {
   "provider.connect.status.waiting": "Waiting for authorization...",
   "provider.connect.status.failed": "Authorization failed: {{error}}",
   "provider.connect.apiKey.description":
-    "Enter your {{provider}} API key to connect your account and use {{provider}} models in Kolbo Code.",
+    "Enter your {{provider}} API key to connect your account and use {{provider}} models in ${BRAND}.",
   "provider.connect.apiKey.label": "{{provider}} API key",
   "provider.connect.apiKey.placeholder": "API key",
   "provider.connect.apiKey.required": "API key is required",
   "provider.connect.koduZen.line1":
-    "Kolbo Code gives you access to a curated set of reliable optimized models for coding agents.",
+    `${BRAND} gives you access to a curated set of reliable optimized models for coding agents.`,
   "provider.connect.koduZen.line2":
     "With a single API key you'll get access to models such as Claude, GPT, Gemini, GLM and more.",
   "provider.connect.koduZen.visit.prefix": "Visit ",
@@ -144,7 +146,7 @@ export const dict = {
   "provider.connect.oauth.code.visit.prefix": "Visit ",
   "provider.connect.oauth.code.visit.link": "this link",
   "provider.connect.oauth.code.visit.suffix":
-    " to collect your authorization code to connect your account and use {{provider}} models in Kolbo Code.",
+    " to collect your authorization code to connect your account and use {{provider}} models in ${BRAND}.",
   "provider.connect.oauth.code.label": "{{method}} authorization code",
   "provider.connect.oauth.code.placeholder": "Authorization code",
   "provider.connect.oauth.code.required": "Authorization code is required",
@@ -152,7 +154,7 @@ export const dict = {
   "provider.connect.oauth.auto.visit.prefix": "Visit ",
   "provider.connect.oauth.auto.visit.link": "this link",
   "provider.connect.oauth.auto.visit.suffix":
-    " and enter the code below to connect your account and use {{provider}} models in Kolbo Code.",
+    " and enter the code below to connect your account and use {{provider}} models in ${BRAND}.",
   "provider.connect.oauth.auto.confirmationCode": "Confirmation code",
   "provider.connect.toast.connected.title": "{{provider}} connected",
   "provider.connect.toast.connected.description": "{{provider}} models are now available to use.",
@@ -422,9 +424,9 @@ export const dict = {
   "language.he": "עברית",
   "language.hi": "हिंदी",
 
-  "dialog.login.title": "Welcome to Kolbo Code",
-  "dialog.login.subtitle": "Sign in with your Kolbo.AI account to continue",
-  "dialog.login.button.continue": "Continue with Kolbo",
+  "dialog.login.title": `Welcome to ${BRAND}`,
+  "dialog.login.subtitle": `Sign in with your ${BRAND} account to continue`,
+  "dialog.login.button.continue": `Continue with ${BRAND}`,
   "dialog.login.status.browserOpened": "Browser opened — sign in there",
   "dialog.login.confirmationCode": "Confirmation code",
   "dialog.login.copy": "Copy",
@@ -484,7 +486,7 @@ export const dict = {
   "toast.project.reloadFailed.title": "Failed to reload {{project}}",
 
   "toast.update.title": "Update available",
-  "toast.update.description": "A new version of Kolbo Code ({{version}}) is now available to install.",
+  "toast.update.description": `A new version of ${BRAND} ({{version}}) is now available to install.`,
   "toast.update.action.installRestart": "Install and restart",
   "toast.update.action.notYet": "Not yet",
 
@@ -735,7 +737,7 @@ export const dict = {
   "debugBar.mem.tipUnavailable": "Used JS heap vs heap limit. Chromium only.",
   "debugBar.mem.tip": "Used JS heap vs heap limit. {{used}} of {{limit}}.",
 
-  "app.name.desktop": "Kolbo Code",
+  "app.name.desktop": BRAND,
 
   "settings.section.desktop": "Desktop",
   "settings.section.server": "Server",

@@ -559,10 +559,17 @@ pub fn serve(
 
     tracing::info!(port, "Spawning sidecar");
 
-    let envs = [
+    let mut envs = vec![
         ("KODU_SERVER_USERNAME", "kodu".to_string()),
         ("KODU_SERVER_PASSWORD", password.to_string()),
     ];
+    // Whitelabel: bake API base into sidecar at compile time
+    if let Some(api_base) = option_env!("KOLBO_WHITELABEL_API_BASE") {
+        envs.push(("KOLBO_API_BASE", api_base.to_string()));
+    }
+    if let Some(app_base) = option_env!("KOLBO_WHITELABEL_APP_BASE") {
+        envs.push(("KOLBO_APP_BASE", app_base.to_string()));
+    }
 
     let (events, child) = spawn_command(
         app,

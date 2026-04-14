@@ -89,7 +89,10 @@ export function DialogLogin(props: Props) {
 
         {/* Header */}
         <div class="flex flex-col items-center gap-4 pt-8 pb-6 px-8">
-          <KolboLogo class="w-11 h-11 text-text-strong" />
+          {import.meta.env.VITE_WHITELABEL_LOGO
+            ? <img src={import.meta.env.VITE_WHITELABEL_LOGO} class="w-11 h-11" alt="Logo" />
+            : <KolboLogo class="w-11 h-11 text-text-strong" />
+          }
           <div class="flex flex-col items-center gap-1.5 text-center">
             <h1 class="text-16-medium text-text-strong">{language.t("dialog.login.title")}</h1>
             <p class="text-13-regular text-text-weak">{language.t("dialog.login.subtitle")}</p>
@@ -109,7 +112,10 @@ export function DialogLogin(props: Props) {
               onClick={handleLogin}
               class="w-full flex items-center justify-center gap-2.5 h-10 rounded-lg bg-primary text-white text-13-medium transition-all hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-base"
             >
-              <KolboLogo class="w-4 h-4 shrink-0" />
+              {import.meta.env.VITE_WHITELABEL_LOGO
+                ? <img src={import.meta.env.VITE_WHITELABEL_LOGO} class="w-4 h-4 shrink-0" alt="Logo" />
+                : <KolboLogo class="w-4 h-4 shrink-0" />
+              }
               {language.t("dialog.login.button.continue")}
             </button>
 

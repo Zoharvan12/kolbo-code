@@ -42,6 +42,10 @@ type WhitelabelConfig = {
   mainBinaryName: string
   deepLinkScheme: string
   splashImage: string
+  logoImage?: string
+  brandName?: string
+  apiBase?: string
+  appBase?: string
 }
 
 const config: WhitelabelConfig = JSON.parse(readFileSync(configPath, "utf8"))
@@ -81,10 +85,16 @@ try {
   const doubleDashIdx = Bun.argv.indexOf("--")
   const extraArgs = doubleDashIdx >= 0 ? Bun.argv.slice(doubleDashIdx + 1) : []
 
-  await $`bunx tauri build ${extraArgs}`.env({
-    ...process.env,
+  const buildEnv: Record<string, string> = {
+    ...process.env as Record<string, string>,
     VITE_WHITELABEL_SPLASH: config.splashImage,
-  }).cwd(root)
+  }
+  if (config.logoImage) buildEnv.VITE_WHITELABEL_LOGO = config.logoImage
+  if (config.brandName) buildEnv.VITE_WHITELABEL_NAME = config.brandName
+  if (config.apiBase) buildEnv.KOLBO_WHITELABEL_API_BASE = config.apiBase
+  if (config.appBase) buildEnv.KOLBO_WHITELABEL_APP_BASE = config.appBase
+
+  await $`bunx tauri build ${extraArgs}`.env(buildEnv).cwd(root)
 
   console.log(`\n✓ Build complete for ${config.productName}`)
 } catch (err) {

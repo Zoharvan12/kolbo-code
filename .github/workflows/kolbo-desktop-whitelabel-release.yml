@@ -101,8 +101,16 @@ jobs:
         id: wl
         shell: bash
         run: |
-          PRODUCT_NAME=$(node -e "const c=require('./packages/desktop/whitelabels/${{ env.WHITELABEL }}/config.json'); console.log(c.productName)")
-          echo "product_name=$PRODUCT_NAME" >> $GITHUB_OUTPUT
+          node -e "
+            const c = require('./packages/desktop/whitelabels/${{ env.WHITELABEL }}/config.json');
+            const fs = require('fs');
+            const env = process.env.GITHUB_OUTPUT;
+            fs.appendFileSync(env, 'product_name=' + c.productName + '\n');
+            if (c.brandName) fs.appendFileSync(env, 'brand_name=' + c.brandName + '\n');
+            if (c.apiBase) fs.appendFileSync(env, 'api_base=' + c.apiBase + '\n');
+            if (c.appBase) fs.appendFileSync(env, 'app_base=' + c.appBase + '\n');
+            if (c.logoImage) fs.appendFileSync(env, 'logo_image=' + c.logoImage + '\n');
+          "
 
       - name: Apply whitelabel branding
         shell: bash
@@ -185,6 +193,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_WHITELABEL_SPLASH: /whitelabels/${{ env.WHITELABEL }}/splash.jpg
+          VITE_WHITELABEL_LOGO: ${{ steps.wl.outputs.logo_image }}
+          VITE_WHITELABEL_NAME: ${{ steps.wl.outputs.brand_name }}
+          KOLBO_WHITELABEL_API_BASE: ${{ steps.wl.outputs.api_base }}
+          KOLBO_WHITELABEL_APP_BASE: ${{ steps.wl.outputs.app_base }}
         with:
           projectPath: packages/desktop
           tauriScript: bunx tauri

@@ -3,5 +3,9 @@
   "identifier": "ai.kolbo.sapir",
   "mainBinaryName": "Sapir AI Code",
   "deepLinkScheme": "sapir-ai",
-  "splashImage": "/whitelabels/sapir/splash.jpg"
+  "brandName": "Sapir AI Code",
+  "splashImage": "/whitelabels/sapir/splash.jpg",
+  "logoImage": "/whitelabels/sapir/logo.svg",
+  "apiBase": "https://sapir.kolbo.ai/api",
+  "appBase": "https://sapir.kolbo.ai"
 }
