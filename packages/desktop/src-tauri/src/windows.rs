@@ -139,6 +139,7 @@ impl LoadingWindow {
         .center()
         .resizable(false)
         .inner_size(640.0, 480.0)
+        .always_on_top(true)
         .visible(true);
 
         Ok(Self(window_builder.build()?))

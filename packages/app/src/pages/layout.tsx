@@ -3,6 +3,7 @@ import {
   createEffect,
   createMemo,
   createResource,
+  createSignal,
   For,
   on,
   onCleanup,
@@ -61,6 +62,7 @@ import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme/context"
 import { useCommand, type CommandOption } from "@/context/command"
 import { ConstrainDragXAxis, getDraggableId } from "@/utils/solid-dnd"
 import { DebugBar } from "@/components/debug-bar"
+import { DialogLogin } from "@/components/dialog-login"
 import { Titlebar } from "@/components/titlebar"
 import { useServer } from "@/context/server"
 import { useLanguage, type Locale } from "@/context/language"
@@ -122,6 +124,7 @@ export default function Layout(props: ParentProps) {
   const navigate = useNavigate()
   setNavigate(navigate)
   const providers = useProviders()
+  const [showLogin, setShowLogin] = createSignal(false)
   const dialog = useDialog()
   const command = useCommand()
   const theme = useTheme()
@@ -263,6 +266,13 @@ export default function Layout(props: ParentProps) {
     const id = state.peek
     if (!id) return
     return layout.projects.list().find((project) => project.worktree === id)
+  })
+
+  createEffect(() => {
+    const all = providers.all()
+    if (!all.length) return
+    const kolboConnected = providers.connected().some((p) => p.id === "kodu")
+    setShowLogin(!kolboConnected)
   })
 
   createEffect(() => {
@@ -2355,6 +2365,9 @@ export default function Layout(props: ParentProps) {
 
   return (
     <div class="relative bg-background-base flex-1 min-h-0 min-w-0 flex flex-col select-none [&_input]:select-text [&_textarea]:select-text [&_[contenteditable]]:select-text">
+      <Show when={showLogin()}>
+        <DialogLogin onDone={() => setShowLogin(false)} />
+      </Show>
       <Titlebar />
       <div class="flex-1 min-h-0 min-w-0 flex">
         <div class="flex-1 min-h-0 relative">
