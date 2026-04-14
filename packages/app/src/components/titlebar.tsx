@@ -1,16 +1,17 @@
-import { createEffect, createMemo, onCleanup, Show, untrack } from "solid-js"
+import { createEffect, createMemo, For, onCleanup, Show, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Button } from "@opencode-ai/ui/button"
+import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
 import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { useTheme } from "@opencode-ai/ui/theme/context"
 
 import { useLayout } from "@/context/layout"
 import { usePlatform } from "@/context/platform"
 import { useCommand } from "@/context/command"
-import { useLanguage } from "@/context/language"
+import { useLanguage, FLAG_MAP, type Locale } from "@/context/language"
 import { applyPath, backPath, forwardPath } from "./titlebar-history"
 
 type TauriDesktopWindow = {
@@ -302,11 +303,56 @@ export function Titlebar() {
         onMouseDown={drag}
       >
         <div id="opencode-titlebar-right" class="flex items-center gap-1 shrink-0 justify-end" />
+        <LanguagePicker />
         <Show when={windows()}>
           {!tauriApi() && <div class="w-36 shrink-0" />}
           <div data-tauri-decorum-tb class="flex flex-row" />
         </Show>
       </div>
     </header>
+  )
+}
+
+function LanguagePicker() {
+  const language = useLanguage()
+
+  return (
+    <DropdownMenu placement="bottom-end">
+      <Tooltip placement="bottom" value={language.t("settings.general.row.language.title")} openDelay={800}>
+        <DropdownMenu.Trigger
+          as="button"
+          type="button"
+          class="titlebar-icon flex items-center gap-1.5 h-6 px-1.5 rounded-md text-text-weak hover:text-text-base hover:bg-surface-base-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          aria-label={language.t("settings.general.row.language.title")}
+        >
+          <span
+            class={`fi fi-${FLAG_MAP[language.locale()]} w-4 h-3 rounded-[2px] flex-shrink-0`}
+            style="background-size: cover;"
+          />
+          <span class="text-11-regular uppercase tracking-wide hidden sm:inline">{language.locale()}</span>
+        </DropdownMenu.Trigger>
+      </Tooltip>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content class="mt-1 min-w-[160px] max-h-[min(480px,70vh)] overflow-y-auto">
+          <For each={language.locales as readonly Locale[]}>
+            {(locale) => (
+              <DropdownMenu.Item
+                onSelect={() => language.setLocale(locale)}
+                class="flex items-center gap-2.5"
+              >
+                <span
+                  class={`fi fi-${FLAG_MAP[locale]} w-4 h-3 rounded-[2px] flex-shrink-0`}
+                  style="background-size: cover;"
+                />
+                <DropdownMenu.ItemLabel>{language.label(locale)}</DropdownMenu.ItemLabel>
+                <Show when={language.locale() === locale}>
+                  <Icon name="check-small" size="small" class="ms-auto text-primary" />
+                </Show>
+              </DropdownMenu.Item>
+            )}
+          </For>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu>
   )
 }

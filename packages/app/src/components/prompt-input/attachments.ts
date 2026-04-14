@@ -175,21 +175,19 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     }
   }
 
-  /**
-   * Attaches a public URL directly — no download, instant preview.
-   * The backend (prompt.ts) handles http/https URLs natively.
-   */
+  // Attaches a URL (http/https or data:) directly without downloading.
   const attachFromUrl = (url: string): boolean => {
-    const mime = mimeFromUrl(url)
-    if (!mime) return false
-    const filename = url.split("/").pop()?.split("?")[0] || "media"
-    const attachment: ImageAttachmentPart = {
-      type: "image",
-      id: uuid(),
-      filename,
-      mime,
-      dataUrl: url,
+    let mime: string | undefined
+    let filename: string
+    if (url.startsWith("data:")) {
+      mime = url.match(/^data:([^;]+);/)?.[1]
+      filename = `media.${mime?.split("/")[1] ?? "bin"}`
+    } else {
+      mime = mimeFromUrl(url)
+      filename = url.split("/").pop()?.split("?")[0] || "media"
     }
+    if (!mime) return false
+    const attachment: ImageAttachmentPart = { type: "image", id: uuid(), filename, mime, dataUrl: url }
     prompt.set([...prompt.current(), attachment], prompt.cursor())
     return true
   }
@@ -223,27 +221,8 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       uriList.split(/\r?\n/).find((line) => line.trim() && !line.startsWith("#"))?.trim() ||
       (plainText.startsWith("http") && inAppMediaPattern.test(plainText) ? plainText : "")
 
-    if (mediaUrl) {
-      if (mediaUrl.startsWith("data:")) {
-        // Base64 data URL (e.g. previously uploaded image re-dragged from chat)
-        // Store it directly — no download needed, just re-attach
-        const mimeMatch = mediaUrl.match(/^data:([^;]+);/)
-        const mime = mimeMatch?.[1]
-        if (mime) {
-          const filename = `media.${mime.split("/")[1] ?? "bin"}`
-          const attachment: ImageAttachmentPart = {
-            type: "image",
-            id: uuid(),
-            filename,
-            mime,
-            dataUrl: mediaUrl,
-          }
-          prompt.set([...prompt.current(), attachment], prompt.cursor())
-        }
-      } else if (inAppMediaPattern.test(mediaUrl)) {
-        // Public HTTP URL — store directly, backend handles it natively
-        attachFromUrl(mediaUrl)
-      }
+    if (mediaUrl && (mediaUrl.startsWith("data:") || inAppMediaPattern.test(mediaUrl))) {
+      attachFromUrl(mediaUrl)
     }
   }
 

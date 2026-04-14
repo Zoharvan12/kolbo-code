@@ -9,21 +9,14 @@ import { dict as uiEn } from "@opencode-ai/ui/i18n/en"
 export type Locale =
   | "en"
   | "zh"
-  | "zht"
   | "ko"
   | "de"
   | "es"
   | "fr"
-  | "da"
   | "ja"
-  | "pl"
   | "ru"
   | "ar"
-  | "no"
   | "br"
-  | "th"
-  | "bs"
-  | "tr"
   | "he"
   | "hi"
 
@@ -41,40 +34,26 @@ const LOCALES: readonly Locale[] = [
   "ar",
   "ru",
   "zh",
-  "zht",
   "ko",
   "de",
   "es",
   "fr",
-  "da",
   "ja",
-  "pl",
-  "bs",
-  "no",
   "br",
-  "th",
-  "tr",
   "hi",
 ]
 
 const INTL: Record<Locale, string> = {
   en: "en",
   zh: "zh-Hans",
-  zht: "zh-Hant",
   ko: "ko",
   de: "de",
   es: "es",
   fr: "fr",
-  da: "da",
   ja: "ja",
-  pl: "pl",
   ru: "ru",
   ar: "ar",
-  no: "nb-NO",
   br: "pt-BR",
-  th: "th",
-  bs: "bs",
-  tr: "tr",
   he: "he",
   hi: "hi",
 }
@@ -82,21 +61,14 @@ const INTL: Record<Locale, string> = {
 const LABEL_KEY: Record<Locale, keyof Dictionary> = {
   en: "language.en",
   zh: "language.zh",
-  zht: "language.zht",
   ko: "language.ko",
   de: "language.de",
   es: "language.es",
   fr: "language.fr",
-  da: "language.da",
   ja: "language.ja",
-  pl: "language.pl",
   ru: "language.ru",
   ar: "language.ar",
-  no: "language.no",
   br: "language.br",
-  th: "language.th",
-  bs: "language.bs",
-  tr: "language.tr",
   he: "language.he",
   hi: "language.hi",
 }
@@ -104,21 +76,14 @@ const LABEL_KEY: Record<Locale, keyof Dictionary> = {
 export const FLAG_MAP: Record<Locale, string> = {
   en: "us",
   zh: "cn",
-  zht: "tw",
   ko: "kr",
   de: "de",
   es: "es",
   fr: "fr",
-  da: "dk",
   ja: "jp",
-  pl: "pl",
   ru: "ru",
   ar: "sa",
-  no: "no",
   br: "br",
-  bs: "ba",
-  th: "th",
-  tr: "tr",
   he: "il",
   hi: "in",
 }
@@ -131,21 +96,14 @@ const merge = (app: Promise<Source>, ui: Promise<Source>) =>
 
 const loaders: Record<Exclude<Locale, "en">, () => Promise<Dictionary>> = {
   zh: () => merge(import("@/i18n/zh"), import("@opencode-ai/ui/i18n/zh")),
-  zht: () => merge(import("@/i18n/zht"), import("@opencode-ai/ui/i18n/zht")),
   ko: () => merge(import("@/i18n/ko"), import("@opencode-ai/ui/i18n/ko")),
   de: () => merge(import("@/i18n/de"), import("@opencode-ai/ui/i18n/de")),
   es: () => merge(import("@/i18n/es"), import("@opencode-ai/ui/i18n/es")),
   fr: () => merge(import("@/i18n/fr"), import("@opencode-ai/ui/i18n/fr")),
-  da: () => merge(import("@/i18n/da"), import("@opencode-ai/ui/i18n/da")),
   ja: () => merge(import("@/i18n/ja"), import("@opencode-ai/ui/i18n/ja")),
-  pl: () => merge(import("@/i18n/pl"), import("@opencode-ai/ui/i18n/pl")),
   ru: () => merge(import("@/i18n/ru"), import("@opencode-ai/ui/i18n/ru")),
   ar: () => merge(import("@/i18n/ar"), import("@opencode-ai/ui/i18n/ar")),
-  no: () => merge(import("@/i18n/no"), import("@opencode-ai/ui/i18n/no")),
   br: () => merge(import("@/i18n/br"), import("@opencode-ai/ui/i18n/br")),
-  th: () => merge(import("@/i18n/th"), import("@opencode-ai/ui/i18n/th")),
-  bs: () => merge(import("@/i18n/bs"), import("@opencode-ai/ui/i18n/bs")),
-  tr: () => merge(import("@/i18n/tr"), import("@opencode-ai/ui/i18n/tr")),
   he: () => merge(import("@/i18n/he"), import("@opencode-ai/ui/i18n/he")),
   hi: () => merge(import("@/i18n/hi"), import("@opencode-ai/ui/i18n/hi")),
 }
@@ -167,25 +125,15 @@ export function loadLocaleDict(locale: Locale) {
 
 const localeMatchers: Array<{ locale: Locale; match: (language: string) => boolean }> = [
   { locale: "en", match: (language) => language.startsWith("en") },
-  { locale: "zht", match: (language) => language.startsWith("zh") && language.includes("hant") },
   { locale: "zh", match: (language) => language.startsWith("zh") },
   { locale: "ko", match: (language) => language.startsWith("ko") },
   { locale: "de", match: (language) => language.startsWith("de") },
   { locale: "es", match: (language) => language.startsWith("es") },
   { locale: "fr", match: (language) => language.startsWith("fr") },
-  { locale: "da", match: (language) => language.startsWith("da") },
   { locale: "ja", match: (language) => language.startsWith("ja") },
-  { locale: "pl", match: (language) => language.startsWith("pl") },
   { locale: "ru", match: (language) => language.startsWith("ru") },
   { locale: "ar", match: (language) => language.startsWith("ar") },
-  {
-    locale: "no",
-    match: (language) => language.startsWith("no") || language.startsWith("nb") || language.startsWith("nn"),
-  },
   { locale: "br", match: (language) => language.startsWith("pt") },
-  { locale: "th", match: (language) => language.startsWith("th") },
-  { locale: "bs", match: (language) => language.startsWith("bs") },
-  { locale: "tr", match: (language) => language.startsWith("tr") },
   { locale: "he", match: (language) => language.startsWith("he") },
   { locale: "hi", match: (language) => language.startsWith("hi") },
 ]
@@ -249,10 +197,14 @@ export const { use: useLanguage, provider: LanguageProvider } = createSimpleCont
 
     const label = (value: Locale) => t(LABEL_KEY[value])
 
+    const RTL_LOCALES = new Set<Locale>(["ar", "he"])
+
     createEffect(() => {
       if (typeof document !== "object") return
-      document.documentElement.lang = locale()
-      document.cookie = cookie(locale())
+      const loc = locale()
+      document.documentElement.lang = loc
+      document.documentElement.dir = RTL_LOCALES.has(loc) ? "rtl" : "ltr"
+      document.cookie = cookie(loc)
     })
 
     return {

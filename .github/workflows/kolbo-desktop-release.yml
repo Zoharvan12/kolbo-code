@@ -36,14 +36,14 @@ jobs:
             rust-target: x86_64-pc-windows-msvc
             bundle: nsis
             artifact-suffix: windows-x64
-          # - platform: macos-latest
-          #   rust-target: aarch64-apple-darwin
-          #   bundle: dmg
-          #   artifact-suffix: darwin-aarch64
-          # - platform: macos-13
-          #   rust-target: x86_64-apple-darwin
-          #   bundle: dmg
-          #   artifact-suffix: darwin-x64
+          - platform: macos-latest
+            rust-target: aarch64-apple-darwin
+            bundle: dmg
+            artifact-suffix: darwin-aarch64
+          - platform: macos-13
+            rust-target: x86_64-apple-darwin
+            bundle: dmg
+            artifact-suffix: darwin-x64
           # - platform: ubuntu-22.04
           #   rust-target: x86_64-unknown-linux-gnu
           #   bundle: deb
@@ -111,10 +111,18 @@ jobs:
             }
             fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
           "
-          # Fix TypeScript globals
-          sed -i 's/__OPENCODE__/__KOLBO_CODE__/g' src/index.tsx src/updater.ts || true
-          sed -i 's/__OPENCODE__/__KOLBO_CODE__/g' src-tauri/src/windows.rs || true
-          sed -i 's/.title("OpenCode")/.title("Kolbo Code")/g' src-tauri/src/windows.rs || true
+          # Fix TypeScript globals (node used for cross-platform sed)
+          node -e "
+            const fs = require('fs');
+            const files = ['src/index.tsx', 'src/updater.ts', 'src-tauri/src/windows.rs'];
+            for (const f of files) {
+              try {
+                let c = fs.readFileSync(f, 'utf8');
+                c = c.replace(/__OPENCODE__/g, '__KOLBO_CODE__').replace(/\.title\(\"OpenCode\"\)/g, '.title(\"Kolbo Code\")');
+                fs.writeFileSync(f, c);
+              } catch {}
+            }
+          "
 
       - name: Download CLI sidecar
         shell: bash
@@ -127,17 +135,28 @@ jobs:
           cd /tmp/kolbo-cli-install
           npm install @kolbo/kolbo-code@latest 2>&1 || true
           cd "$GITHUB_WORKSPACE"
-          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
-            BASE="/tmp/kolbo-cli-install/node_modules"
+          BASE="/tmp/kolbo-cli-install/node_modules"
+          PLATFORM="${{ matrix.platform }}"
+          RUST_TARGET="${{ matrix.rust-target }}"
+          if [ "$PLATFORM" == "windows-latest" ]; then
             KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe"
             [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe"
-            if [ -f "$KOLBO_BIN" ]; then
-              cp "$KOLBO_BIN" packages/desktop/src-tauri/sidecars/opencode-cli-${{ matrix.rust-target }}.exe
-              echo "✓ CLI sidecar copied from $KOLBO_BIN"
-            else
-              echo "⚠ Binary not found, listing @kolbo packages:"
-              ls "$BASE/@kolbo/" 2>/dev/null || echo "None found"
-            fi
+            DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}.exe"
+          elif [ "$PLATFORM" == "macos-latest" ]; then
+            KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
+            [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
+            DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}"
+          else
+            KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
+            [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
+            DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}"
+          fi
+          if [ -f "$KOLBO_BIN" ]; then
+            cp "$KOLBO_BIN" "$DEST"
+            echo "✓ CLI sidecar copied from $KOLBO_BIN"
+          else
+            echo "⚠ Binary not found, listing @kolbo packages:"
+            ls "$BASE/@kolbo/" 2>/dev/null || echo "None found"
           fi
 
       - name: Build Tauri app

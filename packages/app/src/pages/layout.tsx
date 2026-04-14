@@ -129,6 +129,7 @@ export default function Layout(props: ParentProps) {
   const command = useCommand()
   const theme = useTheme()
   const language = useLanguage()
+  const isRTL = createMemo(() => language.locale() === "ar" || language.locale() === "he")
   const initialDirectory = decode64(params.dir)
   const route = createMemo(() => {
     const slug = params.dir
@@ -1815,7 +1816,13 @@ export default function Layout(props: ParentProps) {
 
   createEffect(() => {
     const sidebarWidth = layout.sidebar.opened() ? layout.sidebar.width() : 48
-    document.documentElement.style.setProperty("--dialog-left-margin", `${sidebarWidth}px`)
+    if (isRTL()) {
+      document.documentElement.style.setProperty("--dialog-left-margin", "0px")
+      document.documentElement.style.setProperty("--dialog-right-margin", `${sidebarWidth}px`)
+    } else {
+      document.documentElement.style.setProperty("--dialog-left-margin", `${sidebarWidth}px`)
+      document.documentElement.style.setProperty("--dialog-right-margin", "0px")
+    }
   })
 
   const side = createMemo(() => Math.max(layout.sidebar.width(), 244))
@@ -2078,9 +2085,12 @@ export default function Layout(props: ParentProps) {
     return (
       <div
         classList={{
-          "flex flex-col min-h-0 min-w-0 box-border rounded-tl-[12px] px-3": true,
+          "flex flex-col min-h-0 min-w-0 box-border px-3": true,
+          "rounded-tl-[12px]": !isRTL(),
+          "rounded-tr-[12px]": isRTL(),
           "border border-b-0 border-border-weak-base": !merged(),
-          "border-l border-t border-border-weaker-base": merged(),
+          "border-l border-t border-border-weaker-base": merged() && !isRTL(),
+          "border-r border-t border-border-weaker-base": merged() && isRTL(),
           "bg-background-base": merged() || hover(),
           "bg-background-stronger": !merged() && !hover(),
           "flex-1 min-w-0": panelProps.mobile,
@@ -2377,10 +2387,10 @@ export default function Layout(props: ParentProps) {
               data-component="sidebar-nav-desktop"
               classList={{
                 "hidden xl:block": true,
-                "absolute inset-y-0 left-0": true,
+                "absolute inset-y-0": true,
                 "z-10": true,
               }}
-              style={{ width: `${side()}px` }}
+              style={{ width: `${side()}px`, ...(isRTL() ? { right: "0" } : { left: "0" }) }}
               ref={(el) => {
                 setState("nav", el)
               }}
@@ -2400,7 +2410,7 @@ export default function Layout(props: ParentProps) {
             <Show when={layout.sidebar.opened()}>
               <div
                 class="hidden xl:block absolute inset-y-0 z-30 w-0 overflow-visible"
-                style={{ left: `${side()}px` }}
+                style={isRTL() ? { right: `${side()}px` } : { left: `${side()}px` }}
                 onPointerDown={() => setState("sizing", true)}
               >
                 <ResizeHandle
@@ -2419,8 +2429,9 @@ export default function Layout(props: ParentProps) {
             </Show>
 
             <div
-              class="hidden xl:block pointer-events-none absolute top-0 right-0 z-0 border-t border-border-weaker-base"
-              style={{ left: "calc(4rem + 12px)" }}
+              class="hidden xl:block pointer-events-none absolute top-0 z-0 border-t border-border-weaker-base"
+              classList={{ "right-0": !isRTL(), "left-0": isRTL() }}
+              style={isRTL() ? { right: "calc(4rem + 12px)" } : { left: "calc(4rem + 12px)" }}
             />
 
             <div class="xl:hidden">
@@ -2438,9 +2449,12 @@ export default function Layout(props: ParentProps) {
                 aria-label={language.t("sidebar.nav.projectsAndSessions")}
                 data-component="sidebar-nav-mobile"
                 classList={{
-                  "@container fixed top-10 bottom-0 left-0 z-50 w-full max-w-[400px] overflow-hidden border-r border-border-weaker-base bg-background-base transition-transform duration-200 ease-out": true,
+                  "@container fixed top-10 bottom-0 z-50 w-full max-w-[400px] overflow-hidden bg-background-base transition-transform duration-200 ease-out": true,
+                  "left-0 border-r border-border-weaker-base": !isRTL(),
+                  "right-0 border-l border-border-weaker-base": isRTL(),
                   "translate-x-0": layout.mobileSidebar.opened(),
-                  "-translate-x-full": !layout.mobileSidebar.opened(),
+                  "-translate-x-full": !layout.mobileSidebar.opened() && !isRTL(),
+                  "translate-x-full": !layout.mobileSidebar.opened() && isRTL(),
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -2451,18 +2465,25 @@ export default function Layout(props: ParentProps) {
             <div
               classList={{
                 "absolute inset-0": true,
-                "xl:inset-y-0 xl:right-0 xl:left-[var(--main-left)]": true,
+                "xl:inset-y-0": true,
+                "xl:right-0 xl:left-[var(--main-left)]": !isRTL(),
+                "xl:left-0 xl:right-[var(--main-right)]": isRTL(),
                 "z-20": true,
                 "transition-[left] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[left] motion-reduce:transition-none":
-                  !state.sizing,
+                  !state.sizing && !isRTL(),
+                "transition-[right] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[right] motion-reduce:transition-none":
+                  !state.sizing && isRTL(),
               }}
               style={{
-                "--main-left": layout.sidebar.opened() ? `${side()}px` : "4rem",
+                "--main-left": !isRTL() ? (layout.sidebar.opened() ? `${side()}px` : "4rem") : undefined,
+                "--main-right": isRTL() ? (layout.sidebar.opened() ? `${side()}px` : "4rem") : undefined,
               }}
             >
               <main
                 classList={{
-                  "size-full overflow-x-hidden flex flex-col items-start contain-strict border-t border-border-weak-base bg-background-base xl:border-l xl:rounded-tl-[12px]": true,
+                  "size-full overflow-x-hidden flex flex-col items-start contain-strict border-t border-border-weak-base bg-background-base": true,
+                  "xl:border-l xl:rounded-tl-[12px]": !isRTL(),
+                  "xl:border-r xl:rounded-tr-[12px]": isRTL(),
                 }}
               >
                 <Show when={!autoselecting.loading} fallback={<div class="size-full" />}>
@@ -2473,9 +2494,13 @@ export default function Layout(props: ParentProps) {
 
             <div
               classList={{
-                "hidden xl:flex absolute inset-y-0 left-16 z-30": true,
+                "hidden xl:flex absolute inset-y-0 z-30": true,
+                "left-16": !isRTL(),
+                "right-16": isRTL(),
                 "opacity-100 translate-x-0 pointer-events-auto": state.peeked && !layout.sidebar.opened(),
-                "opacity-0 -translate-x-2 pointer-events-none": !state.peeked || layout.sidebar.opened(),
+                "opacity-0 pointer-events-none": !state.peeked || layout.sidebar.opened(),
+                "-translate-x-2": (!state.peeked || layout.sidebar.opened()) && !isRTL(),
+                "translate-x-2": (!state.peeked || layout.sidebar.opened()) && isRTL(),
                 "transition-[opacity,transform] motion-reduce:transition-none": true,
                 "duration-180 ease-out": state.peeked && !layout.sidebar.opened(),
                 "duration-120 ease-in": !state.peeked || layout.sidebar.opened(),
@@ -2497,14 +2522,20 @@ export default function Layout(props: ParentProps) {
 
             <div
               classList={{
-                "hidden xl:block pointer-events-none absolute inset-y-0 right-0 z-25 overflow-hidden": true,
+                "hidden xl:block pointer-events-none absolute inset-y-0 z-25 overflow-hidden": true,
+                "right-0": !isRTL(),
+                "left-0": isRTL(),
                 "opacity-100 translate-x-0": state.peeked && !layout.sidebar.opened(),
-                "opacity-0 -translate-x-2": !state.peeked || layout.sidebar.opened(),
+                "opacity-0": !state.peeked || layout.sidebar.opened(),
+                "-translate-x-2": (!state.peeked || layout.sidebar.opened()) && !isRTL(),
+                "translate-x-2": (!state.peeked || layout.sidebar.opened()) && isRTL(),
                 "transition-[opacity,transform] motion-reduce:transition-none": true,
                 "duration-180 ease-out": state.peeked && !layout.sidebar.opened(),
                 "duration-120 ease-in": !state.peeked || layout.sidebar.opened(),
               }}
-              style={{ left: `calc(4rem + ${panel()}px)` }}
+              style={isRTL()
+                ? { right: `calc(4rem + ${panel()}px)` }
+                : { left: `calc(4rem + ${panel()}px)` }}
             >
               <div class="h-full w-px" style={{ "box-shadow": "var(--shadow-sidebar-overlay)" }} />
             </div>

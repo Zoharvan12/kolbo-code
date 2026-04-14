@@ -356,6 +356,14 @@ function insertHtmlFileCards(root: HTMLDivElement): void {
     card.addEventListener("mouseenter", () => { card.style.borderColor = "var(--border-base)" })
     card.addEventListener("mouseleave", () => { card.style.borderColor = "var(--border-weak-base)" })
 
+    const cleanPath = path.replace(/^file:\/\/\/?/, "")
+    card.draggable = true
+    card.addEventListener("dragstart", (e) => {
+      if (!e.dataTransfer) return
+      e.dataTransfer.setData("text/plain", "file:" + cleanPath)
+      e.dataTransfer.effectAllowed = "copy"
+    })
+
     // ── Scaled iframe container (kolbo-map pattern) ───────────────────────────
     const scaleWrap = document.createElement("div")
     scaleWrap.style.cssText =
@@ -451,6 +459,16 @@ const downloadIconSvg =
 const videoExtPattern = /\.(mp4|webm|mov|avi|mkv|m4v)(\?.*)?$/i
 const audioExtPattern = /\.(mp3|wav|ogg|m4a|aac|flac|opus|wma)(\?.*)?$/i
 
+function makeDraggable(el: HTMLElement, url: string) {
+  el.draggable = true
+  el.addEventListener("dragstart", (e) => {
+    if (!e.dataTransfer) return
+    e.dataTransfer.setData("text/uri-list", url)
+    e.dataTransfer.setData("text/plain", url)
+    e.dataTransfer.effectAllowed = "copy"
+  })
+}
+
 /**
  * Finds <a> tags linking to video URLs and inserts a <video> player below them.
  * Reuses data-media-wrapper / data-media-overlay / data-md-download conventions
@@ -495,13 +513,7 @@ function wrapMarkdownVideos(root: HTMLDivElement, dlLabels: DownloadLabels): voi
     btn.innerHTML = downloadIconSvg
     overlay.appendChild(btn)
 
-    wrapper.draggable = true
-    wrapper.addEventListener("dragstart", (e) => {
-      if (!e.dataTransfer) return
-      e.dataTransfer.setData("text/uri-list", href)
-      e.dataTransfer.setData("text/plain", href)
-      e.dataTransfer.effectAllowed = "copy"
-    })
+    makeDraggable(wrapper, href)
 
     wrapper.appendChild(video)
     wrapper.appendChild(overlay)
@@ -547,13 +559,7 @@ function wrapMarkdownAudio(root: HTMLDivElement, dlLabels: DownloadLabels): void
       "cursor:pointer"
     btn.innerHTML = downloadIconSvg
 
-    wrapper.draggable = true
-    wrapper.addEventListener("dragstart", (e) => {
-      if (!e.dataTransfer) return
-      e.dataTransfer.setData("text/uri-list", href)
-      e.dataTransfer.setData("text/plain", href)
-      e.dataTransfer.effectAllowed = "copy"
-    })
+    makeDraggable(wrapper, href)
 
     wrapper.appendChild(audio)
     wrapper.appendChild(btn)
@@ -606,15 +612,7 @@ function wrapMarkdownImages(root: HTMLDivElement, dlLabels: DownloadLabels): voi
     img.style.cursor = "zoom-in"
     wrapper.setAttribute("data-lightbox-src", img.src)
 
-    // Make wrapper draggable so in-app media drag-and-drop works via text/uri-list
-    const imgSrc = img.src
-    wrapper.draggable = true
-    wrapper.addEventListener("dragstart", (e) => {
-      if (!e.dataTransfer) return
-      e.dataTransfer.setData("text/uri-list", imgSrc)
-      e.dataTransfer.setData("text/plain", imgSrc)
-      e.dataTransfer.effectAllowed = "copy"
-    })
+    makeDraggable(wrapper, img.src)
 
     img.parentNode?.replaceChild(wrapper, img)
     wrapper.appendChild(img)

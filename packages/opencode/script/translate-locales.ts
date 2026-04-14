@@ -2,43 +2,46 @@
 /**
  * translate-locales.ts
  *
- * Uses Gemini API to fill missing translation keys across all locale files.
- * Reads source from packages/app/src/i18n/en.ts and packages/ui/src/i18n/en.ts,
- * then patches any locale file that is missing keys.
+ * Uses Gemini Flash (gemini-2.0-flash-lite) to fill missing translation keys
+ * across all locale files in packages/app/src/i18n and packages/ui/src/i18n.
+ *
+ * API key is read from G:/Projects/Kolbo.AI/github/kolbo-api/.env.development
+ * (GOOGLE_API_KEY), falling back to the GOOGLE_API_KEY env var.
  *
  * Usage:
- *   GOOGLE_API_KEY=... bun run packages/opencode/script/translate-locales.ts
- *   GOOGLE_API_KEY=... bun run packages/opencode/script/translate-locales.ts --locale he
- *   GOOGLE_API_KEY=... bun run packages/opencode/script/translate-locales.ts --pkg ui --locale ar
+ *   bun run packages/opencode/script/translate-locales.ts
+ *   bun run packages/opencode/script/translate-locales.ts --locale he
+ *   bun run packages/opencode/script/translate-locales.ts --pkg ui --locale ar
+ *   bun run packages/opencode/script/translate-locales.ts --fix-fallbacks
  */
 
+import { GoogleGenerativeAI } from "@google/generative-ai"
 import { join, dirname } from "path"
 import { fileURLToPath } from "url"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = join(__dirname, "../../..")
+const KOLBO_API_ENV = "G:/Projects/Kolbo.AI/github/kolbo-api/.env.development"
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY
+// ─── load GOOGLE_API_KEY from kolbo-api .env.development ─────────────────────
 
-const OPENAI_MODEL = "gpt-4o-mini"
+async function loadApiKey(): Promise<string> {
+  // Prefer explicit env var
+  if (process.env.GOOGLE_API_KEY) return process.env.GOOGLE_API_KEY
 
-async function callOpenAI(prompt: string): Promise<string> {
-  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 4096,
-      temperature: 0.1,
-    }),
-  })
-  const json = (await resp.json()) as any
-  if (!resp.ok) throw new Error(json.error?.message ?? `OpenAI ${resp.status}`)
-  return json.choices[0].message.content.trim()
+  try {
+    const content = await Bun.file(KOLBO_API_ENV).text()
+    for (const line of content.split("\n")) {
+      const m = line.match(/^\s*GOOGLE_API_KEY\s*=\s*["']?([^"'\s]+)["']?/)
+      if (m) return m[1]
+    }
+  } catch {
+    // file not found — fall through to error
+  }
+
+  throw new Error(
+    `GOOGLE_API_KEY not found. Set the env var or add it to ${KOLBO_API_ENV}`,
+  )
 }
 
 // ─── locale metadata ──────────────────────────────────────────────────────────
@@ -48,19 +51,12 @@ const LOCALE_META: Record<string, { name: string; rtl?: boolean }> = {
   he: { name: "Hebrew", rtl: true },
   ru: { name: "Russian" },
   zh: { name: "Simplified Chinese" },
-  zht: { name: "Traditional Chinese" },
   ko: { name: "Korean" },
   de: { name: "German" },
   es: { name: "Spanish" },
   fr: { name: "French" },
-  da: { name: "Danish" },
   ja: { name: "Japanese" },
-  pl: { name: "Polish" },
-  bs: { name: "Bosnian" },
-  no: { name: "Norwegian" },
   br: { name: "Brazilian Portuguese" },
-  th: { name: "Thai" },
-  tr: { name: "Turkish" },
   hi: { name: "Hindi" },
 }
 
@@ -71,14 +67,13 @@ const localeIdx = args.indexOf("--locale")
 const localeArg = localeIdx >= 0 ? args[localeIdx + 1] : undefined
 const pkgIdx = args.indexOf("--pkg")
 const pkgArg = pkgIdx >= 0 ? args[pkgIdx + 1] : undefined
-// When true, also retranslate keys whose current value is identical to English (likely a fallback)
+// Retranslate keys whose value is identical to English (fallbacks from a failed run)
 const retranslateEnglishFallbacks = args.includes("--fix-fallbacks")
 
 // ─── file helpers ─────────────────────────────────────────────────────────────
 
 function parseDict(content: string): Record<string, string> {
   const dict: Record<string, string> = {}
-  // Match "key": "value"  (handles escaped quotes inside values)
   const re = /"([^"]+)":\s*"((?:[^"\\]|\\.)*)"/g
   let m: RegExpExecArray | null
   while ((m = re.exec(content)) !== null) {
@@ -104,7 +99,7 @@ async function readDict(path: string): Promise<Record<string, string>> {
   }
 }
 
-// ─── translation via Gemini ───────────────────────────────────────────────────
+// ─── translation via Gemini Flash ────────────────────────────────────────────
 
 const BRAND_NAMES = [
   "Kolbo",
@@ -126,6 +121,7 @@ const BRAND_NAMES = [
 ]
 
 async function translateBatch(
+  model: ReturnType<InstanceType<typeof GoogleGenerativeAI>["getGenerativeModel"]>,
   keys: string[],
   values: string[],
   targetLocale: string,
@@ -146,14 +142,15 @@ Rules:
 - Keep keyboard key names in English: ESC, Ctrl, Alt, Shift, Enter, Tab, Delete
 - Keep file extensions (.mp4, .jpg, .ts, etc.) untranslated
 - Use professional, friendly tone matching software UI
-- Respond ONLY with a JSON object: {"key": "translated value", ...}
+- Respond ONLY with a valid JSON object: {"key": "translated value", ...}
 - Do not include any explanation or markdown code fences
 
 Input JSON:
 ${JSON.stringify(Object.fromEntries(keys.map((k, i) => [k, values[i]])), null, 2)}
 `
 
-  const text = await callOpenAI(prompt)
+  const result = await model.generateContent(prompt)
+  const text = result.response.text().trim()
 
   // strip markdown fences if present
   const cleaned = text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim()
@@ -161,9 +158,9 @@ ${JSON.stringify(Object.fromEntries(keys.map((k, i) => [k, values[i]])), null, 2
   let parsed: Record<string, string>
   try {
     parsed = JSON.parse(cleaned)
-  } catch (e) {
-    console.error("Failed to parse Gemini response:", cleaned.slice(0, 500))
-    throw e
+  } catch {
+    console.error("  Failed to parse Gemini response:", cleaned.slice(0, 300))
+    throw new Error("JSON parse failed")
   }
 
   return keys.map((k) => parsed[k] ?? values[keys.indexOf(k)])
@@ -181,10 +178,14 @@ const PACKAGES: PackageConfig[] = [
   { pkg: "ui", i18nDir: join(REPO_ROOT, "packages/ui/src/i18n") },
 ]
 
-const BATCH_SIZE = 60 // keys per Gemini call
-const DELAY_MS = 500 // ms between calls
+const BATCH_SIZE = 60  // keys per Gemini call
+const DELAY_MS = 400   // ms between calls to stay within rate limits
 
-async function processPackage(cfg: PackageConfig, locales: string[]) {
+async function processPackage(
+  cfg: PackageConfig,
+  locales: string[],
+  model: ReturnType<InstanceType<typeof GoogleGenerativeAI>["getGenerativeModel"]>,
+) {
   const enPath = join(cfg.i18nDir, "en.ts")
   const enContent = await Bun.file(enPath).text()
   const enDict = parseDict(enContent)
@@ -198,7 +199,6 @@ async function processPackage(cfg: PackageConfig, locales: string[]) {
 
     let missingKeys = enKeys.filter((k) => !(k in localeDict))
 
-    // Also include keys whose value is identical to English (English fallbacks from a failed run)
     if (retranslateEnglishFallbacks) {
       const fallbackKeys = enKeys.filter(
         (k) => k in localeDict && localeDict[k] === enDict[k],
@@ -207,7 +207,7 @@ async function processPackage(cfg: PackageConfig, locales: string[]) {
     }
 
     if (missingKeys.length === 0) {
-      console.log(`  [${locale}] ✓ complete (no missing keys)`)
+      console.log(`  [${locale}] ✓ complete`)
       continue
     }
 
@@ -218,13 +218,15 @@ async function processPackage(cfg: PackageConfig, locales: string[]) {
     for (let i = 0; i < missingKeys.length; i += BATCH_SIZE) {
       const batchKeys = missingKeys.slice(i, i + BATCH_SIZE)
       const batchValues = batchKeys.map((k) => enDict[k])
-      process.stdout.write(`    batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(missingKeys.length / BATCH_SIZE)}...`)
+      process.stdout.write(
+        `    batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(missingKeys.length / BATCH_SIZE)}...`,
+      )
 
       try {
-        const translated = await translateBatch(batchKeys, batchValues, locale)
+        const translated = await translateBatch(model, batchKeys, batchValues, locale)
         translatedValues.push(...translated)
         process.stdout.write(" ✓\n")
-      } catch (e) {
+      } catch {
         process.stdout.write(" ✗ (keeping English fallback)\n")
         translatedValues.push(...batchValues)
       }
@@ -234,15 +236,11 @@ async function processPackage(cfg: PackageConfig, locales: string[]) {
       }
     }
 
-    // Merge: keep existing translations, overwrite with new ones where applicable
+    // Merge: overwrite retranslated keys, keep everything else
     const translated = new Map(missingKeys.map((k, i) => [k, translatedValues[i]]))
     const merged: Record<string, string> = {}
     for (const key of enKeys) {
-      if (translated.has(key)) {
-        merged[key] = translated.get(key)!
-      } else {
-        merged[key] = localeDict[key] ?? enDict[key]
-      }
+      merged[key] = translated.has(key) ? translated.get(key)! : (localeDict[key] ?? enDict[key])
     }
 
     await Bun.write(localePath, serializeDict(merged))
@@ -251,19 +249,20 @@ async function processPackage(cfg: PackageConfig, locales: string[]) {
 }
 
 async function main() {
-  const targetLocales = localeArg
-    ? [localeArg]
-    : Object.keys(LOCALE_META)
+  const apiKey = await loadApiKey()
+  console.log("Using Gemini 3.1 Flash Lite (gemini-3.1-flash-lite-preview)")
 
-  const targetPackages = pkgArg
-    ? PACKAGES.filter((p) => p.pkg === pkgArg)
-    : PACKAGES
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" })
 
-  console.log(`Translating locales: ${targetLocales.join(", ")}`)
+  const targetLocales = localeArg ? [localeArg] : Object.keys(LOCALE_META)
+  const targetPackages = pkgArg ? PACKAGES.filter((p) => p.pkg === pkgArg) : PACKAGES
+
+  console.log(`Locales: ${targetLocales.join(", ")}`)
   console.log(`Packages: ${targetPackages.map((p) => p.pkg).join(", ")}`)
 
   for (const cfg of targetPackages) {
-    await processPackage(cfg, targetLocales)
+    await processPackage(cfg, targetLocales, model)
   }
 
   console.log("\n✓ Done")

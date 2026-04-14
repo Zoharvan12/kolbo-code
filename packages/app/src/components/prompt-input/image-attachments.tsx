@@ -39,10 +39,14 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
                         </div>
                       }
                     >
-                      {/* Video — browser renders first frame automatically */}
+                      {/* Video — autoplay loop preview */}
                       <video
                         src={attachment.dataUrl}
-                        preload="metadata"
+                        autoplay
+                        loop
+                        muted
+                        playsinline
+                        preload="auto"
                         class={imageClass}
                         style="pointer-events:none"
                       />
