@@ -40,10 +40,10 @@ jobs:
             rust-target: aarch64-apple-darwin
             bundle: dmg
             artifact-suffix: darwin-aarch64
-          - platform: macos-13
-            rust-target: x86_64-apple-darwin
-            bundle: dmg
-            artifact-suffix: darwin-x64
+          # - platform: macos-13
+          #   rust-target: x86_64-apple-darwin
+          #   bundle: dmg
+          #   artifact-suffix: darwin-x64
           # - platform: ubuntu-22.04
           #   rust-target: x86_64-unknown-linux-gnu
           #   bundle: deb
