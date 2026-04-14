@@ -217,25 +217,38 @@ jobs:
           releaseDraft: ${{ github.event.inputs.draft }}
           prerelease: false
 
-      - name: Upload update bundles to release
+      - name: Upload update bundles to release (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ env.WHITELABEL }}-desktop-v${{ env.KOLBO_VERSION }}"
+          $dir = "packages\desktop\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis"
+          $zip = Get-ChildItem $dir -Filter "*.nsis.zip" | Select-Object -First 1
+          if ($zip) {
+            gh release upload $tag $zip.FullName "$($zip.FullName).sig" --clobber -R ${{ github.repository }}
+            Write-Host "✓ Uploaded: $($zip.Name)"
+          } else {
+            Write-Host "⚠ No .nsis.zip found in $dir"
+            Get-ChildItem $dir
+          }
+
+      - name: Upload update bundles to release (macOS)
+        if: matrix.platform == 'macos-latest'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ env.WHITELABEL }}-desktop-v${{ env.KOLBO_VERSION }}"
-          BUNDLE_DIR="packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle"
-          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
-            ZIP=$(find "${BUNDLE_DIR}/nsis" -name "*.nsis.zip" | head -1)
-            if [ -f "${ZIP}" ]; then
-              gh release upload "${TAG}" "${ZIP}" "${ZIP}.sig" --clobber -R ${{ github.repository }}
-              echo "✓ Uploaded Windows update bundle"
-            fi
-          elif [ "${{ matrix.platform }}" == "macos-latest" ]; then
-            TAR=$(find "${BUNDLE_DIR}/macos" -name "*.app.tar.gz" | head -1)
-            if [ -f "${TAR}" ]; then
-              gh release upload "${TAG}" "${TAR}" "${TAR}.sig" --clobber -R ${{ github.repository }}
-              echo "✓ Uploaded macOS update bundle"
-            fi
+          DIR="packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos"
+          TAR=$(find "${DIR}" -name "*.app.tar.gz" | head -1)
+          if [ -f "${TAR}" ]; then
+            gh release upload "${TAG}" "${TAR}" "${TAR}.sig" --clobber -R ${{ github.repository }}
+            echo "✓ Uploaded: $(basename ${TAR})"
+          else
+            echo "⚠ No .app.tar.gz found in ${DIR}"
+            ls "${DIR}" || true
           fi
 
       - name: Upload artifacts
