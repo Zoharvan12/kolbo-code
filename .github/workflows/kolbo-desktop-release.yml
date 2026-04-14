@@ -97,32 +97,8 @@ jobs:
           cp packages/ui/src/custom-elements.d.ts packages/app/src/custom-elements.d.ts
 
       - name: Apply Kolbo branding
-        run: |
-          cd packages/desktop
-          # Ensure tauri.conf.json has Kolbo Code branding
-          node -e "
-            const fs = require('fs');
-            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
-            conf.productName = 'Kolbo Code';
-            conf.identifier = 'ai.kolbo.code';
-            conf.mainBinaryName = 'Kolbo Code';
-            if (conf.plugins?.['deep-link']?.desktop) {
-              conf.plugins['deep-link'].desktop.schemes = ['kolbo-code'];
-            }
-            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
-          "
-          # Fix TypeScript globals (node used for cross-platform sed)
-          node -e "
-            const fs = require('fs');
-            const files = ['src/index.tsx', 'src/updater.ts', 'src-tauri/src/windows.rs'];
-            for (const f of files) {
-              try {
-                let c = fs.readFileSync(f, 'utf8');
-                c = c.replace(/__OPENCODE__/g, '__KOLBO_CODE__').replace(/\.title\(\"OpenCode\"\)/g, '.title(\"Kolbo Code\")');
-                fs.writeFileSync(f, c);
-              } catch {}
-            }
-          "
+        working-directory: packages/desktop
+        run: node scripts/apply-branding.js
 
       - name: Download CLI sidecar
         shell: bash
