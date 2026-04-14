@@ -4,7 +4,7 @@ import { usePrompt, type ContentPart, type ImageAttachmentPart } from "@/context
 import { useLanguage } from "@/context/language"
 import { uuid } from "@/utils/uuid"
 import { getCursorPosition } from "./editor-dom"
-import { attachmentMime, MAX_MEDIA_BYTES, mimeFromUrl } from "./files"
+import { attachmentMime, mimeFromUrl } from "./files"
 import { normalizePaste, pasteMode } from "./paste"
 
 function dataUrl(file: File, mime: string) {
@@ -53,13 +53,9 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       return false
     }
 
-    if ((mime.startsWith("audio/") || mime.startsWith("video/")) && file.size > MAX_MEDIA_BYTES) {
-      showToast({
-        title: language.t("prompt.toast.fileTooLarge.title"),
-        description: language.t("prompt.toast.fileTooLarge.description", { max: "200 MB" }),
-      })
-      return false
-    }
+    // Video/audio: we only have a File object here (no local path), so skip them.
+    // They can still be attached via drag from the file tree (file:// path reference).
+    if (mime.startsWith("audio/") || mime.startsWith("video/")) return false
 
     const editor = input.editor()
     if (!editor) return false
@@ -201,9 +197,16 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     // 1. Local file path reference (e.g. dragged from file tree)
     const plainText = event.dataTransfer?.getData("text/plain") ?? ""
     if (plainText.startsWith("file:")) {
-      const filePath = plainText.slice("file:".length)
-      input.focusEditor()
-      input.addPart({ type: "file", path: filePath, content: "@" + filePath, start: 0, end: 0 })
+      const url = plainText.trim()
+      const mime = mimeFromUrl(url)
+      if (mime) {
+        // Media file — store as a lightweight file:// path reference
+        attachFromUrl(url)
+      } else {
+        const filePath = url.slice("file:".length)
+        input.focusEditor()
+        input.addPart({ type: "file", path: filePath, content: "@" + filePath, start: 0, end: 0 })
+      }
       return
     }
 

@@ -179,3 +179,33 @@ jobs:
             packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/**/*.deb
             packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/**/*.AppImage
           retention-days: 30
+
+  publish-updater:
+    needs: build
+    runs-on: ubuntu-latest
+    if: endsWith(github.repository, '/kolbo-code')
+    steps:
+      - name: Publish update manifest to updater release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KOLBO_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          # Ensure the `updater` release exists (create if not)
+          gh release view updater -R ${{ github.repository }} 2>/dev/null || \
+            gh release create updater \
+              -R ${{ github.repository }} \
+              --title "Auto-updater manifest" \
+              --notes "Auto-updated by CI. Do not delete this release." \
+              --prerelease
+
+          # Download the merged latest.json from the versioned release
+          gh release download desktop-v${KOLBO_VERSION} \
+            -R ${{ github.repository }} \
+            --pattern "latest.json" \
+            -O latest.json
+
+          # Upload to the updater release (overwrite if exists)
+          gh release upload updater latest.json --clobber \
+            -R ${{ github.repository }}
+
+          echo "✓ Update manifest published to updater release"

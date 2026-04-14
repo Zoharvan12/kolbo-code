@@ -135,6 +135,11 @@ jobs:
             if (conf.plugins?.['deep-link']?.desktop) {
               conf.plugins['deep-link'].desktop.schemes = [wl.deepLinkScheme];
             }
+            if (!conf.plugins) conf.plugins = {};
+            if (!conf.plugins.updater) conf.plugins.updater = {};
+            conf.plugins.updater.endpoints = [
+              'https://github.com/Zoharvan12/kolbo-code/releases/download/updater/${WHITELABEL}-latest.json'
+            ];
             fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
           "
           # Fix TypeScript globals
@@ -188,6 +193,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           VITE_WHITELABEL_SPLASH: /whitelabels/${{ env.WHITELABEL }}/splash.jpg
           VITE_WHITELABEL_LOGO: ${{ steps.wl.outputs.logo_image }}
           VITE_WHITELABEL_NAME: ${{ steps.wl.outputs.brand_name }}
@@ -219,3 +226,34 @@ jobs:
             packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/**/*.dmg
             packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/**/*.deb
           retention-days: 30
+
+  publish-updater:
+    needs: build
+    runs-on: ubuntu-latest
+    if: endsWith(github.repository, '/kolbo-code')
+    steps:
+      - name: Publish update manifest to updater release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WHITELABEL: ${{ github.event.inputs.whitelabel }}
+          KOLBO_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          # Ensure the `updater` release exists (create if not)
+          gh release view updater -R ${{ github.repository }} 2>/dev/null || \
+            gh release create updater \
+              -R ${{ github.repository }} \
+              --title "Auto-updater manifest" \
+              --notes "Auto-updated by CI. Do not delete this release." \
+              --prerelease
+
+          # Download the merged latest.json from the versioned whitelabel release
+          gh release download ${WHITELABEL}-desktop-v${KOLBO_VERSION} \
+            -R ${{ github.repository }} \
+            --pattern "latest.json" \
+            -O ${WHITELABEL}-latest.json
+
+          # Upload to the updater release as {whitelabel}-latest.json
+          gh release upload updater ${WHITELABEL}-latest.json --clobber \
+            -R ${{ github.repository }}
+
+          echo "✓ Update manifest published to updater release as ${WHITELABEL}-latest.json"

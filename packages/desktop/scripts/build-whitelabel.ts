@@ -43,6 +43,7 @@ type WhitelabelConfig = {
   deepLinkScheme: string
   splashImage: string
   logoImage?: string
+  faviconImage?: string
   brandName?: string
   apiBase?: string
   appBase?: string
@@ -88,9 +89,13 @@ try {
   const buildEnv: Record<string, string> = {
     ...process.env as Record<string, string>,
     VITE_WHITELABEL_SPLASH: config.splashImage,
+    VITE_WHITELABEL_NAME: config.brandName ?? config.productName,
   }
-  if (config.logoImage) buildEnv.VITE_WHITELABEL_LOGO = config.logoImage
-  if (config.brandName) buildEnv.VITE_WHITELABEL_NAME = config.brandName
+  if (config.logoImage) {
+    buildEnv.VITE_WHITELABEL_LOGO = config.logoImage
+    buildEnv.VITE_WHITELABEL_FAVICON = config.faviconImage ?? config.logoImage
+  }
+  if (config.faviconImage) buildEnv.VITE_WHITELABEL_FAVICON = config.faviconImage
   if (config.apiBase) buildEnv.KOLBO_WHITELABEL_API_BASE = config.apiBase
   if (config.appBase) buildEnv.KOLBO_WHITELABEL_APP_BASE = config.appBase
 
