@@ -1,7 +1,7 @@
 {
-  "productName": "Sapir AI",
+  "productName": "Sapir AI Code",
   "identifier": "ai.kolbo.sapir",
-  "mainBinaryName": "Sapir AI",
+  "mainBinaryName": "Sapir AI Code",
   "deepLinkScheme": "sapir-ai",
   "splashImage": "/whitelabels/sapir/splash.jpg"
 }
