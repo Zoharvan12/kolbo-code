@@ -61,18 +61,45 @@ Goal: pull in upstream bug-fixes and improvements that do NOT touch Kolbo brandi
    - Any file named `kolbo*`
    - Any file with `opencode.ai` or `anomalyco` URLs
 
-5. If safe commits exist, attempt the merge:
+5. **Before merging — check for dangerous upstream package changes:**
+   ```bash
+   git show upstream/dev:package.json | grep -E '"effect"|"ai":|"@effect/'
+   ```
+   Compare against current `package.json`. Flag any bumps to:
+   - `effect` — beta versions have Bun incompatibilities. New beta may remove exports from main index (e.g. `ServiceMap`, `Context`) that break at runtime under Bun even if TypeScript compiles fine.
+   - `ai` — npm publishes sometimes ship WITHOUT `dist/` folder, causing "Cannot find package 'ai'" at runtime.
+   - `@effect/language-service` — must stay in sync with `effect` version. Newer versions reference exports that older effect betas don't have.
+   - `@effect/platform-node` / `@effect/platform-node-shared` — all `@effect/*` packages must be pinned to the SAME beta version as `effect`.
+
+   If any of these changed, **stop and warn the user** before proceeding. Do NOT blindly merge a large upstream sync (100+ commits) — these are the most dangerous.
+
+   **Lesson (April 2026):** A single upstream sync brought in `effect@beta.46` + `ai@6.0.158` both broken under Bun on Windows. Recovery required a full rollback of 140 upstream commits. Always checkpoint with a commit BEFORE syncing upstream.
+
+6. **Commit current state as a safety checkpoint BEFORE merging:**
+   ```bash
+   git add -u && git commit -m "chore: pre-upstream-sync checkpoint" || true
+   ```
+
+7. If safe commits exist, attempt the merge:
    ```bash
    git merge upstream/dev --no-commit --no-ff
    ```
-6. Check for conflicts: `git status`. If conflicts exist:
+8. Check for conflicts: `git status`. If conflicts exist:
    - For files where ours must win: `git checkout --ours <file>`
    - Always keep ours for: `package.json`, `flag.ts`, `logo.ts`, `models.ts`, `kolbo.ts`, all `.github/workflows/`
    - For source file conflicts: apply upstream logic but preserve `KOLBO_*` flag names (not `OPENCODE_*`)
    - After resolving, `git add` the resolved files.
-7. Run typecheck: `bun turbo typecheck`
-   - If it fails, abort the merge (`git merge --abort`) and report the error. Skip to Phase 3.
-8. Commit the merge:
+9. **Smoke-test before committing the merge:**
+   ```bash
+   rm -rf node_modules packages/opencode/node_modules
+   bun install
+   timeout 15 bun run dev 2>&1 | head -5
+   ```
+   - If `bun install` fails or `bun run dev` shows a `SyntaxError` or `Cannot find package` error → **abort the merge** (`git merge --abort`) and report. Do NOT commit a broken state.
+   - Common Bun-on-Windows failure modes: missing `dist/` in a package (broken npm publish), missing export from effect main index, UTF-16 encoded source files.
+10. Run typecheck: `bun turbo typecheck`
+    - If it fails, abort the merge (`git merge --abort`) and report the error. Skip to Phase 3.
+11. Commit the merge:
    ```bash
    git commit -m "chore: merge upstream/dev <short hash range>
 

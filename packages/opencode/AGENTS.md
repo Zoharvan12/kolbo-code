@@ -1,3 +1,50 @@
+# Upstream sync safety rules
+
+## CRITICAL: Before any upstream sync
+
+This codebase forks `anomalyco/opencode`. Large upstream syncs (50+ commits) have broken the entire CLI before. Follow these rules every time.
+
+### Always checkpoint first
+Commit all local Kolbo changes before touching upstream:
+```bash
+git add -u && git commit -m "chore: pre-upstream-sync checkpoint"
+```
+
+### Check for dangerous package changes BEFORE merging
+```bash
+git show upstream/dev:package.json | grep -E '"effect"|"ai":|"@effect/'
+```
+These packages have caused full rollbacks in the past:
+
+| Package | Risk |
+|---|---|
+| `effect` (beta) | Each beta may drop exports from the main index. `ServiceMap`, `Context` etc. are added/removed between betas. Bun resolves modules differently from Node — a package that works in CI may fail on Windows/Bun. |
+| `ai` | npm publishes sometimes ship without `dist/` folder. Symptom: `Cannot find package 'ai'` at runtime even though it's in node_modules. |
+| `@effect/language-service` | Must stay in sync with `effect` version. A mismatch causes `Export named 'ServiceMap' not found` errors at runtime. |
+| `@effect/platform-node` + `@effect/platform-node-shared` | Must both be pinned to the SAME beta as `effect`. A mismatch causes identical ServiceMap-style errors. |
+
+### Smoke-test before committing the merge
+```bash
+rm -rf node_modules packages/opencode/node_modules
+bun install
+timeout 15 bun run dev 2>&1 | head -5
+```
+If `bun run dev` shows `SyntaxError`, `Cannot find package`, or `Export named '...' not found` → abort, do not commit.
+
+### Rollback procedure
+If a sync breaks things and can't be fixed quickly:
+1. Find the last working Kolbo commit: `git log --oneline --all | grep -i "feat\|fix\|release" | head -20`
+2. Hard reset: `git reset --hard <last-good-commit>`
+3. Reinstall: `rm -rf node_modules packages/opencode/node_modules && bun install`
+4. Verify: `timeout 15 bun run dev`
+5. Commit all untracked Kolbo files that survived as a new backup commit
+
+### Known broken upstream ranges (do not merge)
+- `effect@4.0.0-beta.46` + current upstream source: `ServiceMap` not exported from main index under Bun 1.3.x on Windows. Symptom: `Export named 'ServiceMap' not found`. Workaround: wait for upstream to fix OR use `--skip-upstream`.
+- `ai@6.0.158`: published without `dist/` folder. Use `6.0.149` instead.
+
+---
+
 # kodu database guide
 
 ## Database
