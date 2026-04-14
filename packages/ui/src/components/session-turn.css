@@ -60,6 +60,26 @@
       width: 16px;
       height: 16px;
     }
+
+    [data-slot="session-turn-thinking-dot"] {
+      flex-shrink: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--color-primary, #818cf8);
+      animation: thinking-pulse 1.5s ease-in-out infinite;
+    }
+  }
+
+  @keyframes thinking-pulse {
+    0%, 100% {
+      opacity: 0.25;
+      transform: scale(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
   }
 
   [data-component="text-reveal"].session-turn-thinking-heading {

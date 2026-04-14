@@ -9,6 +9,7 @@ import {
   normalizeMimeType,
   svgTextFromValue,
 } from "../pierre/media"
+import { MediaCard } from "./media-card"
 
 export type FileMediaOptions = {
   mode?: "auto" | "off"
@@ -203,23 +204,27 @@ export function FileMedia(props: { media?: FileMediaOptions; fallback: () => JSX
             if (k !== "image" && k !== "audio") return props.fallback()
             if (k === "image") {
               return (
-                <div class="flex justify-center bg-background-stronger px-6 py-4">
-                  <img
-                    src={value()}
-                    alt={cfg()?.path}
-                    class="max-h-[60vh] max-w-full rounded border border-border-weak-base bg-background-base object-contain"
-                    onLoad={onLoad}
-                  />
-                </div>
+                <MediaCard src={value()} path={cfg()?.path}>
+                  <div class="flex justify-center bg-background-stronger px-6 py-4">
+                    <img
+                      src={value()}
+                      alt={cfg()?.path}
+                      class="max-h-[60vh] max-w-full rounded border border-border-weak-base bg-background-base object-contain"
+                      onLoad={onLoad}
+                    />
+                  </div>
+                </MediaCard>
               )
             }
 
             return (
-              <div class="flex justify-center bg-background-stronger px-6 py-4">
-                <audio class="w-full max-w-xl" controls preload="metadata" onLoadedMetadata={onLoad}>
-                  <source src={value()} type={audioMime()} />
-                </audio>
-              </div>
+              <MediaCard src={value()} path={cfg()?.path}>
+                <div class="flex justify-center bg-background-stronger px-6 py-4">
+                  <audio class="w-full max-w-xl" controls preload="metadata" onLoadedMetadata={onLoad}>
+                    <source src={value()} type={audioMime()} />
+                  </audio>
+                </div>
+              </MediaCard>
             )
           }}
         </Show>

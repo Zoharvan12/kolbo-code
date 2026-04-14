@@ -1,11 +1,10 @@
-import { onMount } from "solid-js"
-import { makeEventListener } from "@solid-primitives/event-listener"
+import { onCleanup, onMount } from "solid-js"
 import { showToast } from "@opencode-ai/ui/toast"
 import { usePrompt, type ContentPart, type ImageAttachmentPart } from "@/context/prompt"
 import { useLanguage } from "@/context/language"
 import { uuid } from "@/utils/uuid"
 import { getCursorPosition } from "./editor-dom"
-import { attachmentMime } from "./files"
+import { attachmentMime, MAX_MEDIA_BYTES, mimeFromUrl } from "./files"
 import { normalizePaste, pasteMode } from "./paste"
 
 function dataUrl(file: File, mime: string) {
@@ -34,6 +33,8 @@ type PromptAttachmentsInput = {
   readClipboardImage?: () => Promise<File | null>
 }
 
+const inAppMediaPattern = /\.(png|jpe?g|gif|webp|avif|bmp|svg|mp4|webm|mov|avi|mkv|m4v|mp3|wav|ogg|m4a|aac|flac|opus)(\?.*)?$/i
+
 export function createPromptAttachments(input: PromptAttachmentsInput) {
   const prompt = usePrompt()
   const language = useLanguage()
@@ -49,6 +50,14 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     const mime = await attachmentMime(file)
     if (!mime) {
       if (toast) warn()
+      return false
+    }
+
+    if ((mime.startsWith("audio/") || mime.startsWith("video/")) && file.size > MAX_MEDIA_BYTES) {
+      showToast({
+        title: language.t("prompt.toast.fileTooLarge.title"),
+        description: language.t("prompt.toast.fileTooLarge.description", { max: "200 MB" }),
+      })
       return false
     }
 
@@ -140,51 +149,114 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     put()
   }
 
-  const handleGlobalDragOver = (event: DragEvent) => {
-    if (input.isDialogActive()) return
+  const hasFileTypes = (types: readonly string[]) =>
+    types.some((t) => t.toLowerCase() === "files")
 
+  const handleDragOver = (event: DragEvent) => {
+    if (input.isDialogActive()) return
     event.preventDefault()
-    const hasFiles = event.dataTransfer?.types.includes("Files")
-    const hasText = event.dataTransfer?.types.includes("text/plain")
-    if (hasFiles) {
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "copy"
+    const types = event.dataTransfer?.types ?? []
+    if (hasFileTypes(types)) {
       input.setDraggingType("image")
-    } else if (hasText) {
+    } else if (types.includes("text/uri-list") || types.includes("text/html")) {
+      // In-app media drag (image/video/audio rendered in chat)
+      input.setDraggingType("image")
+    } else if (types.includes("text/plain")) {
       input.setDraggingType("@mention")
     }
   }
 
-  const handleGlobalDragLeave = (event: DragEvent) => {
+  const handleDragLeave = (event: DragEvent) => {
     if (input.isDialogActive()) return
+    // Only clear when the cursor leaves the whole window
     if (!event.relatedTarget) {
       input.setDraggingType(null)
     }
   }
 
-  const handleGlobalDrop = async (event: DragEvent) => {
-    if (input.isDialogActive()) return
+  /**
+   * Attaches a public URL directly — no download, instant preview.
+   * The backend (prompt.ts) handles http/https URLs natively.
+   */
+  const attachFromUrl = (url: string): boolean => {
+    const mime = mimeFromUrl(url)
+    if (!mime) return false
+    const filename = url.split("/").pop()?.split("?")[0] || "media"
+    const attachment: ImageAttachmentPart = {
+      type: "image",
+      id: uuid(),
+      filename,
+      mime,
+      dataUrl: url,
+    }
+    prompt.set([...prompt.current(), attachment], prompt.cursor())
+    return true
+  }
 
+  const handleDrop = async (event: DragEvent) => {
+    if (input.isDialogActive()) return
     event.preventDefault()
+    event.stopPropagation()
     input.setDraggingType(null)
 
-    const plainText = event.dataTransfer?.getData("text/plain")
-    const filePrefix = "file:"
-    if (plainText?.startsWith(filePrefix)) {
-      const filePath = plainText.slice(filePrefix.length)
+    // 1. Local file path reference (e.g. dragged from file tree)
+    const plainText = event.dataTransfer?.getData("text/plain") ?? ""
+    if (plainText.startsWith("file:")) {
+      const filePath = plainText.slice("file:".length)
       input.focusEditor()
       input.addPart({ type: "file", path: filePath, content: "@" + filePath, start: 0, end: 0 })
       return
     }
 
+    // 2. Filesystem file objects (drag from OS file manager)
     const dropped = event.dataTransfer?.files
-    if (!dropped) return
+    if (dropped && dropped.length > 0) {
+      await addAttachments(Array.from(dropped))
+      return
+    }
 
-    await addAttachments(Array.from(dropped))
+    // 3. In-app media drag: image/video/audio rendered in the chat
+    //    URI list takes priority; fall back to plain text if it looks like a URL
+    const uriList = event.dataTransfer?.getData("text/uri-list") ?? ""
+    const mediaUrl =
+      uriList.split(/\r?\n/).find((line) => line.trim() && !line.startsWith("#"))?.trim() ||
+      (plainText.startsWith("http") && inAppMediaPattern.test(plainText) ? plainText : "")
+
+    if (mediaUrl) {
+      if (mediaUrl.startsWith("data:")) {
+        // Base64 data URL (e.g. previously uploaded image re-dragged from chat)
+        // Store it directly — no download needed, just re-attach
+        const mimeMatch = mediaUrl.match(/^data:([^;]+);/)
+        const mime = mimeMatch?.[1]
+        if (mime) {
+          const filename = `media.${mime.split("/")[1] ?? "bin"}`
+          const attachment: ImageAttachmentPart = {
+            type: "image",
+            id: uuid(),
+            filename,
+            mime,
+            dataUrl: mediaUrl,
+          }
+          prompt.set([...prompt.current(), attachment], prompt.cursor())
+        }
+      } else if (inAppMediaPattern.test(mediaUrl)) {
+        // Public HTTP URL — store directly, backend handles it natively
+        attachFromUrl(mediaUrl)
+      }
+    }
   }
 
   onMount(() => {
-    makeEventListener(document, "dragover", handleGlobalDragOver)
-    makeEventListener(document, "dragleave", handleGlobalDragLeave)
-    makeEventListener(document, "drop", handleGlobalDrop)
+    // Use explicit addEventListener with {passive:false} so preventDefault() is always honoured
+    document.addEventListener("dragover", handleDragOver, { passive: false })
+    document.addEventListener("dragleave", handleDragLeave)
+    document.addEventListener("drop", handleDrop)
+    onCleanup(() => {
+      document.removeEventListener("dragover", handleDragOver)
+      document.removeEventListener("dragleave", handleDragLeave)
+      document.removeEventListener("drop", handleDrop)
+    })
   })
 
   return {
@@ -192,5 +264,9 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     addAttachments,
     removeAttachment,
     handlePaste,
+    // Exposed so the form element can bind them directly for redundancy
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
   }
 }

@@ -1,0 +1,46 @@
+{
+  "disabled_providers": [],
+  "$schema": "https://kolbo.ai/config.json",
+  "command": {},
+  "plugin": [],
+  "username": "Zohar",
+  "mode": {},
+  "agent": {},
+  "provider": {
+    "ollama": {
+      "name": "Ollama (local)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:11434/v1"
+      },
+      "models": {
+        "gemma4:latest": {
+          "name": "gemma4:latest"
+        }
+      }
+    }
+  },
+  "mcp": {
+    "kolbo": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@kolbo/mcp@latest"
+      ],
+      "environment": {
+        "KOLBO_API_KEY": "kolbo_live_eb4c72c5961c7e080592c0f493cc37ca12cf315eab13befbfc3222afede1"
+      },
+      "timeout": 1800000
+    },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "enabled": false
+    }
+  }
+}

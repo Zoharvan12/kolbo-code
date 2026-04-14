@@ -50,6 +50,7 @@ import { getDirectory as _getDirectory, getFilename } from "@opencode-ai/util/pa
 import { checksum } from "@opencode-ai/util/encode"
 import { Tooltip } from "./tooltip"
 import { IconButton } from "./icon-button"
+import { LinkPreviews } from "./link-preview"
 import { Spinner } from "./spinner"
 import { TextShimmer } from "./text-shimmer"
 import { AnimatedCountList } from "./tool-count-summary"
@@ -1474,6 +1475,18 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  // Skip URLs pointing directly to media files — they're shown inline, not as OG cards
+  const mediaExtensionPattern = /\.(png|jpe?g|gif|webp|avif|bmp|mp4|webm|mov|mp3|wav|ogg|m4a|pdf|svg|ico)(\?.*)?$/i
+
+  const linkUrls = createMemo(() => {
+    if (streaming()) return []
+    return urls(text()).filter(
+      (u) =>
+        (u.startsWith("http://") || u.startsWith("https://")) &&
+        !mediaExtensionPattern.test(u),
+    )
+  })
+
   return (
     <Show when={text()}>
       <div data-component="text-part">
@@ -1481,6 +1494,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
           <Show when={streaming()} fallback={<Markdown text={text()} cacheKey={part().id} streaming={false} />}>
             <PacedMarkdown text={text()} cacheKey={part().id} streaming={streaming()} />
           </Show>
+          <LinkPreviews urls={linkUrls()} />
         </div>
         <Show when={showCopy()}>
           <div data-slot="text-part-copy-wrapper" data-interrupted={interrupted() ? "" : undefined}>

@@ -432,33 +432,33 @@ export function SessionHeader() {
                 {/* Zoom controls */}
                 <Show when={platform.zoomOut && platform.zoomIn}>
                   <div class="flex items-center border border-border-weak-base rounded-md overflow-hidden h-6">
-                    <Tooltip placement="bottom" value="Zoom out (Ctrl/Cmd -)">
+                    <Tooltip placement="bottom" value={language.t("session.header.zoom.out")}>
                       <button
                         type="button"
                         class="titlebar-icon h-6 w-6 flex items-center justify-center text-text-weak hover:text-text-strong hover:bg-surface-raised-base transition-colors text-[14px] font-medium"
                         onClick={() => platform.zoomOut?.()}
-                        aria-label="Zoom out"
+                        aria-label={language.t("session.header.zoom.out.ariaLabel")}
                       >−</button>
                     </Tooltip>
                     <span class="flex items-center justify-center px-0.5 hidden md:flex"><Icon size="small" name="magnifying-glass" class="text-text-weaker" /></span>
-                    <Tooltip placement="bottom" value="Zoom in (Ctrl/Cmd +)">
+                    <Tooltip placement="bottom" value={language.t("session.header.zoom.in")}>
                       <button
                         type="button"
                         class="titlebar-icon h-6 w-6 flex items-center justify-center text-text-weak hover:text-text-strong hover:bg-surface-raised-base transition-colors text-[14px] font-medium"
                         onClick={() => platform.zoomIn?.()}
-                        aria-label="Zoom in"
+                        aria-label={language.t("session.header.zoom.in.ariaLabel")}
                       >+</button>
                     </Tooltip>
                   </div>
                 </Show>
 
                 {/* Dark/light mode toggle */}
-                <Tooltip placement="bottom" value={isDark() ? "Switch to light mode" : "Switch to dark mode"}>
+                <Tooltip placement="bottom" value={isDark() ? language.t("session.header.colorScheme.toLightMode") : language.t("session.header.colorScheme.toDarkMode")}>
                   <Button
                     variant="ghost"
                     class="titlebar-icon h-6 px-1.5 box-border shrink-0 flex items-center gap-1"
                     onClick={toggleColorScheme}
-                    aria-label={isDark() ? "Switch to light mode" : "Switch to dark mode"}
+                    aria-label={isDark() ? language.t("session.header.colorScheme.toLightMode") : language.t("session.header.colorScheme.toDarkMode")}
                   >
                     <Show
                       when={isDark()}
@@ -492,7 +492,7 @@ export function SessionHeader() {
                     aria-controls="terminal-panel"
                   >
                     <Icon size="small" name={view().terminal.opened() ? "terminal-active" : "terminal"} />
-                    <span class="text-11-regular text-text-weak hidden md:inline">Terminal</span>
+                    <span class="text-11-regular text-text-weak hidden md:inline">{language.t("session.header.tab.terminal")}</span>
                   </Button>
                 </TooltipKeybind>
 
@@ -510,7 +510,7 @@ export function SessionHeader() {
                       aria-controls="review-panel"
                     >
                       <Icon size="small" name={view().reviewPanel.opened() ? "review-active" : "review"} />
-                      <span class="text-11-regular text-text-weak">Review</span>
+                      <span class="text-11-regular text-text-weak">{language.t("session.header.tab.review")}</span>
                     </Button>
                   </TooltipKeybind>
 
@@ -536,7 +536,7 @@ export function SessionHeader() {
                           }}
                         />
                       </div>
-                      <span class="text-11-regular text-text-weak">Files</span>
+                      <span class="text-11-regular text-text-weak">{language.t("session.header.tab.files")}</span>
                     </Button>
                   </TooltipKeybind>
                 </div>

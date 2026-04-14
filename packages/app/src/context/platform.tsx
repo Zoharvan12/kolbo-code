@@ -93,6 +93,21 @@ export type Platform = {
 
   /** Read image from clipboard (desktop only) */
   readClipboardImage?(): Promise<File | null>
+
+  /** Read a local text file by path (desktop only) */
+  readTextFile?(path: string): Promise<string>
+
+  /** Reveal a file in the system file manager with the file selected (desktop only) */
+  revealFile?(path: string): Promise<void>
+
+  /** Get the configured download folder (desktop only) */
+  getDownloadFolder?(): Promise<string>
+
+  /** Set the configured download folder (desktop only) */
+  setDownloadFolder?(path: string): Promise<void>
+
+  /** Download a remote URL to the configured download folder (desktop only); returns saved path */
+  downloadFile?(url: string, destDir: string): Promise<string>
 }
 
 export type DisplayBackend = "auto" | "wayland"

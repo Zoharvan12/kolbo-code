@@ -159,14 +159,29 @@ export namespace ModelsDev {
     },
   }
 
+  // Local Ollama provider — user runs Ollama on their machine at localhost:11434
+  // No preset models: available models depend on what the user has pulled locally
+  const OLLAMA_PROVIDER = {
+    id: "ollama",
+    env: [],
+    npm: "@ai-sdk/openai-compatible",
+    api: "http://localhost:11434/v1",
+    name: "Ollama",
+    doc: "https://ollama.ai",
+    models: {},
+  }
+
   function injectKolbo(data: Record<string, any>) {
-    if (!data || typeof data !== "object") return { kolbo: KOLBO_PROVIDER } as any
-    // Strip upstream opencode providers so they don't show up in the picker.
-    delete data.opencode
-    delete data["opencode-go"]
-    delete data.kodu
-    data.kolbo = KOLBO_PROVIDER
-    return data
+    if (!data || typeof data !== "object") return { kolbo: KOLBO_PROVIDER, ollama: OLLAMA_PROVIDER } as any
+    // Build a new object to avoid mutating potentially frozen snapshot objects.
+    const result: Record<string, any> = {}
+    const strip = new Set(["opencode", "opencode-go", "kodu", "ollama-cloud", "ollama"])
+    for (const [key, value] of Object.entries(data)) {
+      if (!strip.has(key)) result[key] = value
+    }
+    result.kolbo = KOLBO_PROVIDER
+    result.ollama = OLLAMA_PROVIDER
+    return result
   }
 
   export const Data = lazy(async () => {

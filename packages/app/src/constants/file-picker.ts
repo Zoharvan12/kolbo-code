@@ -1,7 +1,29 @@
 export const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"]
 
+export const ACCEPTED_AUDIO_TYPES = [
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/wav",
+  "audio/ogg",
+  "audio/mp4",
+  "audio/aac",
+  "audio/flac",
+  "audio/webm",
+]
+
+export const ACCEPTED_VIDEO_TYPES = [
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+  "video/quicktime",
+  "video/x-msvideo",
+  "video/x-matroska",
+]
+
 export const ACCEPTED_FILE_TYPES = [
   ...ACCEPTED_IMAGE_TYPES,
+  ...ACCEPTED_AUDIO_TYPES,
+  ...ACCEPTED_VIDEO_TYPES,
   "application/pdf",
   "text/*",
   "application/json",
@@ -53,6 +75,21 @@ export const ACCEPTED_FILE_TYPES = [
   ".yaml",
   ".yml",
   ".zsh",
+  // Audio
+  ".mp3",
+  ".wav",
+  ".ogg",
+  ".m4a",
+  ".aac",
+  ".flac",
+  ".opus",
+  // Video
+  ".mp4",
+  ".webm",
+  ".mov",
+  ".avi",
+  ".mkv",
+  ".m4v",
 ]
 
 const MIME_EXT = new Map([

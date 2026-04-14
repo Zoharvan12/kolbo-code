@@ -262,6 +262,103 @@ fn check_linux_app(app_name: &str) -> bool {
 
 #[tauri::command]
 #[specta::specta]
+async fn read_text_file(path: String) -> Result<String, String> {
+    // Strip file:// prefix if present
+    let clean = path
+        .strip_prefix("file:///")
+        .or_else(|| path.strip_prefix("file://"))
+        .unwrap_or(&path);
+    tokio::fs::read_to_string(clean)
+        .await
+        .map_err(|e| format!("Failed to read file: {e}"))
+}
+
+#[tauri::command]
+#[specta::specta]
+fn reveal_in_folder(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        // /select, tells Explorer to open the folder and pre-select the file
+        Command::new("explorer")
+            .arg(format!("/select,{}", path))
+            .spawn()
+            .map_err(|e| format!("Failed to reveal file: {e}"))?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .args(["-R", &path])
+            .spawn()
+            .map_err(|e| format!("Failed to reveal file: {e}"))?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Reveal with selection isn't universal on Linux — open the parent folder instead
+        let parent = std::path::Path::new(&path)
+            .parent()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|| path.clone());
+        tauri_plugin_opener::open_path(parent, None::<&str>)
+            .map_err(|e| format!("Failed to open folder: {e}"))?;
+        return Ok(());
+    }
+
+    #[allow(unreachable_code)]
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+fn get_default_download_dir() -> String {
+    dirs::download_dir()
+        .or_else(|| dirs::home_dir())
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| ".".to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+async fn download_file(url: String, dest_dir: String) -> Result<String, String> {
+    let response = reqwest::get(&url)
+        .await
+        .map_err(|e| format!("Failed to fetch: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}", response.status()));
+    }
+
+    // Extract filename from URL path
+    let filename = url
+        .split('/')
+        .last()
+        .and_then(|s| s.split('?').next())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("download");
+
+    let dest = std::path::Path::new(&dest_dir).join(filename);
+
+    tokio::fs::create_dir_all(&dest_dir)
+        .await
+        .map_err(|e| format!("Failed to create directory: {e}"))?;
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read bytes: {e}"))?;
+
+    tokio::fs::write(&dest, &bytes)
+        .await
+        .map_err(|e| format!("Failed to write file: {e}"))?;
+
+    Ok(dest.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+#[specta::specta]
 fn wsl_path(path: String, mode: Option<WslPathMode>) -> Result<String, String> {
     if !cfg!(windows) {
         return Ok(path);
@@ -387,7 +484,11 @@ fn make_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             check_app_exists,
             wsl_path,
             resolve_app_path,
-            open_path
+            open_path,
+            get_default_download_dir,
+            download_file,
+            reveal_in_folder,
+            read_text_file
         ])
         .events(tauri_specta::collect_events![
             LoadingWindowComplete,

@@ -1,4 +1,5 @@
 import "@/index.css"
+import "flag-icons/css/flag-icons.min.css"
 import { I18nProvider } from "@opencode-ai/ui/context"
 import { DialogProvider } from "@opencode-ai/ui/context/dialog"
 import { FileComponentProvider } from "@opencode-ai/ui/context/file"

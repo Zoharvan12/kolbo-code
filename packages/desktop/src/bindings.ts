@@ -19,6 +19,10 @@ export const commands = {
 	wslPath: (path: string, mode: "windows" | "linux" | null) => __TAURI_INVOKE<string>("wsl_path", { path, mode }),
 	resolveAppPath: (appName: string) => __TAURI_INVOKE<string | null>("resolve_app_path", { appName }),
 	openPath: (path: string, appName: string | null) => __TAURI_INVOKE<null>("open_path", { path, appName }),
+	getDefaultDownloadDir: () => __TAURI_INVOKE<string>("get_default_download_dir"),
+	downloadFile: (url: string, destDir: string) => __TAURI_INVOKE<string>("download_file", { url, destDir }),
+	revealInFolder: (path: string) => __TAURI_INVOKE<null>("reveal_in_folder", { path }),
+	readTextFile: (path: string) => __TAURI_INVOKE<string>("read_text_file", { path }),
 };
 
 /** Events */

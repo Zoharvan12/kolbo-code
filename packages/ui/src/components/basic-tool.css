@@ -7,6 +7,13 @@
   gap: 0px;
   justify-content: flex-start;
 
+  &[data-status="running"],
+  &[data-status="pending"] {
+    [data-slot="basic-tool-tool-title"] {
+      color: var(--text-base);
+    }
+  }
+
   &[data-clickable="true"] {
     cursor: pointer;
   }

@@ -1,6 +1,6 @@
 import { useFilteredList } from "@opencode-ai/ui/hooks"
 import { useSpring } from "@opencode-ai/ui/motion-spring"
-import { createEffect, on, Component, Show, onCleanup, createMemo, createSignal } from "solid-js"
+import { createEffect, on, Component, Show, onCleanup, createMemo, createSignal, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/context/local"
 import { selectionFromLines, type SelectedLineRange, useFile } from "@/context/file"
@@ -34,6 +34,7 @@ import { usePermission } from "@/context/permission"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useSessionLayout } from "@/pages/session/session-layout"
+import { useGlobalSDK } from "@/context/global-sdk"
 import { createSessionTabs } from "@/pages/session/helpers"
 import { promptEnabled, promptProbe } from "@/testing/prompt"
 import { detectTextDirection } from "@/utils/rtl"
@@ -56,6 +57,25 @@ import { PromptImageAttachments } from "./prompt-input/image-attachments"
 import { PromptDragOverlay } from "./prompt-input/drag-overlay"
 import { promptPlaceholder } from "./prompt-input/placeholder"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
+
+type KolboPricing = Record<string, { input: number; output: number }>
+
+function calcCredits(
+  messages: ReadonlyArray<{ role: string; modelID?: string; providerID?: string; tokens?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } } }>,
+  pricing: KolboPricing,
+): number {
+  let total = 0
+  for (const msg of messages) {
+    if (msg.role !== "assistant" || msg.providerID !== "kolbo" || !msg.tokens) continue
+    const p = pricing[msg.modelID ?? "kolbo-default"]
+    if (!p) continue
+    const inT = msg.tokens.input + (msg.tokens.cache?.read ?? 0) + (msg.tokens.cache?.write ?? 0)
+    const outT = msg.tokens.output + msg.tokens.reasoning
+    if (inT <= 0 && outT <= 0) continue
+    total += Math.max(1, Math.ceil((inT / 1_000_000) * p.input + (outT / 1_000_000) * p.output))
+  }
+  return total
+}
 
 interface PromptInputProps {
   class?: string
@@ -115,6 +135,27 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const language = useLanguage()
   const platform = usePlatform()
   const { params, tabs, view } = useSessionLayout()
+  const globalSDK = useGlobalSDK()
+
+  const [kolboPricing, setKolboPricing] = createSignal<KolboPricing>({})
+  const [kolboBalance, setKolboBalance] = createSignal<number | null>(null)
+  onMount(() => {
+    globalSDK.client.global.kolboPricing()
+      .then((res) => { if (res.data) setKolboPricing(res.data as KolboPricing) })
+      .catch(() => {})
+    globalSDK.client.global.kolboBalance()
+      .then((res) => { if (res.data != null) setKolboBalance((res.data as { available: number }).available) })
+      .catch(() => {})
+  })
+
+  const sessionMessages = createMemo(() => {
+    const id = params.id
+    if (!id) return []
+    return (sync.data.message[id] ?? []) as Array<{ role: string; modelID?: string; providerID?: string; tokens?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } } }>
+  })
+
+  const sessionCreditsUsed = createMemo(() => calcCredits(sessionMessages(), kolboPricing()))
+
   let editorRef!: HTMLDivElement
   let fileInputRef: HTMLInputElement | undefined
   let scrollRef!: HTMLDivElement
@@ -1069,7 +1110,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     return true
   }
 
-  const { addAttachments, removeAttachment, handlePaste } = createPromptAttachments({
+  const { addAttachments, removeAttachment, handlePaste, handleDragOver, handleDragLeave, handleDrop } = createPromptAttachments({
     editor: () => editorRef,
     isDialogActive: () => !!dialog.active,
     setDraggingType: (type) => setStore("draggingType", type),
@@ -1293,6 +1334,9 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       />
       <DockShellForm
         onSubmit={handleSubmit}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         classList={{
           "group/prompt-input": true,
           "focus-within:shadow-xs-border": true,
@@ -1569,6 +1613,15 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 </Show>
               </div>
             </div>
+            <Show when={local.model.current()?.provider?.id === "kolbo"}>
+              <div class="shrink-0 flex items-center gap-2 text-11-regular pr-1">
+                <Show when={kolboBalance() !== null}>
+                  <span class="text-text-weak">{kolboBalance()!.toLocaleString(language.intl())} credits</span>
+                  <span class="text-border-base">|</span>
+                </Show>
+                <span class="text-text-weaker">{sessionCreditsUsed().toLocaleString(language.intl())} used</span>
+              </div>
+            </Show>
           </div>
         </DockTray>
       </Show>

@@ -422,7 +422,7 @@ export function DialogConnectProvider(props: { provider: string }) {
     return (
       <div class="flex flex-col gap-6">
         <Switch>
-          <Match when={provider().id === "kodu"}>
+          <Match when={provider().id === "kolbo"}>
             <div class="flex flex-col gap-4">
               <div class="text-14-regular text-text-base">{language.t("provider.connect.koduZen.line1")}</div>
               <div class="text-14-regular text-text-base">{language.t("provider.connect.koduZen.line2")}</div>

@@ -24,7 +24,19 @@ import { SessionRetry } from "./session-retry"
 import { TextReveal } from "./text-reveal"
 import { createAutoScroll } from "../hooks"
 import { useI18n } from "../context/i18n"
+import { usePlatformOps } from "../context/platform-ops"
 import { normalize } from "./session-diff"
+
+const KOLBO_BILLING_URL = "https://app.kolbo.ai/pricing"
+
+function isInsufficientCredits(error: { data?: { statusCode?: number; message?: unknown; responseBody?: string } } | undefined): boolean {
+  if (!error?.data) return false
+  if (error.data.statusCode === 402) return true
+  const msg = typeof error.data.message === "string" ? error.data.message.toLowerCase() : ""
+  if (msg.includes("insufficient credit")) return true
+  const body = error.data.responseBody ?? ""
+  return body.includes("InsufficientCredits") || body.includes("insufficient_credits") || body.includes("FreeUsageLimitError")
+}
 
 function record(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value)
@@ -164,6 +176,7 @@ export function SessionTurn(
 ) {
   const data = useData()
   const i18n = useI18n()
+  const platformOps = usePlatformOps()
   const fileComponent = useFileComponent()
 
   const emptyMessages: MessageType[] = []
@@ -414,6 +427,7 @@ export function SessionTurn(
               </Show>
               <Show when={showThinking()}>
                 <div data-slot="session-turn-thinking">
+                  <span data-slot="session-turn-thinking-dot" />
                   <TextShimmer text={i18n.t("ui.sessionTurn.status.thinking")} />
                   <Show when={!showReasoningSummaries()}>
                     <TextReveal
@@ -520,9 +534,27 @@ export function SessionTurn(
                 </div>
               </Show>
               <Show when={error()}>
-                <Card variant="error" class="error-card">
-                  {errorText()}
-                </Card>
+                <Show
+                  when={isInsufficientCredits(error())}
+                  fallback={
+                    <Card variant="error" class="error-card">
+                      {errorText()}
+                    </Card>
+                  }
+                >
+                  <Card variant="error" class="error-card">
+                    <div class="flex flex-col gap-2">
+                      <div>{i18n.t("ui.sessionTurn.error.insufficientCredits")}</div>
+                      <button
+                        type="button"
+                        class="self-start text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"
+                        onClick={() => platformOps.openLink?.(KOLBO_BILLING_URL)}
+                      >
+                        {i18n.t("ui.sessionTurn.error.addCredits")}
+                      </button>
+                    </div>
+                  </Card>
+                </Show>
               </Show>
             </div>
           </Show>

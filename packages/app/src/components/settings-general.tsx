@@ -9,7 +9,7 @@ import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme/context"
 import { showToast } from "@opencode-ai/ui/toast"
 import { useParams } from "@solidjs/router"
-import { useLanguage } from "@/context/language"
+import { useLanguage, FLAG_MAP } from "@/context/language"
 import { usePermission } from "@/context/permission"
 import { usePlatform } from "@/context/platform"
 import {
@@ -173,6 +173,7 @@ export const SettingsGeneral: Component = () => {
     language.locales.map((locale) => ({
       value: locale,
       label: language.label(locale),
+      flag: FLAG_MAP[locale],
     })),
   )
 
@@ -211,6 +212,17 @@ export const SettingsGeneral: Component = () => {
     triggerVariant: "settings" as const,
   })
 
+  const [downloadFolder, downloadFolderActions] = createResource(() => platform.getDownloadFolder?.())
+
+  const handleChangeDownloadFolder = async () => {
+    if (!platform.openDirectoryPickerDialog || !platform.setDownloadFolder) return
+    const picked = await platform.openDirectoryPickerDialog({ title: "Choose download folder" })
+    const path = Array.isArray(picked) ? picked[0] : picked
+    if (!path) return
+    await platform.setDownloadFolder(path)
+    downloadFolderActions.refetch()
+  }
+
   const GeneralSection = () => (
     <div class="flex flex-col gap-1">
       <SettingsList>
@@ -218,17 +230,32 @@ export const SettingsGeneral: Component = () => {
           title={language.t("settings.general.row.language.title")}
           description={language.t("settings.general.row.language.description")}
         >
-          <Select
-            data-action="settings-language"
-            options={languageOptions()}
-            current={languageOptions().find((o) => o.value === language.locale())}
-            value={(o) => o.value}
-            label={(o) => o.label}
-            onSelect={(option) => option && language.setLocale(option.value)}
-            variant="secondary"
-            size="small"
-            triggerVariant="settings"
-          />
+          <div class="flex items-center gap-2">
+            <span
+              class={`fi fi-${FLAG_MAP[language.locale()]} w-5 h-4 rounded-sm flex-shrink-0`}
+              style="background-size: cover;"
+            />
+            <Select
+              data-action="settings-language"
+              options={languageOptions()}
+              current={languageOptions().find((o) => o.value === language.locale())}
+              value={(o) => o.value}
+              label={(o) => o.label}
+              onSelect={(option) => option && language.setLocale(option.value)}
+              variant="secondary"
+              size="small"
+              triggerVariant="settings"
+            >
+              {(o) =>
+                o ? (
+                  <span class="flex items-center gap-2">
+                    <span class={`fi fi-${o.flag} w-5 h-4 rounded-sm flex-shrink-0`} style="background-size: cover;" />
+                    {o.label}
+                  </span>
+                ) : null
+              }
+            </Select>
+          </div>
         </SettingsRow>
 
         <SettingsRow
@@ -275,6 +302,26 @@ export const SettingsGeneral: Component = () => {
             />
           </div>
         </SettingsRow>
+        <Show when={platform.getDownloadFolder}>
+          <SettingsRow
+            title={language.t("settings.general.row.downloadFolder.title")}
+            description={language.t("settings.general.row.downloadFolder.description")}
+          >
+            <div class="flex items-center gap-2">
+              <span class="text-12-regular text-text-weak truncate max-w-[180px]" title={downloadFolder()}>
+                {downloadFolder() ?? "…"}
+              </span>
+              <Button
+                size="small"
+                variant="secondary"
+                onClick={handleChangeDownloadFolder}
+                disabled={!platform.openDirectoryPickerDialog}
+              >
+                {language.t("settings.general.row.downloadFolder.change")}
+              </Button>
+            </div>
+          </SettingsRow>
+        </Show>
       </SettingsList>
     </div>
   )

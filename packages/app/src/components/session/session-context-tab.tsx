@@ -1,4 +1,4 @@
-import { createMemo, createEffect, on, onCleanup, For, Show } from "solid-js"
+import { createMemo, createEffect, createSignal, on, onCleanup, onMount, For, Show } from "solid-js"
 import type { JSX } from "solid-js"
 import { useSync } from "@/context/sync"
 import { checksum } from "@opencode-ai/util/encode"
@@ -13,6 +13,7 @@ import { ScrollView } from "@opencode-ai/ui/scroll-view"
 import type { Message, Part, UserMessage } from "@opencode-ai/sdk/v2/client"
 import { useLanguage } from "@/context/language"
 import { useProviders } from "@/hooks/use-providers"
+import { useGlobalSDK } from "@/context/global-sdk"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { getSessionContextMetrics } from "./session-context-metrics"
 import { estimateSessionContextBreakdown, type SessionContextBreakdownKey } from "./session-context-breakdown"
@@ -90,11 +91,42 @@ function RawMessage(props: {
 const emptyMessages: Message[] = []
 const emptyUserMessages: UserMessage[] = []
 
+type KolboPricing = Record<string, { input: number; output: number }>
+
+function calcCredits(
+  messages: ReadonlyArray<{ role: string; modelID?: string; providerID?: string; tokens?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } }; cost?: number }>,
+  pricing: KolboPricing,
+): number {
+  let total = 0
+  for (const msg of messages) {
+    if (msg.role !== "assistant" || msg.providerID !== "kolbo" || !msg.tokens) continue
+    const p = pricing[msg.modelID ?? "kolbo-default"]
+    if (!p) continue
+    const inT = msg.tokens.input + (msg.tokens.cache?.read ?? 0) + (msg.tokens.cache?.write ?? 0)
+    const outT = msg.tokens.output + msg.tokens.reasoning
+    if (inT <= 0 && outT <= 0) continue
+    total += Math.max(1, Math.ceil((inT / 1_000_000) * p.input + (outT / 1_000_000) * p.output))
+  }
+  return total
+}
+
 export function SessionContextTab() {
   const sync = useSync()
   const language = useLanguage()
   const providers = useProviders()
+  const globalSDK = useGlobalSDK()
   const { params, view } = useSessionLayout()
+
+  const [kolboPricing, setKolboPricing] = createSignal<KolboPricing>({})
+  const [kolboBalance, setKolboBalance] = createSignal<number | null>(null)
+  onMount(() => {
+    globalSDK.client.global.kolboPricing()
+      .then((res) => { if (res.data) setKolboPricing(res.data as KolboPricing) })
+      .catch(() => {})
+    globalSDK.client.global.kolboBalance()
+      .then((res) => { if (res.data != null) setKolboBalance((res.data as { available: number }).available) })
+      .catch(() => {})
+  })
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
 
@@ -137,6 +169,12 @@ export function SessionContextTab() {
   const formatter = createMemo(() => createSessionContextFormatter(language.intl()))
 
   const cost = createMemo(() => {
+    const providerID = ctx()?.provider?.id
+    if (providerID === "kolbo") {
+      const credits = calcCredits(messages(), kolboPricing())
+      return `${credits} credits`
+    }
+    if (providerID === "ollama") return "No cost"
     return usd().format(metrics().totalCost)
   })
 
@@ -281,6 +319,12 @@ export function SessionContextTab() {
           <For each={stats}>
             {(stat) => <Stat label={language.t(stat.label as Parameters<typeof language.t>[0])} value={stat.value()} />}
           </For>
+          <Show when={ctx()?.provider?.id === "kolbo"}>
+            <Stat
+              label={language.t("context.stats.creditsBalance")}
+              value={kolboBalance() !== null ? `${kolboBalance()!.toLocaleString(language.intl())} credits` : "—"}
+            />
+          </Show>
         </div>
 
         <Show when={breakdown().length > 0}>

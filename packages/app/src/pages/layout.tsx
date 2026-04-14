@@ -271,7 +271,7 @@ export default function Layout(props: ParentProps) {
   createEffect(() => {
     const all = providers.all()
     if (!all.length) return
-    const kolboConnected = providers.connected().some((p) => p.id === "kodu")
+    const kolboConnected = providers.connected().some((p) => p.id === "kolbo")
     setShowLogin(!kolboConnected)
   })
 

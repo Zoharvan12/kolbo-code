@@ -393,6 +393,34 @@ const createPlatform = (): Platform => {
       return commands.checkAppExists(appName)
     },
 
+    async readTextFile(path: string) {
+      return commands.readTextFile(path)
+    },
+
+    async revealFile(path: string) {
+      await commands.revealInFolder(path)
+    },
+
+    async getDownloadFolder() {
+      try {
+        const store = await Store.load("opencode.global.dat")
+        const raw = await store.get<string>("download_folder")
+        if (raw) return raw
+      } catch {}
+      return commands.getDefaultDownloadDir()
+    },
+
+    async setDownloadFolder(path: string) {
+      try {
+        const store = await Store.load("opencode.global.dat")
+        await store.set("download_folder", path)
+      } catch {}
+    },
+
+    async downloadFile(url: string, destDir: string) {
+      return commands.downloadFile(url, destDir)
+    },
+
     async readClipboardImage() {
       const image = await readImage().catch(() => null)
       if (!image) return null

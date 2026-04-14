@@ -11,6 +11,17 @@
   &.tool-collapsible {
     --tool-content-gap: 8px;
     gap: var(--tool-content-gap);
+
+    /* Only style trigger as interactive when it actually has expandable content (arrow present) */
+    > [data-slot="collapsible-trigger"]:has([data-slot="collapsible-arrow"]) {
+      border-radius: var(--radius-sm, 4px);
+      cursor: pointer;
+      transition: background-color 0.12s ease;
+
+      &:hover {
+        background-color: var(--surface-raised-base-hover, rgba(255,255,255,0.05));
+      }
+    }
   }
 
   [data-slot="collapsible-trigger"] {
@@ -25,7 +36,7 @@
     color: var(--text-base);
 
     [data-slot="collapsible-arrow"] {
-      opacity: 0;
+      opacity: 0.3;
       transition: opacity 0.15s ease;
       will-change: opacity;
       transform: translateZ(0);

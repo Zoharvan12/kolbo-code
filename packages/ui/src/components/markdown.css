@@ -264,3 +264,47 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* RTL language support */
+[data-component="markdown"][dir="rtl"] {
+  text-align: right;
+}
+
+[data-component="markdown"][dir="rtl"] p,
+[data-component="markdown"][dir="rtl"] li,
+[data-component="markdown"][dir="rtl"] h1,
+[data-component="markdown"][dir="rtl"] h2,
+[data-component="markdown"][dir="rtl"] h3,
+[data-component="markdown"][dir="rtl"] h4,
+[data-component="markdown"][dir="rtl"] h5,
+[data-component="markdown"][dir="rtl"] h6 {
+  text-align: right;
+}
+
+[data-component="markdown"][dir="rtl"] ul,
+[data-component="markdown"][dir="rtl"] ol {
+  padding-left: 0;
+  padding-right: 1.5rem;
+}
+
+[data-component="markdown"][dir="rtl"] ol {
+  padding-right: 2.25rem;
+}
+
+[data-component="markdown"][dir="rtl"] li > ul,
+[data-component="markdown"][dir="rtl"] li > ol {
+  padding-left: 0;
+  padding-right: 1rem;
+}
+
+[data-component="markdown"][dir="rtl"] li > ol {
+  padding-right: 1.75rem;
+}
+
+[data-component="markdown"][dir="rtl"] blockquote {
+  border-left: none;
+  border-right: 2px solid var(--border-weak-base);
+  padding-left: 0;
+  padding-right: 0.5rem;
+  text-align: right;
+}

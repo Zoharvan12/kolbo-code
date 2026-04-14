@@ -51,7 +51,8 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attemptLine": "{{line}} - attempt #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "gemini is way too hot right now",
   "ui.sessionTurn.error.freeUsageExceeded": "Free usage exceeded",
-  "ui.sessionTurn.error.addCredits": "Add credits",
+  "ui.sessionTurn.error.addCredits": "Add credits →",
+  "ui.sessionTurn.error.insufficientCredits": "You're out of Kolbo credits. Add credits or upgrade your plan to continue.",
 
   "ui.sessionTurn.status.delegating": "Delegating work",
   "ui.sessionTurn.status.planning": "Planning next steps",
@@ -165,4 +166,13 @@ export const dict: Record<string, string> = {
   "ui.question.multiHint": "Select all answers that apply",
   "ui.question.singleHint": "Select one answer",
   "ui.question.custom.placeholder": "Type your answer...",
+
+  "ui.download.saved": "Saved",
+  "ui.download.downloaded": "Downloaded",
+  "ui.download.downloading": "Downloading…",
+  "ui.download.download": "Download",
+  "ui.download.failed": "Download failed",
+  "ui.download.openInFolder": "Open in Folder",
+  "ui.download.changeFolder": "Change Folder",
+  "ui.download.openingInBrowser": "Opening in browser",
 }

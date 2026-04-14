@@ -1,4 +1,4 @@
-import { DataProvider } from "@opencode-ai/ui/context"
+import { DataProvider, PlatformOpsProvider } from "@opencode-ai/ui/context"
 import { showToast } from "@opencode-ai/ui/toast"
 import { base64Encode } from "@opencode-ai/util/encode"
 import { useLocation, useNavigate, useParams } from "@solidjs/router"
@@ -7,6 +7,7 @@ import { useLanguage } from "@/context/language"
 import { LocalProvider } from "@/context/local"
 import { SDKProvider } from "@/context/sdk"
 import { SyncProvider, useSync } from "@/context/sync"
+import { usePlatform } from "@/context/platform"
 import { decode64 } from "@/utils/base64"
 
 function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
@@ -14,6 +15,7 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
   const navigate = useNavigate()
   const params = useParams()
   const sync = useSync()
+  const platform = usePlatform()
   const slug = createMemo(() => base64Encode(props.directory))
 
   createEffect(() => {
@@ -30,14 +32,39 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
   })
 
   return (
-    <DataProvider
-      data={sync.data}
-      directory={props.directory}
-      onNavigateToSession={(sessionID: string) => navigate(`/${slug()}/session/${sessionID}`)}
-      onSessionHref={(sessionID: string) => `/${slug()}/session/${sessionID}`}
+    <PlatformOpsProvider
+      openPath={platform.openPath ? (p) => platform.openPath!(p) : undefined}
+      openLink={(u) => platform.openLink(u)}
+      fetch={platform.fetch}
+      downloadFile={
+        platform.downloadFile && platform.getDownloadFolder
+          ? async (url: string) => {
+              const folder = await platform.getDownloadFolder!()
+              return platform.downloadFile!(url, folder)
+            }
+          : undefined
+      }
+      readTextFile={platform.readTextFile ? (p) => platform.readTextFile!(p) : undefined}
+      revealFile={platform.revealFile ? (p) => platform.revealFile!(p) : undefined}
+      changeDownloadFolder={
+        platform.openDirectoryPickerDialog && platform.setDownloadFolder
+          ? async () => {
+              const picked = await platform.openDirectoryPickerDialog!({ title: "Choose download folder" })
+              const path = Array.isArray(picked) ? picked[0] : picked
+              if (path) await platform.setDownloadFolder!(path)
+            }
+          : undefined
+      }
     >
-      <LocalProvider>{props.children}</LocalProvider>
-    </DataProvider>
+      <DataProvider
+        data={sync.data}
+        directory={props.directory}
+        onNavigateToSession={(sessionID: string) => navigate(`/${slug()}/session/${sessionID}`)}
+        onSessionHref={(sessionID: string) => `/${slug()}/session/${sessionID}`}
+      >
+        <LocalProvider>{props.children}</LocalProvider>
+      </DataProvider>
+    </PlatformOpsProvider>
   )
 }
 

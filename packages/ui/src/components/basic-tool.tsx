@@ -129,6 +129,7 @@ export function BasicTool(props: BasicToolProps) {
       data-component="tool-trigger"
       data-clickable={props.clickable ? "true" : undefined}
       data-hide-details={props.hideDetails ? "true" : undefined}
+      data-status={props.status}
     >
       <div data-slot="basic-tool-tool-trigger-content">
         <div data-slot="basic-tool-tool-info">
@@ -233,9 +234,11 @@ export function BasicTool(props: BasicToolProps) {
         </div>
       </Show>
       <Show when={!props.animated && props.children && !props.hideDetails}>
-        <Collapsible.Content>
-          <Show when={!props.defer || ready()}>{props.children}</Show>
-        </Collapsible.Content>
+        <Show when={open()}>
+          <div data-slot="collapsible-content" data-expanded="">
+            <Show when={!props.defer || ready()}>{props.children}</Show>
+          </div>
+        </Show>
       </Show>
     </Collapsible>
   )

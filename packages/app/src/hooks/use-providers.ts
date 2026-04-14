@@ -4,7 +4,8 @@ import { useParams } from "@solidjs/router"
 import { createMemo } from "solid-js"
 
 export const popularProviders = [
-  "kodu",
+  "kolbo",
+  "ollama",
   "opencode-go",
   "anthropic",
   "github-copilot",
@@ -16,7 +17,7 @@ export const popularProviders = [
 const popularProviderSet = new Set(popularProviders)
 
 /** Only these providers are shown in the Kolbo Code UI */
-export const ALLOWED_PROVIDERS = new Set(["kodu", "ollama"])
+export const ALLOWED_PROVIDERS = new Set(["kolbo", "ollama"])
 
 export function useProviders() {
   const globalSync = useGlobalSync()
@@ -40,7 +41,7 @@ export function useProviders() {
     paid: () => {
       const connected = new Set(providers().connected)
       return providers().all.filter(
-        (p) => connected.has(p.id) && (p.id !== "kodu" || Object.values(p.models).some((m) => m.cost?.input)),
+        (p) => connected.has(p.id) && (p.id !== "kolbo" || Object.values(p.models).some((m) => m.cost?.input)),
       )
     },
   }

@@ -61,6 +61,7 @@
     "@thisbeyond/solid-dnd": "0.7.5",
     "diff": "catalog:",
     "effect": "catalog:",
+    "flag-icons": "7.5.0",
     "fuzzysort": "catalog:",
     "ghostty-web": "github:anomalyco/ghostty-web#main",
     "luxon": "catalog:",
