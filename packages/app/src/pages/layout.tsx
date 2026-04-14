@@ -2346,7 +2346,7 @@ export default function Layout(props: ParentProps) {
       settingsKeybind={() => command.keybind("settings.open")}
       onOpenSettings={openSettings}
       helpLabel={() => language.t("sidebar.help")}
-      onOpenHelp={() => platform.openLink("https://kodu.ai/desktop-feedback")}
+      onOpenHelp={() => platform.openLink("https://docs.kolbo.ai/kolbo-code")}
       renderPanel={() =>
         mobile ? <SidebarPanel project={currentProject} mobile /> : <SidebarPanel project={currentProject} merged />
       }
@@ -2497,7 +2497,7 @@ export default function Layout(props: ParentProps) {
             </div>
           </div>
         </div>
-        {import.meta.env.DEV && <DebugBar />}
+        {/* DebugBar removed */}
       </div>
       <Toast.Region />
     </div>

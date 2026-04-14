@@ -15,6 +15,9 @@ export const popularProviders = [
 ]
 const popularProviderSet = new Set(popularProviders)
 
+/** Only these providers are shown in the Kolbo Code UI */
+export const ALLOWED_PROVIDERS = new Set(["kodu", "ollama"])
+
 export function useProviders() {
   const globalSync = useGlobalSync()
   const params = useParams()

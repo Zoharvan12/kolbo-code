@@ -22,7 +22,7 @@ export const dict = {
 
   "desktop.cli.installed.title": "CLI installée",
   "desktop.cli.installed.message":
-    "CLI installée dans {{path}}\n\nRedémarrez votre terminal pour utiliser la commande 'kodu'.",
+    "CLI installée dans {{path}}\n\nRedémarrez votre terminal pour utiliser la commande 'kolbo'.",
   "desktop.cli.failed.title": "Échec de l'installation",
   "desktop.cli.failed.message": "Impossible d'installer la CLI : {{error}}",
 

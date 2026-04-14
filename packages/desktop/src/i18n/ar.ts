@@ -20,7 +20,7 @@ export const dict = {
   "desktop.updater.installFailed.message": "فشل تثبيت التحديث",
 
   "desktop.cli.installed.title": "تم تثبيت CLI",
-  "desktop.cli.installed.message": "تم تثبيت CLI في {{path}}\n\nأعد تشغيل الطرفية لاستخدام الأمر 'kodu'.",
+  "desktop.cli.installed.message": "تم تثبيت CLI في {{path}}\n\nأعد تشغيل الطرفية لاستخدام الأمر 'kolbo'.",
   "desktop.cli.failed.title": "فشل التثبيت",
   "desktop.cli.failed.message": "فشل تثبيت CLI: {{error}}",
 
@@ -43,7 +43,7 @@ export const dict = {
   "desktop.menu.help.shareFeedback": "مشاركة التعليقات",
   "desktop.menu.help.reportBug": "الإبلاغ عن خطأ",
   "desktop.cli.error.unsupportedPlatform": "تثبيت CLI مدعوم فقط على macOS و Linux.",
-  "desktop.cli.error.sidecarMissing": "ملف Kodu CLI الثنائي مفقود. حاول إعادة تثبيت تطبيق سطح المكتب.",
+  "desktop.cli.error.sidecarMissing": "ملف Kolbo Code CLI الثنائي مفقود. حاول إعادة تثبيت تطبيق سطح المكتب.",
   "desktop.cli.error.scriptWriteFailed": "فشل تحضير برنامج تثبيت CLI.",
   "desktop.cli.error.scriptPermissionFailed": "فشل جعل برنامج تثبيت CLI قابلاً للتنفيذ.",
   "desktop.cli.error.scriptRunFailed": "فشل تشغيل برنامج تثبيت CLI.",

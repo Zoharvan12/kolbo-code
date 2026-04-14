@@ -15,6 +15,7 @@ import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { usePlatform } from "@/context/platform"
+import { useTheme } from "@opencode-ai/ui/theme/context"
 import { useServer } from "@/context/server"
 import { useSync } from "@/context/sync"
 import { useTerminal } from "@/context/terminal"
@@ -134,9 +135,18 @@ export function SessionHeader() {
   const server = useServer()
   const platform = usePlatform()
   const language = useLanguage()
+  const theme = useTheme()
   const sync = useSync()
   const terminal = useTerminal()
   const { params, view } = useSessionLayout()
+
+  const isDark = () => {
+    const scheme = theme.colorScheme()
+    if (scheme === "dark") return true
+    if (scheme === "light") return false
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+  }
+  const toggleColorScheme = () => theme.setColorScheme(isDark() ? "light" : "dark")
 
   const projectDirectory = createMemo(() => decode64(params.dir) ?? "")
   const project = createMemo(() => {
@@ -418,19 +428,71 @@ export function SessionHeader() {
                 <Tooltip placement="bottom" value={language.t("status.popover.trigger")}>
                   <StatusPopover />
                 </Tooltip>
+
+                {/* Zoom controls */}
+                <Show when={platform.zoomOut && platform.zoomIn}>
+                  <div class="flex items-center border border-border-weak-base rounded-md overflow-hidden h-6">
+                    <Tooltip placement="bottom" value="Zoom out (Ctrl/Cmd -)">
+                      <button
+                        type="button"
+                        class="titlebar-icon h-6 w-6 flex items-center justify-center text-text-weak hover:text-text-strong hover:bg-surface-raised-base transition-colors text-[14px] font-medium"
+                        onClick={() => platform.zoomOut?.()}
+                        aria-label="Zoom out"
+                      >−</button>
+                    </Tooltip>
+                    <span class="flex items-center justify-center px-0.5 hidden md:flex"><Icon size="small" name="magnifying-glass" class="text-text-weaker" /></span>
+                    <Tooltip placement="bottom" value="Zoom in (Ctrl/Cmd +)">
+                      <button
+                        type="button"
+                        class="titlebar-icon h-6 w-6 flex items-center justify-center text-text-weak hover:text-text-strong hover:bg-surface-raised-base transition-colors text-[14px] font-medium"
+                        onClick={() => platform.zoomIn?.()}
+                        aria-label="Zoom in"
+                      >+</button>
+                    </Tooltip>
+                  </div>
+                </Show>
+
+                {/* Dark/light mode toggle */}
+                <Tooltip placement="bottom" value={isDark() ? "Switch to light mode" : "Switch to dark mode"}>
+                  <Button
+                    variant="ghost"
+                    class="titlebar-icon h-6 px-1.5 box-border shrink-0 flex items-center gap-1"
+                    onClick={toggleColorScheme}
+                    aria-label={isDark() ? "Switch to light mode" : "Switch to dark mode"}
+                  >
+                    <Show
+                      when={isDark()}
+                      fallback={
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="5"/>
+                          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                        </svg>
+                      }
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                      </svg>
+                    </Show>
+                  </Button>
+                </Tooltip>
+
                 <TooltipKeybind
                   title={language.t("command.terminal.toggle")}
                   keybind={command.keybind("terminal.toggle")}
                 >
                   <Button
                     variant="ghost"
-                    class="group/terminal-toggle titlebar-icon w-8 h-6 p-0 box-border shrink-0"
+                    class="group/terminal-toggle titlebar-icon h-6 px-1.5 box-border shrink-0 flex items-center gap-1"
                     onClick={toggleTerminal}
                     aria-label={language.t("command.terminal.toggle")}
                     aria-expanded={view().terminal.opened()}
                     aria-controls="terminal-panel"
                   >
                     <Icon size="small" name={view().terminal.opened() ? "terminal-active" : "terminal"} />
+                    <span class="text-11-regular text-text-weak hidden md:inline">Terminal</span>
                   </Button>
                 </TooltipKeybind>
 
@@ -441,13 +503,14 @@ export function SessionHeader() {
                   >
                     <Button
                       variant="ghost"
-                      class="group/review-toggle titlebar-icon w-8 h-6 p-0 box-border"
+                      class="group/review-toggle titlebar-icon h-6 px-1.5 box-border flex items-center gap-1"
                       onClick={() => view().reviewPanel.toggle()}
                       aria-label={language.t("command.review.toggle")}
                       aria-expanded={view().reviewPanel.opened()}
                       aria-controls="review-panel"
                     >
                       <Icon size="small" name={view().reviewPanel.opened() ? "review-active" : "review"} />
+                      <span class="text-11-regular text-text-weak">Review</span>
                     </Button>
                   </TooltipKeybind>
 
@@ -457,7 +520,7 @@ export function SessionHeader() {
                   >
                     <Button
                       variant="ghost"
-                      class="titlebar-icon w-8 h-6 p-0 box-border"
+                      class="titlebar-icon h-6 px-1.5 box-border flex items-center gap-1"
                       onClick={() => layout.fileTree.toggle()}
                       aria-label={language.t("command.fileTree.toggle")}
                       aria-expanded={layout.fileTree.opened()}
@@ -473,6 +536,7 @@ export function SessionHeader() {
                           }}
                         />
                       </div>
+                      <span class="text-11-regular text-text-weak">Files</span>
                     </Button>
                   </TooltipKeybind>
                 </div>

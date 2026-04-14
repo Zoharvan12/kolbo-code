@@ -22,7 +22,7 @@ export const dict = {
 
   "desktop.cli.installed.title": "CLI zainstalowane",
   "desktop.cli.installed.message":
-    "CLI zainstalowane w {{path}}\n\nUruchom ponownie terminal, aby użyć polecenia 'kodu'.",
+    "CLI zainstalowane w {{path}}\n\nUruchom ponownie terminal, aby użyć polecenia 'kolbo'.",
   "desktop.cli.failed.title": "Instalacja nie powiodła się",
   "desktop.cli.failed.message": "Nie udało się zainstalować CLI: {{error}}",
 
@@ -46,7 +46,7 @@ export const dict = {
   "desktop.menu.help.reportBug": "Zgłoś błąd",
   "desktop.cli.error.unsupportedPlatform": "Instalacja CLI jest obsługiwana tylko na macOS i Linux.",
   "desktop.cli.error.sidecarMissing":
-    "Brakuje pliku binarnego Kodu CLI. Spróbuj ponownie zainstalować aplikację na komputer.",
+    "Brakuje pliku binarnego Kolbo Code CLI. Spróbuj ponownie zainstalować aplikację na komputer.",
   "desktop.cli.error.scriptWriteFailed": "Nie udało się przygotować skryptu instalatora CLI.",
   "desktop.cli.error.scriptPermissionFailed": "Nie udało się nadać uprawnień do wykonania skryptu instalatora CLI.",
   "desktop.cli.error.scriptRunFailed": "Nie udało się uruchomić skryptu instalatora CLI.",

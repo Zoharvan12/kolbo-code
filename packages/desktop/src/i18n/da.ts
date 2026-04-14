@@ -22,7 +22,7 @@ export const dict = {
 
   "desktop.cli.installed.title": "CLI installeret",
   "desktop.cli.installed.message":
-    "CLI installeret i {{path}}\n\nGenstart din terminal for at bruge 'kodu'-kommandoen.",
+    "CLI installeret i {{path}}\n\nGenstart din terminal for at bruge 'kolbo'-kommandoen.",
   "desktop.cli.failed.title": "Installation mislykkedes",
   "desktop.cli.failed.message": "Kunne ikke installere CLI: {{error}}",
 
@@ -45,7 +45,7 @@ export const dict = {
   "desktop.menu.help.shareFeedback": "Del feedback",
   "desktop.menu.help.reportBug": "Rapporter en fejl",
   "desktop.cli.error.unsupportedPlatform": "CLI-installation understøttes kun på macOS og Linux.",
-  "desktop.cli.error.sidecarMissing": "Kodu CLI-binærfil mangler. Prøv at geninstallere desktop-appen.",
+  "desktop.cli.error.sidecarMissing": "Kolbo Code CLI-binærfil mangler. Prøv at geninstallere desktop-appen.",
   "desktop.cli.error.scriptWriteFailed": "Kunne ikke forberede CLI-installationsscriptet.",
   "desktop.cli.error.scriptPermissionFailed": "Kunne ikke gøre CLI-installationsscriptet eksekverbart.",
   "desktop.cli.error.scriptRunFailed": "Kunne ikke køre CLI-installationsscriptet.",

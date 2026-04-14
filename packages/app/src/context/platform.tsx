@@ -82,6 +82,12 @@ export type Platform = {
   /** Webview zoom level (desktop only) */
   webviewZoom?: Accessor<number>
 
+  /** Zoom in (desktop only) */
+  zoomIn?(): void
+
+  /** Zoom out (desktop only) */
+  zoomOut?(): void
+
   /** Check if an editor app exists (desktop only) */
   checkAppExists?(appName: string): Promise<boolean>
 

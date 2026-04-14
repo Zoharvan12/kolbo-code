@@ -312,7 +312,7 @@ export const SettingsGeneral: Component = () => {
           description={
             <>
               {language.t("settings.general.row.theme.description")}{" "}
-              <Link href="https://kodu.ai/docs/themes/">{language.t("common.learnMore")}</Link>
+              <Link href="https://docs.kolbo.ai/kolbo-code">{language.t("common.learnMore")}</Link>
             </>
           }
         >

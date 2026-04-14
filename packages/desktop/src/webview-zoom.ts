@@ -34,4 +34,4 @@ window.addEventListener("keydown", (event) => {
   applyZoom(clamp(newZoom))
 })
 
-export { webviewZoom }
+export { webviewZoom, applyZoom }
