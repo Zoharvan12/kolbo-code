@@ -118,6 +118,7 @@ jobs:
 
       - name: Download CLI sidecar
         working-directory: packages/desktop
+        shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
