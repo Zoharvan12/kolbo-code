@@ -45,10 +45,6 @@ jobs:
             rust-target: aarch64-apple-darwin
             bundle: dmg
             artifact-suffix: darwin-aarch64
-          - platform: macos-13
-            rust-target: x86_64-apple-darwin
-            bundle: dmg
-            artifact-suffix: darwin-x64
 
     runs-on: ${{ matrix.platform }}
     if: endsWith(github.repository, '/kolbo-code')
