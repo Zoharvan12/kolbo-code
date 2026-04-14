@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "pdf",
+  "owner": "tfriedel",
+  "repo": "claude-office-skills",
+  "path": "public/pdf",
+  "branch": "main",
+  "sha": "21a390e450620cf4bcffc54d622934643e1c933f",
+  "source": "manual"
+}

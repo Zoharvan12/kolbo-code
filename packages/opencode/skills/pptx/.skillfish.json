@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "pptx",
+  "owner": "tfriedel",
+  "repo": "claude-office-skills",
+  "path": "public/pptx",
+  "branch": "main",
+  "sha": "6629017e20c2eeea08cdaa427892f5b5699c58b1",
+  "source": "manual"
+}
