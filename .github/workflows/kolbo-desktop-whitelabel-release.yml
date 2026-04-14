@@ -217,6 +217,27 @@ jobs:
           releaseDraft: ${{ github.event.inputs.draft }}
           prerelease: false
 
+      - name: Upload update bundles to release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ env.WHITELABEL }}-desktop-v${{ env.KOLBO_VERSION }}"
+          BUNDLE_DIR="packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle"
+          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
+            ZIP=$(find "${BUNDLE_DIR}/nsis" -name "*.nsis.zip" | head -1)
+            if [ -f "${ZIP}" ]; then
+              gh release upload "${TAG}" "${ZIP}" "${ZIP}.sig" --clobber -R ${{ github.repository }}
+              echo "✓ Uploaded Windows update bundle"
+            fi
+          elif [ "${{ matrix.platform }}" == "macos-latest" ]; then
+            TAR=$(find "${BUNDLE_DIR}/macos" -name "*.app.tar.gz" | head -1)
+            if [ -f "${TAR}" ]; then
+              gh release upload "${TAG}" "${TAR}" "${TAR}.sig" --clobber -R ${{ github.repository }}
+              echo "✓ Uploaded macOS update bundle"
+            fi
+          fi
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -232,28 +253,58 @@ jobs:
     runs-on: ubuntu-latest
     if: endsWith(github.repository, '/kolbo-code')
     steps:
-      - name: Publish update manifest to updater release
+      - name: Build and publish update manifest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WHITELABEL: ${{ github.event.inputs.whitelabel }}
           KOLBO_VERSION: ${{ github.event.inputs.version }}
         run: |
-          # Ensure the `updater` release exists (create if not)
-          gh release view updater -R ${{ github.repository }} 2>/dev/null || \
-            gh release create updater \
-              -R ${{ github.repository }} \
+          TAG="${WHITELABEL}-desktop-v${KOLBO_VERSION}"
+          REPO="${{ github.repository }}"
+
+          mkdir -p /tmp/assets
+          gh release download "${TAG}" -R "${REPO}" -D /tmp/assets/
+          ls /tmp/assets/
+
+          WIN_SIG_FILE=$(find /tmp/assets -name "*.nsis.zip.sig" | head -1)
+          MAC_SIG_FILE=$(find /tmp/assets -name "*.app.tar.gz.sig" | head -1)
+
+          if [ -z "${WIN_SIG_FILE}" ] || [ -z "${MAC_SIG_FILE}" ]; then
+            echo "⚠ Missing signature files — Windows: '${WIN_SIG_FILE}' Mac: '${MAC_SIG_FILE}'"
+            exit 1
+          fi
+
+          WIN_SIG=$(cat "${WIN_SIG_FILE}")
+          MAC_SIG=$(cat "${MAC_SIG_FILE}")
+          WIN_ZIP=$(basename "${WIN_SIG_FILE}" .sig)
+          MAC_TAR=$(basename "${MAC_SIG_FILE}" .sig)
+          WIN_URL="https://github.com/${REPO}/releases/download/${TAG}/${WIN_ZIP}"
+          MAC_URL="https://github.com/${REPO}/releases/download/${TAG}/${MAC_TAR}"
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          cat > ${WHITELABEL}-latest.json << MANIFEST
+          {
+            "version": "${KOLBO_VERSION}",
+            "notes": "",
+            "pub_date": "${PUB_DATE}",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "${WIN_SIG}",
+                "url": "${WIN_URL}"
+              },
+              "darwin-aarch64": {
+                "signature": "${MAC_SIG}",
+                "url": "${MAC_URL}"
+              }
+            }
+          }
+          MANIFEST
+
+          gh release view updater -R "${REPO}" 2>/dev/null || \
+            gh release create updater -R "${REPO}" \
               --title "Auto-updater manifest" \
               --notes "Auto-updated by CI. Do not delete this release." \
               --prerelease
 
-          # Download the merged latest.json from the versioned whitelabel release
-          gh release download ${WHITELABEL}-desktop-v${KOLBO_VERSION} \
-            -R ${{ github.repository }} \
-            --pattern "latest.json" \
-            -O ${WHITELABEL}-latest.json
-
-          # Upload to the updater release as {whitelabel}-latest.json
-          gh release upload updater ${WHITELABEL}-latest.json --clobber \
-            -R ${{ github.repository }}
-
-          echo "✓ Update manifest published to updater release as ${WHITELABEL}-latest.json"
+          gh release upload updater ${WHITELABEL}-latest.json --clobber -R "${REPO}"
+          echo "✓ Update manifest published as ${WHITELABEL}-latest.json"
