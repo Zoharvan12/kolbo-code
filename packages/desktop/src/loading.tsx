@@ -70,7 +70,7 @@ render(() => {
       <div class="w-screen h-screen bg-background-base flex items-center justify-center">
         <Font />
         <div class="flex flex-col items-center gap-11">
-          <img src="/kolbo-icon.png" class="w-20 h-20 opacity-80" alt="Kolbo Code" />
+          <img src={import.meta.env.VITE_WHITELABEL_SPLASH || "/kolbo-icon.png"} class="w-20 h-20 opacity-80" alt="Kolbo Code" />
           <div class="w-60 flex flex-col items-center gap-4" aria-live="polite">
             <span class="w-full overflow-hidden text-center text-ellipsis whitespace-nowrap text-text-strong text-14-normal">
               {status()}

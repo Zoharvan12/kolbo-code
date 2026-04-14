@@ -10,7 +10,9 @@
     "dev": "vite",
     "build": "bun run typecheck && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:whitelabel:sapir": "bun run scripts/build-whitelabel.ts sapir",
+    "setup:whitelabel:sapir": "bunx tauri icon whitelabels/sapir/source-icon.png -o src-tauri/icons/sapir && bun run scripts/convert-whitelabel-assets.ts sapir"
   },
   "dependencies": {
     "@opencode-ai/app": "workspace:*",
@@ -39,6 +41,7 @@
     "@tauri-apps/cli": "^2",
     "@types/bun": "catalog:",
     "@typescript/native-preview": "catalog:",
+    "sharp": "0.34.5",
     "typescript": "~5.6.2",
     "vite": "catalog:"
   }

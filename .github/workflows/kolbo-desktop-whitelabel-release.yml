@@ -1,0 +1,215 @@
+name: kolbo-desktop-whitelabel-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      whitelabel:
+        description: "Whitelabel slug (e.g. sapir)"
+        required: true
+        default: "sapir"
+      version:
+        description: "Version to release (e.g. 1.0.0)"
+        required: true
+        default: "1.0.0"
+      draft:
+        description: "Create as draft release"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.inputs.whitelabel }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  WHITELABEL: ${{ github.event.inputs.whitelabel }}
+  KOLBO_VERSION: ${{ github.event.inputs.version }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            bundle: nsis
+            artifact-suffix: windows-x64
+          - platform: macos-latest
+            rust-target: aarch64-apple-darwin
+            bundle: dmg
+            artifact-suffix: darwin-aarch64
+          - platform: macos-13
+            rust-target: x86_64-apple-darwin
+            bundle: dmg
+            artifact-suffix: darwin-x64
+
+    runs-on: ${{ matrix.platform }}
+    if: endsWith(github.repository, '/kolbo-code')
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: packages/desktop/src-tauri
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Set version
+        working-directory: packages/desktop
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            pkg.version = '${{ env.KOLBO_VERSION }}';
+            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "Version set to ${{ env.KOLBO_VERSION }}"
+
+      - name: Fix symlinks (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          cp packages/ui/src/custom-elements.d.ts packages/app/src/custom-elements.d.ts
+
+      - name: Read whitelabel config
+        id: wl
+        shell: bash
+        run: |
+          PRODUCT_NAME=$(node -e "const c=require('./packages/desktop/whitelabels/${{ env.WHITELABEL }}/config.json'); console.log(c.productName)")
+          echo "product_name=$PRODUCT_NAME" >> $GITHUB_OUTPUT
+
+      - name: Apply whitelabel branding
+        shell: bash
+        run: |
+          cd packages/desktop
+          WHITELABEL="${{ env.WHITELABEL }}"
+          node -e "
+            const fs = require('fs');
+            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            const wl = JSON.parse(fs.readFileSync('whitelabels/${WHITELABEL}/config.json', 'utf8'));
+            conf.productName = wl.productName;
+            conf.identifier = wl.identifier;
+            conf.mainBinaryName = wl.mainBinaryName;
+            conf.bundle.icon = [
+              'icons/${WHITELABEL}/32x32.png',
+              'icons/${WHITELABEL}/128x128.png',
+              'icons/${WHITELABEL}/128x128@2x.png',
+              'icons/${WHITELABEL}/icon.icns',
+              'icons/${WHITELABEL}/icon.ico',
+            ];
+            if (!conf.bundle.windows) conf.bundle.windows = {};
+            if (!conf.bundle.windows.nsis) conf.bundle.windows.nsis = {};
+            conf.bundle.windows.nsis.installerIcon = 'icons/${WHITELABEL}/icon.ico';
+            conf.bundle.windows.nsis.headerImage = 'assets/${WHITELABEL}-nsis-header.bmp';
+            conf.bundle.windows.nsis.sidebarImage = 'assets/${WHITELABEL}-nsis-sidebar.bmp';
+            if (conf.plugins?.['deep-link']?.desktop) {
+              conf.plugins['deep-link'].desktop.schemes = [wl.deepLinkScheme];
+            }
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
+          "
+          # Fix TypeScript globals
+          node -e "
+            const fs = require('fs');
+            const files = ['src/index.tsx', 'src/updater.ts', 'src-tauri/src/windows.rs'];
+            for (const f of files) {
+              try {
+                let c = fs.readFileSync(f, 'utf8');
+                c = c.replace(/__OPENCODE__/g, '__KOLBO_CODE__').replace(/\.title\(\"OpenCode\"\)/g, '.title(\"Kolbo Code\")');
+                fs.writeFileSync(f, c);
+              } catch {}
+            }
+          "
+
+      - name: Download CLI sidecar
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          mkdir -p packages/desktop/src-tauri/sidecars
+          mkdir -p /tmp/kolbo-cli-install
+          cd /tmp/kolbo-cli-install
+          npm install @kolbo/kolbo-code@latest 2>&1 || true
+          cd "$GITHUB_WORKSPACE"
+          BASE="/tmp/kolbo-cli-install/node_modules"
+          PLATFORM="${{ matrix.platform }}"
+          RUST_TARGET="${{ matrix.rust-target }}"
+          if [ "$PLATFORM" == "windows-latest" ]; then
+            KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe"
+            [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe"
+            DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}.exe"
+          elif [ "$PLATFORM" == "macos-latest" ]; then
+            KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
+            [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
+            DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}"
+          else
+            KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
+            [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
+            DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}"
+          fi
+          if [ -f "$KOLBO_BIN" ]; then
+            cp "$KOLBO_BIN" "$DEST"
+            echo "✓ CLI sidecar copied from $KOLBO_BIN"
+          else
+            echo "⚠ Binary not found, listing @kolbo packages:"
+            ls "$BASE/@kolbo/" 2>/dev/null || echo "None found"
+          fi
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          VITE_WHITELABEL_SPLASH: /whitelabels/${{ env.WHITELABEL }}/splash.jpg
+        with:
+          projectPath: packages/desktop
+          tauriScript: bunx tauri
+          args: --target ${{ matrix.rust-target }} --bundles ${{ matrix.bundle }}
+          tagName: ${{ env.WHITELABEL }}-desktop-v${{ env.KOLBO_VERSION }}
+          releaseName: "${{ steps.wl.outputs.product_name }} v${{ env.KOLBO_VERSION }}"
+          releaseBody: |
+            ## ${{ steps.wl.outputs.product_name }} v${{ env.KOLBO_VERSION }}
+
+            AI coding agent desktop app — whitelabel build.
+
+            ### Download
+            - **Windows**: Setup installer (.exe)
+            - **macOS**: Disk image (.dmg)
+          releaseDraft: ${{ github.event.inputs.draft }}
+          prerelease: false
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.WHITELABEL }}-desktop-${{ matrix.artifact-suffix }}
+          path: |
+            packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/**/*.exe
+            packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/**/*.dmg
+            packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/**/*.deb
+          retention-days: 30
