@@ -6,6 +6,7 @@ import { Provider } from "../../provider/provider"
 import { ModelsDev } from "../../provider/models"
 import { ProviderAuth } from "../../provider/auth"
 import { ProviderID } from "../../provider/schema"
+import { ensureKolboMcpWired } from "../../cli/cmd/providers"
 import { mapValues } from "remeda"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
@@ -165,6 +166,10 @@ export const ProviderRoutes = lazy(() =>
           method,
           code,
         })
+        // Wire MCP after successful Kolbo auth (desktop app doesn't go through CLI login)
+        if (providerID === "kolbo") {
+          ensureKolboMcpWired().catch(() => {})
+        }
         return c.json(true)
       },
     ),
