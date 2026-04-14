@@ -6,6 +6,6 @@
   "brandName": "Sapir AI Code",
   "splashImage": "/whitelabels/sapir/splash.jpg",
   "logoImage": "/whitelabels/sapir/logo.svg",
-  "apiBase": "https://sapir.kolbo.ai/api",
+  "apiBase": "https://sapirapi.kolbo.ai/api",
   "appBase": "https://sapir.kolbo.ai"
 }
