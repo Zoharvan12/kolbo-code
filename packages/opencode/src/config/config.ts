@@ -636,6 +636,7 @@ export namespace Config {
       session_new: z.string().optional().default("none").describe("Create a new session"),
       session_list: z.string().optional().default("<leader>l").describe("List all sessions"),
       session_timeline: z.string().optional().default("<leader>g").describe("Show session timeline"),
+      session_rewind: z.string().optional().default("none").describe("Open rewind panel"),
       session_fork: z.string().optional().default("none").describe("Fork session from message"),
       session_rename: z.string().optional().default("ctrl+r").describe("Rename session"),
       session_delete: z.string().optional().default("ctrl+d").describe("Delete session"),
@@ -699,11 +700,15 @@ export namespace Config {
       input_newline: z
         .string()
         .optional()
-        // shift+return is the most intuitive binding and is shown as the
-        // primary tooltip. ctrl+j is kept as a fallback because some
-        // terminals (notably Windows Terminal without full kitty support)
-        // don't distinguish shift+return from plain return.
-        .default("shift+return,ctrl+return,alt+return,ctrl+j")
+        // On Windows, ctrl+j is the primary binding because most Windows
+        // terminals (CMD, PowerShell, Windows Terminal without kitty
+        // support) don't distinguish shift+return from plain return.
+        // On other platforms shift+return is the most intuitive choice.
+        .default(
+          process.platform === "win32"
+            ? "ctrl+j,shift+return,ctrl+return,alt+return"
+            : "shift+return,ctrl+return,alt+return,ctrl+j",
+        )
         .describe("Insert newline in input"),
       input_move_left: z.string().optional().default("left,ctrl+b").describe("Move cursor left in input"),
       input_move_right: z.string().optional().default("right,ctrl+f").describe("Move cursor right in input"),

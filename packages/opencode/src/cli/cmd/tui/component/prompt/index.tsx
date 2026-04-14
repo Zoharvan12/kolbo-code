@@ -246,7 +246,8 @@ export function Prompt(props: PromptProps) {
     const model = sync.data.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
     const pct = model?.limit.context ? `${Math.round((tokens / model.limit.context) * 100)}%` : undefined
     const isKolbo = last.providerID === "kolbo"
-    const cost = isKolbo ? 0 : msg.reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
+    const isLocal = last.providerID === "ollama" || last.providerID === "lmstudio"
+    const cost = isKolbo || isLocal ? 0 : msg.reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0)
 
     const credits = isKolbo ? sessionCredits(msg, kolboPricing()) : 0
 
@@ -256,9 +257,11 @@ export function Prompt(props: PromptProps) {
         ? credits > 0
           ? tI18n("sidebar.context.creditsCompact", { n: credits.toLocaleString() })
           : undefined
-        : cost > 0
-          ? money.format(cost)
-          : undefined,
+        : isLocal
+          ? undefined
+          : cost > 0
+            ? money.format(cost)
+            : undefined,
     }
   })
 
@@ -443,10 +446,23 @@ export function Prompt(props: PromptProps) {
   // Note: we match on the base key name rather than re-checking the full
   // keybind, because kitty releases come per-key — `y release` arrives
   // separately from `ctrl release`, and we want either to end the session.
+  //
+  // Fallback for terminals without kitty keyboard protocol: if no keyrelease
+  // arrives within 500ms of recording start, switch to toggle mode where
+  // pressing the voice keybind again stops recording.
+  let pttGotRelease = false
+  let pttToggleMode = false
+  let pttFallbackTimer: ReturnType<typeof setTimeout> | null = null
+
   onMount(() => {
     const handleRelease = (e: KeyEvent) => {
       if (!isPttBusy()) return
       if (e.name === "y") {
+        pttGotRelease = true
+        if (pttFallbackTimer) {
+          clearTimeout(pttFallbackTimer)
+          pttFallbackTimer = null
+        }
         stopPtt("stop")
       }
     }
@@ -1491,7 +1507,20 @@ export function Prompt(props: PromptProps) {
                   input.focused &&
                   keybind.match("input_voice", e)
                 ) {
-                  if (!isPttBusy()) {
+                  if (isPttBusy() && pttToggleMode) {
+                    // Toggle mode (no keyrelease support): second press stops
+                    stopPtt("stop")
+                  } else if (!isPttBusy()) {
+                    pttToggleMode = false
+                    pttGotRelease = false
+                    if (pttFallbackTimer) clearTimeout(pttFallbackTimer)
+                    // If no keyrelease arrives within 500ms, switch to toggle mode
+                    pttFallbackTimer = setTimeout(() => {
+                      pttFallbackTimer = null
+                      if (isPttBusy() && !pttGotRelease) {
+                        pttToggleMode = true
+                      }
+                    }, 500)
                     void triggerPtt()
                   }
                   e.preventDefault()
@@ -1648,6 +1677,23 @@ export function Prompt(props: PromptProps) {
                   setStore("escPressedAt", now)
                   // Auto-dismiss after 1.5s if no second press
                   setTimeout(() => setStore("escPressedAt", null), 1500)
+                  e.preventDefault()
+                  return
+                }
+                // Double-tap ESC on empty prompt → open rewind
+                if (e.name === "escape" && store.prompt.input === "" && store.mode === "normal" && props.sessionID) {
+                  const now = Date.now()
+                  if (store.escPressedAt !== null && now - store.escPressedAt < 1500) {
+                    setStore("escPressedAt", null)
+                    command.trigger("session.rewind")
+                    e.preventDefault()
+                    return
+                  }
+                  setStore("escPressedAt", now)
+                  const armed = now
+                  setTimeout(() => {
+                    if (store.escPressedAt === armed) setStore("escPressedAt", null)
+                  }, 1500)
                   e.preventDefault()
                   return
                 }
@@ -2076,7 +2122,12 @@ export function Prompt(props: PromptProps) {
                   }
                 >
                   <text fg={theme.warning}>
-                    esc <span style={{ fg: theme.textMuted }}>{tI18n("session.escAgainToClear")}</span>
+                    esc{" "}
+                    <span style={{ fg: theme.textMuted }}>
+                      {store.prompt.input !== ""
+                        ? tI18n("session.escAgainToClear")
+                        : tI18n("session.escAgainToRewind")}
+                    </span>
                   </text>
                 </Show>
               }

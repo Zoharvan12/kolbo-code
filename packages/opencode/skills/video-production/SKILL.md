@@ -105,16 +105,15 @@ def detect_silence(video_path, noise_db=-35, duration=0.4):
 
 ## RTL (Hebrew/Arabic) Subtitles
 
-SRT with `subtitles` filter works for basic burn. For per-word karaoke highlighting with RTL:
+For comprehensive RTL subtitle handling, load the `subtitle-production` skill — it contains full patterns for:
+- Simple SRT burn-in with Heebo font + `Encoding=177`
+- ASS per-word positioning for karaoke (with PIL `~0.74` scale factor)
+- Remotion RTL captions with CSS `direction: rtl` and all the flip rules
+- RTL progress bar with FFmpeg `geq` filter
 
-- Each word gets its own ASS `Dialogue` line with explicit `\pos(x,y)`
-- Use PIL to measure word widths: apply `~0.74` scale factor (PIL→libass calibration)
-- Use `Alignment=7` (top-left anchor) so `\pos` sets exact top-left of each word
-- Set `Encoding=177` (Hebrew) in ASS style
-- Strip punctuation and render as separate positioned elements
-- Two ASS styles (e.g., White + Yellow) instead of inline `\c` color tags
+**CRITICAL**: Any inline ASS tag (`\c`, `\K`, `\1c`, etc.) between RTL words breaks Unicode bidi in libass — words render LTR. Use separate Dialogue lines per word instead.
 
-**CRITICAL**: Any inline ASS tag (`\c`, `\K`, `\1c`, etc.) between RTL words breaks Unicode bidirectional algorithm in libass — words render LTR. Use separate Dialogue lines instead.
+For Remotion RTL layout rules (padding flips, transform-origin, gradient direction), load the `typography-video` skill.
 
 ## Remotion Motion Graphics
 

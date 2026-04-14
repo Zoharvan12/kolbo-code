@@ -78,7 +78,7 @@
     "tip_22": "{highlight}PageUp{/highlight}/{highlight}PageDown{/highlight}を使用して、会話履歴をナビゲートします。",
     "tip_23": "{highlight}Ctrl+G{/highlight}または{highlight}Home{/highlight}を押すと、会話の最初までジャンプします。",
     "tip_24": "{highlight}Ctrl+Alt+G{/highlight}または{highlight}End{/highlight}を押すと、最新のメッセージまでジャンプします。",
-    "tip_25": "{highlight}Shift+Enter{/highlight}を押すと、プロンプトに改行を追加できます。",
+    "tip_25": "{highlight}Ctrl+J{/highlight}（またはShift+Enter）を押すと、プロンプトに改行を追加できます。",
     "tip_26": "入力中に{highlight}Ctrl+C{/highlight}を押すと、入力フィールドをクリアできます。",
     "tip_27": "{highlight}Escape{/highlight}を押すと、AIの応答を途中で停止できます。",
     "tip_28": "{highlight}Plan{/highlight}エージェントに切り替えると、実際には変更を行わずに提案を得ることができます。",
@@ -152,7 +152,8 @@
     "tip_97": "{highlight}/help{/highlight} を実行して、ヘルプダイアログを表示してください。",
     "tip_98": "{highlight}/rename{/highlight} を使用して、現在のセッションの名前を変更してください。",
     "tip_99_win": "プロンプトの変更を元に戻すには、{highlight}Ctrl+Z{/highlight} を押してください。",
-    "tip_99_unix": "ターミナルを一時停止してシェルに戻るには、{highlight}Ctrl+Z{/highlight} を押してください。"
+    "tip_99_unix": "ターミナルを一時停止してシェルに戻るには、{highlight}Ctrl+Z{/highlight} を押してください。",
+    "tip_5_rewind": "Double-tap {highlight}Esc{/highlight} on an empty prompt or type {highlight}/rewind{/highlight} to restore code and conversation to any earlier point"
   },
   "session": {
     "interrupt": "中断",
@@ -185,7 +186,8 @@
     "failedToShare": "セッションの共有に失敗しました。",
     "newline": "new line",
     "voice": "音声入力",
-    "promptFooterHint": "{{newlineKey}} 改行   {{voiceKey}} 音声入力"
+    "promptFooterHint": "{{newlineKey}} 改行   {{voiceKey}} 音声入力",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +284,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "セッション",
@@ -423,7 +426,9 @@
     "failedToCopy": "クリップボードへのコピーに失敗しました。",
     "failedToCopyConsoleSelection": "コンソールの選択内容をクリップボードにコピーできませんでした: {{error}}",
     "noProviderForPrompts": "プロンプトを送信するにはプロバイダーを接続してください。",
-    "sessionCreateFailed": "セッションの作成に失敗しました。詳細はコンソールを開いてください。"
+    "sessionCreateFailed": "セッションの作成に失敗しました。詳細はコンソールを開いてください。",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "セッション",
@@ -457,5 +462,18 @@
       "backendTimeout": "バックエンドが 5 秒以内に文字起こしセッションを開始しませんでした。リアルタイム scribe ルートは動作していますか？",
       "serverError": "文字起こしエラー: {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

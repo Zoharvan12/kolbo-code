@@ -59,6 +59,7 @@ import type { PromptInfo } from "../../component/prompt/history"
 import { DialogConfirm } from "@tui/ui/dialog-confirm"
 import { DialogTimeline } from "./dialog-timeline"
 import { DialogForkFromTimeline } from "./dialog-fork-from-timeline"
+import { RewindPanel } from "./dialog-rewind"
 import { DialogSessionRename } from "../../component/dialog-session-rename"
 import { Sidebar } from "./sidebar"
 import { SubagentFooter } from "./subagent-footer.tsx"
@@ -164,6 +165,7 @@ export function Session() {
   const [diffWrapMode] = kv.signal<"word" | "none">("diff_wrap_mode", "word")
   const [animationsEnabled, setAnimationsEnabled] = kv.signal("animations_enabled", true)
   const [showGenericToolOutput, setShowGenericToolOutput] = kv.signal("generic_tool_output_visibility", false)
+  const [rewindOpen, setRewindOpen] = createSignal(false)
 
   const { t } = useI18n()
 
@@ -541,6 +543,19 @@ export function Session() {
               variant: "error",
             })
           })
+        dialog.clear()
+      },
+    },
+    {
+      title: t("commands.rewind"),
+      value: "session.rewind",
+      keybind: "session_rewind",
+      category: t("commands.categories.session"),
+      slash: {
+        name: "rewind",
+      },
+      onSelect: (dialog) => {
+        setRewindOpen(true)
         dialog.clear()
       },
     },
@@ -1210,6 +1225,17 @@ export function Session() {
               </Show>
               <Show when={session()?.parentID}>
                 <SubagentFooter />
+              </Show>
+              <Show when={rewindOpen()}>
+                <RewindPanel
+                  sessionID={route.sessionID}
+                  onClose={() => setRewindOpen(false)}
+                  setPrompt={(p) => prompt?.set(p)}
+                  onMove={(messageID) => {
+                    const child = scroll.getChildren().find((c) => c.id === messageID)
+                    if (child) scroll.scrollBy(child.y - scroll.y - 1)
+                  }}
+                />
               </Show>
               <Show when={visible()}>
                 <TuiPluginRuntime.Slot

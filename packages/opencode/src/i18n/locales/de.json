@@ -78,7 +78,7 @@
     "tip_22": "Verwenden Sie {highlight}BildAuf{/highlight}/{highlight}BildAb{/highlight}, um durch den Konversationsverlauf zu navigieren",
     "tip_23": "Drücken Sie {highlight}Strg+G{/highlight} oder {highlight}Pos1{/highlight}, um zum Anfang der Konversation zu springen",
     "tip_24": "Drücken Sie {highlight}Strg+Alt+G{/highlight} oder {highlight}Ende{/highlight}, um zur neuesten Nachricht zu springen",
-    "tip_25": "Drücken Sie {highlight}Strg+J{/highlight}, um neue Zeilen in Ihre Eingabeaufforderung einzufügen",
+    "tip_25": "Drücken Sie {highlight}Ctrl+J{/highlight} (oder Shift+Enter), um neue Zeilen in Ihre Eingabeaufforderung einzufügen",
     "tip_26": "Drücken Sie {highlight}Strg+C{/highlight} während der Eingabe, um das Eingabefeld zu leeren",
     "tip_27": "Drücken Sie {highlight}Escape{/highlight}, um die KI mitten in der Antwort zu stoppen",
     "tip_28": "Wechseln Sie zum {highlight}Plan{/highlight}-Agenten, um Vorschläge zu erhalten, ohne tatsächliche Änderungen vorzunehmen",
@@ -152,7 +152,8 @@
     "tip_97": "Führen Sie {highlight}/help{/highlight} aus, um den Hilfedialog anzuzeigen",
     "tip_98": "Nutzen Sie {highlight}/rename{/highlight}, um die aktuelle Sitzung umzubenennen",
     "tip_99_win": "Drücken Sie {highlight}Strg+Z{/highlight}, um Änderungen in Ihrer Eingabeaufforderung rückgängig zu machen",
-    "tip_99_unix": "Drücken Sie {highlight}Strg+Z{/highlight}, um das Terminal zu unterbrechen und zu Ihrer Shell zurückzukehren"
+    "tip_99_unix": "Drücken Sie {highlight}Strg+Z{/highlight}, um das Terminal zu unterbrechen und zu Ihrer Shell zurückzukehren",
+    "tip_5_rewind": "Double-tap {highlight}Esc{/highlight} on an empty prompt or type {highlight}/rewind{/highlight} to restore code and conversation to any earlier point"
   },
   "session": {
     "interrupt": "unterbrechen",
@@ -185,7 +186,8 @@
     "failedToShare": "Das Teilen der Sitzung ist fehlgeschlagen",
     "newline": "new line",
     "voice": "diktieren",
-    "promptFooterHint": "{{newlineKey}} neue Zeile   {{voiceKey}} Sprachdiktat"
+    "promptFooterHint": "{{newlineKey}} neue Zeile   {{voiceKey}} Sprachdiktat",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +284,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "Sitzungen",
@@ -423,7 +426,9 @@
     "failedToCopy": "Das Kopieren in die Zwischenablage ist fehlgeschlagen",
     "failedToCopyConsoleSelection": "Das Kopieren der Konsolenauswahl in die Zwischenablage ist fehlgeschlagen: {{error}}",
     "noProviderForPrompts": "Verbinden Sie einen Anbieter, um Eingabeaufforderungen zu senden",
-    "sessionCreateFailed": "Das Erstellen einer Sitzung ist fehlgeschlagen. Öffnen Sie die Konsole für weitere Details."
+    "sessionCreateFailed": "Das Erstellen einer Sitzung ist fehlgeschlagen. Öffnen Sie die Konsole für weitere Details.",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "Sitzung",
@@ -457,5 +462,18 @@
       "backendTimeout": "Das Backend hat die Transkriptionssitzung nicht innerhalb von 5 Sekunden gestartet. Läuft die Echtzeit-Scribe-Route?",
       "serverError": "Transkriptionsfehler: {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

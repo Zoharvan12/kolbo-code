@@ -95,6 +95,28 @@ Use these values with \`list_models\`:
 > "Animate this image into a short video"
 > "What image models are available?"
 > "Check my credit balance"
+
+## Troubleshooting
+
+### "API key is invalid or expired"
+This usually means the CLI is sending a key to the wrong API endpoint.
+
+**Common cause — whitelabel overlap:** if the user previously used regular \`kolbo\` and then switched to a whitelabel CLI (e.g. \`sapir\`), the old API key may still be cached against the main Kolbo API. Running the whitelabel command (\`kolbo\`) instead of the branded one (\`sapir\`) overwrites the MCP config with the wrong endpoint.
+
+**Fix:** tell the user to run their branded CLI's auth command, for example:
+\`\`\`
+sapir auth login
+\`\`\`
+Then **restart this editor/session** so the MCP picks up the new key.
+
+**Important:** users must always use their branded CLI command (e.g. \`sapir\`), not \`kolbo\`, to avoid the config being overwritten with the wrong API endpoint.
+
+### MCP tools not responding
+If Kolbo tools timeout or aren't found, the MCP server may not be wired. Tell the user to run:
+\`\`\`
+<their-cli-command> auth login
+\`\`\`
+This re-wires the MCP config automatically.
 `
 
 export async function ensureKolboMcpWired(): Promise<void> {
@@ -132,7 +154,8 @@ export async function ensureKolboMcpWired(): Promise<void> {
     const currentUrl = existing.mcp?.kolbo?.environment?.KOLBO_API_URL
     const currentCommand = existing.mcp?.kolbo?.command
     const commandDrift = JSON.stringify(currentCommand) !== JSON.stringify(expectedCommand)
-    let needsWrite = currentKey !== apiKey || currentUrl !== mcpEnv.KOLBO_API_URL || commandDrift
+    const currentTimeout = existing.mcp?.kolbo?.timeout
+    let needsWrite = currentKey !== apiKey || currentUrl !== mcpEnv.KOLBO_API_URL || commandDrift || currentTimeout !== 1800000
     if (needsWrite) {
       existing.mcp = {
         ...existing.mcp,
@@ -140,6 +163,7 @@ export async function ensureKolboMcpWired(): Promise<void> {
           type: "local",
           command: expectedCommand,
           environment: mcpEnv,
+          timeout: 1800000,
         },
       }
     }
@@ -633,6 +657,23 @@ export const ProvidersLoginCommand = cmd({
           prompts.outro("Done")
           return
         }
+        // Kolbo builds (main + whitelabel) skip provider selection — go straight to Kolbo login
+        if (!args.provider) {
+          const key = await kolboDeviceLogin()
+          if (!key) {
+            prompts.log.error("Login failed")
+            prompts.outro("Done")
+            return
+          }
+          const metadata: Record<string, string> = {}
+          if (Partner.isWhitelabel) metadata.apiBase = KOLBO_API_BASE
+          await Auth.set("kolbo", { type: "api", key, metadata })
+          prompts.log.success(`Logged into ${Partner.name}`)
+          await ensureKolboMcpWired()
+          prompts.outro("Done")
+          return
+        }
+
         await ModelsDev.refresh(true).catch(() => {})
 
         const config = await Config.get()
@@ -784,6 +825,7 @@ export const ProvidersLoginCommand = cmd({
                   type: "local",
                   command: ["npx", "-y", "@kolbo/mcp"],
                   environment: mcpEnv,
+                  timeout: 1800000,
                 },
               }
               // Atomic write — file contains the Kolbo API key.

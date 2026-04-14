@@ -78,7 +78,7 @@
     "tip_22": "Use {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} para navegar por el historial de la conversación",
     "tip_23": "Presione {highlight}Ctrl+G{/highlight} u {highlight}Home{/highlight} para saltar al principio de la conversación",
     "tip_24": "Presione {highlight}Ctrl+Alt+G{/highlight} o {highlight}End{/highlight} para saltar al mensaje más reciente",
-    "tip_25": "Presione {highlight}Shift+Enter{/highlight} para añadir nuevas líneas en su prompt",
+    "tip_25": "Presione {highlight}Ctrl+J{/highlight} (o Shift+Enter) para añadir nuevas líneas en su prompt",
     "tip_26": "Presione {highlight}Ctrl+C{/highlight} mientras escribe para borrar el campo de entrada",
     "tip_27": "Presione {highlight}Escape{/highlight} para detener la IA a mitad de la respuesta",
     "tip_28": "Cambie al agente {highlight}Plan{/highlight} para obtener sugerencias sin realizar cambios reales",
@@ -152,7 +152,8 @@
     "tip_97": "Ejecute {highlight}/help{/highlight} para mostrar el diálogo de ayuda",
     "tip_98": "Use {highlight}/rename{/highlight} para renombrar la sesión actual",
     "tip_99_win": "Presione {highlight}Ctrl+Z{/highlight} para deshacer cambios en su prompt",
-    "tip_99_unix": "Presione {highlight}Ctrl+Z{/highlight} para suspender la terminal y volver a su shell"
+    "tip_99_unix": "Presione {highlight}Ctrl+Z{/highlight} para suspender la terminal y volver a su shell",
+    "tip_5_rewind": "Double-tap {highlight}Esc{/highlight} on an empty prompt or type {highlight}/rewind{/highlight} to restore code and conversation to any earlier point"
   },
   "session": {
     "interrupt": "interrumpir",
@@ -185,7 +186,8 @@
     "failedToShare": "No se pudo compartir la sesión",
     "newline": "new line",
     "voice": "dictar",
-    "promptFooterHint": "{{newlineKey}} nueva línea   {{voiceKey}} dictado por voz"
+    "promptFooterHint": "{{newlineKey}} nueva línea   {{voiceKey}} dictado por voz",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +284,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "Sesiones",
@@ -423,7 +426,9 @@
     "failedToCopy": "No se pudo copiar al portapapeles",
     "failedToCopyConsoleSelection": "No se pudo copiar la selección de la consola al portapapeles: {{error}}",
     "noProviderForPrompts": "Conecte un proveedor para enviar solicitudes",
-    "sessionCreateFailed": "La creación de la sesión falló. Abra la consola para más detalles."
+    "sessionCreateFailed": "La creación de la sesión falló. Abra la consola para más detalles.",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "Sesión",
@@ -457,5 +462,18 @@
       "backendTimeout": "El backend no inició la sesión de transcripción en 5 segundos. ¿Está activa la ruta de transcripción en tiempo real?",
       "serverError": "Error de transcripción: {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

@@ -472,9 +472,10 @@ async fn initialize(app: AppHandle) {
         });
 
         let app = app.clone();
-        tokio::spawn(done_rx.map(async move |_| {
+        tokio::spawn(async move {
+            let _ = done_rx.await;
             app.unlisten(id);
-        }))
+        })
     });
 
     // The loading task waits for SQLite migration (if needed) then for the sidecar health check.
@@ -575,13 +576,10 @@ fn kodu_db_path() -> Result<PathBuf, &'static str> {
 
     let data_home = match xdg_data_home {
         Some(v) => PathBuf::from(v),
-        None => {
-            let home = dirs::home_dir().ok_or("cannot determine home directory")?;
-            home.join(".local").join("share")
-        }
+        None => dirs::data_dir().ok_or("cannot determine data directory")?,
     };
 
-    Ok(data_home.join("kodu").join("kodu.db"))
+    Ok(data_home.join("kolbo").join("kolbo.db"))
 }
 
 // Creates a `once` listener for the specified event and returns a future that resolves

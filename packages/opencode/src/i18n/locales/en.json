@@ -59,6 +59,7 @@
     "tip_2": "Press {highlight}Tab{/highlight} to toggle between Build, Plan and Auto-Approve modes",
     "tip_3": "Use {highlight}/undo{/highlight} to revert the last message and file changes",
     "tip_4": "Use {highlight}/redo{/highlight} to restore previously undone messages and file changes",
+    "tip_5_rewind": "Double-tap {highlight}Esc{/highlight} on an empty prompt or type {highlight}/rewind{/highlight} to restore code and conversation to any earlier point",
     "tip_5": "Run {highlight}/share{/highlight} to create a public link to your conversation at kolbo.ai",
     "tip_6": "Drag and drop images or PDFs into the terminal to add them as context",
     "tip_7": "Press {highlight}Ctrl+V{/highlight} to paste images from your clipboard into the prompt",
@@ -78,7 +79,7 @@
     "tip_22": "Use {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} to navigate through conversation history",
     "tip_23": "Press {highlight}Ctrl+G{/highlight} or {highlight}Home{/highlight} to jump to the beginning of the conversation",
     "tip_24": "Press {highlight}Ctrl+Alt+G{/highlight} or {highlight}End{/highlight} to jump to the most recent message",
-    "tip_25": "Press {highlight}Shift+Enter{/highlight} to add newlines in your prompt",
+    "tip_25": "Press {highlight}Ctrl+J{/highlight} (or Shift+Enter) to add newlines in your prompt",
     "tip_26": "Press {highlight}Ctrl+C{/highlight} when typing to clear the input field",
     "tip_27": "Press {highlight}Escape{/highlight} to stop the AI mid-response",
     "tip_28": "Switch to {highlight}Plan{/highlight} agent to get suggestions without making actual changes",
@@ -160,6 +161,7 @@
     "commands": "commands",
     "agents": "toggle mode",
     "escAgainToClear": "again to clear",
+    "escAgainToRewind": "again to rewind",
     "ctrlCAgainToExit": "again to exit",
     "newline": "new line",
     "voice": "voice",
@@ -186,6 +188,19 @@
     "failedToExport": "Failed to export session",
     "transcriptCopied": "Session transcript copied to clipboard!",
     "failedToCopyTranscript": "Failed to copy session transcript"
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before\u2026",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "\u26a0 Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   },
   "commands": {
     "categories": {
@@ -250,6 +265,7 @@
     "forkFromMessage": "Fork from message",
     "compactSession": "Compact session",
     "unshareSession": "Unshare session",
+    "rewind": "Rewind",
     "undoPreviousMessage": "Undo previous message",
     "redo": "Redo",
     "showSidebar": "Show sidebar",

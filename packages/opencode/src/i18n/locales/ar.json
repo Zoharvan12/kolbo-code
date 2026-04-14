@@ -78,7 +78,7 @@
     "tip_22": "استخدم {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} للتنقل خلال سجل المحادثات",
     "tip_23": "اضغط {highlight}Ctrl+G{/highlight} أو {highlight}Home{/highlight} للانتقال إلى بداية المحادثة",
     "tip_24": "اضغط {highlight}Ctrl+Alt+G{/highlight} أو {highlight}End{/highlight} للانتقال إلى أحدث رسالة",
-    "tip_25": "اضغط {highlight}Shift+Enter{/highlight} لإضافة أسطر جديدة في مطالبتك",
+    "tip_25": "اضغط {highlight}Ctrl+J{/highlight} (أو Shift+Enter) لإضافة أسطر جديدة في مطالبتك",
     "tip_26": "اضغط {highlight}Ctrl+C{/highlight} أثناء الكتابة لمسح حقل الإدخال",
     "tip_27": "اضغط {highlight}Escape{/highlight} لإيقاف الذكاء الاصطناعي أثناء الاستجابة",
     "tip_28": "قم بالتبديل إلى وكيل {highlight}Plan{/highlight} للحصول على اقتراحات دون إجراء تغييرات فعلية",
@@ -152,7 +152,8 @@
     "tip_97": "شغل {highlight}/help{/highlight} لإظهار مربع حوار التعليمات",
     "tip_98": "استخدم {highlight}/rename{/highlight} لإعادة تسمية الجلسة الحالية",
     "tip_99_win": "اضغط {highlight}Ctrl+Z{/highlight} للتراجع عن التغييرات في مطالبتك",
-    "tip_99_unix": "اضغط {highlight}Ctrl+Z{/highlight} لتعليق المحطة الطرفية والعودة إلى الصدفة الخاصة بك"
+    "tip_99_unix": "اضغط {highlight}Ctrl+Z{/highlight} لتعليق المحطة الطرفية والعودة إلى الصدفة الخاصة بك",
+    "tip_5_rewind": "Double-tap {highlight}Esc{/highlight} on an empty prompt or type {highlight}/rewind{/highlight} to restore code and conversation to any earlier point"
   },
   "session": {
     "interrupt": "مقاطعة",
@@ -185,7 +186,8 @@
     "failedToShare": "فشل مشاركة الجلسة",
     "newline": "new line",
     "voice": "إملاء",
-    "promptFooterHint": "{{newlineKey}} سطر جديد   {{voiceKey}} إملاء صوتي"
+    "promptFooterHint": "{{newlineKey}} سطر جديد   {{voiceKey}} إملاء صوتي",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +284,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "الجلسات",
@@ -423,7 +426,9 @@
     "failedToCopy": "فشل النسخ إلى الحافظة",
     "failedToCopyConsoleSelection": "فشل نسخ تحديد وحدة التحكم إلى الحافظة: {{error}}",
     "noProviderForPrompts": "قم بتوصيل مزود لإرسال المطالبات",
-    "sessionCreateFailed": "فشل إنشاء جلسة. افتح وحدة التحكم لمزيد من التفاصيل."
+    "sessionCreateFailed": "فشل إنشاء جلسة. افتح وحدة التحكم لمزيد من التفاصيل.",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "الجلسة",
@@ -457,5 +462,18 @@
       "backendTimeout": "لم تبدأ الخدمة الخلفية جلسة النسخ في غضون 5 ثوانٍ. هل مسار النسخ الفوري يعمل؟",
       "serverError": "خطأ في النسخ: {{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }

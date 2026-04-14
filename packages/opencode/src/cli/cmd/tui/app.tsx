@@ -15,7 +15,7 @@ import {
   Show,
   onCleanup,
 } from "solid-js"
-import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
+import { win32DisableProcessedInput, win32InstallCtrlCGuard, win32RestoreCodePage, win32SetUtf8CodePage } from "./win32"
 import { Flag } from "@/flag/flag"
 import { Partner } from "@/brand/partner"
 import semver from "semver"
@@ -131,6 +131,7 @@ export function tui(input: {
 }) {
   // promise to prevent immediate exit
   return new Promise<void>(async (resolve) => {
+    win32SetUtf8CodePage()
     const unguard = win32InstallCtrlCGuard()
     win32DisableProcessedInput()
 
@@ -139,6 +140,7 @@ export function tui(input: {
 
     const onExit = async () => {
       unguard?.()
+      win32RestoreCodePage()
       resolve()
     }
 

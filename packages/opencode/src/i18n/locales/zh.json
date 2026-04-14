@@ -78,7 +78,7 @@
     "tip_22": "使用 {highlight}PageUp{/highlight}/{highlight}PageDown{/highlight} 浏览对话历史记录",
     "tip_23": "按 {highlight}Ctrl+G{/highlight} 或 {highlight}Home{/highlight} 跳转到对话开头",
     "tip_24": "按 {highlight}Ctrl+Alt+G{/highlight} 或 {highlight}End{/highlight} 跳转到最新消息",
-    "tip_25": "按 {highlight}Shift+Enter{/highlight} 在提示中添加换行符",
+    "tip_25": "按 {highlight}Ctrl+J{/highlight}（或 Shift+Enter）在提示中添加换行符",
     "tip_26": "输入时按 {highlight}Ctrl+C{/highlight} 可清除输入字段",
     "tip_27": "按 {highlight}Escape{/highlight} 停止 AI 的中间响应",
     "tip_28": "切换到 {highlight}Plan{/highlight} 代理以获取建议，而无需进行实际更改",
@@ -152,7 +152,8 @@
     "tip_97": "运行 {highlight}/help{/highlight} 来显示帮助对话框",
     "tip_98": "使用 {highlight}/rename{/highlight} 来重命名当前会话",
     "tip_99_win": "按下 {highlight}Ctrl+Z{/highlight} 以撤销提示中的更改",
-    "tip_99_unix": "按下 {highlight}Ctrl+Z{/highlight} 以暂停终端并返回到您的 shell"
+    "tip_99_unix": "按下 {highlight}Ctrl+Z{/highlight} 以暂停终端并返回到您的 shell",
+    "tip_5_rewind": "Double-tap {highlight}Esc{/highlight} on an empty prompt or type {highlight}/rewind{/highlight} to restore code and conversation to any earlier point"
   },
   "session": {
     "interrupt": "中断",
@@ -185,7 +186,8 @@
     "failedToShare": "共享会话失败",
     "newline": "new line",
     "voice": "语音输入",
-    "promptFooterHint": "{{newlineKey}} 换行   {{voiceKey}} 语音输入"
+    "promptFooterHint": "{{newlineKey}} 换行   {{voiceKey}} 语音输入",
+    "escAgainToRewind": "again to rewind"
   },
   "commands": {
     "categories": {
@@ -282,7 +284,8 @@
     "skills": "Skills",
     "stashPrompt": "Stash prompt",
     "stashPop": "Stash pop",
-    "stashList": "Stash list"
+    "stashList": "Stash list",
+    "rewind": "Rewind"
   },
   "dialog": {
     "sessions": "会话",
@@ -423,7 +426,9 @@
     "failedToCopy": "复制到剪贴板失败",
     "failedToCopyConsoleSelection": "无法复制控制台选定内容到剪贴板：{{error}}",
     "noProviderForPrompts": "连接一个提供商以发送提示词",
-    "sessionCreateFailed": "创建会话失败。打开控制台查看更多详细信息。"
+    "sessionCreateFailed": "创建会话失败。打开控制台查看更多详细信息。",
+    "terminalAppUnsupported": "Terminal.app does not support truecolor\nTyped text will be invisible\nRun: brew install --cask iterm2",
+    "terminalAppUnsupportedTitle": "Unsupported Terminal"
   },
   "exitMessage": {
     "session": "会话",
@@ -457,5 +462,18 @@
       "backendTimeout": "后端在 5 秒内未启动转录会话。实时转录路由是否正在运行？",
       "serverError": "转录错误：{{error}}"
     }
+  },
+  "rewind": {
+    "title": "Rewind",
+    "subtitle": "Restore the code and/or conversation to the point before…",
+    "restoreCodeAndConversation": "Restore code and conversation",
+    "restoreConversation": "Restore conversation",
+    "restoreCode": "Restore code",
+    "summarizeFromHere": "Summarize from here",
+    "neverMind": "Never mind",
+    "warning": "⚠ Rewinding does not affect files edited manually or via bash",
+    "current": "(current)",
+    "noCodeChanges": "No code changes",
+    "confirmTitle": "Confirm you want to restore to the point before you sent this message:"
   }
 }
