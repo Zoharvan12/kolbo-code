@@ -1,0 +1,177 @@
+name: kolbo-desktop-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 1.0.0)"
+        required: true
+        default: "1.0.0"
+      draft:
+        description: "Create as draft release"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  KOLBO_VERSION: ${{ github.event.inputs.version }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            bundle: nsis
+            artifact-suffix: windows-x64
+          # - platform: macos-latest
+          #   rust-target: aarch64-apple-darwin
+          #   bundle: dmg
+          #   artifact-suffix: darwin-aarch64
+          # - platform: macos-13
+          #   rust-target: x86_64-apple-darwin
+          #   bundle: dmg
+          #   artifact-suffix: darwin-x64
+          # - platform: ubuntu-22.04
+          #   rust-target: x86_64-unknown-linux-gnu
+          #   bundle: deb
+          #   artifact-suffix: linux-x64
+
+    runs-on: ${{ matrix.platform }}
+    if: endsWith(github.repository, '/kolbo-code')
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: packages/desktop/src-tauri
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Set version
+        working-directory: packages/desktop
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            pkg.version = '${{ env.KOLBO_VERSION }}';
+            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "Version set to ${{ env.KOLBO_VERSION }}"
+
+      - name: Fix symlinks (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          cp packages/ui/src/custom-elements.d.ts packages/app/src/custom-elements.d.ts
+
+      - name: Apply Kolbo branding
+        run: |
+          cd packages/desktop
+          # Ensure tauri.conf.json has Kolbo Code branding
+          node -e "
+            const fs = require('fs');
+            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            conf.productName = 'Kolbo Code';
+            conf.identifier = 'ai.kolbo.code';
+            conf.mainBinaryName = 'Kolbo Code';
+            if (conf.plugins?.['deep-link']?.desktop) {
+              conf.plugins['deep-link'].desktop.schemes = ['kolbo-code'];
+            }
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
+          "
+          # Fix TypeScript globals
+          sed -i 's/__OPENCODE__/__KOLBO_CODE__/g' src/index.tsx src/updater.ts || true
+          sed -i 's/__OPENCODE__/__KOLBO_CODE__/g' src-tauri/src/windows.rs || true
+          sed -i 's/.title("OpenCode")/.title("Kolbo Code")/g' src-tauri/src/windows.rs || true
+
+      - name: Download CLI sidecar
+        working-directory: packages/desktop
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          mkdir -p src-tauri/sidecars
+          npm pack @kolbo/kolbo-code-${{ matrix.artifact-suffix == 'windows-x64' && 'windows-x64' || matrix.artifact-suffix }} --pack-destination /tmp/cli-pkg || true
+          # Fallback: install globally and copy
+          npm i -g @kolbo/kolbo-code@latest || true
+          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
+            KOLBO_BIN=$(npm config get prefix)/node_modules/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe
+            [ -f "$KOLBO_BIN" ] || KOLBO_BIN=$(npm config get prefix)/node_modules/@kolbo/kolbo-code-windows-x64-baseline/bin/kolbo.exe
+            cp "$KOLBO_BIN" src-tauri/sidecars/opencode-cli-${{ matrix.rust-target }}.exe || echo "Warning: CLI binary not found"
+          fi
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: packages/desktop
+          tauriScript: bunx tauri
+          args: --target ${{ matrix.rust-target }} --bundles ${{ matrix.bundle }}
+          tagName: desktop-v${{ env.KOLBO_VERSION }}
+          releaseName: "Kolbo Code v${{ env.KOLBO_VERSION }}"
+          releaseBody: |
+            ## Kolbo Code v${{ env.KOLBO_VERSION }}
+
+            AI coding agent desktop app by [Kolbo.AI](https://kolbo.ai)
+
+            ### Download
+            - **Windows**: `Kolbo Code_${{ env.KOLBO_VERSION }}_x64-setup.exe`
+
+            ### What's included
+            - Full native GUI with sessions, MCP, tool calls, file attachments
+            - RTL support (Arabic, Hebrew)
+            - 17 languages
+            - Light/dark mode
+            - Auto-updater
+
+            ### Install CLI separately
+            ```bash
+            npm i -g @kolbo/kolbo-code
+            ```
+          releaseDraft: ${{ github.event.inputs.draft }}
+          prerelease: false
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kolbo-code-${{ matrix.artifact-suffix }}
+          path: |
+            packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/**/*.exe
+            packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/**/*.dmg
+            packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/**/*.deb
+            packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/**/*.AppImage
+          retention-days: 30

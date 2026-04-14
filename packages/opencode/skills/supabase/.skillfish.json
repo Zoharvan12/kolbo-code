@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "supabase",
+  "owner": "supabase",
+  "repo": "agent-skills",
+  "path": "skills/supabase",
+  "branch": "main",
+  "sha": "512c575a9b68d271682f9a39a01e4e9ea1156fa1",
+  "source": "manual"
+}

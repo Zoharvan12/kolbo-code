@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "docx",
+  "owner": "tfriedel",
+  "repo": "claude-office-skills",
+  "path": "public/docx",
+  "branch": "main",
+  "sha": "37327c7e8d50c17a4937b5a6d04e57577ac99687",
+  "source": "manual"
+}

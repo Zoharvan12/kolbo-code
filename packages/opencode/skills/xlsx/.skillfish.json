@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "xlsx",
+  "owner": "tfriedel",
+  "repo": "claude-office-skills",
+  "path": "public/xlsx",
+  "branch": "main",
+  "sha": "b354761fc269d0c7df324edb2af9f1546fd8fa86",
+  "source": "manual"
+}

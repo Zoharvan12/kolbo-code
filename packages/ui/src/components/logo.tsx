@@ -1,16 +1,22 @@
 import { ComponentProps } from "solid-js"
 
+const K1 =
+  "M66.58.17c.92-.08,1.85-.13,2.77-.15,31.93-.72,58.76,17.64,69.26,47.85,4.38,12.59,3.67,24.74,3.71,37.81l.17,35.22c20.47-12.42,41.02-24.71,61.64-36.87l52.28-31.06c26.66-15.74,49.05-33.69,81.84-25.36,16.47,4.08,30.6,14.65,39.18,29.29,8.95,15.13,11.55,33.18,7.26,50.22-3.09,12.25-9.76,23.3-19.16,31.73-7.98,7.23-19.59,13.47-29.03,18.93l-29.54,17.11-116.52,67.76c-27.02,14.92-43.25,35.29-47.26,66.69-1.09,8.52-.71,19.49-.72,28.26v43.96c.04,23.37.04,40.52-15.36,59.79-40.68,50.89-119.72,26.02-126.46-37.91-.88-8.36-.57-16.61-.56-24.98l.03-36.6v-121.05s0-104.63,0-104.63l-.02-31.62c0-7.35-.24-15.44.7-22.64,1.61-12.74,6.71-24.78,14.75-34.79C29.14,10.22,45.35,2.35,66.58.17Z"
+
+const K2 =
+  "M230.46,247.18l.71-.07c18.22-1.57,40.46,5.25,54.11,17.39,7.12,6.33,13.67,12.77,20.47,19.47l33.35,33.18,20.89,20.64c5.43,5.34,12.95,12.32,17.02,18.53,6.45,9.85,10.79,22.69,11.77,34.4,1.59,19.48-4.58,38.81-17.16,53.77-12.15,14.11-29.34,22.9-47.89,24.47-20.18,1.26-40.14-3.82-55.82-16.78-5.28-4.38-10.61-9.88-15.53-14.76l-24.18-23.99-29.91-29.52c-18.52-18.33-32.12-30.07-34.93-57.93-1.96-18.77,3.66-37.55,15.62-52.15,13.28-16.18,30.92-24.52,51.49-26.64Z"
+
 export const Mark = (props: { class?: string }) => {
   return (
     <svg
       data-component="logo-mark"
       classList={{ [props.class ?? ""]: !!props.class }}
-      viewBox="0 0 16 20"
+      viewBox="0 0 389.03 469.15"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <path data-slot="logo-logo-mark-shadow" d="M12 16H4V8H12V16Z" fill="var(--icon-weak-base)" />
-      <path data-slot="logo-logo-mark-o" d="M12 4H4V16H12V4ZM16 20H0V0H16V20Z" fill="var(--icon-strong-base)" />
+      <path d={K1} fill="var(--icon-strong-base, currentColor)" />
+      <path d={K2} fill="var(--icon-strong-base, currentColor)" />
     </svg>
   )
 }
@@ -21,12 +27,12 @@ export const Splash = (props: Pick<ComponentProps<"svg">, "ref" | "class">) => {
       ref={props.ref}
       data-component="logo-splash"
       classList={{ [props.class ?? ""]: !!props.class }}
-      viewBox="0 0 80 100"
+      viewBox="0 0 389.03 469.15"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <path d="M60 80H20V40H60V80Z" fill="var(--icon-base)" />
-      <path d="M60 20H20V80H60V20ZM80 100H0V0H80V100Z" fill="var(--icon-strong-base)" />
+      <path d={K1} fill="var(--icon-base, currentColor)" />
+      <path d={K2} fill="var(--icon-base, currentColor)" />
     </svg>
   )
 }
@@ -35,28 +41,12 @@ export const Logo = (props: { class?: string }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 234 42"
+      viewBox="0 0 389.03 469.15"
       fill="none"
       classList={{ [props.class ?? ""]: !!props.class }}
     >
-      <g>
-        <path d="M18 30H6V18H18V30Z" fill="var(--icon-weak-base)" />
-        <path d="M18 12H6V30H18V12ZM24 36H0V6H24V36Z" fill="var(--icon-base)" />
-        <path d="M48 30H36V18H48V30Z" fill="var(--icon-weak-base)" />
-        <path d="M36 30H48V12H36V30ZM54 36H36V42H30V6H54V36Z" fill="var(--icon-base)" />
-        <path d="M84 24V30H66V24H84Z" fill="var(--icon-weak-base)" />
-        <path d="M84 24H66V30H84V36H60V6H84V24ZM66 18H78V12H66V18Z" fill="var(--icon-base)" />
-        <path d="M108 36H96V18H108V36Z" fill="var(--icon-weak-base)" />
-        <path d="M108 12H96V36H90V6H108V12ZM114 36H108V12H114V36Z" fill="var(--icon-base)" />
-        <path d="M144 30H126V18H144V30Z" fill="var(--icon-weak-base)" />
-        <path d="M144 12H126V30H144V36H120V6H144V12Z" fill="var(--icon-strong-base)" />
-        <path d="M168 30H156V18H168V30Z" fill="var(--icon-weak-base)" />
-        <path d="M168 12H156V30H168V12ZM174 36H150V6H174V36Z" fill="var(--icon-strong-base)" />
-        <path d="M198 30H186V18H198V30Z" fill="var(--icon-weak-base)" />
-        <path d="M198 12H186V30H198V12ZM204 36H180V6H198V0H204V36Z" fill="var(--icon-strong-base)" />
-        <path d="M234 24V30H216V24H234Z" fill="var(--icon-weak-base)" />
-        <path d="M216 12V18H228V12H216ZM234 24H216V30H234V36H210V6H234V24Z" fill="var(--icon-strong-base)" />
-      </g>
+      <path d={K1} fill="var(--icon-strong-base, currentColor)" />
+      <path d={K2} fill="var(--icon-strong-base, currentColor)" />
     </svg>
   )
 }

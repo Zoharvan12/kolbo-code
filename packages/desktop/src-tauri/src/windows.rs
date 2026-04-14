@@ -53,16 +53,16 @@ impl MainWindow {
             app,
             decorations,
         )
-        .title("Kodu")
+        .title("Kolbo Code")
         .disable_drag_drop_handler()
         .zoom_hotkeys_enabled(false)
         .visible(true)
         .maximized(true)
         .initialization_script(format!(
             r#"
-            window.__KODU__ ??= {{}};
-            window.__KODU__.updaterEnabled = {UPDATER_ENABLED};
-            window.__KODU__.wsl = {wsl_enabled};
+            window.__KOLBO_CODE__ ??= {{}};
+            window.__KOLBO_CODE__.updaterEnabled = {UPDATER_ENABLED};
+            window.__KOLBO_CODE__.wsl = {wsl_enabled};
           "#
         ));
 

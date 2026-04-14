@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Kodu Dev",
-  "identifier": "ai.kodu.desktop.dev",
-  "mainBinaryName": "Kodu",
+  "productName": "Kolbo Code",
+  "identifier": "ai.kolbo.code",
+  "mainBinaryName": "Kolbo Code",
   "version": "../package.json",
   "build": {
     "beforeDevCommand": "bun run dev",
@@ -52,14 +52,16 @@
       "nsis": {
         "installerIcon": "icons/dev/icon.ico",
         "headerImage": "assets/nsis-header.bmp",
-        "sidebarImage": "assets/nsis-sidebar.bmp"
+        "sidebarImage": "assets/nsis-sidebar.bmp",
+        "displayLanguageSelector": false,
+        "preinstallScript": "nsis-hooks.nsh"
       }
     }
   },
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["kodu"]
+        "schemes": ["kolbo-code"]
       }
     }
   }
