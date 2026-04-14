@@ -98,7 +98,7 @@ jobs:
 
       - name: Apply Kolbo branding
         working-directory: packages/desktop
-        run: node scripts/apply-branding.js
+        run: node scripts/apply-branding.cjs
 
       - name: Download CLI sidecar
         shell: bash
