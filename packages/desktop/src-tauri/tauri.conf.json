@@ -61,6 +61,12 @@
       "desktop": {
         "schemes": ["kolbo-code"]
       }
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/Zoharvan12/kolbo-code/releases/download/desktop-v{{current_version}}/latest.json"
+      ],
+      "pubkey": ""
     }
   }
 }
