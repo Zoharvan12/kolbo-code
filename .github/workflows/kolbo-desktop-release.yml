@@ -202,28 +202,20 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           TAG="desktop-v${{ env.KOLBO_VERSION }}"
           MACOS_DIR="packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos"
-          APP=$(find "${MACOS_DIR}" -maxdepth 1 -name "*.app" -type d | head -1)
-          if [ -z "${APP}" ]; then echo "⚠ No .app found"; ls "${MACOS_DIR}"; exit 1; fi
-
-          # Re-create the updater tar.gz from the .app bundle
-          APP_NAME=$(basename "${APP}")
-          TAR_PATH="${MACOS_DIR}/${APP_NAME}.tar.gz"
-          tar -czf "${TAR_PATH}" -C "${MACOS_DIR}" "${APP_NAME}"
-          echo "Created: $(basename ${TAR_PATH})"
-
-          # Sign with Tauri signer
-          cd packages/desktop
-          bunx tauri signer sign "${TAR_PATH}"
-          cd -
-
-          # Upload tar.gz + sig
-          gh release upload "${TAG}" "${TAR_PATH}" "${TAR_PATH}.sig" --clobber -R ${{ github.repository }}
-          echo "✓ Uploaded macOS update bundle"
+          # tauri-action creates and keeps .app.tar.gz + .sig (only cleans the .app dir)
+          TAR_PATH=$(find "${MACOS_DIR}" -maxdepth 1 -name "*.app.tar.gz" | head -1)
+          SIG_PATH="${TAR_PATH}.sig"
+          if [ -z "${TAR_PATH}" ] || [ ! -f "${TAR_PATH}" ]; then
+            echo "⚠ No .app.tar.gz found"; ls "${MACOS_DIR}"; exit 1
+          fi
+          if [ ! -f "${SIG_PATH}" ]; then
+            echo "⚠ No .sig found for ${TAR_PATH}"; exit 1
+          fi
+          gh release upload "${TAG}" "${TAR_PATH}" "${SIG_PATH}" --clobber -R ${{ github.repository }}
+          echo "✓ Uploaded macOS update bundle: $(basename ${TAR_PATH})"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
