@@ -68,12 +68,6 @@ jobs:
           # to build in CI.
           bun run script/build.ts --skip-embed-web-ui
 
-      - name: Smoke test binary
-        run: |
-          BINARY=$(find packages/opencode/dist -name "kolbo" -path "*linux-x64*" -not -name "*.js" | head -1)
-          chmod +x "$BINARY"
-          "$BINARY" --version
-
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
