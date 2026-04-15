@@ -131,7 +131,10 @@ export const SettingsGeneral: Component = () => {
                   label: language.t("toast.update.action.installRestart"),
                   onClick: async () => {
                     await platform.update!()
-                    await platform.restart!()
+                    // On Windows, NSIS installer handles relaunch — restart() would race it
+                    if (platform.os !== "windows") {
+                      await platform.restart!()
+                    }
                   },
                 },
                 {
