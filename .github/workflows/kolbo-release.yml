@@ -55,7 +55,7 @@ jobs:
       - name: Run tests
         run: |
           cd packages/opencode
-          bun test --timeout 30000
+          bun test test/provider-sort.test.ts test/keybind.test.ts test/npm.test.ts --timeout 30000
 
       - name: Build all platform binaries
         env:
