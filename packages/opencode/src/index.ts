@@ -7,6 +7,18 @@ if (!process.env.COLORTERM) {
   process.env.COLORTERM = "truecolor"
 }
 
+// On Windows, CMD and PowerShell default to non-UTF-8 code pages (e.g. CP1255
+// for Hebrew locales, CP437 for English). This causes any Unicode characters
+// outside the active code page — including Hebrew, Arabic, CJK, emoji — to
+// render as "???". Switch to UTF-8 (code page 65001) at startup so the TUI
+// displays all text correctly regardless of the user's locale.
+if (process.platform === "win32") {
+  try {
+    const { execSync } = await import("child_process")
+    execSync("chcp 65001", { stdio: "ignore" })
+  } catch {}
+}
+
 import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
 import { RunCommand } from "./cli/cmd/run"
