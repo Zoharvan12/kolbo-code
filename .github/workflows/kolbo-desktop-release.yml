@@ -32,11 +32,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: windows-latest-8-core
+          - platform: windows-latest
             rust-target: x86_64-pc-windows-msvc
             bundle: nsis
             artifact-suffix: windows-x64
-          - platform: macos-latest-xlarge
+          - platform: macos-latest
             rust-target: aarch64-apple-darwin
             bundle: dmg
             artifact-suffix: darwin-aarch64
