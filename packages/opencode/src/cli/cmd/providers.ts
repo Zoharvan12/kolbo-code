@@ -17,6 +17,8 @@ import { text } from "node:stream/consumers"
 import open from "open"
 import { Partner } from "../../brand/partner"
 import { assertPublicUrl } from "../../util/safe-url"
+export { ensureKolboMcpWired } from "../../mcp/wire"
+import { ensureKolboMcpWired } from "../../mcp/wire"
 
 const KOLBO_API_BASE = Partner.apiBase
 
@@ -118,105 +120,6 @@ If Kolbo tools timeout or aren't found, the MCP server may not be wired. Tell th
 \`\`\`
 This re-wires the MCP config automatically.
 `
-
-export async function ensureKolboMcpWired(): Promise<void> {
-  try {
-    const auth = await Auth.get("kolbo")
-    if (!auth) return
-
-    const apiKey = auth.type === "api" ? auth.key : auth.type === "oauth" ? auth.access : undefined
-    if (!apiKey) return
-
-    // Resolve the API base: stored metadata → partner profile (env/file) → null
-    // When null, the MCP runs against its own compiled-in default (production Kolbo).
-    const metadataApiBase = auth.type === "api" ? auth.metadata?.apiBase : undefined
-    const apiBase = metadataApiBase || (Partner.isWhitelabel ? Partner.apiBase : null)
-
-    const configDir = Global.Path.config
-    fs.mkdirSync(configDir, { recursive: true })
-
-    // Build MCP environment — include KOLBO_API_URL only for non-production
-    const mcpEnv: Record<string, string> = { KOLBO_API_KEY: apiKey }
-    if (apiBase) mcpEnv.KOLBO_API_URL = apiBase
-
-    // Inject MCP entry — always sync key and URL
-    const configFile = path.join(configDir, "kolbo.json")
-    let existing: Record<string, any> = {}
-    if (fs.existsSync(configFile)) {
-      try { existing = JSON.parse(fs.readFileSync(configFile, "utf8")) } catch {}
-    }
-    // Pin @latest so npx re-resolves against the npm registry on every
-    // launch instead of reusing its cache. This gives Kolbo MCP users
-    // auto-updates without us running any upgrade machinery ourselves.
-    // Offline? npx silently falls back to the cached version.
-    const expectedCommand = ["npx", "-y", "@kolbo/mcp@latest"]
-    const currentKey = existing.mcp?.kolbo?.environment?.KOLBO_API_KEY
-    const currentUrl = existing.mcp?.kolbo?.environment?.KOLBO_API_URL
-    const currentCommand = existing.mcp?.kolbo?.command
-    const commandDrift = JSON.stringify(currentCommand) !== JSON.stringify(expectedCommand)
-    const currentTimeout = existing.mcp?.kolbo?.timeout
-    let needsWrite = currentKey !== apiKey || currentUrl !== mcpEnv.KOLBO_API_URL || commandDrift || currentTimeout !== 1800000
-    if (needsWrite) {
-      existing.mcp = {
-        ...existing.mcp,
-        kolbo: {
-          type: "local",
-          command: expectedCommand,
-          environment: mcpEnv,
-          timeout: 1800000,
-        },
-      }
-    }
-
-    // Inject default MCPs — only add entries that don't already exist
-    const { DEFAULT_MCPS } = await import("../../mcp/catalog.js")
-    for (const [name, cfg] of Object.entries(DEFAULT_MCPS)) {
-      if (!existing.mcp?.[name]) {
-        existing.mcp = { ...existing.mcp, [name]: cfg }
-        needsWrite = true
-      }
-    }
-
-    if (needsWrite) {
-      // Atomic write pattern: tmp file → chmod → rename. Keeps readers
-      // from seeing a half-written kolbo.json (JSON parse errors) and
-      // closes the window where the file is briefly world-readable
-      // between writeFileSync and chmodSync.
-      // 0o600 is a no-op on Windows; OS-keystore migration is tracked
-      // separately.
-      writeJsonAtomic(configFile, existing, 0o600)
-    }
-
-    // Fetch the latest skill from kolbo-docs so we can ship skill updates
-    // without cutting a new CLI release. raw.githubusercontent.com has a
-    // ~5min CDN cache, so updates propagate within minutes of a commit.
-    // If the fetch fails (offline, GitHub down, broken commit), fall back
-    // to the compiled-in KOLBO_SKILL_MD so the skill is always present.
-    const skillDir = path.join(configDir, "skills", "kolbo")
-    fs.mkdirSync(skillDir, { recursive: true })
-    const skillDest = path.join(skillDir, "SKILL.md")
-
-    const SKILL_URL = "https://raw.githubusercontent.com/Zoharvan12/kolbo-docs/main/skills/kolbo/SKILL.md"
-    let skillContent = KOLBO_SKILL_MD
-    try {
-      const r = await fetch(SKILL_URL, { signal: AbortSignal.timeout(3000) })
-      if (r.ok) {
-        const remote = await r.text()
-        // Sanity check: the real skill file starts with YAML frontmatter.
-        // Guards against a GitHub error page being written as SKILL.md.
-        if (remote.startsWith("---")) skillContent = remote
-      }
-    } catch {}
-
-    let currentSkill: string | null = null
-    try { currentSkill = fs.readFileSync(skillDest, "utf8") } catch {}
-    if (currentSkill !== skillContent) {
-      fs.writeFileSync(skillDest, skillContent)
-    }
-  } catch {
-    // Non-fatal
-  }
-}
 
 async function kolboDeviceLogin(): Promise<string | null> {
   // 1. Request a device code from kolbo-api

@@ -44,7 +44,7 @@ import { JsonMigration } from "./storage/json-migration"
 import { Database } from "./storage/db"
 import { errorMessage } from "./util/error"
 import { PluginCommand } from "./cli/cmd/plug"
-import { ensureKolboMcpWired } from "./cli/cmd/providers"
+import { ensureKolboMcpWired } from "./mcp/wire"
 import { Heap } from "./cli/heap"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 
