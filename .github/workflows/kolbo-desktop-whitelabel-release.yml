@@ -194,7 +194,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
           VITE_WHITELABEL_SPLASH: /whitelabels/${{ env.WHITELABEL }}/splash.jpg
           VITE_WHITELABEL_LOGO: ${{ steps.wl.outputs.logo_image }}
           VITE_WHITELABEL_NAME: ${{ steps.wl.outputs.brand_name }}
@@ -223,7 +223,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: |
           $tag = "${{ env.WHITELABEL }}-desktop-v${{ env.KOLBO_VERSION }}"
           $nsisDir = Join-Path $env:GITHUB_WORKSPACE "packages\desktop\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis"
@@ -248,7 +248,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: |
           TAG="${{ env.WHITELABEL }}-desktop-v${{ env.KOLBO_VERSION }}"
           DMG_DIR="packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"

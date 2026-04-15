@@ -175,7 +175,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: |
           $tag = "desktop-v${{ env.KOLBO_VERSION }}"
           $nsisDir = Join-Path $env:GITHUB_WORKSPACE "packages\desktop\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis"
@@ -203,7 +203,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: |
           TAG="desktop-v${{ env.KOLBO_VERSION }}"
           DMG_DIR="packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
