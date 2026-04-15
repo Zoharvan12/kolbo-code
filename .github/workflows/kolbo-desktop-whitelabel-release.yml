@@ -343,3 +343,18 @@ jobs:
 
           gh release upload updater ${WHITELABEL}-latest.json --clobber -R "${REPO}"
           echo "✓ Update manifest published as ${WHITELABEL}-latest.json"
+
+          # Upload fixed-name installers for permanent "always latest" download links
+          WIN_EXE=$(find /tmp/assets -name "*.exe" ! -name "*.zip" | head -1)
+          MAC_DMG=$(find /tmp/assets -name "*.dmg" | head -1)
+
+          if [ -n "${WIN_EXE}" ]; then
+            cp "${WIN_EXE}" /tmp/${WHITELABEL}-setup.exe
+            gh release upload updater /tmp/${WHITELABEL}-setup.exe --clobber -R "${REPO}"
+            echo "✓ Uploaded ${WHITELABEL}-setup.exe (latest)"
+          fi
+          if [ -n "${MAC_DMG}" ]; then
+            cp "${MAC_DMG}" /tmp/${WHITELABEL}.dmg
+            gh release upload updater /tmp/${WHITELABEL}.dmg --clobber -R "${REPO}"
+            echo "✓ Uploaded ${WHITELABEL}.dmg (latest)"
+          fi

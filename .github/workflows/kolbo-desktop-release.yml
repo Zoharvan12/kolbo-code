@@ -306,3 +306,18 @@ jobs:
 
           gh release upload updater latest.json --clobber -R "${REPO}"
           echo "✓ Update manifest published to updater release"
+
+          # Upload fixed-name installers for permanent "always latest" download links
+          WIN_EXE=$(find /tmp/assets -name "*.exe" ! -name "*.zip" | head -1)
+          MAC_DMG=$(find /tmp/assets -name "*.dmg" | head -1)
+
+          if [ -n "${WIN_EXE}" ]; then
+            cp "${WIN_EXE}" /tmp/kolbo-code-setup.exe
+            gh release upload updater /tmp/kolbo-code-setup.exe --clobber -R "${REPO}"
+            echo "✓ Uploaded kolbo-code-setup.exe (latest)"
+          fi
+          if [ -n "${MAC_DMG}" ]; then
+            cp "${MAC_DMG}" /tmp/kolbo-code.dmg
+            gh release upload updater /tmp/kolbo-code.dmg --clobber -R "${REPO}"
+            echo "✓ Uploaded kolbo-code.dmg (latest)"
+          fi
