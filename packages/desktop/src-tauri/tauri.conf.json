@@ -66,7 +66,10 @@
       "endpoints": [
         "https://github.com/Zoharvan12/kolbo-code/releases/download/updater/latest.json"
       ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBMjM3NUExRTBGRjFDNEEKUldSS0hQL2dvWFVqK290bkM0QmllWmFSbDRlOWY2TFBldGpaM1djNFNaRTY4UDRleFVSbmpETHIK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBMjM3NUExRTBGRjFDNEEKUldSS0hQL2dvWFVqK290bkM0QmllWmFSbDRlOWY2TFBldGpaM1djNFNaRTY4UDRleFVSbmpETHIK",
+      "windows": {
+        "installMode": "basicUi"
+      }
     }
   }
 }
