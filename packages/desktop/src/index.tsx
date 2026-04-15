@@ -298,11 +298,11 @@ const createPlatform = (): Platform => {
       if (!UPDATER_ENABLED) return { updateAvailable: false }
       const next = await check().catch(() => null)
       if (!next) return { updateAvailable: false }
-      const ok = await next
-        .download()
-        .then(() => true)
-        .catch(() => false)
-      if (!ok) return { updateAvailable: false }
+      if (ostype() !== "windows") {
+        // macOS/Linux: pre-download so install() is instant
+        const ok = await next.download().then(() => true).catch(() => false)
+        if (!ok) return { updateAvailable: false }
+      }
       update = next
       return { updateAvailable: true, version: next.version }
     },
@@ -311,10 +311,21 @@ const createPlatform = (): Platform => {
       if (!UPDATER_ENABLED || !update) return
       await commands.killSidecar().catch(() => undefined)
       await update.install().catch(() => undefined)
-      // On Windows/NSIS the installer handles relaunch; on macOS relaunch manually
-      if (ostype() !== "windows") {
-        await relaunch()
-      }
+      await relaunch()
+    },
+
+    installUpdate: async (onProgress: (p: { downloaded: number; total: number | null }) => void) => {
+      if (!UPDATER_ENABLED || !update) return
+      // Get the .nsis.zip URL from the update manifest and derive the .exe URL
+      const platforms = (update.rawJson as Record<string, unknown>)?.platforms as Record<string, { url: string }> | undefined
+      const zipUrl = platforms?.["windows-x86_64"]?.url
+      if (!zipUrl) throw new Error("No Windows update URL found")
+      const exeUrl = zipUrl.replace(".nsis.zip", ".exe")
+      await commands.killSidecar().catch(() => undefined)
+      const { Channel } = await import("@tauri-apps/api/core")
+      const ch = new Channel<{ downloaded: number; total: number | null }>()
+      ch.onmessage = (msg) => onProgress(msg)
+      await commands.installUpdate(exeUrl, ch)
     },
 
     restart: async () => {

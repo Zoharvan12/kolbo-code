@@ -55,6 +55,9 @@ export type Platform = {
   /** Install updates (Tauri only) */
   update?(): Promise<void>
 
+  /** Download and install update with progress (Windows desktop only) */
+  installUpdate?(onProgress: (p: { downloaded: number; total: number | null }) => void): Promise<void>
+
   /** Fetch override */
   fetch?: typeof fetch
 

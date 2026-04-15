@@ -489,6 +489,7 @@ export const dict = {
   "toast.update.description": `A new version of ${BRAND} ({{version}}) is now available to install.`,
   "toast.update.action.installRestart": "Install and restart",
   "toast.update.action.notYet": "Not yet",
+  "toast.update.downloading": "Downloading update... {{pct}}%",
 
   "error.page.title": "Something went wrong",
   "error.page.description": "An error occurred while loading the application.",

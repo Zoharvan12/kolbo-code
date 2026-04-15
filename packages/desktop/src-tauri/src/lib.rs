@@ -320,6 +320,75 @@ fn get_default_download_dir() -> String {
         .unwrap_or_else(|| ".".to_string())
 }
 
+#[derive(Clone, serde::Serialize, specta::Type)]
+struct UpdateDownloadProgress {
+    downloaded: u64,
+    total: Option<u64>,
+}
+
+#[tauri::command]
+#[specta::specta]
+async fn install_update(
+    app: AppHandle,
+    url: String,
+    on_progress: tauri::ipc::Channel<UpdateDownloadProgress>,
+) -> Result<(), String> {
+    use futures::StreamExt;
+
+    let client = reqwest::Client::builder()
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch update: {e}"))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
+
+    let total = resp.content_length();
+
+    let filename = url
+        .split('/')
+        .last()
+        .and_then(|s| s.split('?').next())
+        .unwrap_or("update-installer.exe")
+        .to_string();
+
+    let dest = std::env::temp_dir().join(&filename);
+
+    let mut downloaded = 0u64;
+    let mut file_bytes = Vec::new();
+    let mut stream = resp.bytes_stream();
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| format!("Download error: {e}"))?;
+        downloaded += chunk.len() as u64;
+        file_bytes.extend_from_slice(&chunk);
+        let _ = on_progress.send(UpdateDownloadProgress {
+            downloaded,
+            total,
+        });
+    }
+
+    tokio::fs::write(&dest, &file_bytes)
+        .await
+        .map_err(|e| format!("Failed to save installer: {e}"))?;
+
+    // Launch the installer independently — no special NSIS flags
+    std::process::Command::new(&dest)
+        .spawn()
+        .map_err(|e| format!("Failed to launch installer: {e}"))?;
+
+    // Graceful app exit
+    app.exit(0);
+
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 async fn download_file(url: String, dest_dir: String) -> Result<String, String> {
@@ -488,7 +557,8 @@ fn make_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             get_default_download_dir,
             download_file,
             reveal_in_folder,
-            read_text_file
+            read_text_file,
+            install_update
         ])
         .events(tauri_specta::collect_events![
             LoadingWindowComplete,

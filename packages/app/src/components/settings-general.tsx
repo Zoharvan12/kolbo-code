@@ -1,4 +1,4 @@
-import { Component, Show, createMemo, createResource, onMount, type JSX } from "solid-js"
+import { Component, Show, createMemo, createResource, createSignal, onMount, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Button } from "@opencode-ai/ui/button"
 import { Icon } from "@opencode-ai/ui/icon"
@@ -7,7 +7,7 @@ import { Switch } from "@opencode-ai/ui/switch"
 import { TextField } from "@opencode-ai/ui/text-field"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme/context"
-import { showToast } from "@opencode-ai/ui/toast"
+import { showToast, toaster, Toast } from "@opencode-ai/ui/toast"
 import { useParams } from "@solidjs/router"
 import { useLanguage, FLAG_MAP } from "@/context/language"
 import { usePermission } from "@/context/permission"
@@ -129,11 +129,24 @@ export const SettingsGeneral: Component = () => {
             ? [
                 {
                   label: language.t("toast.update.action.installRestart"),
-                  onClick: async () => {
-                    await platform.update!()
-                    // On Windows, NSIS installer handles relaunch — restart() would race it
-                    if (platform.os !== "windows") {
-                      await platform.restart!()
+                  onClick: () => {
+                    if (platform.installUpdate) {
+                      // Windows: stream download with progress, then NSIS installer auto-launches
+                      const [pct, setPct] = createSignal(0)
+                      toaster.show((props) => (
+                        <Toast toastId={props.toastId} persistent>
+                          <Toast.Content>
+                            <Toast.Title>
+                              {language.t("toast.update.downloading", { pct: pct() })}
+                            </Toast.Title>
+                          </Toast.Content>
+                        </Toast>
+                      ))
+                      void platform.installUpdate!((p) => {
+                        if (p.total) setPct(Math.round((p.downloaded / p.total) * 100))
+                      }).catch(console.error)
+                    } else {
+                      void platform.update!().then(() => platform.restart!()).catch(console.error)
                     }
                   },
                 },
