@@ -47,6 +47,11 @@
       0 1px 3px 0 rgba(19, 16, 16, 0.08);
 
     transform: translateX(-1px);
+
+    [dir="rtl"] & {
+      transform: translateX(1px);
+    }
+
     transition:
       transform 150ms,
       background-color 150ms;
@@ -101,6 +106,10 @@
     border: none;
     transform: translateX(12px);
     background-color: var(--icon-invert-base);
+
+    [dir="rtl"] & {
+      transform: translateX(-12px);
+    }
   }
 
   &[data-checked]:hover:not([data-disabled], [data-readonly]) [data-slot="switch-control"] {
