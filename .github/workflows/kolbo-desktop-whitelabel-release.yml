@@ -345,16 +345,25 @@ jobs:
           echo "✓ Update manifest published as ${WHITELABEL}-latest.json"
 
           # Upload fixed-name installers for permanent "always latest" download links
+          # Read downloadSlug from whitelabel config (checkout needed — use inline node)
+          # Since we don't have the repo checked out here, derive slug from WHITELABEL env
+          # Convention: downloadSlug is stored in the config.json; fall back to WHITELABEL slug
+          DOWNLOAD_SLUG="${WHITELABEL}-code"
+          case "${WHITELABEL}" in
+            sapir) DOWNLOAD_SLUG="sapir-code" ;;
+            *) DOWNLOAD_SLUG="${WHITELABEL}-code" ;;
+          esac
+
           WIN_EXE=$(find /tmp/assets -name "*.exe" ! -name "*.zip" | head -1)
           MAC_DMG=$(find /tmp/assets -name "*.dmg" | head -1)
 
           if [ -n "${WIN_EXE}" ]; then
-            cp "${WIN_EXE}" /tmp/${WHITELABEL}-setup.exe
-            gh release upload updater /tmp/${WHITELABEL}-setup.exe --clobber -R "${REPO}"
-            echo "✓ Uploaded ${WHITELABEL}-setup.exe (latest)"
+            cp "${WIN_EXE}" /tmp/${DOWNLOAD_SLUG}-setup.exe
+            gh release upload updater /tmp/${DOWNLOAD_SLUG}-setup.exe --clobber -R "${REPO}"
+            echo "✓ Uploaded ${DOWNLOAD_SLUG}-setup.exe (latest)"
           fi
           if [ -n "${MAC_DMG}" ]; then
-            cp "${MAC_DMG}" /tmp/${WHITELABEL}.dmg
-            gh release upload updater /tmp/${WHITELABEL}.dmg --clobber -R "${REPO}"
-            echo "✓ Uploaded ${WHITELABEL}.dmg (latest)"
+            cp "${MAC_DMG}" /tmp/${DOWNLOAD_SLUG}.dmg
+            gh release upload updater /tmp/${DOWNLOAD_SLUG}.dmg --clobber -R "${REPO}"
+            echo "✓ Uploaded ${DOWNLOAD_SLUG}.dmg (latest)"
           fi

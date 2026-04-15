@@ -4,6 +4,7 @@
   "mainBinaryName": "Sapir AI Code",
   "deepLinkScheme": "sapir-ai",
   "brandName": "Sapir AI Code",
+  "downloadSlug": "sapir-code",
   "splashImage": "/whitelabels/sapir/splash.jpg",
   "logoImage": "/whitelabels/sapir/logo.svg",
   "faviconImage": "/whitelabels/sapir/favicon-96x96.png",
