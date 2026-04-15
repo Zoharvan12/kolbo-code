@@ -391,9 +391,20 @@ export default function Layout(props: ParentProps) {
             actions: [
               {
                 label: language.t("toast.update.action.installRestart"),
-                onClick: async () => {
-                  await platform.update!()
-                  await platform.restart!()
+                onClick: () => {
+                  if (platform.installUpdate) {
+                    void platform.installUpdate((p) => {}).catch((err: unknown) => {
+                      const msg = err instanceof Error ? err.message : String(err)
+                      showToast({ title: "Update failed", description: msg })
+                    })
+                  } else {
+                    void platform.update!()
+                      .then(() => platform.restart!())
+                      .catch((err: unknown) => {
+                        const msg = err instanceof Error ? err.message : String(err)
+                        showToast({ title: "Update failed", description: msg })
+                      })
+                  }
                 },
               },
               {
