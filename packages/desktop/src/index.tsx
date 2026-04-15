@@ -309,8 +309,12 @@ const createPlatform = (): Platform => {
 
     update: async () => {
       if (!UPDATER_ENABLED || !update) return
-      if (ostype() === "windows") await commands.killSidecar().catch(() => undefined)
+      await commands.killSidecar().catch(() => undefined)
       await update.install().catch(() => undefined)
+      // On Windows/NSIS the installer handles relaunch; on macOS relaunch manually
+      if (ostype() !== "windows") {
+        await relaunch()
+      }
     },
 
     restart: async () => {

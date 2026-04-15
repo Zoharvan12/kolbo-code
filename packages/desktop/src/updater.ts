@@ -39,13 +39,15 @@ export async function runUpdater({ alertOnFail }: { alertOnFail: boolean }) {
   if (!shouldUpdate) return
 
   try {
-    if (ostype() === "windows") await commands.killSidecar()
+    await commands.killSidecar()
     await update.install()
   } catch {
     await message(t("desktop.updater.installFailed.message"), { title: t("desktop.updater.installFailed.title") })
     return
   }
 
-  await commands.killSidecar()
-  await relaunch()
+  // On Windows/NSIS the installer handles relaunch itself; on macOS we need to relaunch manually
+  if (ostype() !== "windows") {
+    await relaunch()
+  }
 }
