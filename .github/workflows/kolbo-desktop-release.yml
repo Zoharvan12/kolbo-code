@@ -176,13 +176,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "desktop-v${{ env.KOLBO_VERSION }}"
-          $dir = "packages\desktop\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis"
+          $dir = Join-Path $env:GITHUB_WORKSPACE "packages\desktop\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis"
+          Write-Host "Looking in: $dir"
           $zip = Get-ChildItem $dir -Filter "*.nsis.zip" | Select-Object -First 1
           if ($zip) {
             gh release upload $tag $zip.FullName "$($zip.FullName).sig" --clobber -R ${{ github.repository }}
             Write-Host "✓ Uploaded: $($zip.Name)"
           } else {
-            Write-Host "⚠ No .nsis.zip found in $dir"
+            Write-Host "⚠ No .nsis.zip found — contents:"
             Get-ChildItem $dir
           }
 
