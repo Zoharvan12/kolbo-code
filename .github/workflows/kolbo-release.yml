@@ -52,6 +52,11 @@ jobs:
         # Review manually before tagging `latest`.
         run: bun audit || true
 
+      - name: Run tests
+        run: |
+          cd packages/opencode
+          bun test --timeout 30000
+
       - name: Build all platform binaries
         env:
           KODU_CHANNEL: ${{ github.event.inputs.tag || 'dev' }}
@@ -62,6 +67,12 @@ jobs:
           # web UI keeps the binary lean and removes the need for packages/app
           # to build in CI.
           bun run script/build.ts --skip-embed-web-ui
+
+      - name: Smoke test binary
+        run: |
+          BINARY=$(find packages/opencode/dist -name "kolbo" -not -name "*.js" | head -1)
+          chmod +x "$BINARY"
+          "$BINARY" --version
 
       - name: Publish to npm
         env:

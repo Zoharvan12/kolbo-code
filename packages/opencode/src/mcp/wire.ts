@@ -109,7 +109,7 @@ This re-wires the MCP config automatically.
 
 export async function ensureKolboMcpWired(): Promise<void> {
   try {
-    const auth = await Auth.get("kolbo")
+    const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
     if (!auth) return
 
     const apiKey = auth.type === "api" ? auth.key : auth.type === "oauth" ? auth.access : undefined
