@@ -144,9 +144,17 @@ export const SettingsGeneral: Component = () => {
                       ))
                       void platform.installUpdate!((p) => {
                         if (p.total) setPct(Math.round((p.downloaded / p.total) * 100))
-                      }).catch(console.error)
+                      }).catch((err: unknown) => {
+                        const msg = err instanceof Error ? err.message : String(err)
+                        showToast({ title: "Update failed", description: msg })
+                      })
                     } else {
-                      void platform.update!().then(() => platform.restart!()).catch(console.error)
+                      void platform.update!()
+                        .then(() => platform.restart!())
+                        .catch((err: unknown) => {
+                          const msg = err instanceof Error ? err.message : String(err)
+                          showToast({ title: "Update failed", description: msg })
+                        })
                     }
                   },
                 },
