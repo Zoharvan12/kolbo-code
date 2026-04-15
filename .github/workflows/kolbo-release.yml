@@ -70,7 +70,7 @@ jobs:
 
       - name: Smoke test binary
         run: |
-          BINARY=$(find packages/opencode/dist -name "kolbo" -not -name "*.js" | head -1)
+          BINARY=$(find packages/opencode/dist -name "kolbo" -path "*linux-x64*" -not -name "*.js" | head -1)
           chmod +x "$BINARY"
           "$BINARY" --version
 

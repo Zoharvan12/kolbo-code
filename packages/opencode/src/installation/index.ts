@@ -269,10 +269,10 @@ export namespace Installation {
               result = yield* upgradeCurl(target)
               break
             case "npm":
-              result = yield* run(["npm", "install", "-g", `@kolbo/kolbo-code@${target}`])
+              result = yield* run(["npm", "install", "-g", "--prefer-online", `@kolbo/kolbo-code@${target}`])
               break
             case "pnpm":
-              result = yield* run(["pnpm", "install", "-g", `@kolbo/kolbo-code@${target}`])
+              result = yield* run(["pnpm", "install", "-g", "--prefer-online", `@kolbo/kolbo-code@${target}`])
               break
             case "bun":
               result = yield* run(["bun", "install", "-g", `@kolbo/kolbo-code@${target}`])
