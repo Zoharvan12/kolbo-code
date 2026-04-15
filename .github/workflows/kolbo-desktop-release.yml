@@ -174,35 +174,56 @@ jobs:
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           $tag = "desktop-v${{ env.KOLBO_VERSION }}"
-          $dir = Join-Path $env:GITHUB_WORKSPACE "packages\desktop\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis"
-          Write-Host "Looking in: $dir"
-          $zip = Get-ChildItem $dir | Where-Object { $_.Name -like "*.nsis.zip" } | Select-Object -First 1
-          if ($zip) {
-            gh release upload $tag $zip.FullName "$($zip.FullName).sig" --clobber -R ${{ github.repository }}
-            Write-Host "✓ Uploaded: $($zip.Name)"
-          } else {
-            Write-Host "⚠ No .nsis.zip found — contents:"
-            Get-ChildItem $dir
-          }
+          $nsisDir = Join-Path $env:GITHUB_WORKSPACE "packages\desktop\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis"
+          $exe = Get-ChildItem $nsisDir -Filter "*.exe" | Select-Object -First 1
+          if (-not $exe) { Write-Host "⚠ No .exe found"; Get-ChildItem $nsisDir; exit 1 }
+
+          # Re-create the updater zip from the installer (tauri-action deletes the original)
+          $zipName = [System.IO.Path]::GetFileNameWithoutExtension($exe.FullName) + ".nsis.zip"
+          $zipPath = Join-Path $nsisDir $zipName
+          Compress-Archive -Path $exe.FullName -DestinationPath $zipPath -Force
+          Write-Host "Created: $zipName ($([math]::Round((Get-Item $zipPath).Length/1MB,1)) MB)"
+
+          # Sign with Tauri signer
+          Set-Location (Join-Path $env:GITHUB_WORKSPACE "packages\desktop")
+          bunx tauri signer sign $zipPath
+          Set-Location $env:GITHUB_WORKSPACE
+
+          # Upload zip + sig
+          gh release upload $tag $zipPath "$zipPath.sig" --clobber -R ${{ github.repository }}
+          Write-Host "✓ Uploaded update bundle"
 
       - name: Upload update bundles to release (macOS)
         if: matrix.platform == 'macos-latest'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           TAG="desktop-v${{ env.KOLBO_VERSION }}"
-          DIR="packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos"
-          TAR=$(find "${DIR}" -name "*.app.tar.gz" | head -1)
-          if [ -f "${TAR}" ]; then
-            gh release upload "${TAG}" "${TAR}" "${TAR}.sig" --clobber -R ${{ github.repository }}
-            echo "✓ Uploaded: $(basename ${TAR})"
-          else
-            echo "⚠ No .app.tar.gz found in ${DIR}"
-            ls "${DIR}" || true
-          fi
+          MACOS_DIR="packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos"
+          APP=$(find "${MACOS_DIR}" -maxdepth 1 -name "*.app" -type d | head -1)
+          if [ -z "${APP}" ]; then echo "⚠ No .app found"; ls "${MACOS_DIR}"; exit 1; fi
+
+          # Re-create the updater tar.gz from the .app bundle
+          APP_NAME=$(basename "${APP}")
+          TAR_PATH="${MACOS_DIR}/${APP_NAME}.tar.gz"
+          tar -czf "${TAR_PATH}" -C "${MACOS_DIR}" "${APP_NAME}"
+          echo "Created: $(basename ${TAR_PATH})"
+
+          # Sign with Tauri signer
+          cd packages/desktop
+          bunx tauri signer sign "${TAR_PATH}"
+          cd -
+
+          # Upload tar.gz + sig
+          gh release upload "${TAG}" "${TAR_PATH}" "${TAR_PATH}.sig" --clobber -R ${{ github.repository }}
+          echo "✓ Uploaded macOS update bundle"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
