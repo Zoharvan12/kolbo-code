@@ -1,13 +1,13 @@
 ---
 name: remotion-best-practices
-description: Best practices for Remotion - Video creation in React
+description: Best practices for Remotion - Video creation in React. Use for announcement videos, product reveals, multi-scene videos, cinematic effects, camera shake, whip pan, beat-driven timing, brand videos, and launch videos.
 metadata:
-  tags: remotion, video, react, animation, composition
+  tags: remotion, video, react, animation, composition, motion-design, cinematic, camera, beat-driven, whip-pan, announcement, product-reveal
 ---
 
 ## When to use
 
-Use this skills whenever you are dealing with Remotion code to obtain the domain-specific knowledge.
+Use this skill whenever you are dealing with Remotion code to obtain the domain-specific knowledge. Also use for any cinematic, beat-driven, or production-quality video work.
 
 ## Captions
 
@@ -59,3 +59,4 @@ Read individual rule files for detailed explanations and code examples:
 - [rules/parameters.md](rules/parameters.md) - Make a video parametrizable by adding a Zod schema
 - [rules/maps.md](rules/maps.md) - Add a map using Mapbox and animate it
 - [rules/voiceover.md](rules/voiceover.md) - Adding AI-generated voiceover to Remotion compositions using ElevenLabs TTS
+- [rules/motion-design.md](rules/motion-design.md) - Cinematic motion design: beat-driven timeline, camera rig, whip pan, masked word reveal, impact flash, narrative rules
