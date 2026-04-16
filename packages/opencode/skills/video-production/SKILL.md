@@ -79,6 +79,7 @@ Step 2: chat_send_message({
 
 **Critical**: `media_urls` must be an array `[url]` using the `url` field (not `thumbnail_url`).
 **Omit `model`** — Smart Select detects video/audio and auto-routes to Gemini.
+**Sessions do NOT remember media between messages.** Every `chat_send_message` that needs video analysis must include `media_urls`. If retrying, reuse the same CDN `url` from `upload_media` — no need to re-upload, but you MUST pass `media_urls` again.
 
 **Batch analysis (many videos)**: Pass `model: "gemini-3.1-flash-lite-preview"` explicitly to use the faster, cheaper vision model instead of Smart Select. Same quality for straightforward description tasks, significantly lower credit cost at scale.
 
