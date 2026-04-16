@@ -244,20 +244,31 @@ function setupPreviewClick(root: HTMLDivElement) {
   return () => root.removeEventListener("click", handleClick)
 }
 
+function getLangLabel(block: HTMLPreElement): string {
+  const code = block.querySelector("code")
+  const langClass = Array.from(code?.classList ?? []).find((c) => c.startsWith("language-"))
+  return langClass?.replace("language-", "") ?? ""
+}
+
 function ensureCodeWrapper(block: HTMLPreElement, labels: CopyLabels) {
   const parent = block.parentElement
   if (!parent) return
   const previewLang = getPreviewLang(block)
+  const lang = getLangLabel(block)
   const wrapped = parent.getAttribute("data-component") === "markdown-code"
   if (!wrapped) {
     const wrapper = document.createElement("div")
     wrapper.setAttribute("data-component", "markdown-code")
+    if (lang) wrapper.setAttribute("data-language", lang)
     parent.replaceChild(wrapper, block)
     wrapper.appendChild(block)
     wrapper.appendChild(createCopyButton(labels))
     if (previewLang) wrapper.appendChild(createPreviewButton(labels.preview))
     return
   }
+  // Update language label on already-wrapped blocks
+  if (lang) parent.setAttribute("data-language", lang)
+  else parent.removeAttribute("data-language")
 
   // Ensure exactly one copy button
   const copyButtons = Array.from(parent.querySelectorAll('[data-slot="markdown-copy-button"]')).filter(

@@ -623,6 +623,7 @@ export const dict = {
   "sidebar.project.clearNotifications": "清除通知",
   "sidebar.empty.title": "没有打开的项目",
   "sidebar.empty.description": "打开一个项目以开始",
+  "sidebar.sessions.empty": "暂无会话",
   "debugBar.ariaLabel": "开发性能诊断",
   "debugBar.na": "不适用",
   "debugBar.nav.label": "导航",

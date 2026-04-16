@@ -26,7 +26,7 @@
     align-items: flex-start;
     align-self: stretch;
     min-width: 0;
-    gap: 18px;
+    gap: 24px;
     overflow-anchor: none;
   }
 
@@ -105,6 +105,17 @@
     flex-direction: column;
     align-self: stretch;
     gap: 12px;
+
+    [data-component="tool-trigger"] {
+      border-left: 2px solid var(--border-interactive-base);
+      padding-left: 10px;
+      border-radius: 0 4px 4px 0;
+      transition: border-color 0.15s ease;
+
+      &:hover {
+        border-left-color: var(--border-interactive-hover);
+      }
+    }
   }
 
   [data-slot="session-turn-diffs"] {
@@ -246,5 +257,5 @@
 }
 
 [data-slot="session-turn-list"] {
-  gap: 48px;
+  gap: 56px;
 }

@@ -35,6 +35,10 @@ export function ResizeHandle(props: ResizeHandleProps) {
     document.body.style.userSelect = "none"
     document.body.style.overflow = "hidden"
 
+    // Prevent iframes from stealing mousemove events during drag
+    const iframes = Array.from(document.querySelectorAll<HTMLIFrameElement>("iframe"))
+    iframes.forEach((f) => (f.style.pointerEvents = "none"))
+
     const onMouseMove = (moveEvent: MouseEvent) => {
       const pos = local.direction === "horizontal" ? moveEvent.clientX : moveEvent.clientY
       const delta =
@@ -53,6 +57,7 @@ export function ResizeHandle(props: ResizeHandleProps) {
     const onMouseUp = () => {
       document.body.style.userSelect = ""
       document.body.style.overflow = ""
+      iframes.forEach((f) => (f.style.pointerEvents = ""))
       document.removeEventListener("mousemove", onMouseMove)
       document.removeEventListener("mouseup", onMouseUp)
 

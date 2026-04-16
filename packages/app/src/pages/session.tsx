@@ -2048,10 +2048,10 @@ export default function Page() {
               <ResizeHandle
                 direction="horizontal"
                 size={layout.session.width()}
-                min={450}
-                max={typeof window === "undefined" ? 1000 : window.innerWidth * 0.45}
+                min={280}
+                max={typeof window === "undefined" ? 1000 : window.innerWidth * 0.75}
                 onResize={(width) => {
-                  size.touch()
+                  size.start()
                   layout.session.resize(width)
                 }}
               />

@@ -623,6 +623,7 @@ export const dict = {
   "sidebar.project.clearNotifications": "알림 지우기",
   "sidebar.empty.title": "열려 있는 프로젝트가 없습니다",
   "sidebar.empty.description": "시작하려면 프로젝트를 열어주세요",
+  "sidebar.sessions.empty": "아직 세션이 없습니다",
   "debugBar.ariaLabel": "개발 성능 진단",
   "debugBar.na": "해당 없음",
   "debugBar.nav.label": "NAV",

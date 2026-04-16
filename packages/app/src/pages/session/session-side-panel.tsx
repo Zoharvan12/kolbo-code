@@ -301,12 +301,11 @@ export function SessionSidePanel(props: {
                           <IconButton
                             icon="close-small"
                             variant="ghost"
-                            class="h-5 w-5"
+                            class="h-6 w-6 opacity-60 hover:opacity-100"
                             onClick={() => props.onArtifactClose()}
                             aria-label={language.t("common.closeTab")}
                           />
                         }
-                        hideCloseButton
                       >
                         {language.t("session.tab.artifacts")}
                       </Tabs.Trigger>

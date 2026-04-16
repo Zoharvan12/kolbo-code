@@ -626,6 +626,7 @@ export const dict = {
   "sidebar.project.clearNotifications": "Bildirimleri temizle",
   "sidebar.empty.title": "Açık proje yok",
   "sidebar.empty.description": "Başlamak için bir proje açın",
+  "sidebar.sessions.empty": "Henüz oturum yok",
   "debugBar.ariaLabel": "Geliştirme performansı teşhisi",
   "debugBar.na": "yok",
   "debugBar.nav.label": "NAV",

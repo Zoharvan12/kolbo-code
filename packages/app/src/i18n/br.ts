@@ -623,6 +623,7 @@ export const dict = {
   "sidebar.project.clearNotifications": "Limpar notificações",
   "sidebar.empty.title": "Nenhum projeto aberto",
   "sidebar.empty.description": "Abra um projeto para começar",
+  "sidebar.sessions.empty": "Nenhuma sessão ainda",
   "debugBar.ariaLabel": "Diagnóstico de desempenho de desenvolvimento",
   "debugBar.na": "n/a",
   "debugBar.nav.label": "NAV",

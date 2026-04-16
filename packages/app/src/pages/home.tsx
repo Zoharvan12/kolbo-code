@@ -118,20 +118,22 @@ export default function Home() {
         </Match>
         <Match when={!sync.ready}>
           <div class="mt-30 mx-auto flex flex-col items-center gap-3">
-            <div class="text-12-regular text-text-weak">{language.t("common.loading")}</div>
-            <Button class="px-3" onClick={chooseProject}>
+            <div class="text-12-regular text-text-subtle">{language.t("common.loading")}</div>
+            <Button class="px-4" onClick={chooseProject}>
               {language.t("command.project.open")}
             </Button>
           </div>
         </Match>
         <Match when={true}>
-          <div class="mt-30 mx-auto flex flex-col items-center gap-3">
-            <Icon name="folder-add-left" size="large" />
-            <div class="flex flex-col gap-1 items-center justify-center">
-              <div class="text-14-medium text-text-strong">{language.t("home.empty.title")}</div>
-              <div class="text-12-regular text-text-weak">{language.t("home.empty.description")}</div>
+          <div class="mt-30 mx-auto flex flex-col items-center gap-4">
+            <div class="flex items-center justify-center size-14 rounded-2xl bg-surface-base ring-1 ring-border-weak-base">
+              <Icon name="folder-add-left" size="large" class="text-icon-weak-base" />
             </div>
-            <Button class="px-3 mt-1" onClick={chooseProject}>
+            <div class="flex flex-col gap-1.5 items-center justify-center text-center">
+              <div class="text-14-medium text-text-strong">{language.t("home.empty.title")}</div>
+              <div class="text-12-regular text-text-weak max-w-xs">{language.t("home.empty.description")}</div>
+            </div>
+            <Button class="px-4" onClick={chooseProject}>
               {language.t("command.project.open")}
             </Button>
           </div>
