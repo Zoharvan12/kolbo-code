@@ -261,14 +261,19 @@ for (const item of targets) {
 }
 
 if (Script.release) {
+  // Create archives with flat names (strip @kolbo/ scope) in dist/release/
+  const releaseDir = path.resolve("dist/release")
+  fs.mkdirSync(releaseDir, { recursive: true })
   for (const key of Object.keys(binaries)) {
+    const flatName = key.replace("@kolbo/", "")
+    const binDir = path.resolve(`dist/${key}/bin`)
     if (key.includes("linux")) {
-      await $`tar -czf ../../${key}.tar.gz *`.cwd(`dist/${key}/bin`)
+      await $`tar -czf ${releaseDir}/${flatName}.tar.gz -C ${binDir} .`
     } else {
-      await $`zip -r ../../${key}.zip *`.cwd(`dist/${key}/bin`)
+      await $`cd ${binDir} && zip -r ${releaseDir}/${flatName}.zip .`
     }
   }
-  await $`gh release upload v${Script.version} ./dist/*.zip ./dist/*.tar.gz --clobber --repo ${process.env.GH_REPO}`
+  await $`gh release upload v${Script.version} dist/release/*.zip dist/release/*.tar.gz --clobber --repo ${process.env.GH_REPO}`
 }
 
 export { binaries }

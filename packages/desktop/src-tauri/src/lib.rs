@@ -594,6 +594,19 @@ async fn initialize(app: AppHandle) {
     setup_app(&app, init_rx);
     spawn_cli_sync_task(app.clone());
 
+    // Check for CLI sidecar updates before spawning (15s timeout, graceful fallback)
+    match tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        cli::check_and_update_sidecar(&app),
+    )
+    .await
+    {
+        Ok(Ok(true)) => tracing::info!("CLI sidecar updated to latest version"),
+        Ok(Ok(false)) => tracing::debug!("CLI sidecar already up to date"),
+        Ok(Err(e)) => tracing::warn!("CLI update check failed: {e}, using bundled version"),
+        Err(_) => tracing::warn!("CLI update check timed out, using bundled version"),
+    }
+
     // Spawn sidecar immediately - credentials are known before health check
     let port = get_sidecar_port();
     let hostname = "127.0.0.1";

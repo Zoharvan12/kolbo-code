@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -57,10 +57,23 @@ jobs:
           cd packages/opencode
           bun test test/provider-sort.test.ts test/keybind.test.ts test/npm.test.ts --timeout 30000
 
+      - name: Create GitHub release for binary assets
+        if: github.event.inputs.tag == 'latest' && github.event.inputs.version != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --notes "Release v${VERSION}" \
+            --latest 2>/dev/null || echo "Release v${VERSION} already exists"
+
       - name: Build all platform binaries
         env:
           KODU_CHANNEL: ${{ github.event.inputs.tag || 'dev' }}
           KODU_VERSION: ${{ github.event.inputs.version }}
+          KODU_RELEASE: ${{ github.event.inputs.tag == 'latest' && 'true' || '' }}
+          GH_REPO: ${{ github.repository }}
         run: |
           cd packages/opencode
           # Build for every target in script/build.ts. Skipping the embedded

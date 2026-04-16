@@ -217,6 +217,195 @@ pub fn sync_cli(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+// ─── Sidecar Auto-Update ─────────────────────────────────────────────────────
+// On startup, check if a newer CLI version is published and download the
+// platform binary from GitHub releases to replace the bundled sidecar.
+
+/// Map compile target to the npm binary package suffix used in GitHub release
+/// asset names (e.g. "kolbo-code-windows-x64").
+fn get_platform_slug() -> &'static str {
+    cfg_if::cfg_if! {
+        if #[cfg(all(target_os = "windows", target_arch = "x86_64"))] {
+            "kolbo-code-windows-x64"
+        } else if #[cfg(all(target_os = "windows", target_arch = "aarch64"))] {
+            "kolbo-code-windows-arm64"
+        } else if #[cfg(all(target_os = "macos", target_arch = "aarch64"))] {
+            "kolbo-code-darwin-arm64"
+        } else if #[cfg(all(target_os = "macos", target_arch = "x86_64"))] {
+            "kolbo-code-darwin-x64"
+        } else if #[cfg(all(target_os = "linux", target_arch = "x86_64"))] {
+            "kolbo-code-linux-x64"
+        } else if #[cfg(all(target_os = "linux", target_arch = "aarch64"))] {
+            "kolbo-code-linux-arm64"
+        } else {
+            "kolbo-code-unknown"
+        }
+    }
+}
+
+fn get_sidecar_version(sidecar: &std::path::Path) -> Result<semver::Version, String> {
+    let output = std::process::Command::new(sidecar)
+        .arg("--version")
+        .output()
+        .map_err(|e| format!("Failed to run sidecar --version: {e}"))?;
+    if !output.status.success() {
+        return Err("sidecar --version returned non-zero".into());
+    }
+    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    semver::Version::parse(&raw)
+        .map_err(|e| format!("Failed to parse sidecar version '{raw}': {e}"))
+}
+
+async fn fetch_latest_version() -> Result<semver::Version, String> {
+    #[derive(serde::Deserialize)]
+    struct NpmLatest {
+        version: String,
+    }
+    let url = "https://registry.npmjs.org/@kolbo/kolbo-code/latest";
+    let resp = reqwest::get(url)
+        .await
+        .map_err(|e| format!("npm registry fetch failed: {e}"))?;
+    let pkg: NpmLatest = resp
+        .json()
+        .await
+        .map_err(|e| format!("npm registry JSON parse failed: {e}"))?;
+    semver::Version::parse(&pkg.version)
+        .map_err(|e| format!("Failed to parse latest version '{}': {e}", pkg.version))
+}
+
+async fn download_bytes(url: &str) -> Result<Vec<u8>, String> {
+    let resp = reqwest::get(url)
+        .await
+        .map_err(|e| format!("Download failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("Download returned HTTP {}", resp.status()));
+    }
+    resp.bytes()
+        .await
+        .map(|b| b.to_vec())
+        .map_err(|e| format!("Failed to read download body: {e}"))
+}
+
+fn extract_zip(data: &[u8], dest: &std::path::Path) -> Result<(), String> {
+    let cursor = std::io::Cursor::new(data);
+    let mut archive =
+        zip::ZipArchive::new(cursor).map_err(|e| format!("Failed to open zip: {e}"))?;
+    archive
+        .extract(dest)
+        .map_err(|e| format!("Failed to extract zip: {e}"))
+}
+
+fn extract_tar_gz(data: &[u8], dest: &std::path::Path) -> Result<(), String> {
+    let cursor = std::io::Cursor::new(data);
+    let gz = flate2::read::GzDecoder::new(cursor);
+    let mut archive = tar::Archive::new(gz);
+    archive
+        .unpack(dest)
+        .map_err(|e| format!("Failed to extract tar.gz: {e}"))
+}
+
+fn find_binary_in_dir(dir: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    let names: &[&str] = if cfg!(windows) {
+        &["kolbo.exe", "kodu.exe", "opencode-cli.exe"]
+    } else {
+        &["kolbo", "kodu", "opencode-cli"]
+    };
+    for name in names {
+        let candidate = dir.join(name);
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    // If not found at top level, try one level deeper (archives may nest a bin/ dir)
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                for name in names {
+                    let candidate = entry.path().join(name);
+                    if candidate.exists() {
+                        return Ok(candidate);
+                    }
+                }
+            }
+        }
+    }
+    Err(format!("Binary not found in extracted archive at {:?}", dir))
+}
+
+/// Check for a newer CLI version and download it to replace the sidecar.
+/// Returns `Ok(true)` if updated, `Ok(false)` if already up to date.
+pub async fn check_and_update_sidecar(app: &tauri::AppHandle) -> Result<bool, String> {
+    if cfg!(debug_assertions) {
+        tracing::debug!("Skipping sidecar update check in debug build");
+        return Ok(false);
+    }
+
+    let sidecar_path = get_sidecar_path(app);
+    if !sidecar_path.exists() {
+        return Err("Sidecar binary not found".into());
+    }
+
+    // 1. Current sidecar version
+    let current = get_sidecar_version(&sidecar_path)?;
+
+    // 2. Latest published version
+    let latest = fetch_latest_version().await?;
+
+    // 3. Compare
+    if current >= latest {
+        tracing::info!(%current, %latest, "Sidecar is up to date");
+        return Ok(false);
+    }
+
+    tracing::info!(%current, %latest, "Newer CLI available — downloading update");
+
+    // 4. Build download URL
+    let slug = get_platform_slug();
+    let ext = if cfg!(target_os = "linux") {
+        "tar.gz"
+    } else {
+        "zip"
+    };
+    let url = format!(
+        "https://github.com/Zoharvan12/kolbo-code/releases/download/v{latest}/{slug}.{ext}"
+    );
+
+    // 5. Download
+    let data = download_bytes(&url).await?;
+    tracing::info!(bytes = data.len(), "Downloaded CLI binary archive");
+
+    // 6. Extract to temp dir
+    let temp_dir = tempfile::tempdir().map_err(|e| format!("tempdir: {e}"))?;
+    if ext == "zip" {
+        extract_zip(&data, temp_dir.path())?;
+    } else {
+        extract_tar_gz(&data, temp_dir.path())?;
+    }
+
+    // 7. Find the binary in the extracted archive
+    let extracted_bin = find_binary_in_dir(temp_dir.path())?;
+
+    // 8. Replace sidecar (copy to a temp file next to it, then rename for atomicity)
+    let sidecar_tmp = sidecar_path.with_extension("tmp");
+    std::fs::copy(&extracted_bin, &sidecar_tmp)
+        .map_err(|e| format!("Failed to copy new binary: {e}"))?;
+    std::fs::rename(&sidecar_tmp, &sidecar_path)
+        .map_err(|e| format!("Failed to rename new binary into place: {e}"))?;
+
+    // 9. Set executable permissions on Unix
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&sidecar_path, std::fs::Permissions::from_mode(0o755))
+            .map_err(|e| format!("Failed to set permissions: {e}"))?;
+    }
+
+    tracing::info!(%latest, "Sidecar updated successfully");
+    Ok(true)
+}
+
+// ─── End Sidecar Auto-Update ─────────────────────────────────────────────────
+
 fn get_user_shell() -> String {
     std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())
 }
