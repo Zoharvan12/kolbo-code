@@ -18,21 +18,26 @@ const MIN_ZOOM_LEVEL = 0.2
 
 const clamp = (value: number) => Math.min(Math.max(value, MIN_ZOOM_LEVEL), MAX_ZOOM_LEVEL)
 
+const ZOOM_STEP = 0.2
+
 const applyZoom = (next: number) => {
   setWebviewZoom(next)
   void window.api.setZoomFactor(next)
 }
+
+const zoomIn = () => applyZoom(clamp(webviewZoom() + ZOOM_STEP))
+const zoomOut = () => applyZoom(clamp(webviewZoom() - ZOOM_STEP))
 
 window.addEventListener("keydown", (event) => {
   if (!(OS_NAME === "macos" ? event.metaKey : event.ctrlKey)) return
 
   let newZoom = webviewZoom()
 
-  if (event.key === "-") newZoom -= 0.2
-  if (event.key === "=" || event.key === "+") newZoom += 0.2
+  if (event.key === "-") newZoom -= ZOOM_STEP
+  if (event.key === "=" || event.key === "+") newZoom += ZOOM_STEP
   if (event.key === "0") newZoom = 1
 
   applyZoom(clamp(newZoom))
 })
 
-export { webviewZoom }
+export { webviewZoom, zoomIn, zoomOut }

@@ -21,7 +21,7 @@ import { render } from "solid-js/web"
 import pkg from "../../package.json"
 import { initI18n, t } from "./i18n"
 import { UPDATER_ENABLED } from "./updater"
-import { webviewZoom } from "./webview-zoom"
+import { webviewZoom, zoomIn, zoomOut } from "./webview-zoom"
 import "./styles.css"
 import { useTheme } from "@opencode-ai/ui/theme"
 
@@ -225,9 +225,27 @@ const createPlatform = (): Platform => {
     parseMarkdown: (markdown: string) => window.api.parseMarkdownCommand(markdown),
 
     webviewZoom,
+    zoomIn,
+    zoomOut,
 
     checkAppExists: async (appName: string) => {
       return window.api.checkAppExists(appName)
+    },
+
+    async getDownloadFolder() {
+      return window.api.getDownloadFolder()
+    },
+
+    async setDownloadFolder(folderPath: string) {
+      return window.api.setDownloadFolder(folderPath)
+    },
+
+    async downloadFile(url: string, destDir: string) {
+      return window.api.downloadFile(url, destDir)
+    },
+
+    async revealFile(filePath: string) {
+      return window.api.revealFile(filePath)
     },
 
     async readClipboardImage() {

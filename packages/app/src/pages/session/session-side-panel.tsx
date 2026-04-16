@@ -13,6 +13,7 @@ import { ConstrainDragYAxis, getDraggableId } from "@/utils/solid-dnd"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 
 import FileTree from "@/components/file-tree"
+import { ArtifactPreviewTab, type ArtifactData } from "@/components/artifact-preview"
 import { SessionContextUsage } from "@/components/session-context-usage"
 import { SessionContextTab, SortableTab, FileVisual } from "@/components/session"
 import { useCommand } from "@/context/command"
@@ -37,6 +38,10 @@ export function SessionSidePanel(props: {
   focusReviewDiff: (path: string) => void
   reviewSnap: boolean
   size: Sizing
+  artifact: () => ArtifactData | null
+  artifactsTabActive: () => boolean
+  onArtifactsTabDeactivate: () => void
+  onArtifactClose: () => void
 }) {
   const layout = useLayout()
   const file = useFile()
@@ -130,6 +135,11 @@ export function SessionSidePanel(props: {
   const activeTab = tabState.activeTab
   const activeFileTab = tabState.activeFileTab
 
+  // Override active tab when artifacts tab is requested
+  const effectiveActiveTab = createMemo(() =>
+    props.artifactsTabActive() && props.artifact() ? "artifacts" : activeTab(),
+  )
+
   const fileTreeTab = () => layout.fileTree.tab()
 
   const setFileTreeTabValue = (value: string) => {
@@ -220,7 +230,13 @@ export function SessionSidePanel(props: {
               >
                 <DragDropSensors />
                 <ConstrainDragYAxis />
-                <Tabs value={activeTab()} onChange={openTab}>
+                <Tabs
+                  value={effectiveActiveTab()}
+                  onChange={(tab) => {
+                    props.onArtifactsTabDeactivate()
+                    openTab(tab)
+                  }}
+                >
                   <div class="sticky top-0 shrink-0 flex">
                     <Tabs.List
                       ref={(el: HTMLDivElement) => {
@@ -229,7 +245,19 @@ export function SessionSidePanel(props: {
                       }}
                     >
                       <Show when={reviewTab() && props.canReview()}>
-                        <Tabs.Trigger value="review">
+                        <Tabs.Trigger
+                          value="review"
+                          closeButton={
+                            <IconButton
+                              icon="close-small"
+                              variant="ghost"
+                              class="h-5 w-5"
+                              onClick={() => view().reviewPanel.close()}
+                              aria-label={language.t("common.closeTab")}
+                            />
+                          }
+                          hideCloseButton
+                        >
                           <div class="flex items-center gap-1.5">
                             <div>{language.t("session.tab.review")}</div>
                             <Show when={props.hasReview()}>
@@ -266,6 +294,22 @@ export function SessionSidePanel(props: {
                           </div>
                         </Tabs.Trigger>
                       </Show>
+                      <Tabs.Trigger
+                        value="artifacts"
+                        style={{ display: props.artifact() ? undefined : "none" }}
+                        closeButton={
+                          <IconButton
+                            icon="close-small"
+                            variant="ghost"
+                            class="h-5 w-5"
+                            onClick={() => props.onArtifactClose()}
+                            aria-label={language.t("common.closeTab")}
+                          />
+                        }
+                        hideCloseButton
+                      >
+                        {language.t("session.tab.artifacts")}
+                      </Tabs.Trigger>
                       <SortableProvider ids={openedTabs()}>
                         <For each={openedTabs()}>{(tab) => <SortableTab tab={tab} onTabClose={tabs().close} />}</For>
                       </SortableProvider>
@@ -294,12 +338,12 @@ export function SessionSidePanel(props: {
 
                   <Show when={reviewTab() && props.canReview()}>
                     <Tabs.Content value="review" class="flex flex-col h-full overflow-hidden contain-strict">
-                      <Show when={activeTab() === "review"}>{props.reviewPanel()}</Show>
+                      <Show when={effectiveActiveTab() === "review"}>{props.reviewPanel()}</Show>
                     </Tabs.Content>
                   </Show>
 
                   <Tabs.Content value="empty" class="flex flex-col h-full overflow-hidden contain-strict">
-                    <Show when={activeTab() === "empty"}>
+                    <Show when={effectiveActiveTab() === "empty"}>
                       <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
                         <div class="h-full px-6 pb-42 -mt-4 flex flex-col items-center justify-center text-center gap-6">
                           <Mark class="w-14 opacity-10" />
@@ -313,13 +357,19 @@ export function SessionSidePanel(props: {
 
                   <Show when={contextOpen()}>
                     <Tabs.Content value="context" class="flex flex-col h-full overflow-hidden contain-strict">
-                      <Show when={activeTab() === "context"}>
+                      <Show when={effectiveActiveTab() === "context"}>
                         <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
                           <SessionContextTab />
                         </div>
                       </Show>
                     </Tabs.Content>
                   </Show>
+
+                  <Tabs.Content value="artifacts" class="flex flex-col h-full overflow-hidden contain-strict">
+                    <Show when={props.artifact()} keyed>
+                      {(art) => <ArtifactPreviewTab artifact={art} />}
+                    </Show>
+                  </Tabs.Content>
 
                   <Show when={activeFileTab()} keyed>
                     {(tab) => <FileTabContent tab={tab} />}

@@ -5,7 +5,7 @@ import { showToast } from "./toast"
 import DOMPurify from "dompurify"
 import morphdom from "morphdom"
 import { checksum } from "@opencode-ai/util/encode"
-import { ComponentProps, createEffect, createResource, createSignal, onCleanup, splitProps } from "solid-js"
+import { ComponentProps, createEffect, createResource, createSignal, on, onCleanup, splitProps } from "solid-js"
 import { isServer } from "solid-js/web"
 import { stream } from "./markdown-stream"
 
@@ -89,6 +89,7 @@ const config = {
 const iconPaths = {
   copy: '<path d="M6.2513 6.24935V2.91602H17.0846V13.7493H13.7513M13.7513 6.24935V17.0827H2.91797V6.24935H13.7513Z" stroke="currentColor" stroke-linecap="round"/>',
   check: '<path d="M5 11.9657L8.37838 14.7529L15 5.83398" stroke="currentColor" stroke-linecap="square"/>',
+  eye: '<path d="M10 4.5C5.5 4.5 2 10 2 10C2 10 5.5 15.5 10 15.5C14.5 15.5 18 10 18 10C18 10 14.5 4.5 10 4.5Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.5" stroke="currentColor"/>',
 }
 
 function sanitize(html: string) {
@@ -112,6 +113,7 @@ function fallback(markdown: string) {
 type CopyLabels = {
   copy: string
   copied: string
+  preview: string
 }
 
 type DownloadLabels = {
@@ -179,9 +181,73 @@ function setCopyState(button: HTMLButtonElement, labels: CopyLabels, copied: boo
   button.setAttribute("data-tooltip", labels.copy)
 }
 
+/** Detect if a <pre> block contains previewable content (HTML, SVG, Mermaid). */
+function getPreviewLang(block: HTMLPreElement): "html" | "svg" | "mermaid" | null {
+  const code = block.querySelector("code")
+  if (!code) return null
+  const text = code.textContent ?? ""
+  if (!text.trim()) return null
+
+  const langClass = Array.from(code.classList).find((c) => c.startsWith("language-"))
+  const lang = langClass?.replace("language-", "") ?? ""
+
+  const isFullHtmlDoc = /^\s*<!doctype html>/i.test(text)
+  const hasHtmlTag = /<html[\s>]/i.test(text)
+  const hasSvgTag = /<svg[\s\S]*?>/i.test(text)
+  const isSvgDoc = /^\s*<\?xml[^>]*\?>\s*<svg/i.test(text)
+
+  if (lang === "html" || isFullHtmlDoc || hasHtmlTag) return "html"
+  if (lang === "svg" || hasSvgTag || isSvgDoc) return "svg"
+  if (
+    (lang === "mermaid" || lang === "mmd") &&
+    /^(graph|flowchart|sequenceDiagram|gantt|pie|classDiagram|stateDiagram|gitGraph|journey|quadrantChart|requirement|mindmap|timeline|sankey|xychart|architecture)/i.test(
+      text.trim(),
+    )
+  )
+    return "mermaid"
+  return null
+}
+
+function createPreviewButton(label: string) {
+  const button = document.createElement("button")
+  button.type = "button"
+  button.setAttribute("data-component", "icon-button")
+  button.setAttribute("data-variant", "secondary")
+  button.setAttribute("data-size", "small")
+  button.setAttribute("data-slot", "markdown-preview-button")
+  button.setAttribute("aria-label", label)
+  button.setAttribute("data-tooltip", label)
+  button.appendChild(createIcon(iconPaths.eye, "preview-icon"))
+  return button
+}
+
+function setupPreviewClick(root: HTMLDivElement) {
+  const handleClick = (event: MouseEvent) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const button = target.closest('[data-slot="markdown-preview-button"]')
+    if (!(button instanceof HTMLButtonElement)) return
+    const wrapper = button.closest('[data-component="markdown-code"]')
+    if (!wrapper) return
+    const code = wrapper.querySelector("code")
+    const content = code?.textContent ?? ""
+    if (!content) return
+    const pre = wrapper.querySelector("pre")
+    const lang = pre ? (getPreviewLang(pre as HTMLPreElement) ?? "html") : "html"
+    document.dispatchEvent(
+      new CustomEvent("kolbo:artifact", {
+        detail: { content, lang },
+      }),
+    )
+  }
+  root.addEventListener("click", handleClick)
+  return () => root.removeEventListener("click", handleClick)
+}
+
 function ensureCodeWrapper(block: HTMLPreElement, labels: CopyLabels) {
   const parent = block.parentElement
   if (!parent) return
+  const previewLang = getPreviewLang(block)
   const wrapped = parent.getAttribute("data-component") === "markdown-code"
   if (!wrapped) {
     const wrapper = document.createElement("div")
@@ -189,20 +255,30 @@ function ensureCodeWrapper(block: HTMLPreElement, labels: CopyLabels) {
     parent.replaceChild(wrapper, block)
     wrapper.appendChild(block)
     wrapper.appendChild(createCopyButton(labels))
+    if (previewLang) wrapper.appendChild(createPreviewButton(labels.preview))
     return
   }
 
-  const buttons = Array.from(parent.querySelectorAll('[data-slot="markdown-copy-button"]')).filter(
+  // Ensure exactly one copy button
+  const copyButtons = Array.from(parent.querySelectorAll('[data-slot="markdown-copy-button"]')).filter(
     (el): el is HTMLButtonElement => el instanceof HTMLButtonElement,
   )
-
-  if (buttons.length === 0) {
+  if (copyButtons.length === 0) {
     parent.appendChild(createCopyButton(labels))
-    return
+  }
+  for (const button of copyButtons.slice(1)) {
+    button.remove()
   }
 
-  for (const button of buttons.slice(1)) {
-    button.remove()
+  // Ensure exactly one preview button when previewable, none otherwise
+  const previewButtons = Array.from(parent.querySelectorAll('[data-slot="markdown-preview-button"]')).filter(
+    (el): el is HTMLButtonElement => el instanceof HTMLButtonElement,
+  )
+  if (previewLang) {
+    if (previewButtons.length === 0) parent.appendChild(createPreviewButton(labels.preview))
+    for (const button of previewButtons.slice(1)) button.remove()
+  } else {
+    for (const button of previewButtons) button.remove()
   }
 }
 
@@ -458,6 +534,7 @@ const downloadIconSvg =
 
 const videoExtPattern = /\.(mp4|webm|mov|avi|mkv|m4v)(\?.*)?$/i
 const audioExtPattern = /\.(mp3|wav|ogg|m4a|aac|flac|opus|wma)(\?.*)?$/i
+const imageExtPattern = /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)(\?.*)?$/i
 
 function makeDraggable(el: HTMLElement, url: string) {
   el.draggable = true
@@ -621,6 +698,57 @@ function wrapMarkdownImages(root: HTMLDivElement, dlLabels: DownloadLabels): voi
 }
 
 /**
+ * Finds <a> tags linking to image URLs and inserts an <img> preview below them,
+ * using the same data-media-wrapper/lightbox conventions as wrapMarkdownImages.
+ */
+function wrapMarkdownImageLinks(root: HTMLDivElement, dlLabels: DownloadLabels): void {
+  const anchors = Array.from(root.querySelectorAll("a[href]"))
+  for (const anchor of anchors) {
+    if (!(anchor instanceof HTMLAnchorElement)) continue
+    const href = anchor.getAttribute("href") ?? ""
+    if (!imageExtPattern.test(href)) continue
+    if (anchor.closest("[data-image-link-wrapper]")) continue
+
+    const wrapper = document.createElement("div")
+    wrapper.setAttribute("data-image-link-wrapper", href)
+    wrapper.setAttribute("data-media-wrapper", href)
+    wrapper.setAttribute("data-lightbox-src", href)
+    wrapper.style.cssText = "position:relative;display:block;max-width:100%;margin-top:8px"
+
+    const img = document.createElement("img")
+    img.src = href
+    img.alt = anchor.textContent ?? ""
+    img.style.cssText =
+      "display:block;max-width:100%;max-height:400px;border-radius:8px;" +
+      "border:1px solid var(--border-weak-base);cursor:zoom-in"
+
+    const overlay = document.createElement("div")
+    overlay.setAttribute("data-media-overlay", "")
+    overlay.style.cssText =
+      "position:absolute;top:8px;right:8px;display:flex;gap:4px;" +
+      "opacity:0;transition:opacity 0.15s;pointer-events:none;transform:translateY(2px)"
+
+    const btn = document.createElement("button")
+    btn.type = "button"
+    btn.title = dlLabels.download
+    btn.setAttribute("data-md-download", href)
+    btn.style.cssText =
+      "display:flex;align-items:center;justify-content:center;" +
+      "width:28px;height:28px;border-radius:4px;" +
+      "border:1px solid rgba(255,255,255,0.2);" +
+      "background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);color:white;" +
+      "cursor:pointer;pointer-events:auto"
+    btn.innerHTML = downloadIconSvg
+
+    overlay.appendChild(btn)
+    makeDraggable(wrapper, href)
+    wrapper.appendChild(img)
+    wrapper.appendChild(overlay)
+    anchor.insertAdjacentElement("afterend", wrapper)
+  }
+}
+
+/**
  * Opens a full-screen lightbox overlay for the given image src.
  * Clicking the backdrop or pressing Escape closes it.
  */
@@ -729,6 +857,7 @@ function decorate(root: HTMLDivElement, labels: CopyLabels, dlLabels: DownloadLa
   markDeadAnchors(root)
   insertHtmlFileCards(root)
   wrapMarkdownImages(root, dlLabels)
+  wrapMarkdownImageLinks(root, dlLabels)
   wrapMarkdownVideos(root, dlLabels)
   wrapMarkdownAudio(root, dlLabels)
 }
@@ -737,7 +866,7 @@ function decorate(root: HTMLDivElement, labels: CopyLabels, dlLabels: DownloadLa
  * Wire up event delegation for local path clicks (openPath) and HTML card opens.
  * Returns a cleanup function.
  */
-function setupPathLinks(
+export function setupPathLinks(
   root: HTMLDivElement,
   getOps: () => { openPath?: (p: string) => void; openLink?: (u: string) => void; fetch?: typeof window.fetch },
   getDlLabels: () => DownloadLabels,
@@ -983,6 +1112,7 @@ export function Markdown(
 
   let copyCleanup: (() => void) | undefined
   let pathLinksCleanup: (() => void) | undefined
+  let previewCleanup: (() => void) | undefined
 
   createEffect(() => {
     const container = root()
@@ -998,6 +1128,7 @@ export function Markdown(
     const labels = {
       copy: i18n.t("ui.message.copy"),
       copied: i18n.t("ui.message.copied"),
+      preview: i18n.t("ui.artifact.preview"),
     }
     const dlLabels: DownloadLabels = {
       download: i18n.t("ui.download.download"),
@@ -1034,7 +1165,10 @@ export function Markdown(
       copyCleanup = setupCodeCopy(container, () => ({
         copy: i18n.t("ui.message.copy"),
         copied: i18n.t("ui.message.copied"),
+        preview: i18n.t("ui.artifact.preview"),
       }))
+
+    if (!previewCleanup) previewCleanup = setupPreviewClick(container)
 
     if (!pathLinksCleanup)
       pathLinksCleanup = setupPathLinks(container, () => ops, () => ({
@@ -1051,8 +1185,35 @@ export function Markdown(
     void hydrateHtmlPreviews(container, ops)
   })
 
+  // Auto-dispatch kolbo:artifact when streaming ends and a previewable block is present
+  createEffect(
+    on(
+      () => local.streaming ?? false,
+      (now, prev) => {
+        if (prev !== true || now !== false) return
+        const container = root()
+        if (!container || isServer) return
+        const blocks = Array.from(container.querySelectorAll("pre"))
+        for (let i = blocks.length - 1; i >= 0; i--) {
+          const lang = getPreviewLang(blocks[i] as HTMLPreElement)
+          if (!lang) continue
+          const content = (blocks[i] as HTMLPreElement).querySelector("code")?.textContent ?? ""
+          if (!content) continue
+          document.dispatchEvent(
+            new CustomEvent("kolbo:artifact", {
+              detail: { content, lang, autoOpen: true },
+            }),
+          )
+          break
+        }
+      },
+      { defer: true },
+    ),
+  )
+
   onCleanup(() => {
     if (copyCleanup) copyCleanup()
+    if (previewCleanup) previewCleanup()
     if (pathLinksCleanup) pathLinksCleanup()
   })
 

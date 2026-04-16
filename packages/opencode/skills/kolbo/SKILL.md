@@ -98,12 +98,36 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 
 ### Cost Awareness
 
-Creative generations bill against the user's Kolbo credit balance. Order of expense (rough):
-- **Cheap & fast**: speech (~5-30s), sound effects (~5-30s), image (~10-30s), transcription (by duration)
-- **Medium**: music (~30s-2min), 3D (~1-3min)
-- **Expensive**: video (~1-5min, highest credit cost), lipsync (~1-3min)
+Creative generations bill against the user's Kolbo credit balance. **Billing units differ by type** — always apply the correct formula before generating.
 
-Rule of thumb: confirm intent before firing off a video generation unless the user was explicit. For images, just generate.
+| Type | Billing unit | Credit range | Example |
+|------|-------------|-------------|---------|
+| **Image** | per image (flat) | 1–30 cr | Flux.1 Fast = 1 cr, Midjourney = 4 cr, 4K variants cost more |
+| **Image edit** | per image (flat) | 2–20 cr | |
+| **Video** | **cr/s × duration** | 2–30 cr/s | Kandinsky 5 Fast × 5s = 10 cr; Seedance 2.0 × 10s = 300 cr |
+| **Video from image** | **cr/s × duration** | 4–30 cr/s | Same per-second rule as text-to-video |
+| **Lipsync** | **cr/s × duration** | 5–20 cr/s | |
+| **Music** | per generation (flat) | 15–60 cr | Suno v5 = 15 cr; ElevenLabs Music = 60 cr |
+| **Speech (TTS)** | per 100 characters | 2–5 cr/100 chars | ElevenLabs (5) × 500 chars = 25 cr; Google (2) × 500 chars = 10 cr |
+| **Sound effects** | per generation (flat) | 4–7 cr | |
+| **3D model** | per model (flat) | 5–300 cr | Trellis = 5 cr; Meshy v6 = 150 cr; Marble 1.1 = 300 cr |
+| **Transcription (stt)** | per minute of audio | model.credit × duration_minutes | |
+
+**Calculation formulas — always apply before generating:**
+- **Video / Lipsync**: `total = model_credit_per_second × duration_seconds`
+  - Always call `list_models` first to get the exact `credit` value, then multiply by the requested duration.
+  - Never assume the credit shown is a flat per-generation cost for these types.
+- **Music**: flat per generation — `total = model_credit` (duration does not change the cost).
+- **TTS**: `total = model_credit × ceil(character_count / 100)`
+  - Count the actual characters in the text before estimating. 1000 chars with ElevenLabs = 50 credits.
+- **Images / 3D / Sound effects**: `total = model_credit × quantity`
+
+**When to confirm before generating:**
+- Any video or lipsync generation — always state the estimated credit cost before firing. Formula: `credit/s × seconds`.
+- Music — state the flat credit cost (from `list_models`) before generating.
+- TTS with more than 500 characters — mention the cost first.
+- 3D models with `credit ≥ 100` — confirm before generating.
+- Images: just generate unless the balance is low.
 
 ### Rate Limiting
 Kolbo enforces **10 generation requests per minute per user per tool type** (e.g. 10 image calls + 10 video calls = fine, but 11 image calls in 1 minute = rate limited). General media requests are capped at **300 per minute**.

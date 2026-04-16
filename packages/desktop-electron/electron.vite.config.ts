@@ -8,7 +8,7 @@ const channel = (() => {
   return "dev"
 })()
 
-const KODU_SERVER_DIST = "../kodu/dist/node"
+const KODU_SERVER_DIST = "../opencode/dist/node"
 
 const nodePtyPkg = `@lydell/node-pty-${process.platform}-${process.arch}`
 

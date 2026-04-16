@@ -10345,34 +10345,6 @@ export const snapshot = {
           "output": 4096
         }
       },
-      "mercury-coder-small": {
-        "id": "mercury-coder-small",
-        "name": "Mercury Coder Small",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2025-02-26",
-        "last_updated": "2025-02-26",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.25,
-          "output": 1
-        },
-        "limit": {
-          "context": 32768,
-          "input": 32768,
-          "output": 16384
-        }
-      },
       "jamba-large-1.7": {
         "id": "jamba-large-1.7",
         "name": "Jamba Large 1.7",
@@ -24719,36 +24691,6 @@ export const snapshot = {
           "output": 8000
         }
       },
-      "arcee-ai/trinity-mini:free": {
-        "id": "arcee-ai/trinity-mini:free",
-        "name": "Trinity Mini",
-        "family": "trinity-mini",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "knowledge": "2025-06",
-        "release_date": "2026-01-28",
-        "last_updated": "2026-01-28",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0,
-          "output": 0
-        },
-        "limit": {
-          "context": 131072,
-          "output": 131072
-        }
-      },
       "arcee-ai/trinity-large-thinking": {
         "id": "arcee-ai/trinity-large-thinking",
         "name": "Trinity Large Thinking",
@@ -26030,6 +25972,34 @@ export const snapshot = {
           "output": 128000
         }
       },
+      "inception/mercury-edit-2": {
+        "id": "inception/mercury-edit-2",
+        "name": "Mercury Edit 2",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": false,
+        "temperature": true,
+        "release_date": "2026-03-30",
+        "last_updated": "2026-03-30",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.25,
+          "output": 0.75,
+          "cache_read": 0.025
+        },
+        "limit": {
+          "context": 128000,
+          "output": 8192
+        }
+      },
       "inception/mercury-2": {
         "id": "inception/mercury-2",
         "name": "Mercury 2",
@@ -26058,66 +26028,6 @@ export const snapshot = {
         "limit": {
           "context": 128000,
           "output": 50000
-        }
-      },
-      "inception/mercury": {
-        "id": "inception/mercury",
-        "name": "Mercury",
-        "family": "mercury",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "release_date": "2025-06-26",
-        "last_updated": "2025-06-26",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.25,
-          "output": 0.75,
-          "cache_read": 0.025
-        },
-        "limit": {
-          "context": 128000,
-          "output": 32000
-        }
-      },
-      "inception/mercury-coder": {
-        "id": "inception/mercury-coder",
-        "name": "Mercury Coder",
-        "family": "mercury",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "release_date": "2025-04-30",
-        "last_updated": "2025-04-30",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.25,
-          "output": 0.75,
-          "cache_read": 0.025
-        },
-        "limit": {
-          "context": 128000,
-          "output": 32000
         }
       },
       "openai/gpt-5.1-codex-max": {
@@ -27819,35 +27729,6 @@ export const snapshot = {
           "output": 8192
         }
       },
-      "qwen/qwen3-coder:free": {
-        "id": "qwen/qwen3-coder:free",
-        "name": "Qwen3 Coder 480B A35B Instruct (free)",
-        "family": "qwen",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2025-04",
-        "release_date": "2025-07-23",
-        "last_updated": "2025-07-23",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0,
-          "output": 0
-        },
-        "limit": {
-          "context": 262144,
-          "output": 66536
-        }
-      },
       "qwen/qwen3.5-flash-02-23": {
         "id": "qwen/qwen3.5-flash-02-23",
         "name": "Qwen: Qwen3.5-Flash",
@@ -28087,66 +27968,6 @@ export const snapshot = {
         "limit": {
           "context": 262000,
           "output": 262000
-        }
-      },
-      "qwen/qwen3-4b:free": {
-        "id": "qwen/qwen3-4b:free",
-        "name": "Qwen3 4B (free)",
-        "family": "qwen",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "knowledge": "2025-04",
-        "release_date": "2025-04-30",
-        "last_updated": "2025-07-23",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0,
-          "output": 0
-        },
-        "limit": {
-          "context": 40960,
-          "output": 40960
-        }
-      },
-      "qwen/qwen3-next-80b-a3b-instruct:free": {
-        "id": "qwen/qwen3-next-80b-a3b-instruct:free",
-        "name": "Qwen3 Next 80B A3B Instruct (free)",
-        "family": "qwen",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "knowledge": "2025-04",
-        "release_date": "2025-09-11",
-        "last_updated": "2025-09-11",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0,
-          "output": 0
-        },
-        "limit": {
-          "context": 262144,
-          "output": 262144
         }
       },
       "qwen/qwen3-coder-flash": {
@@ -29391,35 +29212,6 @@ export const snapshot = {
           "output": 32768
         }
       },
-      "moonshotai/kimi-k2:free": {
-        "id": "moonshotai/kimi-k2:free",
-        "name": "Kimi K2 (free)",
-        "family": "kimi",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2025-04",
-        "release_date": "2025-07-11",
-        "last_updated": "2025-07-11",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0,
-          "output": 0
-        },
-        "limit": {
-          "context": 32800,
-          "output": 32800
-        }
-      },
       "moonshotai/kimi-k2-thinking": {
         "id": "moonshotai/kimi-k2-thinking",
         "name": "Kimi K2 Thinking",
@@ -30200,6 +29992,38 @@ export const snapshot = {
         "limit": {
           "context": 200000,
           "output": 200000
+        }
+      },
+      "accounts/fireworks/models/minimax-m2p7": {
+        "id": "accounts/fireworks/models/minimax-m2p7",
+        "name": "MiniMax-M2.7",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-04-12",
+        "last_updated": "2026-04-12",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.3,
+          "output": 1.2,
+          "cache_read": 0.03
+        },
+        "limit": {
+          "context": 196608,
+          "output": 196608
         }
       },
       "accounts/fireworks/models/glm-4p7": {
@@ -49478,6 +49302,35 @@ export const snapshot = {
         },
         "status": "beta"
       },
+      "openrouter/elephant-alpha": {
+        "id": "openrouter/elephant-alpha",
+        "name": "Elephant (new)",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-01-15",
+        "last_updated": "2026-04-13",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0
+        },
+        "limit": {
+          "context": 262144,
+          "output": 32768
+        },
+        "status": "alpha"
+      },
       "openrouter/free": {
         "id": "openrouter/free",
         "name": "Free Models Router",
@@ -52392,6 +52245,34 @@ export const snapshot = {
           "output": 16384
         }
       },
+      "inception/mercury-edit-2": {
+        "id": "inception/mercury-edit-2",
+        "name": "Mercury Edit 2",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": false,
+        "temperature": true,
+        "release_date": "2026-03-30",
+        "last_updated": "2026-03-30",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.25,
+          "output": 0.75,
+          "cache_read": 0.025
+        },
+        "limit": {
+          "context": 128000,
+          "output": 8192
+        }
+      },
       "inception/mercury-2": {
         "id": "inception/mercury-2",
         "name": "Inception: Mercury 2",
@@ -52418,60 +52299,6 @@ export const snapshot = {
         "limit": {
           "context": 128000,
           "output": 50000
-        }
-      },
-      "inception/mercury": {
-        "id": "inception/mercury",
-        "name": "Inception: Mercury",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "release_date": "2025-06-26",
-        "last_updated": "2026-03-15",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.25,
-          "output": 0.75
-        },
-        "limit": {
-          "context": 128000,
-          "output": 32000
-        }
-      },
-      "inception/mercury-coder": {
-        "id": "inception/mercury-coder",
-        "name": "Inception: Mercury Coder",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "release_date": "2025-02-26",
-        "last_updated": "2026-03-15",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.25,
-          "output": 0.75
-        },
-        "limit": {
-          "context": 128000,
-          "output": 32000
         }
       },
       "openai/gpt-5.1-codex-max": {
@@ -64447,11 +64274,11 @@ export const snapshot = {
       },
       "novita/kimi-k2.5": {
         "id": "novita/kimi-k2.5",
-        "name": "kimi-k2.5",
+        "name": "Kimi-K2.5",
         "attachment": true,
         "reasoning": true,
         "tool_call": true,
-        "temperature": false,
+        "temperature": true,
         "release_date": "2026-01-27",
         "last_updated": "2026-01-27",
         "modalities": {
@@ -64465,8 +64292,13 @@ export const snapshot = {
           ]
         },
         "open_weights": false,
+        "cost": {
+          "input": 0.6,
+          "output": 3,
+          "cache_read": 0.1
+        },
         "limit": {
-          "context": 256000,
+          "context": 128000,
           "output": 262144
         }
       },
@@ -64491,17 +64323,18 @@ export const snapshot = {
         "limit": {
           "context": 205000,
           "output": 131072
-        }
+        },
+        "status": "deprecated"
       },
       "novita/glm-5": {
         "id": "novita/glm-5",
-        "name": "glm-5",
+        "name": "GLM-5",
         "attachment": true,
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "release_date": "2026-02-11",
-        "last_updated": "2026-02-11",
+        "release_date": "2026-02-15",
+        "last_updated": "2026-02-15",
         "modalities": {
           "input": [
             "text"
@@ -64511,6 +64344,11 @@ export const snapshot = {
           ]
         },
         "open_weights": false,
+        "cost": {
+          "input": 1,
+          "output": 3.2,
+          "cache_read": 0.2
+        },
         "limit": {
           "context": 205000,
           "output": 131072
@@ -64788,7 +64626,7 @@ export const snapshot = {
       },
       "cerebras/gpt-oss-120b-cs": {
         "id": "cerebras/gpt-oss-120b-cs",
-        "name": "gpt-oss-120b-cs",
+        "name": "GPT-OSS-120B-CS",
         "attachment": true,
         "reasoning": true,
         "tool_call": true,
@@ -64804,14 +64642,18 @@ export const snapshot = {
           ]
         },
         "open_weights": false,
+        "cost": {
+          "input": 0.35,
+          "output": 0.75
+        },
         "limit": {
-          "context": 0,
+          "context": 128000,
           "output": 0
         }
       },
       "cerebras/llama-3.1-8b-cs": {
         "id": "cerebras/llama-3.1-8b-cs",
-        "name": "llama-3.1-8b-cs",
+        "name": "Llama-3.1-8B-CS",
         "attachment": true,
         "reasoning": false,
         "tool_call": true,
@@ -64827,8 +64669,12 @@ export const snapshot = {
           ]
         },
         "open_weights": false,
+        "cost": {
+          "input": 0.1,
+          "output": 0.1
+        },
         "limit": {
-          "context": 0,
+          "context": 128000,
           "output": 0
         }
       },
@@ -64853,7 +64699,8 @@ export const snapshot = {
         "limit": {
           "context": 0,
           "output": 0
-        }
+        },
+        "status": "deprecated"
       },
       "cerebras/qwen3-235b-2507-cs": {
         "id": "cerebras/qwen3-235b-2507-cs",
@@ -64876,7 +64723,8 @@ export const snapshot = {
         "limit": {
           "context": 0,
           "output": 0
-        }
+        },
+        "status": "deprecated"
       },
       "cerebras/llama-3.3-70b-cs": {
         "id": "cerebras/llama-3.3-70b-cs",
@@ -64899,7 +64747,8 @@ export const snapshot = {
         "limit": {
           "context": 0,
           "output": 0
-        }
+        },
+        "status": "deprecated"
       },
       "stabilityai/stablediffusionxl": {
         "id": "stabilityai/stablediffusionxl",
@@ -65234,7 +65083,7 @@ export const snapshot = {
       },
       "openai/gpt-5.1-codex-max": {
         "id": "openai/gpt-5.1-codex-max",
-        "name": "GPT 5.1 Codex Max",
+        "name": "GPT-5.1-Codex-Max",
         "attachment": true,
         "reasoning": true,
         "tool_call": true,
@@ -65313,7 +65162,8 @@ export const snapshot = {
         "limit": {
           "context": 128000,
           "output": 8192
-        }
+        },
+        "status": "deprecated"
       },
       "openai/gpt-5-chat": {
         "id": "openai/gpt-5-chat",
@@ -65430,7 +65280,8 @@ export const snapshot = {
         "limit": {
           "context": 8192,
           "output": 4096
-        }
+        },
+        "status": "deprecated"
       },
       "openai/gpt-5-mini": {
         "id": "openai/gpt-5-mini",
@@ -66662,7 +66513,8 @@ export const snapshot = {
         "limit": {
           "context": 8192,
           "output": 4096
-        }
+        },
+        "status": "deprecated"
       },
       "openai/gpt-5.1-codex": {
         "id": "openai/gpt-5.1-codex",
@@ -66886,7 +66738,8 @@ export const snapshot = {
         "limit": {
           "context": 1048576,
           "output": 0
-        }
+        },
+        "status": "deprecated"
       },
       "google/gemini-2.5-pro": {
         "id": "google/gemini-2.5-pro",
@@ -67200,7 +67053,8 @@ export const snapshot = {
         "limit": {
           "context": 1048576,
           "output": 65536
-        }
+        },
+        "status": "deprecated"
       },
       "google/imagen-4-fast": {
         "id": "google/imagen-4-fast",
@@ -67475,7 +67329,8 @@ export const snapshot = {
         "limit": {
           "context": 189096,
           "output": 8192
-        }
+        },
+        "status": "deprecated"
       },
       "anthropic/claude-haiku-3": {
         "id": "anthropic/claude-haiku-3",
@@ -67794,7 +67649,8 @@ export const snapshot = {
         "limit": {
           "context": 189096,
           "output": 8192
-        }
+        },
+        "status": "deprecated"
       },
       "anthropic/claude-sonnet-4.6": {
         "id": "anthropic/claude-sonnet-4.6",
@@ -75662,6 +75518,34 @@ export const snapshot = {
           "output": 131072
         }
       },
+      "mercury-edit-2": {
+        "id": "mercury-edit-2",
+        "name": "Mercury Edit 2",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": false,
+        "temperature": true,
+        "release_date": "2026-03-30",
+        "last_updated": "2026-03-30",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.25,
+          "output": 0.75,
+          "cache_read": 0.025
+        },
+        "limit": {
+          "context": 128000,
+          "output": 8192
+        }
+      },
       "zai-org-glm-4.7-flash": {
         "id": "zai-org-glm-4.7-flash",
         "name": "GLM 4.7 Flash",
@@ -77406,6 +77290,37 @@ export const snapshot = {
           "output": 262144
         }
       },
+      "coding-glm-5.1": {
+        "id": "coding-glm-5.1",
+        "name": "Coding-GLM-5.1",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-04-11",
+        "last_updated": "2026-04-11",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.06,
+          "output": 0.22
+        },
+        "limit": {
+          "context": 200000,
+          "output": 128000
+        }
+      },
       "gpt-5-mini": {
         "id": "gpt-5-mini",
         "name": "GPT-5-Mini",
@@ -77686,6 +77601,37 @@ export const snapshot = {
         "limit": {
           "context": 204800,
           "output": 131072
+        }
+      },
+      "glm-5.1": {
+        "id": "glm-5.1",
+        "name": "GLM-5.1",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-04-11",
+        "last_updated": "2026-04-11",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.84,
+          "output": 3.38
+        },
+        "limit": {
+          "context": 200000,
+          "output": 128000
         }
       },
       "o4-mini": {
@@ -87717,6 +87663,34 @@ export const snapshot = {
           "output": 8192
         }
       },
+      "minimaxai/minimax-m2.7": {
+        "id": "minimaxai/minimax-m2.7",
+        "name": "MiniMax-M2.7",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.3,
+          "output": 1.2
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
       "minimaxai/minimax-m2.1": {
         "id": "minimaxai/minimax-m2.1",
         "name": "MiniMax-M2.1",
@@ -89059,15 +89033,15 @@ export const snapshot = {
     "name": "Inception",
     "doc": "https://platform.inceptionlabs.ai/docs",
     "models": {
-      "mercury-edit": {
-        "id": "mercury-edit",
-        "name": "Mercury Edit",
+      "mercury-edit-2": {
+        "id": "mercury-edit-2",
+        "name": "Mercury Edit 2",
         "attachment": false,
         "reasoning": true,
         "tool_call": false,
         "temperature": true,
-        "release_date": "2026-02-24",
-        "last_updated": "2026-02-24",
+        "release_date": "2026-03-30",
+        "last_updated": "2026-03-30",
         "modalities": {
           "input": [
             "text"
@@ -89116,68 +89090,6 @@ export const snapshot = {
         "limit": {
           "context": 128000,
           "output": 50000
-        }
-      },
-      "mercury": {
-        "id": "mercury",
-        "name": "Mercury",
-        "family": "mercury",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2023-10",
-        "release_date": "2025-06-26",
-        "last_updated": "2025-07-31",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.25,
-          "output": 1,
-          "cache_read": 0.25,
-          "cache_write": 1
-        },
-        "limit": {
-          "context": 128000,
-          "output": 16384
-        }
-      },
-      "mercury-coder": {
-        "id": "mercury-coder",
-        "name": "Mercury Coder",
-        "family": "mercury",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2023-10",
-        "release_date": "2025-02-26",
-        "last_updated": "2025-07-31",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.25,
-          "output": 1,
-          "cache_read": 0.25,
-          "cache_write": 1
-        },
-        "limit": {
-          "context": 128000,
-          "output": 16384
         }
       }
     }
@@ -93816,7 +93728,8 @@ export const snapshot = {
         "open_weights": true,
         "cost": {
           "input": 1.4,
-          "output": 4.4
+          "output": 4.4,
+          "cache_read": 0.26
         },
         "limit": {
           "context": 202752,
@@ -93848,7 +93761,8 @@ export const snapshot = {
         "open_weights": true,
         "cost": {
           "input": 1,
-          "output": 3.2
+          "output": 3.2,
+          "cache_read": 0.5
         },
         "limit": {
           "context": 202752,
@@ -93938,7 +93852,8 @@ export const snapshot = {
         "open_weights": true,
         "cost": {
           "input": 0.3,
-          "output": 1.2
+          "output": 1.2,
+          "cache_read": 0.06
         },
         "limit": {
           "context": 196608,
@@ -99594,6 +99509,34 @@ export const snapshot = {
           "output": 131072
         }
       },
+      "inception/mercury-edit-2": {
+        "id": "inception/mercury-edit-2",
+        "name": "Mercury Edit 2",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": false,
+        "temperature": true,
+        "release_date": "2026-03-30",
+        "last_updated": "2026-03-30",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.25,
+          "output": 0.75,
+          "cache_read": 0.025
+        },
+        "limit": {
+          "context": 128000,
+          "output": 8192
+        }
+      },
       "inception/mercury-2": {
         "id": "inception/mercury-2",
         "name": "Mercury 2",
@@ -99621,35 +99564,6 @@ export const snapshot = {
         "limit": {
           "context": 128000,
           "output": 128000
-        }
-      },
-      "inception/mercury-coder-small": {
-        "id": "inception/mercury-coder-small",
-        "name": "Mercury Coder Small Beta",
-        "family": "mercury",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2024-10",
-        "release_date": "2025-02-26",
-        "last_updated": "2025-02-26",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.25,
-          "output": 1
-        },
-        "limit": {
-          "context": 32000,
-          "output": 16384
         }
       },
       "openai/gpt-5.1-codex-max": {

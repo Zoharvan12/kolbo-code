@@ -1,4 +1,9 @@
 import { execFile } from "node:child_process"
+import { createWriteStream } from "node:fs"
+import { mkdir } from "node:fs/promises"
+import https from "node:https"
+import http from "node:http"
+import path from "node:path"
 import { BrowserWindow, Notification, app, clipboard, dialog, ipcMain, shell } from "electron"
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron"
 
@@ -177,6 +182,51 @@ export function registerIpcHandlers(deps: Deps) {
     const win = BrowserWindow.fromWebContents(event.sender)
     if (!win) return
     setTitlebar(win, theme)
+  })
+
+  ipcMain.handle("get-download-folder", async () => {
+    const store = getStore("kodu.global.dat")
+    const raw = store.get("download_folder")
+    if (typeof raw === "string" && raw) return raw
+    return app.getPath("downloads")
+  })
+
+  ipcMain.handle("set-download-folder", async (_event: IpcMainInvokeEvent, folderPath: string) => {
+    getStore("kodu.global.dat").set("download_folder", folderPath)
+  })
+
+  ipcMain.handle("change-download-folder", async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openDirectory", "createDirectory"],
+      title: "Choose Download Folder",
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const chosen = result.filePaths[0]
+    getStore("kodu.global.dat").set("download_folder", chosen)
+    return chosen
+  })
+
+  ipcMain.handle("download-file", async (_event: IpcMainInvokeEvent, url: string, destDir: string): Promise<string> => {
+    await mkdir(destDir, { recursive: true })
+    const filename = decodeURIComponent(url.split("?")[0].split("/").pop() ?? `download-${Date.now()}`)
+    const destPath = path.join(destDir, filename)
+
+    await new Promise<void>((resolve, reject) => {
+      const get = url.startsWith("https") ? https.get : http.get
+      get(url, (res) => {
+        if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); return }
+        const file = createWriteStream(destPath)
+        res.pipe(file)
+        file.on("finish", () => file.close(() => resolve()))
+        file.on("error", reject)
+      }).on("error", reject)
+    })
+
+    return destPath
+  })
+
+  ipcMain.handle("reveal-file", (_event: IpcMainInvokeEvent, filePath: string) => {
+    shell.showItemInFolder(filePath)
   })
 }
 

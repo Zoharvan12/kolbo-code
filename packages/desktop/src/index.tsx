@@ -314,19 +314,25 @@ const createPlatform = (): Platform => {
       await relaunch()
     },
 
-    installUpdate: async (onProgress: (p: { downloaded: number; total: number | null }) => void) => {
-      if (!UPDATER_ENABLED || !update) return
-      // Get the .nsis.zip URL from the update manifest and derive the .exe URL
-      const platforms = (update.rawJson as Record<string, unknown>)?.platforms as Record<string, { url: string }> | undefined
-      const zipUrl = platforms?.["windows-x86_64"]?.url
-      if (!zipUrl) throw new Error("No Windows update URL found")
-      const exeUrl = zipUrl.replace(".nsis.zip", ".exe")
-      await commands.killSidecar().catch(() => undefined)
-      const { Channel } = await import("@tauri-apps/api/core")
-      const ch = new Channel<{ downloaded: number; total: number | null }>()
-      ch.onmessage = (msg) => onProgress(msg)
-      await commands.installUpdate(exeUrl, ch)
-    },
+    ...(os === "windows"
+      ? {
+          installUpdate: async (onProgress: (p: { downloaded: number; total: number | null }) => void) => {
+            if (!UPDATER_ENABLED || !update) return
+            // Get the .nsis.zip URL from the update manifest and derive the .exe URL
+            const platforms = (update.rawJson as Record<string, unknown>)?.platforms as
+              | Record<string, { url: string }>
+              | undefined
+            const zipUrl = platforms?.["windows-x86_64"]?.url
+            if (!zipUrl) throw new Error("No Windows update URL found")
+            const exeUrl = zipUrl.replace(".nsis.zip", ".exe")
+            await commands.killSidecar().catch(() => undefined)
+            const { Channel } = await import("@tauri-apps/api/core")
+            const ch = new Channel<{ downloaded: number; total: number | null }>()
+            ch.onmessage = (msg) => onProgress(msg)
+            await commands.installUpdate(exeUrl, ch)
+          },
+        }
+      : {}),
 
     restart: async () => {
       await commands.killSidecar().catch(() => undefined)

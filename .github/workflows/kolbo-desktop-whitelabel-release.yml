@@ -155,6 +155,20 @@ jobs:
             }
           "
 
+      - name: Import Apple signing certificate
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERT_DATA: ${{ secrets.DEVELOPER_ID_APPLICATION_CERT }}
+          APPLE_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_CERT_PASSWORD }}
+        run: |
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          echo "$APPLE_CERT_DATA" | base64 --decode > /tmp/cert.p12
+          security import /tmp/cert.p12 -k build.keychain -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+          rm /tmp/cert.p12
+
       - name: Download CLI sidecar
         shell: bash
         env:
@@ -195,6 +209,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           VITE_WHITELABEL_SPLASH: /whitelabels/${{ env.WHITELABEL }}/splash.jpg
           VITE_WHITELABEL_LOGO: ${{ steps.wl.outputs.logo_image }}
           VITE_WHITELABEL_NAME: ${{ steps.wl.outputs.brand_name }}

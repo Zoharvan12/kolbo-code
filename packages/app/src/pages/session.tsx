@@ -10,6 +10,7 @@ import {
   createMemo,
   createEffect,
   createComputed,
+  createSignal,
   on,
   onMount,
   untrack,
@@ -30,6 +31,7 @@ import { showToast } from "@opencode-ai/ui/toast"
 import { checksum } from "@opencode-ai/util/encode"
 import { useSearchParams } from "@solidjs/router"
 import { NewSessionView, SessionHeader } from "@/components/session"
+import { type ArtifactData } from "@/components/artifact-preview"
 import { useComments } from "@/context/comments"
 import { getSessionPrefetch, SESSION_PREFETCH_TTL } from "@/context/global-sync/session-prefetch"
 import { useGlobalSync } from "@/context/global-sync"
@@ -428,6 +430,22 @@ export default function Page() {
   const openReviewPanel = () => {
     if (!view().reviewPanel.opened()) view().reviewPanel.open()
   }
+
+  const [artifact, setArtifact] = createSignal<ArtifactData | null>(null)
+  const [artifactsTabActive, setArtifactsTabActive] = createSignal(false)
+
+  onMount(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ content: string; lang: string }>).detail
+      const lang = detail.lang as ArtifactData["lang"]
+      if (lang !== "html" && lang !== "svg" && lang !== "mermaid") return
+      setArtifact({ content: detail.content, lang })
+      setArtifactsTabActive(true)
+      if (!view().reviewPanel.opened()) view().reviewPanel.open()
+    }
+    document.addEventListener("kolbo:artifact", handler)
+    onCleanup(() => document.removeEventListener("kolbo:artifact", handler))
+  })
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
   const isChildSession = createMemo(() => !!info()?.parentID)
@@ -2053,6 +2071,10 @@ export default function Page() {
           focusReviewDiff={focusReviewDiff}
           reviewSnap={ui.reviewSnap}
           size={size}
+          artifact={artifact}
+          artifactsTabActive={artifactsTabActive}
+          onArtifactsTabDeactivate={() => setArtifactsTabActive(false)}
+          onArtifactClose={() => { setArtifact(null); setArtifactsTabActive(false) }}
         />
       </div>
 

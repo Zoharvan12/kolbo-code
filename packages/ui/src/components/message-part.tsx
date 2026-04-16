@@ -5,6 +5,7 @@ import {
   createSignal,
   For,
   Match,
+  on,
   onMount,
   Show,
   Switch,
@@ -35,6 +36,8 @@ import { useFileComponent } from "../context/file"
 import { useDialog } from "../context/dialog"
 import { type UiI18n, useI18n } from "../context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
+import { setupPathLinks } from "./markdown"
+import { usePlatformOps } from "../context/platform-ops"
 import { Accordion } from "./accordion"
 import { StickyAccordionHeader } from "./sticky-accordion-header"
 import { Card } from "./card"
@@ -1979,6 +1982,32 @@ ToolRegistry.register({
     const path = createMemo(() => props.input.filePath || "")
     const filename = () => getFilename(props.input.filePath ?? "")
     const pending = () => props.status === "pending" || props.status === "running"
+    const isHtmlFile = () => !pending() && (props.input.filePath?.endsWith(".html") || props.input.filePath?.endsWith(".htm"))
+
+    const dispatchArtifact = (autoOpen = false) => {
+      const content = props.input.content
+      if (!content) return
+      // Dispatch on document so the session-level listener always receives it
+      document.dispatchEvent(
+        new CustomEvent("kolbo:artifact", {
+          detail: { content, lang: "html", autoOpen },
+        }),
+      )
+    }
+
+    // Auto-open preview when HTML file write completes
+    createEffect(
+      on(
+        () => props.status,
+        (status, prev) => {
+          if (prev !== "running" || status !== "completed") return
+          if (!isHtmlFile()) return
+          dispatchArtifact(true)
+        },
+        { defer: true },
+      ),
+    )
+
     return (
       <div data-component="write-tool">
         <BasicTool
@@ -2002,7 +2031,21 @@ ToolRegistry.register({
                   </div>
                 </Show>
               </div>
-              <div data-slot="message-part-actions">{/* <DiffChanges diff={diff} /> */}</div>
+              <div data-slot="message-part-actions">
+                <Show when={isHtmlFile()}>
+                  <button
+                    type="button"
+                    data-slot="markdown-preview-button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      dispatchArtifact(true)
+                    }}
+                    title={i18n.t("ui.artifact.preview")}
+                  >
+                    {i18n.t("ui.artifact.preview")}
+                  </button>
+                </Show>
+              </div>
             </div>
           }
         >
@@ -2024,6 +2067,36 @@ ToolRegistry.register({
           </Show>
           <DiagnosticsDisplay diagnostics={diagnostics()} />
         </BasicTool>
+
+        {/* Inline scaled iframe preview — always visible outside the accordion */}
+        <Show when={isHtmlFile() && props.input.content}>
+          <div
+            class="relative overflow-hidden cursor-pointer group mx-3 mb-3 mt-1 rounded-md border border-border-weaker-base bg-black"
+            style={{ height: "320px" }}
+            onClick={() => dispatchArtifact(true)}
+          >
+            <iframe
+              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-pointer-lock"
+              srcdoc={props.input.content}
+              title="HTML Preview"
+              class="transition-[filter] duration-200 group-hover:[filter:blur(3px)]"
+              style={{
+                display: "block",
+                width: "200%",
+                height: "640px",
+                transform: "scale(0.5)",
+                "transform-origin": "top left",
+                border: "0",
+                "pointer-events": "none",
+              }}
+            />
+            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 flex items-center justify-center">
+              <div class="bg-white text-gray-900 px-5 py-2 rounded-lg font-semibold shadow-xl" style={{ "font-size": "14px" }}>
+                {i18n.t("ui.artifact.preview")}
+              </div>
+            </div>
+          </div>
+        </Show>
       </div>
     )
   },
@@ -2338,3 +2411,185 @@ ToolRegistry.register({
     return <BasicTool icon="brain" status={props.status} trigger={trigger()} hideDetails />
   },
 })
+
+// ─── Kolbo MCP media tools ────────────────────────────────────────────────────
+
+function extractUrls(text: string | undefined): string[] {
+  if (!text) return []
+  const all: string[] = []
+  const mdRe = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g
+  let m: RegExpExecArray | null
+  while ((m = mdRe.exec(text)) !== null) all.push(m[2].trim())
+  const bareRe = /(?<!\()(https?:\/\/[^\s"'<>)]+)/g
+  while ((m = bareRe.exec(text)) !== null) all.push(m[1].trim())
+  return [...new Set(all)]
+}
+
+const downloadIconSvg =
+  '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13.9583 10.6257L10 14.584L6.04167 10.6257M10 2.08398V13.959M16.25 17.9173H3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>'
+
+function useMediaSetup(getRef: () => HTMLDivElement | undefined) {
+  const i18n = useI18n()
+  const ops = usePlatformOps()
+  onMount(() => {
+    const el = getRef()
+    if (!el) return
+    const cleanup = setupPathLinks(el as HTMLDivElement, () => ops, () => ({
+      download: i18n.t("ui.download.download"),
+      downloading: i18n.t("ui.download.downloading"),
+      downloaded: i18n.t("ui.download.downloaded"),
+      saved: i18n.t("ui.download.saved"),
+      failed: i18n.t("ui.download.failed"),
+      openInFolder: i18n.t("ui.download.openInFolder"),
+      changeFolder: i18n.t("ui.download.changeFolder"),
+      openingInBrowser: i18n.t("ui.download.openingInBrowser"),
+    }))
+    onCleanup(cleanup)
+  })
+}
+
+function KolboImageTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
+  const i18n = useI18n()
+  const urls = createMemo(() => {
+    if (props.status !== "completed") return []
+    return extractUrls(props.output)
+  })
+  let containerRef: HTMLDivElement | undefined
+  useMediaSetup(() => containerRef)
+
+  return (
+    <div ref={containerRef}>
+      <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
+      <Show when={urls().length > 0}>
+        <div class="flex flex-wrap gap-2 px-3 pb-3">
+          <For each={urls()}>
+            {(url) => (
+              <div
+                data-media-wrapper={url}
+                data-lightbox-src={url}
+                style="position:relative;display:inline-block;max-width:100%"
+              >
+                <img
+                  src={url}
+                  alt={i18n.t("ui.kolbo.generatedImage")}
+                  style="display:block;max-width:100%;max-height:320px;object-fit:contain;border-radius:8px;border:1px solid var(--border-weaker-base);cursor:zoom-in"
+                  loading="lazy"
+                />
+                <div
+                  data-media-overlay=""
+                  style="position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity 0.15s;pointer-events:none;transform:translateY(2px)"
+                >
+                  <button
+                    type="button"
+                    data-md-download={url}
+                    style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);color:white;cursor:pointer;pointer-events:auto"
+                    // eslint-disable-next-line solid/no-innerhtml
+                    innerHTML={downloadIconSvg}
+                  />
+                </div>
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
+    </div>
+  )
+}
+
+function KolboVideoTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
+  const urls = createMemo(() => {
+    if (props.status !== "completed") return []
+    return extractUrls(props.output)
+  })
+  let containerRef: HTMLDivElement | undefined
+  useMediaSetup(() => containerRef)
+
+  return (
+    <div ref={containerRef}>
+      <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
+      <Show when={urls().length > 0}>
+        <div class="flex flex-col gap-2 px-3 pb-3">
+          <For each={urls()}>
+            {(url) => (
+              <div
+                data-media-wrapper={url}
+                data-video-wrapper={url}
+                style="position:relative;display:block;max-width:100%"
+              >
+                <video
+                  src={url}
+                  controls
+                  preload="metadata"
+                  style="display:block;max-width:100%;max-height:400px;border-radius:8px;border:1px solid var(--border-weak-base);background:#000"
+                />
+                <div
+                  data-media-overlay=""
+                  style="position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity 0.15s;pointer-events:none;transform:translateY(2px)"
+                >
+                  <button
+                    type="button"
+                    data-md-download={url}
+                    style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);color:white;cursor:pointer;pointer-events:auto"
+                    // eslint-disable-next-line solid/no-innerhtml
+                    innerHTML={downloadIconSvg}
+                  />
+                </div>
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
+    </div>
+  )
+}
+
+function KolboAudioTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
+  const urls = createMemo(() => {
+    if (props.status !== "completed") return []
+    return extractUrls(props.output)
+  })
+  let containerRef: HTMLDivElement | undefined
+  useMediaSetup(() => containerRef)
+
+  return (
+    <div ref={containerRef}>
+      <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
+      <Show when={urls().length > 0}>
+        <div class="flex flex-col gap-2 px-3 pb-3">
+          <For each={urls()}>
+            {(url) => (
+              <div
+                data-media-wrapper={url}
+                data-audio-wrapper={url}
+                style="display:flex;align-items:center;gap:8px;max-width:100%"
+              >
+                <audio src={url} controls style="flex:1;min-width:0;display:block;border-radius:8px" />
+                <button
+                  type="button"
+                  data-md-download={url}
+                  style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:6px;border:1px solid var(--border-weak-base);background:var(--background-stronger);color:var(--text-strong);cursor:pointer"
+                  // eslint-disable-next-line solid/no-innerhtml
+                  innerHTML={downloadIconSvg}
+                />
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
+    </div>
+  )
+}
+
+const KOLBO_IMAGE_TOOLS = ["kolbo_generate_image"]
+const KOLBO_VIDEO_TOOLS = ["kolbo_generate_video", "kolbo_generate_video_from_image"]
+const KOLBO_AUDIO_TOOLS = ["kolbo_generate_music", "kolbo_generate_speech", "kolbo_generate_sound"]
+
+for (const name of KOLBO_IMAGE_TOOLS) {
+  ToolRegistry.register({ name, render: (props) => <KolboImageTool {...props} tool={props.tool} /> })
+}
+for (const name of KOLBO_VIDEO_TOOLS) {
+  ToolRegistry.register({ name, render: (props) => <KolboVideoTool {...props} tool={props.tool} /> })
+}
+for (const name of KOLBO_AUDIO_TOOLS) {
+  ToolRegistry.register({ name, render: (props) => <KolboAudioTool {...props} tool={props.tool} /> })
+}

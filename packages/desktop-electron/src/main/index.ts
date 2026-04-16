@@ -152,7 +152,9 @@ async function initialize() {
     })
 
     if (needsMigration) {
-      await sqliteDone?.promise
+      // Wait for sqlite Done event, but cap at 10 s — on Windows the event may
+      // fire before the listener is registered (race) or never fire at all.
+      await Promise.race([sqliteDone?.promise, delay(10_000)])
     }
 
     await Promise.race([
@@ -213,16 +215,20 @@ registerIpcHandlers({
   killSidecar: () => killSidecar(),
   awaitInitialization: async (sendStep) => {
     sendStep(initStep)
-    const listener = (step: InitStep) => sendStep(step)
-    initEmitter.on("step", listener)
-    try {
-      logger.log("awaiting server ready")
-      const res = await serverReady.promise
-      logger.log("server ready", { url: res.url })
-      return res
-    } finally {
-      initEmitter.off("step", listener)
+    // Keep listener active until "done" is received — removing it in finally
+    // would strip it before setInitStep({ phase: "done" }) is called (~30s later)
+    const listener = (step: InitStep) => {
+      sendStep(step)
+      if (step.phase === "done") initEmitter.off("step", listener)
     }
+    // If already done, no listener needed
+    if (initStep.phase !== "done") {
+      initEmitter.on("step", listener)
+    }
+    logger.log("awaiting server ready")
+    const res = await serverReady.promise
+    logger.log("server ready", { url: res.url })
+    return res
   },
   getDefaultServerUrl: () => getDefaultServerUrl(),
   setDefaultServerUrl: (url) => setDefaultServerUrl(url),
@@ -291,9 +297,17 @@ async function getSidecarPort() {
 }
 
 function sqliteFileExists() {
+  // XDG_DATA_HOME — standard Linux/Mac location
   const xdg = process.env.XDG_DATA_HOME
-  const base = xdg && xdg.length > 0 ? xdg : join(homedir(), ".local", "share")
-  return existsSync(join(base, "kodu", "kodu.db"))
+  if (xdg && xdg.length > 0 && existsSync(join(xdg, "kodu", "kodu.db"))) return true
+
+  // XDG_STATE_HOME — what the sidecar uses (set by prepareServerEnv before spawnLocalServer,
+  // but not yet when this function is first called; use app.getPath("userData") directly instead)
+  const userData = app.getPath("userData")
+  if (existsSync(join(userData, "kodu", "kodu.db"))) return true
+
+  // Classic Linux/Mac fallback
+  return existsSync(join(homedir(), ".local", "share", "kodu", "kodu.db"))
 }
 
 function setupAutoUpdater() {
