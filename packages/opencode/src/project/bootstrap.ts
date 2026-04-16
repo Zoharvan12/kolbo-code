@@ -1,9 +1,13 @@
+import { existsSync } from "fs"
+import path from "path"
 import { Plugin } from "../plugin"
 import { Format } from "../format"
 import { LSP } from "../lsp"
 import { File } from "../file"
 import { FileWatcher } from "../file/watcher"
 import { Snapshot } from "../snapshot"
+import { Session } from "../session"
+import { SessionPrompt } from "../session/prompt"
 import { Project } from "./project"
 import { Vcs } from "./vcs"
 import { Bus } from "../bus"
@@ -30,4 +34,26 @@ export async function InstanceBootstrap() {
       Project.setInitialized(Instance.project.id)
     }
   })
+
+  // Auto-run /init on first launch if no instruction file exists
+  if (!Instance.project.time.initialized) {
+    const dir = Instance.directory
+    const hasInstructionFile =
+      existsSync(path.join(dir, "KOLBO.md")) ||
+      existsSync(path.join(dir, "AGENTS.md")) ||
+      existsSync(path.join(dir, "CLAUDE.md"))
+    if (!hasInstructionFile) {
+      Session.create({ title: "Project initialization" })
+        .then((session) =>
+          SessionPrompt.command({
+            sessionID: session.id,
+            command: Command.Default.INIT,
+            arguments: "",
+          }),
+        )
+        .catch((err) => {
+          Log.Default.warn("auto-init failed", { error: err })
+        })
+    }
+  }
 }

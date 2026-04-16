@@ -88,11 +88,13 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 
 ## Core Workflow
 
-1. **Check credits** with `check_credits` at the start of any creative session (once is enough).
-2. **Discover models** with `list_models` using a `type` filter. **Always do this before calling a generation tool — never hardcode model identifiers.** Models are added, removed, and updated frequently.
-3. **Pick the model**: If the user explicitly requested a specific model, use that. Otherwise, **prefer the cheapest model that still has great quality** — look at both `credit` cost and `recommended` status from `list_models`. When two models have similar quality, always pick the cheaper one. Only omit `model` (auto-select) as a last resort if you can't determine a good cheap option.
-4. **Polling is internal** — the tool returns the final URL(s) when ready. If a video generation times out, call `get_generation_status` with the returned generation ID to retrieve the result.
+1. **Check credits** ONCE per conversation with `check_credits`. Skip if you already checked earlier in this session.
+2. **Discover models** with `list_models` using a `type` filter — but **skip this when the user names a specific model** (e.g. "seedance 2 fast"). Only call `list_models` when you need to discover or compare models.
+3. **Pick the model**: If the user explicitly requested a specific model, use that name directly. Otherwise, **prefer the cheapest model that still has great quality** — look at both `credit` cost and `recommended` status from `list_models`.
+4. **How generation calls work**: Each tool call blocks until the generation is fully complete (the MCP server polls the API internally). For images this is seconds; for video it can be minutes. If a call times out, use `get_generation_status` with the returned generation ID. When you output multiple tool calls in a single response, they run concurrently — so batch calls finish in the time of the slowest one, not the sum.
 5. **Share the URL** — after a successful generation, hand the real URL back to the user. Never fabricate URLs.
+
+**For batch operations** (generating multiple items at once), see the "Rate Limiting & Batch Generation" section below — it overrides the per-item steps above.
 
 ### Model Types (for `list_models`)
 
@@ -125,40 +127,55 @@ Creative generations bill against the user's Kolbo credit balance. **Billing uni
 | **3D model** | per model (flat) | 5–300 cr | Trellis = 5 cr; Meshy v6 = 150 cr; Marble 1.1 = 300 cr |
 | **Transcription (stt)** | per minute of audio | model.credit × duration_minutes | |
 
-**Calculation formulas — always apply before generating:**
+**Calculation formulas — apply when confirming cost:**
 - **Video / Lipsync**: `total = model_credit_per_second × duration_seconds`
-  - Always call `list_models` first to get the exact `credit` value, then multiply by the requested duration.
+  - Get the `credit` value from `list_models` (or from a previous call in this session) and multiply by duration.
   - Never assume the credit shown is a flat per-generation cost for these types.
 - **Music**: flat per generation — `total = model_credit` (duration does not change the cost).
 - **TTS**: `total = model_credit × ceil(character_count / 100)`
   - Count the actual characters in the text before estimating. 1000 chars with ElevenLabs = 50 credits.
 - **Images / 3D / Sound effects**: `total = model_credit × quantity`
 
-**ALWAYS confirm total cost before generating:**
-Before firing ANY generation (image, video, music, speech, 3D — everything), calculate the total credit cost and present it to the user for confirmation. This is especially critical for batch operations (e.g. "8 videos from 8 images"):
+**Cost confirmation — know when to skip it:**
+- **User specified everything** (model, count, duration, e.g. "make 5 videos, seedance 2 fast, 15s, 16:9"): **ACT IMMEDIATELY** — that IS the confirmation. Do not re-explain costs or ask again.
+- **Single generation under 5 credits**: proceed without confirmation.
+- **Everything else**: calculate total cost, present a summary, and wait for the user to confirm before generating.
 
+**When confirmation IS needed:**
 1. Calculate per-item cost using the formulas above.
 2. Multiply by the number of items.
 3. Present a summary: "This will generate 8 videos × 5s each using [model] at X cr/s = **Y credits total**. Proceed?"
-4. **Suggest cheaper alternatives** if available: "I can use [cheaper model] at Z cr/s instead — same quality, saves N credits. Want that instead?"
+4. **Suggest cheaper alternatives** if available.
 5. Only proceed after the user confirms.
-
-The only exception: single image generations under 5 credits — those can proceed without confirmation unless the user's balance is low.
 
 ### Rate Limiting & Batch Generation (CRITICAL)
 
-Kolbo enforces **10 generation requests per minute per user per tool type** (e.g. 10 image calls + 10 video calls = fine, but 11 image calls in 1 minute = rate limited). General media requests are capped at **300 per minute**.
+**Rate limits** (per user, enforced server-side):
+- **10 generation requests per minute per tool type** (e.g. 10 video + 10 image = fine, but 11 video in 1 minute = 429)
+- **300 requests per minute** global across all media endpoints
+- **Uploads** (`upload_media`): 300/min, no credit cost — much lighter than generation
+- The API **queues** requests internally — it never silently drops them. If you're within limits, every request will be processed.
 
-**⚠️ MANDATORY: Sequential generation with delays.**
-When making multiple generation calls (e.g. 8 images → 8 videos), you MUST:
+**⚠️ NEVER duplicate a generation you already fired.**
+Before calling any generation tool, check your conversation history. If you already called that tool with the same or similar prompt in this session:
+- Do NOT call it again — even if it was aborted or interrupted (it is still running server-side and will complete)
+- Only retry if the user explicitly says "retry", "redo", or "try again"
+- Each duplicate wastes real credits from the user's balance
+- If unsure whether a generation went through, use `get_generation_status` to check — the API returns 202 immediately and processes in the background, so aborted tool calls still generate
 
-1. **Call ONE generation at a time.** Never fire multiple generation tool calls in the same message. Send one, wait for the result, then send the next.
-2. **Wait 8-10 seconds between each call.** After receiving a result, pause before the next generation. This prevents the API from silently dropping requests.
-3. **Verify every result.** After all generations complete, count the results. If any are missing, retry the failed ones (with the same delay).
-4. **Batch images**: use `generate_creative_director` instead of calling `generate_image` 5+ times — it handles multi-scene in one request. There is no batch equivalent for video — you must go one-by-one.
-5. If you get a rate limit error (429), wait 60 seconds (the window resets per minute) and retry. Do not retry more than 2 times.
+**Batch generation workflow (≤10 items):**
+1. Confirm cost ONCE — or skip if the user already specified model, count, and duration (e.g. "make 5 videos, seedance 2 fast, 15s" IS the confirmation — act immediately)
+2. **Output ALL generation tool calls in a single response** — up to 10 per tool type. The system runs them concurrently, so 5 videos render in parallel and finish in the time of the slowest one, not 5× the time.
+3. Each call blocks until its generation is complete (images: seconds, video: 1-5 minutes). This is normal — don't apologize for the wait.
+4. Track what you've generated — never re-fire a completed or in-progress generation.
+5. After all complete, present all results together.
+6. If any fail with 429: wait 60 seconds and retry only the failed ones (max 2 retries).
 
-**Why this matters:** Firing multiple generation calls in parallel (e.g. 8 `generate_video_from_image` calls at once) causes the API to silently drop some requests — the user ends up with only half the results and no error message. This is the #1 cause of "I sent 8 images but only got 4 videos" complaints.
+**Batch images**: use `generate_creative_director` for 5+ coordinated images — one request handles multi-scene.
+
+**Don't narrate, just generate.** When the user says "make 5 videos", output all 5 tool calls in one response. Don't explain your plan, don't calculate step-by-step, don't say "Generating Video 1 of 5..." — just call the tools.
+
+**Handling interruptions:** If the user aborts or interrupts mid-batch (e.g. cancels Video 1, then says "do the rest" or "continue with 2-5"), pick up where you left off. Check which generations you already fired, skip those, and fire only the remaining ones. Never restart a batch from the beginning. Remember: aborted tool calls still process server-side — don't re-fire them.
 
 ---
 
@@ -171,7 +188,7 @@ Use `transcribe_audio` ONLY when the user explicitly asks for:
 - Summary of what was **spoken/said** in the video
 - Dialogue extraction from video
 
-**Do NOT use `transcribe_audio` to "analyze" a video visually.** For visual analysis (what's on screen, what's shown, what prompts appear, etc.) use `upload_media` → `chat_send_message` with `media_urls`.
+**Do NOT use `transcribe_audio` to "analyze" a video visually.** For visual analysis **of videos or audio**, use `upload_media` → `chat_send_message` with `media_urls`. For **images**, use the `Read` tool directly — you have built-in vision.
 
 ### Workflow
 1. Call `transcribe_audio` with the `source` (URL or absolute local file path)
@@ -209,13 +226,16 @@ Transcription supports files up to 30 minutes. For longer content, split the fil
 
 ### Visual Video/Audio/Image Analysis
 
-**The agent has built-in vision — use the right tool for the media type:**
+**The agent has built-in vision — ALWAYS prefer your own model for images:**
 
 | Media type | How to analyze |
 |------------|----------------|
-| **Image** (jpg, png, webp, etc.) | Read it directly with the `Read` tool — the agent sees images natively. No upload needed. |
+| **Image** (jpg, png, webp, etc.) | **Read it directly with the `Read` tool** — you see images natively. No upload, no API call, no rate-limit risk. This is ALWAYS the first choice for images. |
 | **Video / Audio** | `upload_media` → `chat_send_message` with `media_urls` (Gemini handles video/audio) |
 | **Transcription** | `transcribe_audio` — ONLY when user explicitly says "transcribe", "subtitles", "SRT", or "what's being said" |
+
+**⚠️ Image analysis priority: YOUR OWN VISION FIRST.**
+You are a multimodal model — you can see and analyze images directly via the `Read` tool. This is faster, free, and avoids API rate limits. **Never upload images to Kolbo or use `chat_send_message` for image analysis** unless the user explicitly asks to use a specific Kolbo chat model. Even with 10+ images, read them all yourself — you can handle up to 10 images in a single analysis pass.
 
 **NEVER use ffmpeg or frame extraction for analysis. NEVER ask the user — just pick the right path above.**
 
@@ -227,12 +247,41 @@ Transcription supports files up to 30 minutes. For longer content, split the fil
    - Always an **array**: `media_urls: ["https://cdn.kolbo.ai/..."]`
    - **Omit `model`** — Smart Select auto-routes to Gemini when media is detected
    - **Sessions do NOT remember media between messages.** On retry: reuse the same CDN `url` (no re-upload) but always pass `media_urls` again.
-   - **Batch / many videos**: pass `model: "gemini-3.1-flash-lite-preview"` explicitly for cheaper bulk runs
+   - **Batch / many videos**: use `list_models` to find the cheapest Gemini model and pass it explicitly for cheaper bulk runs
+
+### ⚠️ Batching Media in Chat Messages (CRITICAL)
+
+**Always send ALL media in ONE `chat_send_message` call.** The `media_urls` array accepts up to **10 URLs** in a single request. Never send one message per image/video.
+
+**Why this matters:** Each `upload_media` call + the final `chat_send_message` all count toward rate limits. Sending 10 uploads + 10 separate chat messages = 20 requests in rapid succession → "Too many generation requests" error. Instead:
+
+1. Upload all files at once (output all `upload_media` calls in one response — uploads are 300/min and cost no credits).
+2. Collect ALL returned CDN URLs into one array.
+3. Send ONE `chat_send_message` with all URLs in `media_urls`.
+
+**Example — analyzing 5 videos:**
+```
+# Step 1: Upload all in one response (all 5 upload_media calls at once)
+upload_media({ source: "video1.mp4" }) → url1
+upload_media({ source: "video2.mp4" }) → url2
+upload_media({ source: "video3.mp4" }) → url3
+upload_media({ source: "video4.mp4" }) → url4
+upload_media({ source: "video5.mp4" }) → url5
+
+# Step 2: ONE chat call with ALL media URLs
+chat_send_message({
+  message: "Analyze all 5 videos...",
+  media_urls: [url1, url2, url3, url4, url5]
+})
+```
+
+**Rate limit recovery:** If you hit "Too many generation requests", wait 60 seconds before retrying. On retry, do NOT re-upload — reuse the CDN URLs from step 1.
 
 **❌ Never do this:**
 - Pass a local file path in `media_urls` — it won't work, only CDN URLs work
 - Use the `.txt` URL from a transcription result as the video URL — that's text, not video
 - Skip `upload_media` and try to construct a URL yourself
+- Send separate `chat_send_message` calls for each media file — batch them into ONE call
 
 When in doubt, do visual analysis. Do not stop to ask.
 
@@ -259,7 +308,7 @@ Simple edits deserve simple prompts. Only elaborate for genuinely complex, multi
 ### Multi-Scene / Campaigns
 For storyboards, campaigns, or character-consistent sequences, use `generate_creative_director` — it generates 1–8 coordinated scenes from a single creative brief with consistent style. Pass `visual_dna_ids` and/or `moodboard_id` for character/style consistency across all scenes.
 
-In the CLI, you can also do sequential `generate_image` calls with the same Visual DNA profiles.
+In the CLI, you can also do multiple `generate_image` calls (in parallel for batches) with the same Visual DNA profiles.
 
 ---
 
@@ -283,7 +332,7 @@ Visual DNA profiles capture the visual "identity" of a character, style, product
 
 ## Video Prompts
 
-Video is the most expensive operation in the Kolbo catalog. Write prompts deliberately.
+Video costs more per generation than images — write prompts deliberately to get it right the first time.
 
 ### Core Rules
 - **Order**: Subject → Action → Camera → Style → Constraints → Audio
@@ -438,6 +487,8 @@ Use `list_media` to browse previously uploaded content (filter by type, search b
 
 Use `chat_send_message` to interact with Kolbo AI models (GPT-4o, Claude, etc.) with optional web search and deep think modes. Conversations persist via `session_id` — omit to start new, pass to continue.
 
+**Media in chat:** Always batch all media into a single message. `media_urls` accepts up to 10 URLs per call. See the "Batching Media in Chat Messages" section above for the mandatory workflow.
+
 Use `chat_list_conversations` and `chat_get_messages` to browse conversation history.
 
 ---
@@ -519,7 +570,7 @@ If Kolbo tools timeout or aren't listed, the MCP server may not be wired. Tell t
 This re-wires the MCP configuration automatically. Then restart the session.
 
 ### "Rate limited" (429 errors)
-Kolbo allows 10 generation requests per minute per tool type. Wait 60 seconds and retry. Use `generate_creative_director` for batch image work instead of multiple `generate_image` calls.
+Kolbo allows 10 generation requests per minute per user per tool type (video, image, etc. are separate pools). Wait 60 seconds (the window resets) and retry only the failed calls. Use `generate_creative_director` for batch image work instead of multiple `generate_image` calls. The API queues requests — it never silently drops them.
 
 ---
 
@@ -528,9 +579,11 @@ Kolbo allows 10 generation requests per minute per tool type. Wait 60 seconds an
 Natural-language triggers that should prompt this skill + a tool call:
 
 - "Generate an image of a neon-lit Tokyo street at night" → `list_models` (image) → `generate_image`
+- "Use Midjourney to generate a Tokyo street" → `generate_image` with model "midjourney" (user named the model — skip `list_models`)
 - "Remove the background from this image" → `list_models` (image_edit) → `generate_image_edit`
 - "Create a storyboard for a coffee brand ad" → `list_models` (image) → `generate_creative_director`
 - "Create a 5-second cinematic video of ocean waves at sunset" → `list_models` (video) → `generate_video` with camera + mood guidance
+- "Make 5 videos with Seedance 2 Fast, 15s, 16:9" → fire all 5 `generate_video` calls in parallel (user specified everything — skip `list_models`, skip cost confirmation)
 - "Animate this product photo with a 360° orbit" → `list_models` (video_from_image) → `generate_video_from_image`
 - "Restyle this video as anime" → `generate_video_from_video`
 - "Make this character talk with this voiceover" → `generate_lipsync`
@@ -549,7 +602,9 @@ Natural-language triggers that should prompt this skill + a tool call:
 - "Host this HTML page" / "Publish this landing page" / "Give me a public URL for this file" → `upload_media` → share the returned `url` (Kolbo CDN serves any file type publicly)
 - "What video models are available?" → `list_models` (video)
 - "How many credits do I have?" → `check_credits`
-- "What's in this image?" (with upload) → describe per the Image Analysis section; no tool call needed unless the user asks to generate or edit
+- "What's in this image?" (with upload) → Read the image directly with your own vision — no Kolbo API call needed
+- "Analyze these 10 frames" (with multiple images) → Read all images directly with your own vision — you handle up to 10 natively
+- "Analyze these 5 videos" → upload all 5 with `upload_media`, then ONE `chat_send_message` with all 5 URLs in `media_urls`
 - "Create motion graphics" / "animated text" / "title sequence" → load the `remotion-best-practices` skill for Remotion-based motion graphics
 - "Edit this video" / "cut this clip" / "remove silence" / "add subtitles" / "convert to 9:16" → load the `video-production` skill for FFmpeg-based editing
 - "Create a short-form video" / "make a reel" / "YouTube short" → load the `short-form-video` skill
