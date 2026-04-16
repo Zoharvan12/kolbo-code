@@ -30,7 +30,7 @@ const { autoUpdater } = pkg
 import type { InitStep, ServerReadyData, SqliteMigrationProgress, WslConfig } from "../preload/types"
 import { checkAppExists, resolveAppPath, wslPath } from "./apps"
 import { CHANNEL, UPDATER_ENABLED } from "./constants"
-import { registerIpcHandlers, sendDeepLinks, sendMenuCommand, sendSqliteMigrationProgress } from "./ipc"
+import { registerIpcHandlers, sendDeepLinks, sendMenuCommand, sendSqliteMigrationProgress, setupDownloadHandler } from "./ipc"
 import { initLogging } from "./logging"
 import { parseMarkdown } from "./markdown"
 import { createMenu } from "./menu"
@@ -97,6 +97,7 @@ function setupApp() {
   }
 
   void app.whenReady().then(async () => {
+    setupDownloadHandler()
     app.setAsDefaultProtocolClient("kodu")
     setDockIcon()
     setupAutoUpdater()
@@ -246,6 +247,7 @@ registerIpcHandlers({
   installUpdate: async () => installUpdate(),
   setBackgroundColor: (color) => setBackgroundColor(color),
 })
+
 
 function killSidecar() {
   if (!server) return

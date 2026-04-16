@@ -66,7 +66,6 @@ const api: ElectronAPI = {
   setBackgroundColor: (color: string) => ipcRenderer.invoke("set-background-color", color),
   getDownloadFolder: () => ipcRenderer.invoke("get-download-folder"),
   setDownloadFolder: (folderPath) => ipcRenderer.invoke("set-download-folder", folderPath),
-  changeDownloadFolder: () => ipcRenderer.invoke("change-download-folder"),
   downloadFile: (url, destDir) => ipcRenderer.invoke("download-file", url, destDir),
   revealFile: (filePath) => ipcRenderer.invoke("reveal-file", filePath),
 }

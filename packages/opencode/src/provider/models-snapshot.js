@@ -77052,9 +77052,9 @@ export const snapshot = {
         },
         "open_weights": true,
         "cost": {
-          "input": 0.27,
-          "output": 1.1,
-          "cache_read": 0.548
+          "input": 0.06,
+          "output": 0.22,
+          "cache_read": 0.01
         },
         "limit": {
           "context": 204800,
@@ -77572,6 +77572,37 @@ export const snapshot = {
           "output": 128000
         }
       },
+      "gpt-5.4-mini": {
+        "id": "gpt-5.4-mini",
+        "name": "GPT-5.4-Mini",
+        "family": "gpt-mini",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "release_date": "2026-03-11",
+        "last_updated": "2026-03-11",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.75,
+          "output": 4.5,
+          "cache_read": 0.075
+        },
+        "limit": {
+          "context": 400000,
+          "output": 128000
+        }
+      },
       "minimax-m2.1": {
         "id": "minimax-m2.1",
         "name": "MiniMax M2.1",
@@ -77701,7 +77732,6 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "structured_output": true,
-        "temperature": true,
         "knowledge": "2025-08-31",
         "release_date": "2026-01-14",
         "last_updated": "2026-01-14",
@@ -78008,6 +78038,37 @@ export const snapshot = {
         "limit": {
           "context": 262144,
           "output": 65536
+        }
+      },
+      "gpt-5.4": {
+        "id": "gpt-5.4",
+        "name": "GPT-5.4",
+        "family": "gpt",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "release_date": "2026-03-11",
+        "last_updated": "2026-03-11",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 2.5,
+          "output": 15,
+          "cache_read": 0.25
+        },
+        "limit": {
+          "context": 400000,
+          "output": 128000
         }
       },
       "coding-glm-4.7-free": {
@@ -87672,7 +87733,7 @@ export const snapshot = {
         "tool_call": true,
         "temperature": true,
         "release_date": "2026-03-18",
-        "last_updated": "2026-03-18",
+        "last_updated": "2026-04-11",
         "modalities": {
           "input": [
             "text"
@@ -87683,8 +87744,8 @@ export const snapshot = {
         },
         "open_weights": true,
         "cost": {
-          "input": 0.3,
-          "output": 1.2
+          "input": 0,
+          "output": 0
         },
         "limit": {
           "context": 204800,

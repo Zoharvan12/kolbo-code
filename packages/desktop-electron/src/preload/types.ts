@@ -72,7 +72,6 @@ export type ElectronAPI = {
   setBackgroundColor: (color: string) => Promise<void>
   getDownloadFolder: () => Promise<string>
   setDownloadFolder: (folderPath: string) => Promise<void>
-  changeDownloadFolder: () => Promise<string | null>
   downloadFile: (url: string, destDir: string) => Promise<string>
   revealFile: (filePath: string) => Promise<void>
 }

@@ -1,10 +1,10 @@
 import { execFile } from "node:child_process"
-import { createWriteStream } from "node:fs"
+import { createWriteStream, existsSync } from "node:fs"
 import { mkdir } from "node:fs/promises"
 import https from "node:https"
 import http from "node:http"
 import path from "node:path"
-import { BrowserWindow, Notification, app, clipboard, dialog, ipcMain, shell } from "electron"
+import { BrowserWindow, Notification, app, clipboard, dialog, ipcMain, session, shell } from "electron"
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron"
 
 import type { InitStep, ServerReadyData, SqliteMigrationProgress, TitlebarTheme, WslConfig } from "../preload/types"
@@ -195,38 +195,78 @@ export function registerIpcHandlers(deps: Deps) {
     getStore("kodu.global.dat").set("download_folder", folderPath)
   })
 
-  ipcMain.handle("change-download-folder", async () => {
-    const result = await dialog.showOpenDialog({
-      properties: ["openDirectory", "createDirectory"],
-      title: "Choose Download Folder",
-    })
-    if (result.canceled || result.filePaths.length === 0) return null
-    const chosen = result.filePaths[0]
-    getStore("kodu.global.dat").set("download_folder", chosen)
-    return chosen
-  })
-
   ipcMain.handle("download-file", async (_event: IpcMainInvokeEvent, url: string, destDir: string): Promise<string> => {
     await mkdir(destDir, { recursive: true })
-    const filename = decodeURIComponent(url.split("?")[0].split("/").pop() ?? `download-${Date.now()}`)
-    const destPath = path.join(destDir, filename)
+    const rawName = decodeURIComponent(url.split("?")[0].split("/").pop() ?? `download-${Date.now()}`)
+    const ext = path.extname(rawName)
+    const base = path.basename(rawName, ext)
+    let destPath = path.join(destDir, rawName)
+    let counter = 1
+    while (existsSync(destPath)) {
+      destPath = path.join(destDir, `${base} (${counter++})${ext}`)
+    }
 
-    await new Promise<void>((resolve, reject) => {
-      const get = url.startsWith("https") ? https.get : http.get
-      get(url, (res) => {
-        if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); return }
-        const file = createWriteStream(destPath)
-        res.pipe(file)
-        file.on("finish", () => file.close(() => resolve()))
-        file.on("error", reject)
-      }).on("error", reject)
-    })
-
+    await downloadUrl(url, destPath)
     return destPath
   })
 
   ipcMain.handle("reveal-file", (_event: IpcMainInvokeEvent, filePath: string) => {
     shell.showItemInFolder(filePath)
+  })
+}
+
+/**
+ * Wire up Electron's will-download handler to auto-save to the configured folder.
+ * Call this once after the app is ready.
+ */
+function downloadUrl(url: string, destPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const get = url.startsWith("https") ? https.get : http.get
+    const attempt = (u: string) => {
+      get(u, (res) => {
+        if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+          return attempt(res.headers.location)
+        }
+        if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`))
+        const file = createWriteStream(destPath)
+        res.pipe(file)
+        file.on("finish", () => file.close(() => resolve()))
+        file.on("error", reject)
+      }).on("error", reject)
+    }
+    attempt(url)
+  })
+}
+
+export function setupDownloadHandler() {
+  const recentDownloads = new Map<string, number>()
+  const DEDUP_MS = 1000
+
+  session.defaultSession.on("will-download", async (event, item) => {
+    const fileName = item.getFilename()
+    const now = Date.now()
+
+    // Deduplicate rapid duplicate triggers
+    const last = recentDownloads.get(fileName)
+    if (last && now - last < DEDUP_MS) { item.cancel(); return }
+    recentDownloads.set(fileName, now)
+
+    const store = getStore("kodu.global.dat")
+    let downloadFolder = store.get("download_folder") as string | undefined
+    if (!downloadFolder) {
+      downloadFolder = app.getPath("downloads")
+    }
+
+    // Unique filename
+    const ext = path.extname(fileName)
+    const base = path.basename(fileName, ext)
+    let savePath = path.join(downloadFolder, fileName)
+    let counter = 1
+    while (existsSync(savePath)) {
+      savePath = path.join(downloadFolder, `${base} (${counter++})${ext}`)
+    }
+
+    item.setSavePath(savePath)
   })
 }
 
