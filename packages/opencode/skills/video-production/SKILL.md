@@ -34,7 +34,7 @@ allowed-tools:
 - **Visual analysis** → `upload_media` → `chat_send_message` with `media_urls` (omit model — Smart Select auto-routes to Gemini)
 - **Transcription** → ONLY when user explicitly says "transcribe", "subtitles", "SRT", "captions", or "what's being said"
 
-**Never use ffmpeg to extract frames for analysis. Never use local Ollama/vision models. Commit to the right action — do not ask the user.**
+**Never use ffmpeg to extract frames for analysis. Never use local Ollama/vision models. Commit to the right action — do not ask the user. Wait for `chat_send_message` to return before proceeding — it polls until done (up to 2 min). Do NOT fall back to ffmpeg or any other approach if it takes time.**
 
 | Trigger | Action |
 |---------|--------|
