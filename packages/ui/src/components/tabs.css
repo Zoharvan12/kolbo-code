@@ -63,6 +63,8 @@
     border-bottom: 1px solid var(--border-weak-base);
     border-right: 1px solid var(--border-weak-base);
     background-color: var(--background-base);
+    cursor: pointer;
+    transition: background-color 140ms ease, color 140ms ease;
 
     [data-slot="tabs-trigger"] {
       display: flex;
@@ -107,8 +109,9 @@
       }
     }
 
-    &:hover:not(:disabled):not([data-selected]) {
+    &:hover:not(:disabled):not(:has([data-selected])) {
       color: var(--text-strong);
+      background-color: var(--surface-base-hover);
     }
     &:has([data-slot="tabs-trigger-close-button"]) {
       padding-right: 12px;

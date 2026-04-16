@@ -172,7 +172,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    color: var(--text-invert-weaker);
+    color: var(--text-invert-strong);
     font-family: var(--font-family-sans);
     font-size: 12px;
     font-weight: var(--font-weight-medium);
@@ -182,7 +182,7 @@
 
     &:hover {
       text-decoration: none;
-      background: rgba(255, 255, 255, 0.09);
+      background: rgba(255, 255, 255, 0.12);
       border-color: var(--border-strong-base);
       color: var(--text-invert-strong);
     }

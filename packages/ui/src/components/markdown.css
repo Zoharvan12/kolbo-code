@@ -16,18 +16,43 @@
     margin-bottom: 0;
   }
 
-  /* Headings: Same size, distinguished by color and spacing */
-  h1,
-  h2,
-  h3,
+  /* Headings: Proper hierarchy by size */
+  h1 {
+    font-size: 1.25rem;
+    color: var(--text-strong);
+    font-weight: var(--font-weight-medium);
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    line-height: var(--line-height-normal);
+    letter-spacing: var(--letter-spacing-tight);
+  }
+
+  h2 {
+    font-size: 1.1rem;
+    color: var(--text-strong);
+    font-weight: var(--font-weight-medium);
+    margin-top: 1.75rem;
+    margin-bottom: 0.6rem;
+    line-height: var(--line-height-normal);
+  }
+
+  h3 {
+    font-size: 1rem;
+    color: var(--text-strong);
+    font-weight: var(--font-weight-medium);
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    line-height: var(--line-height-large);
+  }
+
   h4,
   h5,
   h6 {
     font-size: var(--font-size-base);
     color: var(--text-strong);
     font-weight: var(--font-weight-medium);
-    margin-top: 2rem;
-    margin-bottom: 0.75rem;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
     line-height: var(--line-height-large);
   }
 

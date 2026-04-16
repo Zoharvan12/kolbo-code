@@ -233,7 +233,7 @@
           display: flex;
           position: relative;
           width: 100%;
-          padding: 6px 8px 6px 8px;
+          padding: 8px 10px;
           align-items: center;
           color: var(--text-strong);
           scroll-margin-top: 28px;
@@ -286,8 +286,14 @@
             display: none;
           }
 
+          cursor: pointer;
+          border-radius: var(--radius-md);
+          transition: background-color 120ms ease;
+
+          &:hover:not([data-active="true"]) {
+            background: var(--surface-raised-base);
+          }
           &[data-active="true"] {
-            border-radius: var(--radius-md);
             background: var(--surface-raised-base-hover);
             [data-slot="list-item-active-icon"] {
               display: inline-flex;
@@ -309,7 +315,7 @@
           display: flex;
           position: relative;
           width: 100%;
-          padding: 6px 8px 6px 8px;
+          padding: 8px 10px;
           align-items: center;
           color: var(--text-strong);
 

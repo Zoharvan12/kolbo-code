@@ -37,9 +37,10 @@
     gap: 8px;
     padding: 4px 8px;
     border-radius: var(--radius-sm);
-    cursor: default;
+    cursor: pointer;
     user-select: none;
     outline: none;
+    transition: background-color 120ms ease;
 
     font-family: var(--font-family-sans);
     font-size: var(--font-size-small);
