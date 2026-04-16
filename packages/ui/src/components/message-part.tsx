@@ -1111,7 +1111,7 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
       <Show when={text()}>
         <>
           <div data-slot="user-message-body">
-            <div data-slot="user-message-text" dir="auto">
+            <div data-slot="user-message-text">
               <HighlightedText text={text()} references={inlineFiles()} agents={agents()} />
             </div>
           </div>

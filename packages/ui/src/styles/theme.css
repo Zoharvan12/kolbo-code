@@ -1,7 +1,8 @@
 :root {
-  --font-family-sans: "Inter", "Heebo", "Assistant", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-family-sans--font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-family-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-sans--font-feature-settings: normal;
+  --font-family-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --font-family-mono--font-feature-settings: normal;
 
   --font-size-small: 13px;
@@ -605,24 +606,4 @@
     --avatar-text-lime: #c4f042;
     --text-stronger: rgba(255, 255, 255, 0.936);
   }
-}
-
-/* Custom scrollbars — thin and subtle */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-base) transparent;
-}
-*::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-*::-webkit-scrollbar-thumb {
-  background-color: var(--border-base);
-  border-radius: 999px;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background-color: var(--border-strong-base);
 }

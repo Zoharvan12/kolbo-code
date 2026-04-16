@@ -50,11 +50,6 @@
       border-radius: var(--radius-md);
       border: 1px solid var(--border-weak-base);
       background: var(--input-base);
-      transition: border-color 140ms ease, box-shadow 140ms ease;
-
-      &:hover:not(:focus-within):not(:has([data-readonly])) {
-        border-color: var(--border-base);
-      }
 
       &:focus-within:not(:has([data-readonly])) {
         border-color: transparent;

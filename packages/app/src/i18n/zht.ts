@@ -626,7 +626,6 @@ export const dict = {
   "sidebar.project.clearNotifications": "清除通知",
   "sidebar.empty.title": "沒有開啟的專案",
   "sidebar.empty.description": "開啟一個專案以開始使用",
-  "sidebar.sessions.empty": "尚無工作階段",
   "debugBar.ariaLabel": "開發效能診斷",
   "debugBar.na": "不適用",
   "debugBar.nav.label": "導航",

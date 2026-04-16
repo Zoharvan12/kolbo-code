@@ -493,9 +493,6 @@ export const dict = {
 
   "error.page.title": "Something went wrong",
   "error.page.description": "An error occurred while loading the application.",
-  "error.page.authExpired.title": "Your session has expired",
-  "error.page.authExpired.description": "Your API credentials are invalid or have expired. Restart the app to sign in again.",
-  "error.page.authExpired.restart": "Restart & Sign In",
   "error.page.details.label": "Error Details",
   "error.page.action.restart": "Restart",
   "error.page.action.checking": "Checking...",
@@ -720,7 +717,6 @@ export const dict = {
   "sidebar.project.clearNotifications": "Clear notifications",
   "sidebar.empty.title": "No projects open",
   "sidebar.empty.description": "Open a project to get started",
-  "sidebar.sessions.empty": "No sessions yet",
 
   "debugBar.ariaLabel": "Development performance diagnostics",
   "debugBar.na": "n/a",

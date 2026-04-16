@@ -626,7 +626,6 @@ export const dict = {
   "sidebar.project.clearNotifications": "Ryd notifikationer",
   "sidebar.empty.title": "Ingen projekter åbne",
   "sidebar.empty.description": "Åbn et projekt for at komme i gang",
-  "sidebar.sessions.empty": "Ingen sessioner endnu",
   "debugBar.ariaLabel": "Udviklingsydelsesdiagnostik",
   "debugBar.na": "n/a",
   "debugBar.nav.label": "NAV",

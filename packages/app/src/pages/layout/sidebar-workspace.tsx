@@ -241,60 +241,52 @@ const WorkspaceSessionList = (props: {
   hasMore: Accessor<boolean>
   loadMore: () => Promise<void>
   language: ReturnType<typeof useLanguage>
-}): JSX.Element => {
-  const isEmpty = createMemo(() => !props.loading() && !props.showNew() && props.sessions().length === 0)
-  return (
-    <nav class="flex flex-col gap-1">
-      <Show when={props.showNew()}>
-        <NewSessionItem
+}): JSX.Element => (
+  <nav class="flex flex-col gap-1">
+    <Show when={props.showNew()}>
+      <NewSessionItem
+        slug={props.slug()}
+        mobile={props.mobile}
+        sidebarExpanded={props.ctx.sidebarExpanded}
+        clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
+      />
+    </Show>
+    <Show when={props.loading()}>
+      <SessionSkeleton />
+    </Show>
+    <For each={props.sessions()}>
+      {(session) => (
+        <SessionItem
+          session={session}
+          list={props.sessions()}
+          navList={props.ctx.navList}
           slug={props.slug()}
           mobile={props.mobile}
+          showChild
           sidebarExpanded={props.ctx.sidebarExpanded}
           clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
+          prefetchSession={props.ctx.prefetchSession}
+          archiveSession={props.ctx.archiveSession}
         />
-      </Show>
-      <Show when={props.loading()}>
-        <SessionSkeleton />
-      </Show>
-      <For each={props.sessions()}>
-        {(session) => (
-          <SessionItem
-            session={session}
-            list={props.sessions()}
-            navList={props.ctx.navList}
-            slug={props.slug()}
-            mobile={props.mobile}
-            showChild
-            sidebarExpanded={props.ctx.sidebarExpanded}
-            clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
-            prefetchSession={props.ctx.prefetchSession}
-            archiveSession={props.ctx.archiveSession}
-          />
-        )}
-      </For>
-      <Show when={props.hasMore()}>
-        <div class="relative w-full py-1">
-          <Button
-            variant="ghost"
-            class="flex w-full text-left justify-start text-14-regular text-text-weak pl-9 pr-10"
-            size="large"
-            onClick={(e: MouseEvent) => {
-              props.loadMore()
-              ;(e.currentTarget as HTMLButtonElement).blur()
-            }}
-          >
-            {props.language.t("common.loadMore")}
-          </Button>
-        </div>
-      </Show>
-      <Show when={isEmpty()}>
-        <div class="px-3 py-4 flex flex-col items-center gap-1.5 text-center">
-          <span class="text-12-regular text-text-subtle">{props.language.t("sidebar.sessions.empty")}</span>
-        </div>
-      </Show>
-    </nav>
-  )
-}
+      )}
+    </For>
+    <Show when={props.hasMore()}>
+      <div class="relative w-full py-1">
+        <Button
+          variant="ghost"
+          class="flex w-full text-left justify-start text-14-regular text-text-weak pl-9 pr-10"
+          size="large"
+          onClick={(e: MouseEvent) => {
+            props.loadMore()
+            ;(e.currentTarget as HTMLButtonElement).blur()
+          }}
+        >
+          {props.language.t("common.loadMore")}
+        </Button>
+      </div>
+    </Show>
+  </nav>
+)
 
 export const SortableWorkspace = (props: {
   ctx: WorkspaceSidebarContext

@@ -18,6 +18,7 @@ import { Command } from "../command"
 import { Flag } from "../flag/flag"
 import { Partner } from "../brand/partner"
 import { QuestionRoutes } from "./routes/question"
+import { ArtifactRoutes } from "./routes/artifact"
 import { PermissionRoutes } from "./routes/permission"
 import { Snapshot } from "@/snapshot"
 import { ProjectRoutes } from "./routes/project"
@@ -53,6 +54,7 @@ export const InstanceRoutes = (upgrade: UpgradeWebSocket, app: Hono = new Hono()
     .route("/config", ConfigRoutes())
     .route("/experimental", ExperimentalRoutes())
     .route("/session", SessionRoutes())
+    .route("/artifact", ArtifactRoutes())
     .route("/permission", PermissionRoutes())
     .route("/question", QuestionRoutes())
     .route("/provider", ProviderRoutes())

@@ -9,11 +9,6 @@
   letter-spacing: inherit;
   line-height: inherit;
   box-sizing: border-box;
-  transition: box-shadow 140ms ease;
-
-  &:hover:not(:focus) {
-    box-shadow: var(--inline-input-hover-shadow, 0 0 0 1px var(--border-weak-base));
-  }
 
   &:focus {
     outline: none;

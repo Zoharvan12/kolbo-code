@@ -182,24 +182,29 @@ The regular `srt_url` groups words into readable subtitle lines (default 12 word
 ### Long Content
 Transcription supports files up to 30 minutes. For longer content, split the file first or provide segments.
 
-### Visual Video/Audio Analysis (what's happening, not just what's said)
-`transcribe_audio` only extracts **speech**. If the user wants to understand **what's visually happening** in a video (scenes, actions, objects, on-screen text) or needs a multimodal AI to reason about the content, use `chat_send_message` with a video-capable model instead.
+### Visual Video/Audio/Image Analysis
 
-**Video-capable models**: `gemini-2.5-pro`, `gemini-2.5-flash` — these can watch video and analyze visual content.
+**DEFAULT RULE: When the user shares a video or image file without a specific instruction, always do visual analysis — never ask, never default to transcription.**
 
-**Workflow for visual analysis:**
-1. Upload the video with `upload_media` to get a stable CDN URL
-2. Call `chat_send_message` with the video URL in the message and a video-capable model (e.g. `gemini-2.5-pro`)
-3. Ask your analysis question: "Describe what happens in this video", "What products are shown?", "Summarize the key scenes"
+`transcribe_audio` is ONLY for when the user explicitly says "transcribe", "subtitles", "SRT", or "what's being said". Everything else — "what do you see?", "describe this", "analyze this", "what's in this video?", "what prompts are shown?", or just pasting a file path with no instruction — is visual analysis via Gemini.
 
-**When to use which:**
+**NEVER use ffmpeg, `ollama-vision`, or extract frames manually. NEVER ask the user whether to transcribe or analyze — just execute visual analysis.**
 
-| User intent | Tool |
-|-------------|------|
-| "Transcribe this" / "What's being said?" | `transcribe_audio` |
-| "Generate subtitles" / "Word-by-word timing" | `transcribe_audio` |
-| "What's happening in this video?" / "Describe the scenes" | `chat_send_message` + Gemini |
-| "Analyze this video and transcribe it" | Both — `transcribe_audio` for text + `chat_send_message` for visual |
+**Workflow for visual analysis (do this every time):**
+1. `upload_media({ source: "/absolute/local/path/to/file.mp4" })` → get CDN URL (skip if already a public URL)
+2. `chat_send_message({ message: "<your question>", model: "gemini-2.5-pro", media_urls: ["<cdn-url>"] })`
+
+**Routing table — commit to an action, do not ask:**
+
+| Trigger | Action |
+|---------|--------|
+| User says "transcribe" / "subtitles" / "SRT" / "what's being said" | `transcribe_audio` only |
+| User says "analyze" / "describe" / "what do you see" / "what's in this" / "what's happening" | Visual analysis — `upload_media` → `chat_send_message` + Gemini |
+| User shares a file path or video URL with no instruction | Visual analysis — `upload_media` → `chat_send_message` + Gemini |
+| User shares a video and asks about on-screen text / prompts / UI | Visual analysis — `upload_media` → `chat_send_message` + Gemini |
+| User wants both transcript AND visual description | Both — run `transcribe_audio` AND `chat_send_message` + Gemini |
+
+When in doubt, do visual analysis. Do not stop to ask.
 
 ---
 
@@ -426,6 +431,20 @@ When the user shares an image and asks about it:
 - **NSFW**: Kolbo enforces content safety at the model level. If a generation fails on safety grounds, rephrase the prompt rather than retrying identically.
 - **Copyright**: style references are fine (e.g. "in the style of Studio Ghibli"); verbatim reproduction of copyrighted material is not.
 - **No fabricated URLs**: only share URLs that actually came back from a tool call. Never guess a URL.
+
+---
+
+## Sharing HTML Artifacts
+
+When you generate an HTML, SVG, or Mermaid artifact in the chat, a **Share** button appears in the artifact preview toolbar (next to Desktop / Mobile). Clicking it:
+
+1. Uploads the artifact to Kolbo's hosting platform
+2. Copies a permanent public URL to the clipboard (e.g. `https://api.kolbo.ai/api/shared-artifact-raw/<token>`)
+3. Shows a toast confirming the link was copied
+
+Anyone with the URL can view the rendered page — no login required.
+
+**Requirements:** You must be logged in (`kolbo auth login`). The share button returns an error toast if you are not authenticated.
 
 ---
 

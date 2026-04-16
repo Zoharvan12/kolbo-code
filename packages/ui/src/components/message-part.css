@@ -130,13 +130,10 @@
     white-space: pre-wrap;
     word-break: break-word;
     overflow: hidden;
-    background: var(--surface-raised-base);
+    background: var(--surface-base);
     border: 1px solid var(--border-weak-base);
-    padding: 10px 14px;
-    border-radius: 8px;
-    transition: background-color 0.15s ease;
-    unicode-bidi: plaintext;
-    text-align: start;
+    padding: 8px 12px;
+    border-radius: 6px;
 
     [data-highlight="file"] {
       color: var(--syntax-property);

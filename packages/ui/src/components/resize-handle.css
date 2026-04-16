@@ -5,25 +5,19 @@
   &::after {
     content: "";
     position: absolute;
-    background-color: var(--border-base);
     opacity: 0;
-    transition: opacity 0.18s ease, background-color 0.18s ease;
+    transition: opacity 0.15s ease-in-out;
   }
 
-  &:hover::after {
-    opacity: 1;
-    background-color: var(--border-strong-base);
-  }
-
+  &:hover::after,
   &:active::after {
     opacity: 1;
-    background-color: var(--icon-interactive-base, var(--border-strong-base));
   }
 
   &[data-direction="horizontal"] {
     inset-block: 0;
     inset-inline-end: 0;
-    width: 12px;
+    width: 8px;
     transform: translateX(50%);
     cursor: col-resize;
 
@@ -34,18 +28,17 @@
     }
 
     &::after {
-      width: 2px;
+      width: 3px;
       inset-block: 0;
       inset-inline-start: 50%;
       transform: translateX(-50%);
-      border-radius: 999px;
     }
   }
 
   &[data-direction="vertical"] {
     inset-inline: 0;
     inset-block-start: 0;
-    height: 12px;
+    height: 8px;
     transform: translateY(-50%);
     cursor: row-resize;
 
@@ -56,11 +49,10 @@
     }
 
     &::after {
-      height: 2px;
+      height: 3px;
       inset-inline: 0;
       inset-block-start: 50%;
       transform: translateY(-50%);
-      border-radius: 999px;
     }
   }
 }

@@ -36,12 +36,6 @@ function isInitError(error: unknown): error is InitError {
   )
 }
 
-function containsAuthError(error: unknown): boolean {
-  if (isInitError(error) && error.name === "ProviderAuthError") return true
-  if (error instanceof Error && error.cause) return containsAuthError(error.cause)
-  return false
-}
-
 function safeJson(value: unknown, circular: string): string {
   const seen = new WeakSet<object>()
   const json = JSON.stringify(
@@ -276,12 +270,6 @@ export const ErrorPage: Component<ErrorPageProps> = (props) => {
           <h1 class="text-lg font-medium text-text-strong">{language.t("error.page.title")}</h1>
           <p class="text-sm text-text-weak">{language.t("error.page.description")}</p>
         </div>
-        <Show when={containsAuthError(props.error)}>
-          <div class="w-full rounded-md bg-surface-error-base border border-border-error-base px-4 py-3 flex flex-col gap-1">
-            <p class="text-sm font-medium text-text-danger-base">{language.t("error.page.authExpired.title")}</p>
-            <p class="text-xs text-text-danger-weak">{language.t("error.page.authExpired.description")}</p>
-          </div>
-        </Show>
         <TextField
           value={formatError(props.error, language.t)}
           readOnly
@@ -292,18 +280,9 @@ export const ErrorPage: Component<ErrorPageProps> = (props) => {
           hideLabel
         />
         <div class="flex items-center gap-3">
-          <Show
-            when={containsAuthError(props.error)}
-            fallback={
-              <Button size="large" onClick={platform.restart}>
-                {language.t("error.page.action.restart")}
-              </Button>
-            }
-          >
-            <Button size="large" onClick={platform.restart}>
-              {language.t("error.page.authExpired.restart")}
-            </Button>
-          </Show>
+          <Button size="large" onClick={platform.restart}>
+            {language.t("error.page.action.restart")}
+          </Button>
           <Show when={platform.checkUpdate}>
             <Show
               when={store.version}

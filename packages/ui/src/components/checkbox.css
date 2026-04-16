@@ -2,7 +2,7 @@
   display: flex;
   align-items: var(--checkbox-align, center);
   gap: 12px;
-  cursor: pointer;
+  cursor: default;
 
   [data-slot="checkbox-checkbox-input"] {
     position: absolute;

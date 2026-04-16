@@ -29,10 +29,6 @@ import { normalize } from "./session-diff"
 
 const KOLBO_BILLING_URL = "https://app.kolbo.ai/pricing"
 
-function isProviderAuthError(error: { name?: string } | undefined): boolean {
-  return error?.name === "ProviderAuthError"
-}
-
 function isInsufficientCredits(error: { data?: { statusCode?: number; message?: unknown; responseBody?: string } } | undefined): boolean {
   if (!error?.data) return false
   if (error.data.statusCode === 402) return true
@@ -539,40 +535,22 @@ export function SessionTurn(
               </Show>
               <Show when={error()}>
                 <Show
-                  when={isProviderAuthError(error())}
+                  when={isInsufficientCredits(error())}
                   fallback={
-                    <Show
-                      when={isInsufficientCredits(error())}
-                      fallback={
-                        <Card variant="error" class="error-card">
-                          {errorText()}
-                        </Card>
-                      }
-                    >
-                      <Card variant="error" class="error-card">
-                        <div class="flex flex-col gap-2">
-                          <div>{i18n.t("ui.sessionTurn.error.insufficientCredits")}</div>
-                          <button
-                            type="button"
-                            class="self-start text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"
-                            onClick={() => platformOps.openLink?.(KOLBO_BILLING_URL)}
-                          >
-                            {i18n.t("ui.sessionTurn.error.addCredits")}
-                          </button>
-                        </div>
-                      </Card>
-                    </Show>
+                    <Card variant="error" class="error-card">
+                      {errorText()}
+                    </Card>
                   }
                 >
                   <Card variant="error" class="error-card">
                     <div class="flex flex-col gap-2">
-                      <div>{i18n.t("ui.sessionTurn.error.authExpired")}</div>
+                      <div>{i18n.t("ui.sessionTurn.error.insufficientCredits")}</div>
                       <button
                         type="button"
                         class="self-start text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"
-                        onClick={() => document.dispatchEvent(new CustomEvent("kolbo:reauth-required"))}
+                        onClick={() => platformOps.openLink?.(KOLBO_BILLING_URL)}
                       >
-                        {i18n.t("ui.sessionTurn.error.signInAgain")}
+                        {i18n.t("ui.sessionTurn.error.addCredits")}
                       </button>
                     </div>
                   </Card>

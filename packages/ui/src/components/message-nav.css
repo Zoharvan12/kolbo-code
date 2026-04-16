@@ -63,16 +63,11 @@
   align-self: stretch;
   width: 100%;
   column-gap: 12px;
-  cursor: pointer;
+  cursor: default;
   border: none;
   background: none;
   padding: 4px 12px;
   border-radius: var(--radius-sm);
-  transition: background-color 120ms ease;
-
-  &:hover {
-    background-color: var(--surface-raised-base-hover);
-  }
 }
 
 [data-slot="message-nav-title-preview"] {

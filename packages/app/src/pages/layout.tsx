@@ -276,12 +276,6 @@ export default function Layout(props: ParentProps) {
     setShowLogin(!kolboConnected)
   })
 
-  onMount(() => {
-    const handler = () => setShowLogin(true)
-    document.addEventListener("kolbo:reauth-required", handler)
-    onCleanup(() => document.removeEventListener("kolbo:reauth-required", handler))
-  })
-
   createEffect(() => {
     const p = hoverProjectData()
     if (p) {

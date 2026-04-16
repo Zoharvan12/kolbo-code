@@ -31,7 +31,7 @@
     padding: 0;
     align-items: center;
     align-self: stretch;
-    cursor: pointer;
+    cursor: default;
     user-select: none;
     color: var(--text-base);
 
@@ -62,9 +62,9 @@
     line-height: var(--line-height-large); /* 166.667% */
     letter-spacing: var(--letter-spacing-normal);
 
-    &:hover:has([data-slot="collapsible-arrow"]) {
-      background-color: var(--surface-raised-base);
-    }
+    /* &:hover { */
+    /*   background-color: var(--surface-base); */
+    /* } */
     &:focus-visible {
       outline: none;
       background-color: var(--surface-raised-base-hover);

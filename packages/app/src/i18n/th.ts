@@ -626,7 +626,6 @@ export const dict = {
   "sidebar.project.clearNotifications": "ล้างการแจ้งเตือน",
   "sidebar.empty.title": "ไม่มีโปรเจกต์เปิดอยู่",
   "sidebar.empty.description": "เปิดโปรเจกต์เพื่อเริ่มต้น",
-  "sidebar.sessions.empty": "ยังไม่มีเซสชัน",
   "debugBar.ariaLabel": "การวินิจฉัยประสิทธิภาพการพัฒนา",
   "debugBar.na": "n/a",
   "debugBar.nav.label": "NAV",

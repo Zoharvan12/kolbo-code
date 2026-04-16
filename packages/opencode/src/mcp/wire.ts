@@ -24,26 +24,68 @@ function writeJsonAtomic(target: string, data: unknown, mode: number) {
 
 const KOLBO_SKILL_MD = `---
 name: kolbo
-description: Generate images, videos, music, speech, and sound effects using Kolbo AI. Use when asked to create any visual, audio, or video content — or to list available AI models or check credit balance.
+description: Generate images, videos, music, speech, sound effects, 3D models, and more using Kolbo AI. Use when asked to create any visual, audio, or video content — or to manage media, check credits, or list available AI models.
 ---
 
 # Kolbo AI — Creative Generation
 
-You have access to the Kolbo AI platform via MCP tools. Use them to generate images, videos, music, speech, and sound effects directly from conversation.
+You have access to the full Kolbo AI platform via MCP tools. Use them to generate images, videos, music, speech, sound effects, 3D models, transcribe audio, and manage media.
 
 ## Available Tools
 
+### Generation
 | Tool | Description |
 |------|-------------|
 | \`generate_image\` | Create images from text prompts. Returns image URL(s). |
+| \`generate_image_edit\` | Edit an existing image with a text instruction. |
+| \`generate_creative_director\` | Run a multi-scene image campaign from a brief. |
 | \`generate_video\` | Create videos from text. Returns video URL. |
-| \`generate_video_from_image\` | Animate a static image into video. Returns video URL. |
+| \`generate_video_from_image\` | Animate a static image into video. |
+| \`generate_video_from_video\` | Transform or restyle an existing video. |
+| \`generate_elements\` | Generate compositable image elements (transparent PNG). |
+| \`generate_first_last_frame\` | Generate a video interpolated between two frames. |
+| \`generate_lipsync\` | Sync a person's lips to an audio track in a video. |
 | \`generate_music\` | Create music from descriptions. Returns audio URL. |
 | \`generate_speech\` | Convert text to speech. Returns audio URL. |
 | \`generate_sound\` | Generate sound effects. Returns audio URL. |
+| \`generate_3d\` | Create a 3D model from a text prompt or image. |
+| \`transcribe_audio\` | Transcribe audio/video to text, SRT subtitles, or word-level SRT. |
+
+### Discovery & Account
+| Tool | Description |
+|------|-------------|
 | \`list_models\` | Browse available AI models filtered by type. |
+| \`list_voices\` | List available TTS voices. |
+| \`list_presets\` | List saved generation presets. |
 | \`check_credits\` | Check remaining Kolbo credit balance. |
 | \`get_generation_status\` | Poll status of an in-progress generation by ID. |
+
+### Media Library
+| Tool | Description |
+|------|-------------|
+| \`upload_media\` | Upload a local file or URL to Kolbo CDN. Returns public URL. |
+| \`list_media\` | Browse your media library. |
+
+### Visual DNA (Style Profiles)
+| Tool | Description |
+|------|-------------|
+| \`create_visual_dna\` | Create a style/character consistency profile from reference images. |
+| \`list_visual_dnas\` | List your Visual DNA profiles. |
+| \`get_visual_dna\` | Get details of a specific Visual DNA profile. |
+| \`delete_visual_dna\` | Delete a Visual DNA profile. |
+
+### Moodboards
+| Tool | Description |
+|------|-------------|
+| \`list_moodboards\` | List your moodboards. |
+| \`get_moodboard\` | Get images and metadata from a moodboard. |
+
+### Chat (Multi-model, Vision & Analysis)
+| Tool | Description |
+|------|-------------|
+| \`chat_send_message\` | Send a message to a Kolbo chat conversation. Supports image/video analysis via vision models (e.g. gemini-2.5-pro). |
+| \`chat_list_conversations\` | List your chat conversations. |
+| \`chat_get_messages\` | Get messages from a specific conversation. |
 
 ## Workflow
 
@@ -59,20 +101,26 @@ Use these values with \`list_models\`:
 | Type | Use for |
 |------|---------|
 | \`image\` | Image generation |
+| \`image_edit\` | Image editing |
 | \`video\` | Text-to-video |
 | \`video_from_image\` | Image-to-video animation |
+| \`video_from_video\` | Video transformation |
 | \`music\` | Music generation |
 | \`speech\` | Text-to-speech |
 | \`sound\` | Sound effects |
+| \`3d\` | 3D model generation |
 
 ## Tips
 
 - **Images** are fastest (~10–30s). \`enhance_prompt: true\` is on by default.
 - **Video** takes longest (~1–5 min). Check \`supported_durations\` and \`supported_aspect_ratios\` from \`list_models\` before generating.
 - **Music** supports \`style\`, \`instrumental\`, and \`lyrics\` parameters.
-- **Speech** — pass a voice \`identifier\` from \`list_models\` for a consistent voice.
-- If a video generation times out, use \`get_generation_status\` with the returned generation ID to retrieve the result.
+- **Speech** — call \`list_voices\` to pick a voice, then pass its \`identifier\` to \`generate_speech\`.
+- **Visual DNA** — use \`create_visual_dna\` to lock in a character or style, then reference it in generation tools for consistency.
+- **Video/image analysis** — use \`chat_send_message\` with a vision-capable model (e.g. \`gemini-2.5-pro\`).
+- If a generation times out, use \`get_generation_status\` with the returned generation ID to retrieve the result.
 - Models marked \`recommended: true\` in \`list_models\` are Kolbo's top picks for quality and speed.
+- **Cost hierarchy** (cheapest → most expensive): speech ≈ sound < images < music ≈ 3D < video < lipsync.
 
 ## Examples
 
@@ -81,8 +129,10 @@ Use these values with \`list_models\`:
 > "Make a lo-fi hip hop beat, instrumental only"
 > "Convert this text to speech: Welcome to Kolbo"
 > "Animate this image into a short video"
+> "Transcribe this video and give me SRT subtitles"
 > "What image models are available?"
 > "Check my credit balance"
+> "Analyze this image and describe its style"
 
 ## Troubleshooting
 

@@ -248,7 +248,7 @@ export const SettingsGeneral: Component = () => {
   }
 
   const GeneralSection = () => (
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-1">
       <SettingsList>
         <SettingsRow
           title={language.t("settings.general.row.language.title")}
@@ -351,8 +351,8 @@ export const SettingsGeneral: Component = () => {
   )
 
   const AppearanceSection = () => (
-    <div class="flex flex-col gap-2">
-      <h3 class="text-14-medium text-text-strong pb-1">{language.t("settings.general.section.appearance")}</h3>
+    <div class="flex flex-col gap-1">
+      <h3 class="text-14-medium text-text-strong pb-2">{language.t("settings.general.section.appearance")}</h3>
 
       <SettingsList>
         <SettingsRow
@@ -458,8 +458,8 @@ export const SettingsGeneral: Component = () => {
   )
 
   const NotificationsSection = () => (
-    <div class="flex flex-col gap-2">
-      <h3 class="text-14-medium text-text-strong pb-1">{language.t("settings.general.section.notifications")}</h3>
+    <div class="flex flex-col gap-1">
+      <h3 class="text-14-medium text-text-strong pb-2">{language.t("settings.general.section.notifications")}</h3>
 
       <SettingsList>
         <SettingsRow
@@ -502,8 +502,8 @@ export const SettingsGeneral: Component = () => {
   )
 
   const SoundsSection = () => (
-    <div class="flex flex-col gap-2">
-      <h3 class="text-14-medium text-text-strong pb-1">{language.t("settings.general.section.sounds")}</h3>
+    <div class="flex flex-col gap-1">
+      <h3 class="text-14-medium text-text-strong pb-2">{language.t("settings.general.section.sounds")}</h3>
 
       <SettingsList>
         <SettingsRow
@@ -555,8 +555,8 @@ export const SettingsGeneral: Component = () => {
   )
 
   const UpdatesSection = () => (
-    <div class="flex flex-col gap-2">
-      <h3 class="text-14-medium text-text-strong pb-1">{language.t("settings.general.section.updates")}</h3>
+    <div class="flex flex-col gap-1">
+      <h3 class="text-14-medium text-text-strong pb-2">{language.t("settings.general.section.updates")}</h3>
 
       <SettingsList>
         <SettingsRow
@@ -654,8 +654,8 @@ export const SettingsGeneral: Component = () => {
               platform.setDisplayBackend?.(checked ? "wayland" : "auto").finally(() => actions.refetch())
 
             return (
-              <div class="flex flex-col gap-2">
-                <h3 class="text-14-medium text-text-strong pb-1">{language.t("settings.general.section.display")}</h3>
+              <div class="flex flex-col gap-1">
+                <h3 class="text-14-medium text-text-strong pb-2">{language.t("settings.general.section.display")}</h3>
 
                 <SettingsList>
                   <SettingsRow

@@ -726,7 +726,7 @@ export const ProvidersLoginCommand = cmd({
                 ...existing.mcp,
                 kolbo: {
                   type: "local",
-                  command: ["npx", "-y", "@kolbo/mcp"],
+                  command: ["npx", "-y", "@kolbo/mcp@latest"],
                   environment: mcpEnv,
                   timeout: 1800000,
                 },
