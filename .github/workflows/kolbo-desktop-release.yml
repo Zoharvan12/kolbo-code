@@ -36,7 +36,7 @@ jobs:
             rust-target: x86_64-pc-windows-msvc
             bundle: nsis
             artifact-suffix: windows-x64
-          - platform: macos-latest
+          - platform: macos-14
             rust-target: aarch64-apple-darwin
             bundle: dmg
             artifact-suffix: darwin-aarch64
@@ -102,7 +102,7 @@ jobs:
         run: node scripts/apply-branding.cjs
 
       - name: Import Apple signing certificate
-        if: matrix.platform == 'macos-latest'
+        if: matrix.platform == 'macos-14'
         env:
           APPLE_CERT_DATA: ${{ secrets.DEVELOPER_ID_APPLICATION_CERT }}
           APPLE_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_CERT_PASSWORD }}
@@ -133,7 +133,7 @@ jobs:
             KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe"
             [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe"
             DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}.exe"
-          elif [ "$PLATFORM" == "macos-latest" ]; then
+          elif [ "$PLATFORM" == "macos-14" ]; then
             KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
             [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
             DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}"
@@ -169,10 +169,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
-          # Notarization intentionally disabled — Apple servers cause indefinite hangs
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: packages/desktop
           tauriScript: bunx tauri
@@ -230,7 +229,7 @@ jobs:
           Write-Host "✓ Uploaded update bundle"
 
       - name: Upload update bundles to release (macOS)
-        if: matrix.platform == 'macos-latest'
+        if: matrix.platform == 'macos-14'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
