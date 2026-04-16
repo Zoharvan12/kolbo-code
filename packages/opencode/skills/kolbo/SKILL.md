@@ -186,32 +186,25 @@ Transcription supports files up to 30 minutes. For longer content, split the fil
 
 ### Visual Video/Audio/Image Analysis
 
-**DEFAULT RULE: When the user shares a video or image file without a specific instruction, always do visual analysis — never ask, never default to transcription.**
+**The agent has built-in vision — use the right tool for the media type:**
 
-`transcribe_audio` is ONLY for when the user explicitly says "transcribe", "subtitles", "SRT", or "what's being said". Everything else — "what do you see?", "describe this", "analyze this", "what's in this video?", "what prompts are shown?", or just pasting a file path with no instruction — is visual analysis via Gemini.
+| Media type | How to analyze |
+|------------|----------------|
+| **Image** (jpg, png, webp, etc.) | Read it directly with the `Read` tool — the agent sees images natively. No upload needed. |
+| **Video / Audio** | `upload_media` → `chat_send_message` with `media_urls` (Gemini handles video/audio) |
+| **Transcription** | `transcribe_audio` — ONLY when user explicitly says "transcribe", "subtitles", "SRT", or "what's being said" |
 
-**NEVER use ffmpeg, `ollama-vision`, or extract frames manually. NEVER ask the user whether to transcribe or analyze — just execute visual analysis.**
+**NEVER use ffmpeg or frame extraction for analysis. NEVER ask the user — just pick the right path above.**
 
-**Workflow for visual analysis (do this every time — both steps are required):**
+**Video/Audio analysis workflow (both steps required every time):**
 1. `upload_media({ source: "/absolute/local/path/to/file.mp4" })` → returns `{ url, thumbnail_url, ... }`
-   - **Use `url`** — that is the actual video/image CDN URL to pass to Gemini
-   - Ignore `thumbnail_url` — it is a preview JPG only, not the media itself
+   - **Use `url`** — the actual CDN URL. Ignore `thumbnail_url` (preview JPG only).
 2. `chat_send_message({ message: "<your question>", media_urls: [result.url] })`
-   - **`media_urls` is mandatory** — mentioning the file path in the message text does nothing. Gemini only sees the video if you pass the CDN URL in `media_urls`.
-   - Always put the URL inside an **array**: `media_urls: ["https://cdn.kolbo.ai/..."]`
-   - **Omit `model`** — Smart Select detects video/audio and auto-routes to Gemini
-   - **Sessions do NOT remember media between messages.** Every call that needs video analysis must include `media_urls`. On retry: reuse the same CDN `url` from `upload_media` (no re-upload needed) but always pass `media_urls` again.
-   - **Batch / many videos**: pass `model: "gemini-3.1-flash-lite-preview"` explicitly — faster, cheaper, same quality for straightforward description tasks
-
-**Routing table — commit to an action, do not ask:**
-
-| Trigger | Action |
-|---------|--------|
-| User says "transcribe" / "subtitles" / "SRT" / "what's being said" | `transcribe_audio` only |
-| User says "analyze" / "describe" / "what do you see" / "what's in this" / "what's happening" | Visual analysis — `upload_media` → `chat_send_message` + Gemini |
-| User shares a file path or video URL with no instruction | Visual analysis — `upload_media` → `chat_send_message` + Gemini |
-| User shares a video and asks about on-screen text / prompts / UI | Visual analysis — `upload_media` → `chat_send_message` + Gemini |
-| User wants both transcript AND visual description | Both — run `transcribe_audio` AND `chat_send_message` + Gemini |
+   - **`media_urls` is mandatory** — the model only sees the video if you pass the CDN URL here.
+   - Always an **array**: `media_urls: ["https://cdn.kolbo.ai/..."]`
+   - **Omit `model`** — Smart Select auto-routes to Gemini when media is detected
+   - **Sessions do NOT remember media between messages.** On retry: reuse the same CDN `url` (no re-upload) but always pass `media_urls` again.
+   - **Batch / many videos**: pass `model: "gemini-3.1-flash-lite-preview"` explicitly for cheaper bulk runs
 
 When in doubt, do visual analysis. Do not stop to ask.
 

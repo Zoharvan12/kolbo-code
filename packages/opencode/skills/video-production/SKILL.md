@@ -29,18 +29,16 @@ allowed-tools:
 
 ## ⚠️ DEFAULT RULE: Video Analysis = Visual Analysis (NOT Transcription)
 
-**When the user shares a video file and asks to "analyze", "describe", "what's in this", "what prompts are shown", or gives no specific instruction — ALWAYS do visual analysis via Gemini. Never default to transcription.**
+**The agent has built-in vision for images. For videos, always use Gemini via Kolbo MCP.**
 
-- **Visual analysis** → `upload_media` → `chat_send_message` with `media_urls` (omit model — Smart Select auto-routes to Gemini)
-- **Transcription** → ONLY when user explicitly says "transcribe", "subtitles", "SRT", "captions", or "what's being said"
+| Media type | Action |
+|------------|--------|
+| **Image** (jpg, png, etc.) | Agent reads it directly — no upload needed |
+| **Video** — "analyze", "describe", "what's in this?", "what prompts?", file path with no instruction | `upload_media` → `chat_send_message` + Gemini |
+| **Transcription** — "transcribe", "subtitles", "SRT", "what's being said", "captions" | `transcribe_audio` only |
+| Both visual + transcript | Run both |
 
 **Never use ffmpeg to extract frames for analysis. Never use local Ollama/vision models. Commit to the right action — do not ask the user. Wait for `chat_send_message` to return before proceeding — it polls until done (up to 2 min). Do NOT fall back to ffmpeg or any other approach if it takes time.**
-
-| Trigger | Action |
-|---------|--------|
-| "analyze this video" / "what's in this?" / "describe this" / "what prompts do you see?" / file path with no instruction | Visual analysis — `upload_media` → `chat_send_message` + Gemini |
-| "transcribe" / "subtitles" / "SRT" / "what's being said" / "captions" | `transcribe_audio` |
-| Both visual + transcript | Run both |
 
 ---
 
