@@ -49,7 +49,8 @@ You have access to the Kolbo AI platform via MCP tools. Use them to generate ima
 
 | Tool | Description |
 |------|-------------|
-| \`generate_image\` | Create images from text prompts. Returns image URL(s). |
+| \`generate_image\` | Create a single image from a text prompt. Returns image URL(s). |
+| \`generate_creative_director\` | Generate 2–8 related images or videos as one coherent set. **Use this instead of looping \`generate_image\` whenever the user wants more than one related output.** |
 | \`generate_video\` | Create videos from text. Returns video URL. |
 | \`generate_video_from_image\` | Animate a static image into video. Returns video URL. |
 | \`generate_music\` | Create music from descriptions. Returns audio URL. |
@@ -58,6 +59,13 @@ You have access to the Kolbo AI platform via MCP tools. Use them to generate ima
 | \`list_models\` | Browse available AI models filtered by type. |
 | \`check_credits\` | Check remaining Kolbo credit balance. |
 | \`get_generation_status\` | Poll status of an in-progress generation by ID. |
+
+## Multi-Output Rules (IMPORTANT)
+
+- **User gives a general brief** ("make 4 product shots", "create a storyboard") → use \`generate_creative_director\`.
+- **User gives explicit separate prompts** ("Image 1: X, Image 2: Y") → fire all as **parallel \`generate_image\` calls** in one response.
+- **Never call \`generate_image\` sequentially in a loop** — always batch as parallel calls or use \`generate_creative_director\`.
+- **Independent unrelated outputs** → parallel tool calls.
 
 ## Workflow
 

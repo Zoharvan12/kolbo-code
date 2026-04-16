@@ -68,6 +68,7 @@
     "tip_11": "Use {highlight}/themes{/highlight} ou {highlight}Ctrl+X T{/highlight} para alternar entre temas integrados",
     "tip_12": "Digite {highlight}/clear{/highlight} para iniciar uma nova sessão de conversa",
     "tip_13": "Use {highlight}/resume{/highlight} ou {highlight}Ctrl+X L{/highlight} para listar e continuar conversas anteriores",
+    "tip_14": "Use {highlight}/compact{/highlight} para resumir e liberar contexto em sessões longas",
     "tip_15": "Pressione {highlight}Ctrl+X X{/highlight} ou {highlight}/export{/highlight} para salvar a conversa como Markdown",
     "tip_16": "Pressione {highlight}Ctrl+X Y{/highlight} para copiar a última mensagem do assistente para a área de transferência",
     "tip_17": "Pressione {highlight}Ctrl+N{/highlight} para ver todas as ações e comandos disponíveis",

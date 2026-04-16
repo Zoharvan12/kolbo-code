@@ -68,6 +68,7 @@
     "tip_11": "השתמשו ב-{highlight}/themes{/highlight} או {highlight}Ctrl+X T{/highlight} כדי לעבור בין ערכות נושא מובנות",
     "tip_12": "הקלידו {highlight}/clear{/highlight} כדי להתחיל סשן שיחה חדש",
     "tip_13": "השתמשו ב-{highlight}/resume{/highlight} או {highlight}Ctrl+X L{/highlight} כדי לרשום ולהמשיך שיחות קודמות",
+    "tip_14": "השתמשו ב-{highlight}/compact{/highlight} כדי לסכם ולפנות הקשר בשיחות ארוכות",
     "tip_15": "לחצו על {highlight}Ctrl+X X{/highlight} או {highlight}/export{/highlight} כדי לשמור את השיחה כ-Markdown",
     "tip_16": "לחצו על {highlight}Ctrl+X Y{/highlight} כדי להעתיק את ההודעה האחרונה של העוזר ללוח",
     "tip_17": "לחצו על {highlight}Ctrl+N{/highlight} כדי לראות את כל הפעולות והפקודות הזמינות",

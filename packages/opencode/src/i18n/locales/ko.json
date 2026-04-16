@@ -68,6 +68,7 @@
     "tip_11": "{highlight}/themes{/highlight} 또는 {highlight}Ctrl+X T{/highlight}를 사용하여 내장 테마 간에 전환합니다.",
     "tip_12": "{highlight}/clear{/highlight}를 입력하여 새로운 대화 세션을 시작합니다.",
     "tip_13": "{highlight}/resume{/highlight} 또는 {highlight}Ctrl+X L{/highlight}을 사용하여 이전 대화를 나열하고 계속합니다.",
+    "tip_14": "{highlight}/compact{/highlight}를 사용하여 긴 세션을 요약하고 컨텍스트를 확보합니다",
     "tip_15": "{highlight}Ctrl+X X{/highlight} 또는 {highlight}/export{/highlight}를 눌러 대화를 Markdown으로 저장합니다.",
     "tip_16": "{highlight}Ctrl+X Y{/highlight}를 눌러 어시스턴트의 마지막 메시지를 클립보드에 복사합니다.",
     "tip_17": "{highlight}Ctrl+N{/highlight}를 눌러 사용 가능한 모든 작업 및 명령을 봅니다.",

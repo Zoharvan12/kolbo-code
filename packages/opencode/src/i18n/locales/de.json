@@ -68,6 +68,7 @@
     "tip_11": "Verwenden Sie {highlight}/themes{/highlight} oder {highlight}Strg+X T{/highlight}, um zwischen integrierten Designs zu wechseln",
     "tip_12": "Geben Sie {highlight}/clear{/highlight} ein, um eine neue Gesprächssitzung zu starten",
     "tip_13": "Verwenden Sie {highlight}/resume{/highlight} oder {highlight}Strg+X L{/highlight}, um frühere Konversationen aufzulisten und fortzusetzen",
+    "tip_14": "Verwenden Sie {highlight}/compact{/highlight}, um lange Sitzungen zusammenzufassen und Kontext freizugeben",
     "tip_15": "Drücken Sie {highlight}Strg+X X{/highlight} oder {highlight}/export{/highlight}, um das Gespräch als Markdown zu speichern",
     "tip_16": "Drücken Sie {highlight}Strg+X Y{/highlight}, um die letzte Nachricht des Assistenten in die Zwischenablage zu kopieren",
     "tip_17": "Drücken Sie {highlight}Strg+N{/highlight}, um alle verfügbaren Aktionen und Befehle anzuzeigen",

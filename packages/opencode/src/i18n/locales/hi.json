@@ -68,6 +68,7 @@
     "tip_11": "बिल्ट-इन थीम के बीच स्विच करने के लिए {highlight}/themes{/highlight} या {highlight}Ctrl+X T{/highlight} का उपयोग करें",
     "tip_12": "एक नया वार्तालाप सत्र शुरू करने के लिए {highlight}/clear{/highlight} टाइप करें",
     "tip_13": "पिछली बातचीत को सूचीबद्ध करने और जारी रखने के लिए {highlight}/resume{/highlight} या {highlight}Ctrl+X L{/highlight} का उपयोग करें",
+    "tip_14": "लंबे सत्रों को सारांशित करने और संदर्भ खाली करने के लिए {highlight}/compact{/highlight} का उपयोग करें",
     "tip_15": "बातचीत को Markdown के रूप में सहेजने के लिए {highlight}Ctrl+X X{/highlight} या {highlight}/export{/highlight} दबाएं",
     "tip_16": "असिस्टेंट के अंतिम मैसेज को क्लिपबोर्ड पर कॉपी करने के लिए {highlight}Ctrl+X Y{/highlight} दबाएं",
     "tip_17": "सभी उपलब्ध क्रियाएं और कमांड देखने के लिए {highlight}Ctrl+N{/highlight} दबाएं",

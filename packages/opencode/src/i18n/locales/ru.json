@@ -68,6 +68,7 @@
     "tip_11": "Используйте {highlight}/themes{/highlight} или {highlight}Ctrl+X T{/highlight}, чтобы переключаться между встроенными темами",
     "tip_12": "Введите {highlight}/clear{/highlight}, чтобы начать новый сеанс разговора",
     "tip_13": "Используйте {highlight}/resume{/highlight} или {highlight}Ctrl+X L{/highlight}, чтобы перечислить и продолжить предыдущие разговоры",
+    "tip_14": "Используйте {highlight}/compact{/highlight}, чтобы подвести итог и освободить контекст в длинных сессиях",
     "tip_15": "Нажмите {highlight}Ctrl+X X{/highlight} или {highlight}/export{/highlight}, чтобы сохранить разговор в формате Markdown",
     "tip_16": "Нажмите {highlight}Ctrl+X Y{/highlight}, чтобы скопировать последнее сообщение помощника в буфер обмена",
     "tip_17": "Нажмите {highlight}Ctrl+N{/highlight}, чтобы увидеть все доступные действия и команды",

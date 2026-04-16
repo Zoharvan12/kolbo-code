@@ -68,6 +68,7 @@
     "tip_11": "استخدم {highlight}/themes{/highlight} أو {highlight}Ctrl+X T{/highlight} للتبديل بين السمات المضمنة",
     "tip_12": "اكتب {highlight}/clear{/highlight} لبدء جلسة محادثة جديدة",
     "tip_13": "استخدم {highlight}/resume{/highlight} أو {highlight}Ctrl+X L{/highlight} لسرد المحادثات السابقة ومتابعتها",
+    "tip_14": "استخدم {highlight}/compact{/highlight} لتلخيص الجلسات الطويلة وتحرير السياق",
     "tip_15": "اضغط على {highlight}Ctrl+X X{/highlight} أو {highlight}/export{/highlight} لحفظ المحادثة بتنسيق Markdown",
     "tip_16": "اضغط على {highlight}Ctrl+X Y{/highlight} لنسخ آخر رسالة للمساعد إلى الحافظة",
     "tip_17": "اضغط على {highlight}Ctrl+N{/highlight} لرؤية جميع الإجراءات والأوامر المتاحة",

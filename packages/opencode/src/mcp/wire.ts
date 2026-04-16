@@ -36,9 +36,9 @@ You have access to the full Kolbo AI platform via MCP tools. Use them to generat
 ### Generation
 | Tool | Description |
 |------|-------------|
-| \`generate_image\` | Create images from text prompts. Returns image URL(s). |
+| \`generate_image\` | Create a single image from a text prompt. Returns image URL(s). |
 | \`generate_image_edit\` | Edit an existing image with a text instruction. |
-| \`generate_creative_director\` | Run a multi-scene image campaign from a brief. |
+| \`generate_creative_director\` | Generate 2–8 related images or videos as one coherent set. **Use this instead of multiple \`generate_image\` calls whenever the user wants more than one related output.** |
 | \`generate_video\` | Create videos from text. Returns video URL. |
 | \`generate_video_from_image\` | Animate a static image into video. |
 | \`generate_video_from_video\` | Transform or restyle an existing video. |
@@ -94,6 +94,13 @@ You have access to the full Kolbo AI platform via MCP tools. Use them to generat
 3. **Generate** — call the appropriate tool. Pass the \`identifier\` from \`list_models\` as \`model\`, or omit it to let Kolbo auto-select the best model.
 4. **Result** — the tool polls internally and returns the final URL when ready.
 
+## Multi-Output Rules (IMPORTANT)
+
+- **User gives a general brief** ("make 4 product shots", "create a storyboard") → use \`generate_creative_director\`. It plans the scenes, ensures style consistency, and runs internally in parallel.
+- **User gives explicit separate prompts** ("Image 1: X, Image 2: Y, Image 3: Z") → fire all as **parallel \`generate_image\` calls** in one response.
+- **Never call \`generate_image\` sequentially in a loop** — always either use \`generate_creative_director\` or batch as parallel calls.
+- **Independent unrelated outputs** (e.g. "generate an image AND a music track") → parallel tool calls.
+
 ## Model Types
 
 Use these values with \`list_models\`:
@@ -121,6 +128,7 @@ Use these values with \`list_models\`:
 - If a generation times out, use \`get_generation_status\` with the returned generation ID to retrieve the result.
 - Models marked \`recommended: true\` in \`list_models\` are Kolbo's top picks for quality and speed.
 - **Cost hierarchy** (cheapest → most expensive): speech ≈ sound < images < music ≈ 3D < video < lipsync.
+- **Never loop \`generate_image\`** — use \`generate_creative_director\` for multiple related images.
 
 ## Examples
 

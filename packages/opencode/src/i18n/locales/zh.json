@@ -68,6 +68,7 @@
     "tip_11": "使用 {highlight}/themes{/highlight} 或 {highlight}Ctrl+X T{/highlight} 切换内置主题",
     "tip_12": "输入 {highlight}/clear{/highlight} 开始新的对话会话",
     "tip_13": "使用 {highlight}/resume{/highlight} 或 {highlight}Ctrl+X L{/highlight} 列出并继续以前的对话",
+    "tip_14": "使用 {highlight}/compact{/highlight} 来总结长会话并释放上下文",
     "tip_15": "按 {highlight}Ctrl+X X{/highlight} 或 {highlight}/export{/highlight} 将对话保存为 Markdown",
     "tip_16": "按 {highlight}Ctrl+X Y{/highlight} 将助手的最后一条消息复制到剪贴板",
     "tip_17": "按 {highlight}Ctrl+N{/highlight} 查看所有可用的操作和命令",

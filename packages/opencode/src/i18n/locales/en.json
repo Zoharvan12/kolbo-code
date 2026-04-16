@@ -69,6 +69,7 @@
     "tip_11": "Use {highlight}/themes{/highlight} or {highlight}Ctrl+X T{/highlight} to switch between built-in themes",
     "tip_12": "Type {highlight}/clear{/highlight} to start a fresh conversation session",
     "tip_13": "Use {highlight}/resume{/highlight} or {highlight}Ctrl+X L{/highlight} to list and continue previous conversations",
+    "tip_14": "Use {highlight}/compact{/highlight} to summarize and free up context in long sessions",
     "tip_15": "Press {highlight}Ctrl+X X{/highlight} or {highlight}/export{/highlight} to save the conversation as Markdown",
     "tip_16": "Press {highlight}Ctrl+X Y{/highlight} to copy the assistant's last message to clipboard",
     "tip_17": "Press {highlight}Ctrl+N{/highlight} to see all available actions and commands",

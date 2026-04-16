@@ -68,6 +68,7 @@
     "tip_11": "{highlight}/themes{/highlight} または {highlight}Ctrl+X T{/highlight} を使用して、組み込みのテーマを切り替えます",
     "tip_12": "{highlight}/clear{/highlight} と入力して、新しい会話セッションを開始します",
     "tip_13": "{highlight}/resume{/highlight} または {highlight}Ctrl+X L{/highlight} を使用して、以前の会話を一覧表示して続行します",
+    "tip_14": "{highlight}/compact{/highlight} を使用して、長いセッションを要約しコンテキストを解放します",
     "tip_15": "{highlight}Ctrl+X X{/highlight} または {highlight}/export{/highlight} を押して、会話をMarkdownとして保存します",
     "tip_16": "{highlight}Ctrl+X Y{/highlight} を押して、アシスタントの最後のメッセージをクリップボードにコピーします",
     "tip_17": "{highlight}Ctrl+N{/highlight} を押して、利用可能なすべてのアクションとコマンドを表示します",

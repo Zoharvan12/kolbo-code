@@ -13,9 +13,9 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 
 | Tool | Description |
 |------|-------------|
-| `generate_image` | Create images from text prompts. Supports Visual DNA, moodboards, reference images, batch generation, web-search grounding. |
+| `generate_image` | Create a **single** image from a text prompt. Supports Visual DNA, moodboards, reference images, web-search grounding. |
 | `generate_image_edit` | Edit/transform an existing image (background removal, color changes, compositing). Pass source images + edit prompt. |
-| `generate_creative_director` | Generate a coordinated multi-scene set (1–8 scenes) from one creative brief. Ideal for storyboards, ad campaigns, product showcases. Supports image and video modes. |
+| `generate_creative_director` | **Generate 2–8 related images or videos as one coherent set.** Use this INSTEAD of multiple `generate_image` calls whenever the user wants more than one related output (storyboards, ad campaigns, product sets, character sheets, scene variations). Handles style consistency and runs scenes in parallel internally. |
 | `generate_video` | Create videos from text prompts. Supports Visual DNA and reference images for consistency. |
 | `generate_video_from_image` | Animate a still image into video. Prompt describes the motion, not the subject. |
 | `generate_video_from_video` | Restyle/transform an existing video (style transfer, scene restyling, subject swap). Keeps the original motion. |
@@ -151,7 +151,8 @@ Creative generations bill against the user's Kolbo credit balance. **Billing uni
 ### Rate Limiting & Batch Generation (CRITICAL)
 
 **Rate limits** (per user, enforced server-side):
-- **10 generation requests per minute per tool type** (e.g. 10 video + 10 image = fine, but 11 video in 1 minute = 429)
+- **Image generation**: 30 requests per minute (higher because images are fast and cheap)
+- **All other generation types**: 10 requests per minute per type (e.g. 10 video + 10 image = fine, but 11 video in 1 minute = 429)
 - **300 requests per minute** global across all media endpoints
 - **Uploads** (`upload_media`): 300/min, no credit cost — much lighter than generation
 - The API **queues** requests internally — it never silently drops them. If you're within limits, every request will be processed.
@@ -171,7 +172,10 @@ Before calling any generation tool, check your conversation history. If you alre
 5. After all complete, present all results together.
 6. If any fail with 429: wait 60 seconds and retry only the failed ones (max 2 retries).
 
-**Batch images**: use `generate_creative_director` for 5+ coordinated images — one request handles multi-scene.
+**Multi-image decision:**
+- User gives a **general brief** ("make 4 product shots", "create a storyboard") → use `generate_creative_director` (you plan the scenes, it handles consistency + parallel execution)
+- User gives **explicit separate prompts** ("Image 1: X, Image 2: Y, Image 3: Z") → fire all as **parallel `generate_image` calls** in one response
+- Never call `generate_image` sequentially in a loop — either use `generate_creative_director` or fire all calls in one parallel batch
 
 **Don't narrate, just generate.** When the user says "make 5 videos", output all 5 tool calls in one response. Don't explain your plan, don't calculate step-by-step, don't say "Generating Video 1 of 5..." — just call the tools.
 
@@ -469,7 +473,7 @@ Describe **genre → mood → instrumentation → tempo → era**, in that order
 - `get_moodboard` to see full details before applying
 
 **Presets** bundle prompt templates + style direction for specific creative looks. Pass a `preset_id` to generation tools.
-- `list_presets` with optional `type` filter ("image", "video", "music", "text_to_video")
+- `list_presets` with optional `type` filter ("image", "video", "video_from_image", "music")
 
 ---
 
