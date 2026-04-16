@@ -268,10 +268,19 @@ if (Script.release) {
   for (const key of Object.keys(binaries)) {
     const flatName = key.replace("@kolbo/", "")
     const pkgDir = path.resolve(`dist/${key}`)
+    const hasSkills = fs.existsSync(path.join(pkgDir, "skills"))
     if (key.includes("linux")) {
-      await $`tar -czf ${releaseDir}/${flatName}.tar.gz -C ${pkgDir} bin skills`
+      if (hasSkills) {
+        await $`tar -czf ${releaseDir}/${flatName}.tar.gz -C ${pkgDir} bin skills`
+      } else {
+        await $`tar -czf ${releaseDir}/${flatName}.tar.gz -C ${pkgDir} bin`
+      }
     } else {
-      await $`cd ${pkgDir} && zip -r ${releaseDir}/${flatName}.zip bin skills`
+      if (hasSkills) {
+        await $`cd ${pkgDir} && zip -r ${releaseDir}/${flatName}.zip bin skills`
+      } else {
+        await $`cd ${pkgDir} && zip -r ${releaseDir}/${flatName}.zip bin`
+      }
     }
   }
   await $`gh release upload v${Script.version} dist/release/*.zip dist/release/*.tar.gz --clobber --repo ${process.env.GH_REPO}`

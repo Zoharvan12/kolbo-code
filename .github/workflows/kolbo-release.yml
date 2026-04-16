@@ -74,6 +74,7 @@ jobs:
           KODU_VERSION: ${{ github.event.inputs.version }}
           KODU_RELEASE: ${{ github.event.inputs.tag == 'latest' && 'true' || '' }}
           GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd packages/opencode
           # Build for every target in script/build.ts. Skipping the embedded
