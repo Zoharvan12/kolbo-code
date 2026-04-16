@@ -78,7 +78,7 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 
 1. **Check credits** with `check_credits` at the start of any creative session (once is enough).
 2. **Discover models** with `list_models` using a `type` filter. **Always do this before calling a generation tool — never hardcode model identifiers.** Models are added, removed, and updated frequently.
-3. **Generate**: call the appropriate tool. Omit `model` to let Kolbo auto-select the best model (recommended default), or pass an `identifier` from `list_models` for explicit control. Models marked `recommended: true` are Kolbo's top picks for quality and speed.
+3. **Pick the model**: If the user explicitly requested a specific model, use that. Otherwise, **prefer the cheapest model that still has great quality** — look at both `credit` cost and `recommended` status from `list_models`. When two models have similar quality, always pick the cheaper one. Only omit `model` (auto-select) as a last resort if you can't determine a good cheap option.
 4. **Polling is internal** — the tool returns the final URL(s) when ready. If a video generation times out, call `get_generation_status` with the returned generation ID to retrieve the result.
 5. **Share the URL** — after a successful generation, hand the real URL back to the user. Never fabricate URLs.
 
@@ -122,20 +122,31 @@ Creative generations bill against the user's Kolbo credit balance. **Billing uni
   - Count the actual characters in the text before estimating. 1000 chars with ElevenLabs = 50 credits.
 - **Images / 3D / Sound effects**: `total = model_credit × quantity`
 
-**When to confirm before generating:**
-- Any video or lipsync generation — always state the estimated credit cost before firing. Formula: `credit/s × seconds`.
-- Music — state the flat credit cost (from `list_models`) before generating.
-- TTS with more than 500 characters — mention the cost first.
-- 3D models with `credit ≥ 100` — confirm before generating.
-- Images: just generate unless the balance is low.
+**ALWAYS confirm total cost before generating:**
+Before firing ANY generation (image, video, music, speech, 3D — everything), calculate the total credit cost and present it to the user for confirmation. This is especially critical for batch operations (e.g. "8 videos from 8 images"):
 
-### Rate Limiting
+1. Calculate per-item cost using the formulas above.
+2. Multiply by the number of items.
+3. Present a summary: "This will generate 8 videos × 5s each using [model] at X cr/s = **Y credits total**. Proceed?"
+4. **Suggest cheaper alternatives** if available: "I can use [cheaper model] at Z cr/s instead — same quality, saves N credits. Want that instead?"
+5. Only proceed after the user confirms.
+
+The only exception: single image generations under 5 credits — those can proceed without confirmation unless the user's balance is low.
+
+### Rate Limiting & Batch Generation (CRITICAL)
+
 Kolbo enforces **10 generation requests per minute per user per tool type** (e.g. 10 image calls + 10 video calls = fine, but 11 image calls in 1 minute = rate limited). General media requests are capped at **300 per minute**.
 
-When making multiple generation calls:
-- **Stagger calls** — do NOT fire all in parallel. Space them ~5-10 seconds apart.
-- **Batch images**: use `generate_creative_director` instead of calling `generate_image` 5+ times — it handles multi-scene in one request.
-- If you get a rate limit error (429), wait 60 seconds (the window resets per minute) and retry. Do not retry more than 2 times.
+**⚠️ MANDATORY: Sequential generation with delays.**
+When making multiple generation calls (e.g. 8 images → 8 videos), you MUST:
+
+1. **Call ONE generation at a time.** Never fire multiple generation tool calls in the same message. Send one, wait for the result, then send the next.
+2. **Wait 8-10 seconds between each call.** After receiving a result, pause before the next generation. This prevents the API from silently dropping requests.
+3. **Verify every result.** After all generations complete, count the results. If any are missing, retry the failed ones (with the same delay).
+4. **Batch images**: use `generate_creative_director` instead of calling `generate_image` 5+ times — it handles multi-scene in one request. There is no batch equivalent for video — you must go one-by-one.
+5. If you get a rate limit error (429), wait 60 seconds (the window resets per minute) and retry. Do not retry more than 2 times.
+
+**Why this matters:** Firing multiple generation calls in parallel (e.g. 8 `generate_video_from_image` calls at once) causes the API to silently drop some requests — the user ends up with only half the results and no error message. This is the #1 cause of "I sent 8 images but only got 4 videos" complaints.
 
 ---
 
