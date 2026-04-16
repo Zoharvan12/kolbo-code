@@ -50,7 +50,7 @@ jobs:
           #   artifact-suffix: linux-x64
 
     runs-on: ${{ matrix.platform }}
-    timeout-minutes: 50
+    timeout-minutes: 70
     if: endsWith(github.repository, '/kolbo-code')
 
     steps:
@@ -169,9 +169,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Notarization is handled in the next step with a timeout to prevent indefinite hangs
         with:
           projectPath: packages/desktop
           tauriScript: bunx tauri
@@ -199,6 +197,38 @@ jobs:
             ```
           releaseDraft: ${{ github.event.inputs.draft }}
           prerelease: false
+
+      - name: Notarize macOS DMG
+        if: matrix.platform == 'macos-14'
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          DMG_DIR="packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
+          DMG=$(find "${DMG_DIR}" -maxdepth 1 -name "*.dmg" | head -1)
+          if [ -z "${DMG}" ]; then echo "⚠ No DMG found to notarize"; exit 1; fi
+          echo "Notarizing: $(basename ${DMG})"
+
+          # Submit and wait — timeout after 15 min so we never hang indefinitely
+          timeout 900 xcrun notarytool submit "${DMG}" \
+            --apple-id "${APPLE_ID}" \
+            --password "${APPLE_PASSWORD}" \
+            --team-id "${APPLE_TEAM_ID}" \
+            --wait \
+            --verbose || {
+              echo "⚠ Notarization failed or timed out"
+              exit 1
+            }
+
+          xcrun stapler staple "${DMG}"
+          echo "✓ Notarization and stapling complete"
+
+          # Re-upload the notarized DMG to overwrite the unnotarized one tauri-action uploaded
+          TAG="desktop-v${{ env.KOLBO_VERSION }}"
+          gh release upload "${TAG}" "${DMG}" --clobber -R ${{ github.repository }}
+          echo "✓ Notarized DMG uploaded"
 
       - name: Upload update bundles to release (Windows)
         if: matrix.platform == 'windows-latest'
