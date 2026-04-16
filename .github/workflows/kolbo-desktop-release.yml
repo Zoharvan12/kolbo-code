@@ -50,7 +50,7 @@ jobs:
           #   artifact-suffix: linux-x64
 
     runs-on: ${{ matrix.platform }}
-    timeout-minutes: 90
+    timeout-minutes: 120
     if: endsWith(github.repository, '/kolbo-code')
 
     steps:
