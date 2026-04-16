@@ -47,6 +47,7 @@ jobs:
             artifact-suffix: darwin-aarch64
 
     runs-on: ${{ matrix.platform }}
+    timeout-minutes: 50
     if: endsWith(github.repository, '/kolbo-code')
 
     steps:
@@ -222,9 +223,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Notarization intentionally disabled — Apple servers cause indefinite hangs
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           VITE_WHITELABEL_SPLASH: /whitelabels/${{ env.WHITELABEL }}/splash.jpg
           VITE_WHITELABEL_LOGO: ${{ steps.wl.outputs.logo_image }}
           VITE_WHITELABEL_NAME: ${{ steps.wl.outputs.brand_name }}
