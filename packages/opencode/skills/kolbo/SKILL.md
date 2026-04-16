@@ -66,11 +66,11 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 | `get_moodboard` | Fetch a moodboard's master_prompt, style_guide, and images. |
 | `list_presets` | Browse generation presets (image/video/music templates with bundled style direction). |
 
-### Chat
+### Chat & Vision
 
 | Tool | Description |
 |------|-------------|
-| `chat_send_message` | Send a message to Kolbo AI chat. Supports web search and deep think modes. |
+| `chat_send_message` | Send a message to Kolbo AI chat. Pass `media_urls` (array of public URLs) to analyze images, videos, or audio — Smart Select auto-routes to Gemini vision when media is detected. Omit `model` for automatic routing. Supports web search and deep think modes. |
 | `chat_list_conversations` | List your SDK chat conversations. |
 | `chat_get_messages` | Fetch messages in a conversation (with media URLs). |
 
@@ -141,12 +141,14 @@ When making multiple generation calls:
 
 ## Transcription & Audio/Video Analysis
 
-Use `transcribe_audio` whenever the user provides an audio or video file and wants:
+Use `transcribe_audio` ONLY when the user explicitly asks for:
 - A text transcript
 - Subtitles (SRT format)
 - Word-by-word timed subtitles (for karaoke, motion graphics, Remotion captions, video editing)
-- Content analysis or summary of spoken content
+- Summary of what was **spoken/said** in the video
 - Dialogue extraction from video
+
+**Do NOT use `transcribe_audio` to "analyze" a video visually.** For visual analysis (what's on screen, what's shown, what prompts appear, etc.) use `upload_media` → `chat_send_message` with `media_urls`.
 
 ### Workflow
 1. Call `transcribe_audio` with the `source` (URL or absolute local file path)
@@ -190,9 +192,14 @@ Transcription supports files up to 30 minutes. For longer content, split the fil
 
 **NEVER use ffmpeg, `ollama-vision`, or extract frames manually. NEVER ask the user whether to transcribe or analyze — just execute visual analysis.**
 
-**Workflow for visual analysis (do this every time):**
-1. `upload_media({ source: "/absolute/local/path/to/file.mp4" })` → get CDN URL (skip if already a public URL)
-2. `chat_send_message({ message: "<your question>", model: "gemini-2.5-pro", media_urls: ["<cdn-url>"] })`
+**Workflow for visual analysis (do this every time — both steps are required):**
+1. `upload_media({ source: "/absolute/local/path/to/file.mp4" })` → returns `{ url, thumbnail_url, ... }`
+   - **Use `url`** — that is the actual video/image CDN URL to pass to Gemini
+   - Ignore `thumbnail_url` — it is a preview JPG only, not the media itself
+2. `chat_send_message({ message: "<your question>", media_urls: [result.url] })`
+   - **`media_urls` is mandatory** — mentioning the file path in the message text does nothing. Gemini only sees the video if you pass the CDN URL in `media_urls`.
+   - Always put the URL inside an **array**: `media_urls: ["https://cdn.kolbo.ai/..."]`
+   - **Omit `model`** — Smart Select detects video/audio and auto-routes to Gemini
 
 **Routing table — commit to an action, do not ask:**
 
@@ -512,6 +519,8 @@ Natural-language triggers that should prompt this skill + a tool call:
 - "Transcribe this podcast episode" → `transcribe_audio`
 - "What's being said in this video?" → `transcribe_audio` → analyze the text
 - "Generate word-by-word subtitles for this audio" → `transcribe_audio` → share `word_by_word_srt_url`
+- "Analyze this video" / "What do you see?" / "What's in this?" (with video file) → `upload_media` → `chat_send_message` with `media_urls` (omit model — auto-routes to Gemini)
+- "What prompts are shown in this video?" → `upload_media` → `chat_send_message` with `media_urls` (omit model — auto-routes to Gemini)
 - "Keep the same character across all these images" → `create_visual_dna` → `generate_image` with `visual_dna_ids`
 - "Upload this file to my media library" → `upload_media`
 - "What video models are available?" → `list_models` (video)

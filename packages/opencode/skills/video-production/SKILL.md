@@ -1,13 +1,16 @@
 ---
 name: video-production
 description: >
-  Full-stack video production assistant. Analyzes talking head footage,
+  Full-stack video production assistant. Analyzes video content visually (Gemini),
   generates transcriptions/SRT subtitles, plans and creates motion graphics (Remotion),
   generates B-roll images/videos, produces timeline XMLs for Premiere/DaVinci.
-  Use for: video analysis, transcription, subtitles, motion graphics, B-roll, shorts,
-  timeline XML, clip cutting, silence removal, After Effects, Premiere Pro, DaVinci Resolve.
+  Downloads YouTube videos with yt-dlp.
+  Use for: video analysis, visual analysis, describe video, what's in this video,
+  transcription, subtitles, motion graphics, B-roll, shorts, timeline XML, clip cutting,
+  silence removal, After Effects, Premiere Pro, DaVinci Resolve, YouTube download.
   Keywords: video edit, ffmpeg, remotion, after effects, premiere, davinci, shorts, subtitles,
-  motion graphics, clip, render, transcribe, xml, timeline, b-roll, talking head, analyze
+  motion graphics, clip, render, transcribe, xml, timeline, b-roll, talking head, analyze,
+  yt-dlp, youtube, download, gemini, vision
 allowed-tools:
   - Read
   - Write
@@ -24,29 +27,114 @@ allowed-tools:
 
 # Video Production — Strategy Map
 
+## ⚠️ DEFAULT RULE: Video Analysis = Visual Analysis (NOT Transcription)
+
+**When the user shares a video file and asks to "analyze", "describe", "what's in this", "what prompts are shown", or gives no specific instruction — ALWAYS do visual analysis via Gemini. Never default to transcription.**
+
+- **Visual analysis** → `upload_media` → `chat_send_message` with `media_urls` (omit model — Smart Select auto-routes to Gemini)
+- **Transcription** → ONLY when user explicitly says "transcribe", "subtitles", "SRT", "captions", or "what's being said"
+
+**Never use ffmpeg to extract frames for analysis. Never use local Ollama/vision models. Commit to the right action — do not ask the user.**
+
+| Trigger | Action |
+|---------|--------|
+| "analyze this video" / "what's in this?" / "describe this" / "what prompts do you see?" / file path with no instruction | Visual analysis — `upload_media` → `chat_send_message` + Gemini |
+| "transcribe" / "subtitles" / "SRT" / "what's being said" / "captions" | `transcribe_audio` |
+| Both visual + transcript | Run both |
+
+---
+
+## Kolbo MCP Tools (Active When `kolbo auth login` Is Done)
+
+These are available as MCP tools — use them directly without any Python/API key setup:
+
+| Tool | Use |
+|------|-----|
+| `upload_media` | Upload local file to Kolbo CDN → get stable public URL |
+| `chat_send_message` | Send message + `media_urls` array to Gemini for visual analysis |
+| `transcribe_audio` | Transcribe audio/video to text + SRT (ElevenLabs Scribe) |
+| `generate_image` | Generate B-roll images |
+| `generate_video` | Generate B-roll videos |
+| `generate_video_from_image` | Animate a still into video |
+| `generate_music` | Generate background music |
+| `generate_speech` | TTS for voiceover |
+| `generate_sound` | Sound effects |
+| `list_models` | Browse available models by type |
+| `check_credits` | Check remaining Kolbo credit balance |
+
+### Visual Analysis Workflow (use this for ANY video/image analysis task)
+
+```
+Step 1: upload_media({ source: "/absolute/path/to/video.mp4" })
+  → Response contains: url, thumbnail_url, id, name, type, ...
+  → Use "url" — this is the actual video CDN URL to send to Gemini
+  → IGNORE "thumbnail_url" — that is a preview JPG, NOT the video
+
+Step 2: chat_send_message({
+  message: "Describe this video in detail. What is shown?",
+  media_urls: ["<the url field from step 1>"]   ← array, "url" not "thumbnail_url"
+})
+→ returns: { content: "..." }
+```
+
+**Critical**: `media_urls` must be an array `[url]` using the `url` field (not `thumbnail_url`).
+**Omit `model`** — Smart Select detects video/audio and auto-routes to Gemini.
+
+For YouTube videos — download first with yt-dlp (see below), then follow steps 1–2 above.
+
+---
+
 ## Pipeline
 
 ```
-Input video → Transcribe → Analyze → Plan segments
-  → Generate: Remotion compositions | B-roll | SRT subtitles
-  → Output: Premiere XML / DaVinci EDL / individual MP4s / SRT
+Input: local video / YouTube URL / uploaded file
+
+→ [DEFAULT] Visual Analysis: upload_media → chat_send_message (Gemini)
+→ [EXPLICIT REQUEST] Transcription: transcribe_audio → SRT / text
+→ [EDITING] FFmpeg: cut, silence removal, 9:16 conversion
+→ [MOTION GRAPHICS] Remotion: compositions, captions, B-roll
+→ Output: Premiere XML / DaVinci EDL / MP4s / SRT
 ```
 
 ## APIs & Capabilities
 
 | Service | Use |
 |---------|-----|
-| ElevenLabs Scribe | Primary transcription — word-level SRT, multilingual |
-| Claude | Content analysis, edit planning |
-| Google Gemini | Video understanding, visual analysis |
-| fal.ai (MCP) | Image & video B-roll generation |
-| Runway | Image-to-video, video-to-video |
-| FLUX / BFL | High quality still image generation |
-| ElevenLabs | TTS, voice cloning, SFX |
-| Suno | Background music generation |
+| Kolbo MCP (`upload_media` + `chat_send_message`) | **Primary** — visual video/image analysis via Gemini |
+| Kolbo MCP (`transcribe_audio`) | **Primary** — transcription, word-level SRT, multilingual |
+| yt-dlp | Download YouTube/social media videos |
+| FFmpeg | Local video editing, cutting, silence removal, format conversion |
 | Remotion Lambda | Cloud render motion graphics |
+| fal.ai (MCP) | Image & video B-roll generation |
+| ElevenLabs | TTS, voice cloning, SFX (via Kolbo MCP `generate_speech`) |
+| Suno | Background music (via Kolbo MCP `generate_music`) |
 
-> Load API keys from the project's `.env` file or environment variables.
+> Kolbo MCP tools need no API keys — auth is handled by `kolbo auth login`.
+> FFmpeg/yt-dlp need to be installed locally on the machine.
+
+## YouTube / Social Media Download (yt-dlp)
+
+Download video from YouTube, TikTok, Instagram, Twitter, etc.:
+
+```bash
+# Best quality MP4
+yt-dlp -f "bestvideo[height<=1080][ext=mp4]+bestaudio/best" \
+  --merge-output-format mp4 \
+  -o "%(id)s.%(ext)s" <url>
+
+# With subtitles
+yt-dlp -f "bestvideo[height<=1080][ext=mp4]+bestaudio/best" \
+  --write-auto-sub --sub-lang en --convert-subs srt \
+  --merge-output-format mp4 \
+  -o "%(id)s.%(ext)s" <url>
+
+# Audio only (for transcription)
+yt-dlp -f "bestaudio" --extract-audio --audio-format mp3 -o "%(id)s.%(ext)s" <url>
+```
+
+After download → upload to Kolbo CDN with `upload_media` → analyze visually with `chat_send_message`.
+
+---
 
 ## Key Rules
 

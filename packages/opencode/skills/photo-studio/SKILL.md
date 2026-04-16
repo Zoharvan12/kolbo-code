@@ -1,10 +1,10 @@
 ---
 name: photo-studio
 description: >
-  Local AI photo generation and editing using FLUX.2 Klein 4B, Z-Image Turbo, and Ollama Gemma4.
+  Local AI photo generation and editing using FLUX.2 Klein 4B and Z-Image Turbo.
   Use when the user wants to generate or edit images locally (no API cost, no rate limits).
   Models at I:/AI-Models/. Script at G:/Projects/Kolbo.AI/github/training-loras/scripts/photo-studio.py
-  Keywords: generate image, edit image, flux klein, z-image turbo, local diffusion, photo studio, gemma4
+  Keywords: generate image, edit image, flux klein, z-image turbo, local diffusion, photo studio
 ---
 
 # Photo Studio — Local AI Image Generation & Editing
@@ -18,11 +18,11 @@ description: >
 | FLUX.2 Klein 4B | `I:/AI-Models/flux2-klein-4b/` |
 | Z-Image Turbo | `I:/AI-Models/z-image-turbo/` |
 | Z-Image Adapter | `I:/AI-Models/z-image-turbo-adapter/zimage_turbo_training_adapter_v2.safetensors` |
-| LLM / Vision | Ollama Gemma4 (runs locally at `http://localhost:11434`) |
+| Vision / LLM | **Kolbo MCP** — `upload_media` → `chat_send_message` (Gemini) |
 
 ## How to Run
 
-Always use the ai-toolkit venv (has Flux2KleinPipeline + ZImagePipeline + ollama package):
+Always use the ai-toolkit venv (has Flux2KleinPipeline + ZImagePipeline):
 
 ```bash
 "G:/Projects/Kolbo.AI/github/ai-toolkit/venv/Scripts/python.exe" \
@@ -43,8 +43,6 @@ Always use the ai-toolkit venv (has Flux2KleinPipeline + ZImagePipeline + ollama
 | `--steps N` | 20 | Inference steps |
 | `--cfg N` | 3.5 | Guidance scale |
 | `--seed N` | random | Deterministic seed |
-| `--analyze` | off | Analyze `--image` with Gemma4, use as base description |
-| `--enhance` | off | Enhance `--prompt` with Gemma4 before generating |
 | `--adapter` | off | Load Z-Image Turbo adapter (zimage only) |
 
 ## Common Recipes
@@ -64,18 +62,36 @@ python photo-studio.py \
   --model flux --width 1152 --height 2048
 ```
 
-### Analyze image and generate variation
-```bash
+### Analyze image then generate variation
+```
+# Step 1: Analyze the image with Kolbo MCP (Gemini vision)
+upload_media({ source: "/abs/path/to/char.jpg" })
+→ { url: "https://cdn.kolbo.ai/..." }
+
+chat_send_message({
+  message: "Describe this person in detail: clothing, pose, features, style. Output as a generation prompt.",
+  model: "gemini-2.5-pro",
+  media_urls: ["<url from upload>"]
+})
+→ { content: "detailed description..." }
+
+# Step 2: Use the description as the prompt
 python photo-studio.py \
-  --image char.jpg --analyze \
-  --prompt "standing upright, full body" \
+  --prompt "<description from Gemini> standing upright, full body" \
   --model flux
 ```
 
-### Auto-enhance a short prompt then generate
-```bash
+### Enhance a short prompt then generate
+```
+# Step 1: Enhance the prompt with Kolbo MCP
+chat_send_message({
+  message: "Expand this into a detailed image generation prompt for a photorealistic portrait: 'street fashion guy'",
+})
+→ { content: "A young man in his mid-20s wearing..." }
+
+# Step 2: Generate with the enhanced prompt
 python photo-studio.py \
-  --prompt "street fashion guy" --enhance \
+  --prompt "<enhanced prompt from Kolbo>" \
   --model zimage --width 1152 --height 2048
 ```
 
@@ -101,11 +117,10 @@ python photo-studio.py \
 - Default: `--steps 8 --cfg 0.0 --width 1152 --height 2048` (~30s per image)
 - Add `--adapter` to load the v2 training adapter
 
-### Ollama Gemma4 (vision + LLM)
-- Used for `--analyze` (describe input image) and `--enhance` (expand prompt)
-- Runs locally, no API key, no rate limits
-- Model: `gemma4` (9.6GB, multimodal)
-- Ollama auto-starts on Windows boot
+### Vision & Prompt Enhancement — Kolbo MCP
+- For image analysis: `upload_media` → `chat_send_message` with `media_urls` + `model: "gemini-2.5-pro"`
+- For prompt enhancement: `chat_send_message` asking Kolbo to expand a short prompt
+- Do NOT use `--analyze` or `--enhance` flags (those call a local model that is no longer used)
 
 ## When to use which model
 
@@ -117,6 +132,6 @@ python photo-studio.py \
 | Quick text-to-image | `flux` or `zimage` |
 | Portrait + face reference | `flux --image face.jpg` |
 
-## Prompt Tips (Gemma4 is the default prompter)
+## Prompt Tips
 
-When the user gives a short/vague prompt, always use `--enhance` to let Gemma4 expand it. For image editing, pair `--analyze --enhance` to get the best context from the source image.
+When the user gives a short/vague prompt, always use `chat_send_message` to let Kolbo AI (Gemini/Claude) expand it before passing to the script. For image editing, first analyze the source image via `upload_media` → `chat_send_message` with Gemini vision, then use the description as the base prompt.
