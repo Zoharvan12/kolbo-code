@@ -1240,12 +1240,12 @@ export function Markdown(
   return (
     <div
       data-component="markdown"
-      dir={textDir()}
+      dir="auto"
       classList={{
         ...(local.classList ?? {}),
         [local.class ?? ""]: !!local.class,
       }}
-      style={{ "text-align": textDir() === "rtl" ? "right" : "left", "unicode-bidi": "embed" }}
+      style={{ "unicode-bidi": "plaintext" }}
       ref={setRoot}
       {...others}
     />
