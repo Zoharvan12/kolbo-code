@@ -74,6 +74,18 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 | `chat_list_conversations` | List your SDK chat conversations. |
 | `chat_get_messages` | Fetch messages in a conversation (with media URLs). |
 
+## ⚠️ Generate vs Edit — Know the Difference
+
+| User intent | Action | NOT this |
+|-------------|--------|----------|
+| "Create a video from scratch" / "Generate a video of..." | `generate_video` (Kolbo MCP) | — |
+| "Edit this video" / "Cut" / "Trim" / "Crop" / "Merge" / "Add subtitles" / "Remove silence" / "Speed up" / "Convert to 9:16" | Load `video-production` skill → FFmpeg | ❌ Do NOT call `generate_video` |
+| "Create motion graphics" / "Animated text" / "Title sequence" | Load `remotion-best-practices` skill → Remotion | ❌ Do NOT call `generate_video` |
+| "Animate this image" / "Make this photo move" | `generate_video_from_image` (Kolbo MCP) | — |
+| "Restyle this video as anime" | `generate_video_from_video` (Kolbo MCP) | — |
+
+**`generate_video` creates NEW videos from text prompts. It cannot edit, cut, trim, merge, or modify existing video files.** For any operation on an existing video file, use FFmpeg via the `video-production` skill.
+
 ## Core Workflow
 
 1. **Check credits** with `check_credits` at the start of any creative session (once is enough).
