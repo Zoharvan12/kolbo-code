@@ -46,7 +46,7 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 
 | Tool | Description |
 |------|-------------|
-| `upload_media` | Upload a local file or URL to the user's Kolbo media library (CDN). Use for multi-tool workflows. |
+| `upload_media` | Upload ANY local file to Kolbo CDN → returns a public URL. Works for images, videos, audio, HTML, documents — any file type. Use for: feeding media to `chat_send_message`, sharing files publicly, hosting HTML pages, or multi-tool workflows. |
 | `list_media` | Browse user's uploaded media with filtering by type and search. |
 
 ### Visual DNA (Character/Style Consistency)
@@ -534,6 +534,10 @@ Natural-language triggers that should prompt this skill + a tool call:
 - "What prompts are shown in this video?" → `upload_media` → `chat_send_message` with `media_urls` (omit model — auto-routes to Gemini)
 - "Keep the same character across all these images" → `create_visual_dna` → `generate_image` with `visual_dna_ids`
 - "Upload this file to my media library" → `upload_media`
+- "Host this HTML page" / "Publish this landing page" / "Give me a public URL for this file" → `upload_media` → share the returned `url` (Kolbo CDN serves any file type publicly)
 - "What video models are available?" → `list_models` (video)
 - "How many credits do I have?" → `check_credits`
 - "What's in this image?" (with upload) → describe per the Image Analysis section; no tool call needed unless the user asks to generate or edit
+- "Create motion graphics" / "animated text" / "title sequence" → load the `remotion-best-practices` skill for Remotion-based motion graphics
+- "Edit this video" / "cut this clip" / "remove silence" / "add subtitles" / "convert to 9:16" → load the `video-production` skill for FFmpeg-based editing
+- "Create a short-form video" / "make a reel" / "YouTube short" → load the `short-form-video` skill
