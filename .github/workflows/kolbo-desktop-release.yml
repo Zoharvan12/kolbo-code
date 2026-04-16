@@ -205,14 +205,18 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           DMG_DIR="packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
           DMG=$(find "${DMG_DIR}" -maxdepth 1 -name "*.dmg" | head -1)
           if [ -z "${DMG}" ]; then echo "⚠ No DMG found to notarize"; exit 1; fi
           echo "Notarizing: $(basename ${DMG})"
 
+          # macOS doesn't have GNU timeout — use gtimeout from coreutils
+          brew install coreutils -q 2>/dev/null || true
+
           # Submit and wait — timeout after 15 min so we never hang indefinitely
-          timeout 900 xcrun notarytool submit "${DMG}" \
+          gtimeout 900 xcrun notarytool submit "${DMG}" \
             --apple-id "${APPLE_ID}" \
             --password "${APPLE_PASSWORD}" \
             --team-id "${APPLE_TEAM_ID}" \
