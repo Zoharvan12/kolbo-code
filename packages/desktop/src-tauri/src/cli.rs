@@ -287,21 +287,56 @@ async fn download_bytes(url: &str) -> Result<Vec<u8>, String> {
 }
 
 fn extract_zip(data: &[u8], dest: &std::path::Path) -> Result<(), String> {
-    let cursor = std::io::Cursor::new(data);
-    let mut archive =
-        zip::ZipArchive::new(cursor).map_err(|e| format!("Failed to open zip: {e}"))?;
-    archive
-        .extract(dest)
-        .map_err(|e| format!("Failed to extract zip: {e}"))
+    // Write bytes to a temp file then call the system unzip/powershell
+    let tmp_zip = dest.with_extension("_archive.zip");
+    std::fs::write(&tmp_zip, data).map_err(|e| format!("Failed to write zip: {e}"))?;
+
+    #[cfg(windows)]
+    {
+        let status = std::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                &format!(
+                    "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
+                    tmp_zip.display(),
+                    dest.display()
+                ),
+            ])
+            .status()
+            .map_err(|e| format!("Failed to run Expand-Archive: {e}"))?;
+        let _ = std::fs::remove_file(&tmp_zip);
+        if !status.success() {
+            return Err(format!("Expand-Archive failed: {status}"));
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let status = std::process::Command::new("unzip")
+            .args(["-o", &tmp_zip.to_string_lossy(), "-d", &dest.to_string_lossy()])
+            .status()
+            .map_err(|e| format!("Failed to run unzip: {e}"))?;
+        let _ = std::fs::remove_file(&tmp_zip);
+        if !status.success() {
+            return Err(format!("unzip failed: {status}"));
+        }
+    }
+    Ok(())
 }
 
 fn extract_tar_gz(data: &[u8], dest: &std::path::Path) -> Result<(), String> {
-    let cursor = std::io::Cursor::new(data);
-    let gz = flate2::read::GzDecoder::new(cursor);
-    let mut archive = tar::Archive::new(gz);
-    archive
-        .unpack(dest)
-        .map_err(|e| format!("Failed to extract tar.gz: {e}"))
+    // Write bytes to a temp file then call the system tar
+    let tmp_tar = dest.with_extension("_archive.tar.gz");
+    std::fs::write(&tmp_tar, data).map_err(|e| format!("Failed to write tar.gz: {e}"))?;
+    let status = std::process::Command::new("tar")
+        .args(["-xzf", &tmp_tar.to_string_lossy(), "-C", &dest.to_string_lossy()])
+        .status()
+        .map_err(|e| format!("Failed to run tar: {e}"))?;
+    let _ = std::fs::remove_file(&tmp_tar);
+    if !status.success() {
+        return Err(format!("tar failed: {status}"));
+    }
+    Ok(())
 }
 
 fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
@@ -389,15 +424,16 @@ pub async fn check_and_update_sidecar(app: &tauri::AppHandle) -> Result<bool, St
     tracing::info!(bytes = data.len(), "Downloaded CLI binary archive");
 
     // 6. Extract to temp dir
-    let temp_dir = tempfile::tempdir().map_err(|e| format!("tempdir: {e}"))?;
+    let temp_dir = std::env::temp_dir().join(format!("kolbo-update-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&temp_dir).map_err(|e| format!("Failed to create temp dir: {e}"))?;
     if ext == "zip" {
-        extract_zip(&data, temp_dir.path())?;
+        extract_zip(&data, &temp_dir)?;
     } else {
-        extract_tar_gz(&data, temp_dir.path())?;
+        extract_tar_gz(&data, &temp_dir)?;
     }
 
     // 7. Find the binary in the extracted archive (archive contains bin/ and skills/)
-    let extracted_bin = find_binary_in_dir(temp_dir.path())?;
+    let extracted_bin = find_binary_in_dir(&temp_dir)?;
 
     // 8. Replace sidecar binary (copy to temp, then rename for atomicity)
     let sidecar_tmp = sidecar_path.with_extension("tmp");
@@ -409,7 +445,7 @@ pub async fn check_and_update_sidecar(app: &tauri::AppHandle) -> Result<bool, St
     // 9. Update skills directory alongside the sidecar
     // The CLI looks for skills at: path.dirname(process.execPath)/../skills
     // Sidecar is at e.g. .../sidecars/opencode-cli → skills go to .../skills/
-    let extracted_skills = temp_dir.path().join("skills");
+    let extracted_skills = temp_dir.join("skills");
     if extracted_skills.is_dir() {
         let sidecar_dir = sidecar_path.parent().unwrap();
         // Place skills next to the sidecar binary (CLI checks this path)

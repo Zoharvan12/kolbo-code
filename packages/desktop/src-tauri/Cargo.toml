@@ -53,11 +53,6 @@ tracing-appender = "0.2"
 chrono = "0.4"
 tokio-stream = { version = "0.1.18", features = ["sync"] }
 process-wrap = { version = "9.0.3", features = ["tokio1"] }
-tempfile = "3"
-cfg-if = "1"
-zip = { version = "2", default-features = false, features = ["deflate"] }
-flate2 = "1"
-tar = "0.4"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_System_Threading", "Win32_System_Registry"] }
