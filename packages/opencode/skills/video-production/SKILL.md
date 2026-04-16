@@ -80,6 +80,8 @@ Step 2: chat_send_message({
 **Critical**: `media_urls` must be an array `[url]` using the `url` field (not `thumbnail_url`).
 **Omit `model`** — Smart Select detects video/audio and auto-routes to Gemini.
 
+**Batch analysis (many videos)**: Pass `model: "gemini-3.1-flash-lite-preview"` explicitly to use the faster, cheaper vision model instead of Smart Select. Same quality for straightforward description tasks, significantly lower credit cost at scale.
+
 For YouTube videos — download first with yt-dlp (see below), then follow steps 1–2 above.
 
 ---

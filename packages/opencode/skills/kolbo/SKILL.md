@@ -200,6 +200,7 @@ Transcription supports files up to 30 minutes. For longer content, split the fil
    - **`media_urls` is mandatory** — mentioning the file path in the message text does nothing. Gemini only sees the video if you pass the CDN URL in `media_urls`.
    - Always put the URL inside an **array**: `media_urls: ["https://cdn.kolbo.ai/..."]`
    - **Omit `model`** — Smart Select detects video/audio and auto-routes to Gemini
+   - **Batch / many videos**: pass `model: "gemini-3.1-flash-lite-preview"` explicitly — faster, cheaper, same quality for straightforward description tasks
 
 **Routing table — commit to an action, do not ask:**
 
