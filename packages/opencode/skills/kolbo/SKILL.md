@@ -196,7 +196,7 @@ Transcription supports files up to 30 minutes. For longer content, split the fil
 
 **NEVER use ffmpeg or frame extraction for analysis. NEVER ask the user — just pick the right path above.**
 
-**Video/Audio analysis workflow (both steps required every time):**
+**Video/Audio analysis workflow — Step 1 is NOT optional:**
 1. `upload_media({ source: "/absolute/local/path/to/file.mp4" })` → returns `{ url, thumbnail_url, ... }`
    - **Use `url`** — the actual CDN URL. Ignore `thumbnail_url` (preview JPG only).
 2. `chat_send_message({ message: "<your question>", media_urls: [result.url] })`
@@ -205,6 +205,11 @@ Transcription supports files up to 30 minutes. For longer content, split the fil
    - **Omit `model`** — Smart Select auto-routes to Gemini when media is detected
    - **Sessions do NOT remember media between messages.** On retry: reuse the same CDN `url` (no re-upload) but always pass `media_urls` again.
    - **Batch / many videos**: pass `model: "gemini-3.1-flash-lite-preview"` explicitly for cheaper bulk runs
+
+**❌ Never do this:**
+- Pass a local file path in `media_urls` — it won't work, only CDN URLs work
+- Use the `.txt` URL from a transcription result as the video URL — that's text, not video
+- Skip `upload_media` and try to construct a URL yourself
 
 When in doubt, do visual analysis. Do not stop to ask.
 

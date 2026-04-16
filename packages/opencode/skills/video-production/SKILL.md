@@ -60,26 +60,33 @@ These are available as MCP tools — use them directly without any Python/API ke
 | `list_models` | Browse available models by type |
 | `check_credits` | Check remaining Kolbo credit balance |
 
-### Visual Analysis Workflow (use this for ANY video/image analysis task)
+### Visual Analysis Workflow — MANDATORY for all video analysis
+
+**Step 1 is NOT optional. You cannot skip `upload_media` or construct the URL yourself.**
 
 ```
 Step 1: upload_media({ source: "/absolute/path/to/video.mp4" })
-  → Response contains: url, thumbnail_url, id, name, type, ...
-  → Use "url" — this is the actual video CDN URL to send to Gemini
-  → IGNORE "thumbnail_url" — that is a preview JPG, NOT the video
+  → Returns: { url, thumbnail_url, ... }
+  → Save the "url" field — this is the CDN URL you will pass to Gemini
+  → NEVER use thumbnail_url (it's a JPG preview, not the video)
 
 Step 2: chat_send_message({
   message: "Describe this video in detail. What is shown?",
-  media_urls: ["<the url field from step 1>"]   ← array, "url" not "thumbnail_url"
+  media_urls: ["<url from step 1>"]   ← must be an array, must be the "url" field
 })
 → returns: { content: "..." }
 ```
 
-**Critical**: `media_urls` must be an array `[url]` using the `url` field (not `thumbnail_url`).
-**Omit `model`** — Smart Select detects video/audio and auto-routes to Gemini.
-**Sessions do NOT remember media between messages.** Every `chat_send_message` that needs video analysis must include `media_urls`. If retrying, reuse the same CDN `url` from `upload_media` — no need to re-upload, but you MUST pass `media_urls` again.
+**❌ Common mistakes that break video analysis:**
+- Skipping `upload_media` and passing a local file path to `chat_send_message` — local paths don't work
+- Using the transcription `.txt` URL as the `media_urls` value — Gemini needs the actual video CDN URL
+- Using `thumbnail_url` instead of `url` from the `upload_media` response
+- Calling `transcribe_audio` first then passing its output URL as the video — transcription gives text, not video
 
-**Batch analysis (many videos)**: Pass `model: "gemini-3.1-flash-lite-preview"` explicitly to use the faster, cheaper vision model instead of Smart Select. Same quality for straightforward description tasks, significantly lower credit cost at scale.
+**Omit `model`** — Smart Select detects video/audio and auto-routes to Gemini.
+**Sessions do NOT remember media between messages.** On retry: reuse the same CDN `url` from step 1 (no re-upload needed) but always pass `media_urls` again.
+
+**Batch analysis (many videos)**: Pass `model: "gemini-3.1-flash-lite-preview"` explicitly for cheaper bulk runs.
 
 For YouTube videos — download first with yt-dlp (see below), then follow steps 1–2 above.
 
