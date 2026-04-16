@@ -411,8 +411,9 @@ pub async fn check_and_update_sidecar(app: &tauri::AppHandle) -> Result<bool, St
     // Sidecar is at e.g. .../sidecars/opencode-cli → skills go to .../skills/
     let extracted_skills = temp_dir.path().join("skills");
     if extracted_skills.is_dir() {
-        let sidecar_parent = sidecar_path.parent().unwrap();
-        let skills_dest = sidecar_parent.parent().unwrap_or(sidecar_parent).join("skills");
+        let sidecar_dir = sidecar_path.parent().unwrap();
+        // Place skills next to the sidecar binary (CLI checks this path)
+        let skills_dest = sidecar_dir.join("skills");
         // Remove old skills and copy new ones
         let _ = std::fs::remove_dir_all(&skills_dest);
         copy_dir_recursive(&extracted_skills, &skills_dest)

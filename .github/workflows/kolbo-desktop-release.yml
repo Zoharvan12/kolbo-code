@@ -144,6 +144,18 @@ jobs:
           if [ -f "$KOLBO_BIN" ]; then
             cp "$KOLBO_BIN" "$DEST"
             echo "✓ CLI sidecar copied from $KOLBO_BIN"
+
+            # Copy bundled skills alongside the sidecar so the CLI can find them
+            SKILLS_SRC="$(dirname "$(dirname "$KOLBO_BIN")")/skills"
+            SKILLS_DEST="packages/desktop/src-tauri/skills"
+            if [ -d "$SKILLS_SRC" ]; then
+              cp -r "$SKILLS_SRC" "$SKILLS_DEST"
+              echo "✓ Skills copied ($(ls "$SKILLS_DEST" | wc -l) skills)"
+            else
+              # Fallback: copy from monorepo
+              cp -r packages/opencode/skills "$SKILLS_DEST"
+              echo "✓ Skills copied from monorepo fallback"
+            fi
           else
             echo "⚠ Binary not found, listing @kolbo packages:"
             ls "$BASE/@kolbo/" 2>/dev/null || echo "None found"

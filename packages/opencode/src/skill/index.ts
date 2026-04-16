@@ -149,10 +149,15 @@ export namespace Skill {
     // (e.g. /$bunfs/root/src/skill) that doesn't exist on disk, so we also
     // resolve relative to process.execPath which is the real binary path:
     // node_modules/@kolbo/kolbo-code-{os}-{arch}/bin/kolbo → ../skills
+    // Desktop app (Tauri): sidecar lives alongside skills/ in the app bundle
+    //   Windows: <app-dir>/opencode-cli.exe + <app-dir>/skills/
+    //   macOS:   <app-dir>/opencode-cli + <app-dir>/../Resources/skills/
     const candidates = [
       path.join(import.meta.dirname, "../../skills"),
       path.join(import.meta.dirname, "../skills"),
       path.join(path.dirname(process.execPath), "..", "skills"),
+      path.join(path.dirname(process.execPath), "skills"),
+      path.join(path.dirname(process.execPath), "..", "Resources", "skills"),
     ]
     for (const builtinSkillsDir of candidates) {
       if (yield* fsys.isDir(builtinSkillsDir)) {
