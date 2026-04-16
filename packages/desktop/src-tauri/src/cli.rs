@@ -304,6 +304,20 @@ fn extract_tar_gz(data: &[u8], dest: &std::path::Path) -> Result<(), String> {
         .map_err(|e| format!("Failed to extract tar.gz: {e}"))
 }
 
+fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let dest_path = dst.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir_recursive(&entry.path(), &dest_path)?;
+        } else {
+            std::fs::copy(entry.path(), &dest_path)?;
+        }
+    }
+    Ok(())
+}
+
 fn find_binary_in_dir(dir: &std::path::Path) -> Result<std::path::PathBuf, String> {
     let names: &[&str] = if cfg!(windows) {
         &["kolbo.exe", "kodu.exe", "opencode-cli.exe"]
@@ -382,17 +396,31 @@ pub async fn check_and_update_sidecar(app: &tauri::AppHandle) -> Result<bool, St
         extract_tar_gz(&data, temp_dir.path())?;
     }
 
-    // 7. Find the binary in the extracted archive
+    // 7. Find the binary in the extracted archive (archive contains bin/ and skills/)
     let extracted_bin = find_binary_in_dir(temp_dir.path())?;
 
-    // 8. Replace sidecar (copy to a temp file next to it, then rename for atomicity)
+    // 8. Replace sidecar binary (copy to temp, then rename for atomicity)
     let sidecar_tmp = sidecar_path.with_extension("tmp");
     std::fs::copy(&extracted_bin, &sidecar_tmp)
         .map_err(|e| format!("Failed to copy new binary: {e}"))?;
     std::fs::rename(&sidecar_tmp, &sidecar_path)
         .map_err(|e| format!("Failed to rename new binary into place: {e}"))?;
 
-    // 9. Set executable permissions on Unix
+    // 9. Update skills directory alongside the sidecar
+    // The CLI looks for skills at: path.dirname(process.execPath)/../skills
+    // Sidecar is at e.g. .../sidecars/opencode-cli → skills go to .../skills/
+    let extracted_skills = temp_dir.path().join("skills");
+    if extracted_skills.is_dir() {
+        let sidecar_parent = sidecar_path.parent().unwrap();
+        let skills_dest = sidecar_parent.parent().unwrap_or(sidecar_parent).join("skills");
+        // Remove old skills and copy new ones
+        let _ = std::fs::remove_dir_all(&skills_dest);
+        copy_dir_recursive(&extracted_skills, &skills_dest)
+            .map_err(|e| format!("Failed to copy skills: {e}"))?;
+        tracing::info!(?skills_dest, "Updated bundled skills");
+    }
+
+    // 10. Set executable permissions on Unix
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;

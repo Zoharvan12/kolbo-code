@@ -262,15 +262,16 @@ for (const item of targets) {
 
 if (Script.release) {
   // Create archives with flat names (strip @kolbo/ scope) in dist/release/
+  // Include both bin/ and skills/ so the desktop sidecar auto-update gets updated skills too.
   const releaseDir = path.resolve("dist/release")
   fs.mkdirSync(releaseDir, { recursive: true })
   for (const key of Object.keys(binaries)) {
     const flatName = key.replace("@kolbo/", "")
-    const binDir = path.resolve(`dist/${key}/bin`)
+    const pkgDir = path.resolve(`dist/${key}`)
     if (key.includes("linux")) {
-      await $`tar -czf ${releaseDir}/${flatName}.tar.gz -C ${binDir} .`
+      await $`tar -czf ${releaseDir}/${flatName}.tar.gz -C ${pkgDir} bin skills`
     } else {
-      await $`cd ${binDir} && zip -r ${releaseDir}/${flatName}.zip .`
+      await $`cd ${pkgDir} && zip -r ${releaseDir}/${flatName}.zip bin skills`
     }
   }
   await $`gh release upload v${Script.version} dist/release/*.zip dist/release/*.tar.gz --clobber --repo ${process.env.GH_REPO}`
