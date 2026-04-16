@@ -25,6 +25,15 @@ export namespace SessionProcessor {
   const DOOM_LOOP_THRESHOLD = 3
   const log = Log.create({ service: "session.processor" })
 
+  // Strip XML-style tool call syntax that some models (e.g. minimax) emit as plain text
+  // instead of using the structured JSON tool call format the API expects.
+  // Matches both <invoke name="...">...</invoke> and <invoke name="...">...</invoke>
+  const XML_TOOL_CALL_RE = /<(?:antml:)?invoke\b[^>]*>[\s\S]*?<\/(?:antml:)?invoke>/gi
+
+  function stripXmlToolCalls(text: string): string {
+    return text.replace(XML_TOOL_CALL_RE, "").trim()
+  }
+
   export type Result = "compact" | "stop" | "continue"
 
   export type Event = LLM.Event
@@ -426,6 +435,16 @@ export namespace SessionProcessor {
             case "text-end":
               if (!ctx.currentText) return
               ctx.currentText.text = ctx.currentText.text.trimEnd()
+              {
+                const cleaned = stripXmlToolCalls(ctx.currentText.text)
+                if (cleaned !== ctx.currentText.text) {
+                  log.warn("stripped XML tool call syntax from model text output", {
+                    sessionID: ctx.sessionID,
+                    snippet: ctx.currentText.text.slice(0, 300),
+                  })
+                  ctx.currentText.text = cleaned
+                }
+              }
               ctx.currentText.text = (yield* plugin.trigger(
                 "experimental.text.complete",
                 {

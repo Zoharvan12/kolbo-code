@@ -211,6 +211,23 @@ export namespace SessionPrompt {
         const userMessage = input.messages.findLast((msg) => msg.info.role === "user")
         if (!userMessage) return input.messages
 
+        // Auto-resume: if the last assistant response was cut off by the output token limit,
+        // inject a reminder so the model continues from where it left off.
+        const lastAssistant = input.messages.findLast((msg) => msg.info.role === "assistant")
+        if (lastAssistant?.info.role === "assistant" && lastAssistant.info.finish === "length") {
+          const part = yield* sessions.updatePart({
+            id: PartID.ascending(),
+            messageID: userMessage.info.id,
+            sessionID: userMessage.info.sessionID,
+            type: "text",
+            text: `<system-reminder>
+Your previous response was cut off because you reached the output token limit. Continue exactly where you left off — do not repeat work already done, do not summarize, just continue.
+</system-reminder>`,
+            synthetic: true,
+          })
+          userMessage.parts.push(part)
+        }
+
         if (!Flag.KOLBO_EXPERIMENTAL_PLAN_MODE) {
           if (input.agent.name === "plan") {
             userMessage.parts.push({
@@ -1312,6 +1329,8 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           const ctx = yield* InstanceState.context
           let structured: unknown | undefined
           let step = 0
+          let consecutiveLengthResumes = 0
+          const MAX_LENGTH_RESUMES = 3
           const session = yield* sessions.get(sessionID)
           let cachedSkills: string | undefined
           let cachedEnv: string[] | undefined
@@ -1348,14 +1367,52 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             const hasToolCalls =
               lastAssistantMsg?.parts.some((part) => part.type === "tool" && !part.metadata?.providerExecuted) ?? false
 
+            // "length" means the model hit its output token limit mid-response — auto-resume.
+            const hitOutputLimit = lastAssistant?.finish === "length"
+
             if (
               lastAssistant?.finish &&
               !["tool-calls"].includes(lastAssistant.finish) &&
               !hasToolCalls &&
+              !hitOutputLimit &&
               lastUser.id < lastAssistant.id
             ) {
               log.info("exiting loop", { sessionID })
               break
+            }
+
+            if (hitOutputLimit) {
+              consecutiveLengthResumes++
+              if (consecutiveLengthResumes >= MAX_LENGTH_RESUMES) {
+                log.warn("auto-resume limit reached, stopping loop", { consecutiveLengthResumes, sessionID })
+                const limitMsg: MessageV2.Assistant = {
+                  id: MessageID.ascending(),
+                  parentID: lastUser.id,
+                  role: "assistant",
+                  mode: lastUser.agent,
+                  agent: lastUser.agent,
+                  variant: lastUser.model.variant,
+                  path: { cwd: ctx.directory, root: ctx.worktree },
+                  cost: 0,
+                  tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+                  modelID: lastUser.model.modelID,
+                  providerID: lastUser.model.providerID,
+                  time: { created: Date.now() },
+                  sessionID,
+                }
+                yield* sessions.updateMessage(limitMsg)
+                yield* sessions.updatePart({
+                  id: PartID.ascending(),
+                  messageID: limitMsg.id,
+                  sessionID,
+                  type: "text",
+                  text: "I've been cut off by the output token limit 3 times in a row. Please ask me to continue, break your request into smaller steps, or increase the model's max output tokens.",
+                  synthetic: false,
+                })
+                break
+              }
+            } else {
+              consecutiveLengthResumes = 0
             }
 
             step++
