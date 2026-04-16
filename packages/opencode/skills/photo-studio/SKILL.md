@@ -18,7 +18,7 @@ description: >
 | FLUX.2 Klein 4B | `I:/AI-Models/flux2-klein-4b/` |
 | Z-Image Turbo | `I:/AI-Models/z-image-turbo/` |
 | Z-Image Adapter | `I:/AI-Models/z-image-turbo-adapter/zimage_turbo_training_adapter_v2.safetensors` |
-| Vision / LLM | **Kolbo MCP** — `upload_media` → `chat_send_message` (Gemini) |
+| Vision / LLM | Agent's built-in vision (`Read` tool) for images. For video analysis load the `video-production` skill. |
 
 ## How to Run
 
@@ -64,20 +64,13 @@ python photo-studio.py \
 
 ### Analyze image then generate variation
 ```
-# Step 1: Analyze the image with Kolbo MCP (Gemini vision)
-upload_media({ source: "/abs/path/to/char.jpg" })
-→ { url: "https://cdn.kolbo.ai/..." }
-
-chat_send_message({
-  message: "Describe this person in detail: clothing, pose, features, style. Output as a generation prompt.",
-  model: "gemini-2.5-pro",
-  media_urls: ["<url from upload>"]
-})
-→ { content: "detailed description..." }
+# Step 1: Read the image — the agent sees it natively (built-in vision)
+Read("/abs/path/to/char.jpg")
+→ Agent describes the person: clothing, pose, features, style
 
 # Step 2: Use the description as the prompt
 python photo-studio.py \
-  --prompt "<description from Gemini> standing upright, full body" \
+  --prompt "<description from agent vision> standing upright, full body" \
   --model flux
 ```
 
@@ -117,9 +110,9 @@ python photo-studio.py \
 - Default: `--steps 8 --cfg 0.0 --width 1152 --height 2048` (~30s per image)
 - Add `--adapter` to load the v2 training adapter
 
-### Vision & Prompt Enhancement — Kolbo MCP
-- For image analysis: `upload_media` → `chat_send_message` with `media_urls` + `model: "gemini-2.5-pro"`
-- For prompt enhancement: `chat_send_message` asking Kolbo to expand a short prompt
+### Vision & Prompt Enhancement
+- For image analysis: use the agent's built-in vision — `Read` the image file directly, no MCP needed
+- For prompt enhancement: `chat_send_message` asking Kolbo to expand a short prompt (text-only, no vision)
 - Do NOT use `--analyze` or `--enhance` flags (those call a local model that is no longer used)
 
 ## When to use which model
@@ -134,4 +127,4 @@ python photo-studio.py \
 
 ## Prompt Tips
 
-When the user gives a short/vague prompt, always use `chat_send_message` to let Kolbo AI (Gemini/Claude) expand it before passing to the script. For image editing, first analyze the source image via `upload_media` → `chat_send_message` with Gemini vision, then use the description as the base prompt.
+When the user gives a short/vague prompt, use `chat_send_message` to let Kolbo AI expand it before passing to the script. For image editing, first analyze the source image with the agent's built-in vision (`Read` the image), then use the description as the base prompt.
