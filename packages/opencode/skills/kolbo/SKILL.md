@@ -16,10 +16,10 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 | `generate_image` | Create a **single** image from a text prompt. Supports Visual DNA, moodboards, reference images, web-search grounding. |
 | `generate_image_edit` | Edit/transform an existing image (background removal, color changes, compositing). Pass source images + edit prompt. |
 | `generate_creative_director` | **Generate 2–8 related images or videos as one coherent set.** Use this INSTEAD of multiple `generate_image` calls whenever the user wants more than one related output (storyboards, ad campaigns, product sets, character sheets, scene variations). Handles style consistency and runs scenes in parallel internally. |
-| `generate_video` | Create videos from text prompts. Supports Visual DNA and reference images for consistency. |
+| `generate_video` | Create videos from text prompts. Supports reference images for style/composition guidance. Does **not** support Visual DNA — use `generate_elements` for character-consistent video. |
 | `generate_video_from_image` | Animate a still image into video. Prompt describes the motion, not the subject. |
 | `generate_video_from_video` | Restyle/transform an existing video (style transfer, scene restyling, subject swap). Keeps the original motion. |
-| `generate_elements` | Generate video from reference assets (images/videos) + prompt. Use when animating specific uploaded assets. |
+| `generate_elements` | Generate video from reference assets (images/videos) + prompt. **Supports Visual DNA** for character-consistent video — this is the primary tool for animating characters/scenes with Visual DNA. |
 | `generate_first_last_frame` | Generate video that morphs from a first frame to a last frame (keyframe interpolation). |
 | `generate_lipsync` | Lipsync an audio track to a source image or video face. Accepts local files or URLs. |
 | `generate_music` | Create music from descriptions. Supports instrumental, custom lyrics, style, vocal gender. |
@@ -101,17 +101,31 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 
 ### Model Types (for `list_models`)
 
-| Type | Use for |
-|------|---------|
-| `image` | Still-image generation |
-| `image_edit` | Image editing / transformation |
-| `video` | Text-to-video |
-| `video_from_image` | Image-to-video animation |
-| `lipsync` | Audio-to-face lipsync |
-| `music` | Music generation |
-| `speech` | Text-to-speech |
-| `sound` | Sound effects |
-| `three_d` | 3D model generation |
+Use the DB type name directly. Legacy aliases (right column) still work but prefer DB names.
+
+| DB Type | Legacy alias | Use for |
+|---------|-------------|---------|
+| `text_to_img` | `image` | Still-image generation |
+| `image_editing` | `image_edit` | Image editing / transformation |
+| `text_to_video` | `video` | Text-to-video |
+| `img_to_video` | `video_from_image` | Image-to-video animation |
+| `draw_to_video` | — | Draw-to-video (Hailuo, Seedance variants) |
+| `video_to_video` | `video_from_video` | Video restyling / style transfer |
+| `elements` | *(same)* | Reference-to-video — Visual DNA-driven video |
+| `firstlastgenerations` | `first_last_frame` | Keyframe interpolation |
+| `lipsync-image` | (part of `lipsync`) | Lipsync with image source face |
+| `lipsync-video` | (part of `lipsync`) | Lipsync with video source face |
+| `music_gen` | `music` | Music generation |
+| `text_to_speech` | `speech` | Text-to-speech (TTS) |
+| `text_to_sound` | `sound` | Sound effects |
+| `stt` | `transcription` | Audio/video transcription |
+| `text` | `chat` | Chat / AI language models |
+| `3d_text_to_model` | (part of `three_d`) | 3D from text prompt |
+| `3d_image_to_model` | (part of `three_d`) | 3D from single image |
+| `3d_multi_image_to_model` | (part of `three_d`) | 3D from multiple images |
+| `3d_world` | (part of `three_d`) | 3D world generation |
+
+> **Note**: `lipsync` alias returns both `lipsync-image` + `lipsync-video`. `three_d` alias returns all four 3D types.
 
 ### Cost Awareness
 
@@ -123,6 +137,7 @@ Creative generations bill against the user's Kolbo credit balance. **Billing uni
 | **Image edit** | per image (flat) | 2–20 cr | |
 | **Video** | **cr/s × duration** | 2–30 cr/s | Kandinsky 5 Fast × 5s = 10 cr; Seedance 2.0 × 10s = 300 cr |
 | **Video from image** | **cr/s × duration** | 4–30 cr/s | Same per-second rule as text-to-video |
+| **Elements (ref-to-video)** | **cr/s × duration** | 4–30 cr/s | Same per-second billing as video — check `credit` in `list_models type="elements"` |
 | **Lipsync** | **cr/s × duration** | 5–20 cr/s | |
 | **Music** | per generation (flat) | 15–60 cr | Suno v5 = 15 cr; ElevenLabs Music = 60 cr |
 | **Speech (TTS)** | per 100 characters | 2–5 cr/100 chars | ElevenLabs (5) × 500 chars = 25 cr; Google (2) × 500 chars = 10 cr |
@@ -143,6 +158,7 @@ Creative generations bill against the user's Kolbo credit balance. **Billing uni
 - **User specified everything** (model, count, duration, e.g. "make 5 videos, seedance 2 fast, 15s, 16:9"): **ACT IMMEDIATELY** — that IS the confirmation. Do not re-explain costs or ask again.
 - **Single generation under 5 credits**: proceed without confirmation.
 - **Everything else**: calculate total cost, present a summary, and wait for the user to confirm before generating.
+- **Batch totalling 100+ credits**: run `check_credits` before starting to verify the balance is sufficient, and include the available balance in your cost summary.
 
 **When confirmation IS needed:**
 1. Calculate per-item cost using the formulas above.
@@ -331,9 +347,38 @@ Visual DNA profiles capture the visual "identity" of a character, style, product
 
 ### Workflow
 1. **Create** a profile with `create_visual_dna` — provide reference images (max 4), optionally video and audio
-2. **Types**: `character` (default), `style`, `product`, `scene`
-3. **Use** the profile by passing its `id` in `visual_dna_ids` when calling any generation tool — including `generate_creative_director`
+2. **Types**: `character` (default), `style`, `product`, `scene`, `environment`
+3. **Use** the profile by passing its `id` in `visual_dna_ids` in: `generate_image`, `generate_creative_director`, `generate_elements`
 4. **List/inspect** profiles with `list_visual_dnas` / `get_visual_dna`
+
+### ⚠️ @name Syntax — CRITICAL for Multi-Visual-DNA Prompts
+
+When using **multiple Visual DNA profiles in a single generation**, reference each profile by its name using the `@name` syntax directly in the prompt. This tells the engine which character or asset appears where:
+
+```
+"@dana walks into @shop and picks up a product from the shelf"
+```
+
+- Profile names are set during `create_visual_dna` (the `name` field)
+- Reference them as `@name` (lowercase, no spaces) inside the prompt text
+- Multiple profiles can appear in one prompt — the engine blends each one where it's mentioned
+- **Without `@name` references, the engine may blend all Visual DNAs together indiscriminately**
+- This works across `generate_image`, `generate_creative_director`, and `generate_elements`
+
+**Example workflow — two-character scene:**
+1. Create Visual DNA `name: "dana"` (type: character) → `id: "vdna_abc"`
+2. Create Visual DNA `name: "shop"` (type: environment) → `id: "vdna_xyz"`
+3. Generate: `prompt: "@dana standing in @shop, picking up a product"`, `visual_dna_ids: ["vdna_abc", "vdna_xyz"]`
+
+### Visual DNA Limits (maxVisualDna)
+
+Each model has a `maxVisualDna` field in `list_models` results — never pass more Visual DNAs than the model supports:
+- **Image models** (non-Kling): up to **8** Visual DNAs
+- **Kling image models**: up to **3** Visual DNAs
+- **Elements video models**: up to **3–5** Visual DNAs (model-dependent)
+- **All other models**: up to **3** Visual DNAs
+
+Always check the `maxVisualDna` field from `list_models` for the exact limit of the chosen model.
 
 ### ⚠️ Visual DNA Creation — Always Generate Reference Images First (MANDATORY)
 
@@ -341,11 +386,11 @@ Visual DNA profiles capture the visual "identity" of a character, style, product
 
 **Step 1 — Generate both images in parallel (one `generate_image` call each, fire simultaneously):**
 
-1. **Close-up portrait** — prompt: `"[character description], close-up portrait, face and shoulders, neutral solid background, soft studio lighting, photorealistic"`, aspect ratio `1:1`
-2. **4-angle character sheet** — prompt: `"[character description], character reference sheet showing front view, back view, left side view, right side view, four panels arranged in a 2x2 grid, neutral solid background, full body, photorealistic"`, aspect ratio `16:9`
+1. **4-angle character sheet** — prompt: `"[character description], character reference sheet showing front view, back view, left side view, right side view, four panels arranged in a 2x2 grid, neutral solid background, full body, photorealistic"`, aspect ratio `16:9`
+2. **Close-up portrait** — prompt: `"[character description], close-up portrait, face and shoulders, neutral solid background, soft studio lighting, photorealistic"`, aspect ratio `1:1`
 
 **Step 2 — Call `create_visual_dna`** with:
-- `images`: user's reference image(s) + the 2 generated URLs above (up to 4 total)
+- `images`: the 4-angle sheet URL first, then the close-up URL — **plus** the user's reference photo(s) only if they provided one (i.e. a real person or existing character they want to match). If they gave no reference image, the 2 generated images alone are sufficient.
 - `type`: `"character"`
 - `name`: descriptive name
 
@@ -354,10 +399,20 @@ Visual DNA profiles capture the visual "identity" of a character, style, product
 **Skip this only if** the user explicitly says "just use my image as-is" or provides 3+ reference images already covering multiple angles.
 
 ### When to Use
-- User wants the same character across multiple images/videos
-- User wants a consistent brand style across a campaign
-- User references "keep the same look" or "same character"
+- User wants the same character across multiple **images** or a campaign → `generate_image` / `generate_creative_director` with `visual_dna_ids`
+- User wants to animate a character in video using **elements models** (Seedance 2, Kling O3 Reference, Grok Imagine, Veo 3.1, etc.) → `generate_elements` with `visual_dna_ids`
+- User wants a consistent brand style across a campaign → `generate_creative_director` with `visual_dna_ids`
+- User references "keep the same look", "same character", or "use that character"
 - User provides reference photos of a person/product to maintain consistency
+- User asks to put a character in a specific environment or scene → create both a character Visual DNA and an environment Visual DNA, use `@name` syntax to place them
+
+### ⚠️ When NOT to Use Visual DNA
+- **Animating an image** ("make this photo move", "animate this image") → use `generate_video_from_image` and pass the image as the source. Do NOT attach `visual_dna_ids` — the source image IS the reference, Visual DNA adds no value here.
+- **Text-to-video** from a general description (no specific character to lock in) → use `generate_video` without `visual_dna_ids`
+- **`generate_video`** — does not support Visual DNA at all. Never pass `visual_dna_ids` to it.
+- **`generate_video_from_image`** — does not support Visual DNA. The source image serves as the visual reference.
+- **`generate_first_last_frame`** — does not support Visual DNA. The keyframes define the visual.
+- **The only video tool that supports Visual DNA is `generate_elements`** (elements-type models like Seedance 2, Kling O3 Reference, Grok Imagine). Use it when the user wants a character to appear consistently in a video scene.
 
 ---
 
@@ -495,9 +550,9 @@ Describe **genre → mood → instrumentation → tempo → era**, in that order
 
 ## Moodboards & Presets
 
-**Moodboards** provide style direction (master prompt + style guide + reference images). Pass a `moodboard_id` to any generation tool to apply its style.
+**Moodboards** inject style direction as a **system-level prompt** (master prompt + style guide + reference images) — think of it as a persistent art direction layer applied on top of your generation. Pass a `moodboard_id` to any generation tool to apply its style. Moodboards can be combined with Visual DNA: the moodboard sets the overall aesthetic, while Visual DNA controls specific characters or objects.
 - `list_moodboards` to browse available options
-- `get_moodboard` to see full details before applying
+- `get_moodboard` to see full details (master_prompt, style_guide, images) before applying
 
 **Presets** bundle prompt templates + style direction for specific creative looks. Pass a `preset_id` to generation tools.
 - `list_presets` with optional `type` filter ("image", "video", "video_from_image", "music")
