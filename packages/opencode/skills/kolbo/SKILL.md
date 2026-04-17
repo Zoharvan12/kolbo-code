@@ -90,7 +90,10 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 
 1. **Check credits** ONCE per conversation with `check_credits`. Skip if you already checked earlier in this session.
 2. **Discover models** with `list_models` using a `type` filter — but **skip this when the user names a specific model** (e.g. "seedance 2 fast"). Only call `list_models` when you need to discover or compare models.
-3. **Pick the model**: If the user explicitly requested a specific model, use that name directly. Otherwise, **prefer the cheapest model that still has great quality** — look at both `credit` cost and `recommended` status from `list_models`.
+3. **Pick the model**: Follow this priority order:
+   - **User named a model** (e.g. "use Kling v2") → use that identifier directly, no questions asked.
+   - **Auto-select** → only from the **"Auto-selectable"** section of `list_models` results (models with a `summary`). Pick the cheapest one whose summary fits the task. Prefer `[RECOMMENDED]` when cost is similar.
+   - **Never auto-select** a model from the **"Named-only"** section (no summary) — you have no quality signal for it. Only use it if the user explicitly requested it by name.
 4. **How generation calls work**: Each tool call blocks until the generation is fully complete (the MCP server polls the API internally). For images this is seconds; for video it can be minutes. If a call times out, use `get_generation_status` with the returned generation ID. When you output multiple tool calls in a single response, they run concurrently — so batch calls finish in the time of the slowest one, not the sum.
 5. **Share the URL** — after a successful generation, hand the real URL back to the user. Never fabricate URLs.
 
