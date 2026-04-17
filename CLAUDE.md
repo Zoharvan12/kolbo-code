@@ -59,12 +59,24 @@ git commit -m "chore: merge upstream/dev ..."
 
 **Upstream remote:** `https://github.com/anomalyco/opencode.git`
 
+## MCP & Skill Sync Rule (CRITICAL)
+Whenever you edit MCP tool logic, skill behavior, rate limits, cost rules, or install instructions — you MUST update ALL three places in the same session:
+
+| What changed | Update here |
+|---|---|
+| MCP tool behavior / parameters | `packages/opencode/skills/kolbo/SKILL.md` |
+| User-facing docs (install, auth, usage) | `G:\Projects\Kolbo.AI\github\kolbo-docs\content\docs\kolbo-code\` |
+| MCP server implementation | `G:\Projects\Kolbo.AI\github\kolbo-mcp\` (if it exists) |
+
+Never update just one. Push all three repos before marking the task done.
+
 ## Key Files
 - `packages/opencode/src/plugin/kolbo.ts` — Kolbo device-code OAuth plugin
 - `packages/opencode/src/provider/models.ts` — Kolbo provider definition
 - `packages/opencode/src/cli/logo.ts` — Kolbo ASCII logo
 - `packages/opencode/src/flag/flag.ts` — All KOLBO_* feature flags
 - `.github/workflows/publish.yml` — CI publish (repo guard: `Zoharvan12/kolbo-cli`)
+- `packages/opencode/skills/kolbo/SKILL.md` — MCP tool workflow + prompt rules (keep in sync with kolbo-docs + kolbo-mcp)
 
 ## Release Process
 ```bash
