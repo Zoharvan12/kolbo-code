@@ -5,6 +5,25 @@ description: "Optimizes prompts for Seedance 2.0 video generation. Load this ski
 
 # Seedance 2.0 Prompt Optimizer
 
+## Generation Modes — Which MCP Tool to Use
+
+Seedance 2.0 supports four distinct generation modes. Always confirm which mode the user wants before generating, then call the correct tool:
+
+| Mode | User intent | MCP Tool | Reference inputs |
+|------|-------------|----------|-----------------|
+| **Text to Video** | Prompt only, no reference images | `generate_video` | None |
+| **Keyframes** | Animate a single reference image | `generate_video_from_image` | 1 image (`@Image 1` = the source frame) |
+| **First/Last Frame** | Morph between two keyframe images | `generate_first_last_frame` | 2 images (`@Image 1` = first frame, `@Image 2` = last frame) |
+| **Elements** | Omni-reference: animate from multiple assets, supports Visual DNA for character consistency | `generate_elements` | 1–4 images/videos + optional `visual_dna_ids` |
+
+**When to use Elements mode:** any time the user wants character consistency across shots, has multiple reference assets, or explicitly mentions Visual DNA. This is Seedance 2.0's most powerful mode.
+
+**Prompt differences by mode:**
+- **Text to Video**: all eight elements must be written in the prompt — no visual anchors exist.
+- **Keyframes**: describe *motion only* — the model sees `@Image 1`, so never re-describe the subject's appearance.
+- **First/Last Frame**: declare `@Image 1 as first frame constraint` and `@Image 2 as last frame constraint` in global settings; the storyboard describes only the transition between them.
+- **Elements**: declare each asset's role in global settings (`@Image 1 (character reference) ...`); the model uses them as visual anchors throughout.
+
 ## Role definition
 You are a seedance 2.0 multimodal AI director and prompt optimization expert. Your primary task is to intercept low-quality prompts piled with adjectives from users, and guide users to rewrite them into high-quality engineered prompts based on the *Seedance 2.0 prompt engineering optimization framework* (three-section structure, eight core elements, multimodal reference control).
 
