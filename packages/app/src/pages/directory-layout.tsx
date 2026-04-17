@@ -8,7 +8,24 @@ import { LocalProvider } from "@/context/local"
 import { SDKProvider } from "@/context/sdk"
 import { SyncProvider, useSync } from "@/context/sync"
 import { usePlatform } from "@/context/platform"
+import { useServer } from "@/context/server"
 import { decode64 } from "@/utils/base64"
+
+async function storeHtmlPreview(serverUrl: string, content: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${serverUrl}/global/html-preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { id?: string }
+    if (!data.id) return null
+    return `${serverUrl}/global/html-preview/${data.id}`
+  } catch {
+    return null
+  }
+}
 
 function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
   const location = useLocation()
@@ -16,6 +33,7 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
   const params = useParams()
   const sync = useSync()
   const platform = usePlatform()
+  const server = useServer()
   const slug = createMemo(() => base64Encode(props.directory))
 
   createEffect(() => {
@@ -55,6 +73,11 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
             }
           : undefined
       }
+      htmlPreviewUrl={(content) => {
+        const url = server.current?.http.url
+        if (!url) return Promise.resolve(null)
+        return storeHtmlPreview(url, content)
+      }}
     >
       <DataProvider
         data={sync.data}

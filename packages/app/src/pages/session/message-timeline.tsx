@@ -259,7 +259,13 @@ export function MessageTimeline(props: {
     if (!id) return idle
     return sync.data.session_status[id] ?? idle
   })
-  const working = createMemo(() => !!pending() || sessionStatus().type !== "idle")
+  // Use only the server-authoritative session status.
+  // Relying on !!pending() (last assistant message without time.completed) causes
+  // the loading bar to get permanently stuck when a run crashes or the SSE drops,
+  // because the message never receives a completion event.
+  // The client already sets session_status = "busy" optimistically in submit.ts,
+  // so pending() adds nothing and only creates stale-state bugs.
+  const working = createMemo(() => sessionStatus().type !== "idle")
   const tint = createMemo(() => messageAgentColor(sessionMessages(), sync.data.agent))
 
   const [timeoutDone, setTimeoutDone] = createSignal(true)

@@ -2051,6 +2051,23 @@ ToolRegistry.register({
     const pending = () => props.status === "pending" || props.status === "running"
     const isHtmlFile = () => !pending() && (props.input.filePath?.endsWith(".html") || props.input.filePath?.endsWith(".htm"))
 
+    // HTTP URL from sidecar for the thumbnail — srcdoc and blob: both fail in Tauri WebView2
+    // because custom-protocol origins can't load external resources (fonts, images).
+    const ops = usePlatformOps()
+    const [thumbnailUrl, setThumbnailUrl] = createSignal<string | null>(null)
+    createEffect(() => {
+      const content = props.input.content
+      if (!content || !isHtmlFile()) return
+      if (!ops.htmlPreviewUrl) {
+        console.warn("[write-tool thumbnail] htmlPreviewUrl not in PlatformOps — no preview")
+        return
+      }
+      void ops.htmlPreviewUrl(content).then((url) => {
+        console.log("[write-tool thumbnail] sidecar URL:", url)
+        setThumbnailUrl(url)
+      })
+    })
+
     const dispatchArtifact = (autoOpen = false) => {
       const content = props.input.content
       if (!content) return
@@ -2142,21 +2159,23 @@ ToolRegistry.register({
             style={{ height: "320px" }}
             onClick={() => dispatchArtifact(true)}
           >
-            <iframe
-              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-pointer-lock"
-              srcdoc={props.input.content}
-              title="HTML Preview"
-              class="transition-[filter] duration-200 group-hover:[filter:blur(3px)]"
-              style={{
-                display: "block",
-                width: "200%",
-                height: "640px",
-                transform: "scale(0.5)",
-                "transform-origin": "top left",
-                border: "0",
-                "pointer-events": "none",
-              }}
-            />
+            <Show when={thumbnailUrl()} keyed>
+              {(src) => (
+                <iframe
+                  src={src}
+                  title="HTML Preview"
+                  class="transition-[filter] duration-200 group-hover:[filter:blur(3px)]"
+                  style={{
+                    display: "block",
+                    width: "200%",
+                    height: "640px",
+                    zoom: "0.5",
+                    border: "0",
+                    "pointer-events": "none",
+                  }}
+                />
+              )}
+            </Show>
             <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 flex items-center justify-center">
               <div class="bg-white text-gray-900 px-5 py-2 rounded-lg font-semibold shadow-xl" style={{ "font-size": "14px" }}>
                 {i18n.t("ui.artifact.preview")}
