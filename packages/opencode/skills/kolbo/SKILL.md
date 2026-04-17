@@ -176,9 +176,15 @@ Before calling any generation tool, check your conversation history. If you alre
 6. If any fail with 429: wait 60 seconds and retry only the failed ones (max 2 retries).
 
 **Multi-image decision:**
-- User gives a **general brief** ("make 4 product shots", "create a storyboard") → use `generate_creative_director` (you plan the scenes, it handles consistency + parallel execution)
+- User gives a **general brief** ("make 4 product shots", "create a storyboard", "show the character in 4 different settings") → use `generate_creative_director` with `scene_count`. Pass `visual_dna_ids` to keep a character consistent across all scenes.
 - User gives **explicit separate prompts** ("Image 1: X, Image 2: Y, Image 3: Z") → fire all as **parallel `generate_image` calls** in one response
 - Never call `generate_image` sequentially in a loop — either use `generate_creative_director` or fire all calls in one parallel batch
+
+**⚠️ Parameter names — do NOT confuse these:**
+- `generate_image` → `num_images` (1–4): all images use the **same prompt**, just different random seeds — use this for "give me 4 variations of this image"
+- `generate_creative_director` → `scene_count` (1–8): each scene gets its **own distinct prompt** — use this for "make 8 different campaign shots" OR "show the character in 8 different scenes/outfits/moods". Always pass `visual_dna_ids` when character consistency matters. **Never pass `num_images` to `generate_creative_director`.**
+
+**After `generate_creative_director` completes — share results as individual URLs, one per scene. Do NOT create an HTML grid artifact or any combined layout. Just list each scene's title and its image URL on separate lines.**
 
 **Don't narrate, just generate.** When the user says "make 5 videos", output all 5 tool calls in one response. Don't explain your plan, don't calculate step-by-step, don't say "Generating Video 1 of 5..." — just call the tools.
 
@@ -313,9 +319,9 @@ Use `generate_image_edit` when the user wants to modify an existing image. Pass 
 Simple edits deserve simple prompts. Only elaborate for genuinely complex, multi-step transformations.
 
 ### Multi-Scene / Campaigns
-For storyboards, campaigns, or character-consistent sequences, use `generate_creative_director` — it generates 1–8 coordinated scenes from a single creative brief with consistent style. Pass `visual_dna_ids` and/or `moodboard_id` for character/style consistency across all scenes.
+`generate_creative_director` is not only for storyboards and campaigns — use it whenever the user wants a character shown across multiple scenes, outfits, moods, or settings. It generates 1–8 scenes from one brief, each with its own distinct prompt, and keeps style consistent internally. Always pass `visual_dna_ids` when a character must look the same across scenes, and optionally `moodboard_id` for art direction.
 
-In the CLI, you can also do multiple `generate_image` calls (in parallel for batches) with the same Visual DNA profiles.
+You can also do multiple parallel `generate_image` calls with the same `visual_dna_ids` when the user provides explicit per-image prompts.
 
 ---
 
@@ -326,8 +332,26 @@ Visual DNA profiles capture the visual "identity" of a character, style, product
 ### Workflow
 1. **Create** a profile with `create_visual_dna` — provide reference images (max 4), optionally video and audio
 2. **Types**: `character` (default), `style`, `product`, `scene`
-3. **Use** the profile by passing its `id` in `visual_dna_ids` when calling any generation tool
+3. **Use** the profile by passing its `id` in `visual_dna_ids` when calling any generation tool — including `generate_creative_director`
 4. **List/inspect** profiles with `list_visual_dnas` / `get_visual_dna`
+
+### ⚠️ Visual DNA Creation — Always Generate Reference Images First (MANDATORY)
+
+**Before calling `create_visual_dna` for a character**, always generate 2 reference images first and include them alongside any user-provided images. These give the Visual DNA engine multi-angle coverage and dramatically improve consistency:
+
+**Step 1 — Generate both images in parallel (one `generate_image` call each, fire simultaneously):**
+
+1. **Close-up portrait** — prompt: `"[character description], close-up portrait, face and shoulders, neutral solid background, soft studio lighting, photorealistic"`, aspect ratio `1:1`
+2. **4-angle character sheet** — prompt: `"[character description], character reference sheet showing front view, back view, left side view, right side view, four panels arranged in a 2x2 grid, neutral solid background, full body, photorealistic"`, aspect ratio `16:9`
+
+**Step 2 — Call `create_visual_dna`** with:
+- `images`: user's reference image(s) + the 2 generated URLs above (up to 4 total)
+- `type`: `"character"`
+- `name`: descriptive name
+
+**Why:** A single reference photo only shows one angle. The close-up gives the engine facial detail; the 4-angle sheet gives it body geometry and pose range. Together they produce far more consistent generations.
+
+**Skip this only if** the user explicitly says "just use my image as-is" or provides 3+ reference images already covering multiple angles.
 
 ### When to Use
 - User wants the same character across multiple images/videos
