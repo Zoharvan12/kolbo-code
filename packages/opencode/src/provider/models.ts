@@ -154,7 +154,7 @@ export namespace ModelsDev {
         modalities: { input: ["text", "image", "audio", "video", "pdf"], output: ["text"] },
         open_weights: false,
         cost: { input: 0.4, output: 1.6 },
-        limit: { context: 1_000_000, output: 32_768 },
+        limit: { context: 196_608, output: 32_768 },
       },
     },
   }
@@ -169,6 +169,32 @@ export namespace ModelsDev {
     name: "Ollama",
     doc: "https://ollama.ai",
     models: {},
+  }
+
+  /**
+   * Fetch context/output limits from the Kolbo API's /models endpoint and
+   * patch them into the KOLBO_PROVIDER models in-place.  Called once at
+   * startup (fire-and-forget); failures are silently swallowed so the
+   * hardcoded 196_608 fallback stays in effect when offline.
+   */
+  export async function refreshKolboLimits() {
+    try {
+      const res = await fetch(`${Partner.apiBase}/kolbo/v1/models`, {
+        headers: { "User-Agent": Installation.USER_AGENT },
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!res.ok) return
+      const json = (await res.json()) as { data?: Array<{ id: string; context_length?: number; output_length?: number }> }
+      for (const m of json.data ?? []) {
+        const entry = KOLBO_PROVIDER.models[m.id as keyof typeof KOLBO_PROVIDER.models] as any
+        if (!entry) continue
+        if (typeof m.context_length === "number" && m.context_length > 0) entry.limit.context = m.context_length
+        if (typeof m.output_length === "number" && m.output_length > 0) entry.limit.output = m.output_length
+      }
+      Data.reset() // invalidate cached provider data so next get() picks up new limits
+    } catch {
+      // offline or API down — hardcoded fallback stays in effect
+    }
   }
 
   function injectKolbo(data: Record<string, any>) {
@@ -229,9 +255,11 @@ export namespace ModelsDev {
 
 if (!Flag.KOLBO_DISABLE_MODELS_FETCH && !process.argv.includes("--get-yargs-completions")) {
   ModelsDev.refresh()
+  ModelsDev.refreshKolboLimits()
   setInterval(
     async () => {
       await ModelsDev.refresh()
+      await ModelsDev.refreshKolboLimits()
     },
     60 * 1000 * 60,
   ).unref()
