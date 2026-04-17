@@ -224,23 +224,20 @@ pub fn sync_cli(app: tauri::AppHandle) -> Result<(), String> {
 /// Map compile target to the npm binary package suffix used in GitHub release
 /// asset names (e.g. "kolbo-code-windows-x64").
 fn get_platform_slug() -> &'static str {
-    cfg_if::cfg_if! {
-        if #[cfg(all(target_os = "windows", target_arch = "x86_64"))] {
-            "kolbo-code-windows-x64"
-        } else if #[cfg(all(target_os = "windows", target_arch = "aarch64"))] {
-            "kolbo-code-windows-arm64"
-        } else if #[cfg(all(target_os = "macos", target_arch = "aarch64"))] {
-            "kolbo-code-darwin-arm64"
-        } else if #[cfg(all(target_os = "macos", target_arch = "x86_64"))] {
-            "kolbo-code-darwin-x64"
-        } else if #[cfg(all(target_os = "linux", target_arch = "x86_64"))] {
-            "kolbo-code-linux-x64"
-        } else if #[cfg(all(target_os = "linux", target_arch = "aarch64"))] {
-            "kolbo-code-linux-arm64"
-        } else {
-            "kolbo-code-unknown"
-        }
-    }
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    return "kolbo-code-windows-x64";
+    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
+    return "kolbo-code-windows-arm64";
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    return "kolbo-code-darwin-arm64";
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    return "kolbo-code-darwin-x64";
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    return "kolbo-code-linux-x64";
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    return "kolbo-code-linux-arm64";
+    #[allow(unreachable_code)]
+    "kolbo-code-unknown"
 }
 
 fn get_sidecar_version(sidecar: &std::path::Path) -> Result<semver::Version, String> {
