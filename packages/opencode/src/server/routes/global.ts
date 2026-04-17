@@ -17,6 +17,9 @@ import { Partner } from "../../brand/partner"
 
 const log = Log.create({ service: "server" })
 
+// Declared at module top to avoid temporal dead zone in Bun compiled binaries
+const _htmlPreviewStore = new Map<string, string>()
+
 export const GlobalDisposedEvent = BusEvent.define("global.disposed", z.object({}))
 
 async function streamEvents(c: Context, subscribe: (q: AsyncQueue<string | null>) => () => void) {
@@ -613,5 +616,22 @@ export const GlobalRoutes = lazy(() =>
           return c.json({ error: { message: `Upload failed: ${(e as Error).message}`, type: "network_error" } }, 502)
         }
       },
-    ),
+    )
+    // In-memory HTML preview store — keyed by random ID, auto-purged after 1 hour.
+    // No describeRoute: kept as plain handlers so hono-openapi doesn't interfere with routing.
+    .post("/html-preview", async (c) => {
+      let body: { content?: string }
+      try { body = await c.req.json() } catch { return c.json({ error: "invalid json" }, 400) }
+      if (typeof body.content !== "string") return c.json({ error: "missing content" }, 400)
+      const id = crypto.randomUUID()
+      _htmlPreviewStore.set(id, body.content)
+      setTimeout(() => _htmlPreviewStore.delete(id), 60 * 60 * 1000)
+      return c.json({ id })
+    })
+    .get("/html-preview/:id", async (c) => {
+      const id = c.req.param("id")
+      const content = _htmlPreviewStore.get(id)
+      if (!content) return c.json({ error: "not found" }, 404)
+      return c.newResponse(content, 200, { "Content-Type": "text/html; charset=utf-8" })
+    }),
 )

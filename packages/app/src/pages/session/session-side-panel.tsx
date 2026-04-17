@@ -46,6 +46,7 @@ export function SessionSidePanel(props: {
   const layout = useLayout()
   const file = useFile()
   const language = useLanguage()
+  const isRTL = createMemo(() => language.locale() === "ar" || language.locale() === "he")
   const command = useCommand()
   const dialog = useDialog()
   const { sessionKey, tabs, view } = useSessionLayout()
@@ -365,7 +366,7 @@ export function SessionSidePanel(props: {
                     </Tabs.Content>
                   </Show>
 
-                  <Tabs.Content value="artifacts" class="flex flex-col h-full overflow-hidden contain-strict">
+                  <Tabs.Content value="artifacts" class="flex flex-col h-full overflow-hidden">
                     <Show when={props.artifact()} keyed>
                       {(art) => <ArtifactPreviewTab artifact={art} />}
                     </Show>
@@ -471,7 +472,7 @@ export function SessionSidePanel(props: {
               <div onPointerDown={() => props.size.start()}>
                 <ResizeHandle
                   direction="horizontal"
-                  edge="start"
+                  edge={isRTL() ? "end" : "start"}
                   size={layout.fileTree.width()}
                   min={200}
                   max={480}

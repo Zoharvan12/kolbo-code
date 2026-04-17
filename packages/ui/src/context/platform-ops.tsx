@@ -16,32 +16,49 @@ export type PlatformOps = {
   revealFile?: (path: string) => Promise<void> | void
   /** Open a folder picker to change the configured download folder */
   changeDownloadFolder?: () => Promise<void>
+  /**
+   * Store HTML content in the local sidecar and return a stable HTTP URL.
+   * Used by the write-tool thumbnail so WebView2 can composite the iframe correctly
+   * (blob: and srcdoc both fail for GPU/external-resource content in Tauri WebView2).
+   */
+  htmlPreviewUrl?: (content: string) => Promise<string | null>
 }
 
 const PlatformOpsCtx = createContext<PlatformOps>({})
 
 export function PlatformOpsProvider(props: ParentProps<PlatformOps>) {
+  // Merge with parent context so nested providers only override what they explicitly supply
+  const parent = useContext(PlatformOpsCtx)
   const value: PlatformOps = {
     get openPath() {
-      return props.openPath
+      return props.openPath ?? parent.openPath
     },
     get openLink() {
-      return props.openLink
+      return props.openLink ?? parent.openLink
     },
     get fetch() {
-      return props.fetch
+      return props.fetch ?? parent.fetch
+    },
+    get saveFilePickerDialog() {
+      return props.saveFilePickerDialog ?? parent.saveFilePickerDialog
+    },
+    get writeFile() {
+      return props.writeFile ?? parent.writeFile
     },
     get downloadFile() {
-      return props.downloadFile
+      return props.downloadFile ?? parent.downloadFile
     },
     get readTextFile() {
-      return props.readTextFile
+      return props.readTextFile ?? parent.readTextFile
     },
     get revealFile() {
-      return props.revealFile
+      return props.revealFile ?? parent.revealFile
     },
     get changeDownloadFolder() {
-      return props.changeDownloadFolder
+      return props.changeDownloadFolder ?? parent.changeDownloadFolder
+    },
+    get htmlPreviewUrl() {
+      return props.htmlPreviewUrl ?? parent.htmlPreviewUrl
     },
   }
   return <PlatformOpsCtx.Provider value={value}>{props.children}</PlatformOpsCtx.Provider>

@@ -1,5 +1,6 @@
-import { createSignal, Show, Switch, Match } from "solid-js"
+import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
+import { useServer } from "@/context/server"
 
 export type ArtifactData = {
   content: string
@@ -34,15 +35,81 @@ function sanitizeSvg(svg: string): string {
     .replace(/javascript:/gi, "")
 }
 
+/**
+ * Upload HTML to the sidecar's in-memory store and return an HTTP URL.
+ * Loading via HTTP lets Tauri WebView2 render WebGL/Canvas/WebCodecs correctly —
+ * blob: and srcdoc approaches both fail to composite GPU content in WebView2.
+ */
+async function storeHtmlPreview(serverUrl: string, content: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${serverUrl}/global/html-preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { id?: string }
+    if (!data.id) return null
+    return `${serverUrl}/global/html-preview/${data.id}`
+  } catch {
+    return null
+  }
+}
+
 export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
   const language = useLanguage()
+  const server = useServer()
   const [view, setView] = createSignal<"preview" | "code">("preview")
+
+  // HTTP URL from sidecar for the HTML content.
+  // null = still loading, "" = failed (fall back to blob)
+  const [htmlPreviewUrl, setHtmlPreviewUrl] = createSignal<string | null>(null)
+  const [htmlPreviewFailed, setHtmlPreviewFailed] = createSignal(false)
+
+  createEffect(() => {
+    if (props.artifact.lang !== "html") return
+    const url = server.current?.http.url
+    if (!url) {
+      setHtmlPreviewFailed(true)
+      return
+    }
+    const content = props.artifact.content
+    setHtmlPreviewUrl(null)
+    setHtmlPreviewFailed(false)
+    void storeHtmlPreview(url, content).then((result) => {
+      if (result) {
+        setHtmlPreviewUrl(result)
+      } else {
+        setHtmlPreviewFailed(true)
+      }
+    })
+  })
+
+  // Fallback blob URL — only used when sidecar URL failed
+  const blobUrl = createMemo<string>((prev) => {
+    if (!htmlPreviewFailed()) {
+      if (prev) URL.revokeObjectURL(prev)
+      return ""
+    }
+    if (prev) return prev // keep existing blob url while still failed
+    if (props.artifact.lang !== "html") return ""
+    const blob = new Blob([props.artifact.content], { type: "text/html" })
+    return URL.createObjectURL(blob)
+  })
+  onCleanup(() => {
+    const u = blobUrl()
+    if (u) URL.revokeObjectURL(u)
+  })
+
+  // The URL to use: prefer HTTP (WebGL works), fall back to blob
+  const effectiveHtmlUrl = createMemo(() => htmlPreviewUrl() ?? (htmlPreviewFailed() ? blobUrl() : null))
+  // True while we're waiting for the sidecar to respond
+  const isLoadingPreview = createMemo(() => props.artifact.lang === "html" && !htmlPreviewUrl() && !htmlPreviewFailed())
 
   return (
     <div class="flex flex-col h-full overflow-hidden">
       {/* Toolbar */}
       <div class="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-border-weaker-base">
-        {/* Segmented pill toggle */}
         <div class="flex items-center rounded-md border border-border-weak-base bg-surface-base-active overflow-hidden text-12-medium">
           <button
             type="button"
@@ -72,7 +139,6 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
 
         <div class="flex-1" />
 
-        {/* Open in new tab (HTML only) */}
         <Show when={props.artifact.lang === "html"}>
           <button
             type="button"
@@ -80,9 +146,8 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
             aria-label={language.t("artifact.openInTab")}
             title={language.t("artifact.openInTab")}
             onClick={() => {
-              const blob = new Blob([props.artifact.content], { type: "text/html" })
-              const url = URL.createObjectURL(blob)
-              window.open(url, "_blank", "noopener,noreferrer")
+              const u = effectiveHtmlUrl()
+              if (u) window.open(u, "_blank", "noopener,noreferrer")
             }}
           >
             ↗
@@ -92,38 +157,58 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
 
       {/* Content */}
       <div class="flex-1 min-h-0 overflow-hidden relative">
-        <Show when={view() === "preview"}>
-          <Switch>
-            <Match when={props.artifact.lang === "html"}>
+
+        {/* HTML — wait for HTTP URL so WebView2 composites WebGL/Canvas correctly */}
+        <Show when={props.artifact.lang === "html"}>
+          {/* Loading spinner while sidecar is processing */}
+          <Show when={isLoadingPreview() && view() === "preview"}>
+            <div class="absolute inset-0 flex items-center justify-center bg-white dark:bg-neutral-900">
+              <div class="size-6 border-2 border-neutral-300 border-t-neutral-600 rounded-full animate-spin" />
+            </div>
+          </Show>
+
+          {/* Iframe — only rendered once we have a stable URL (no mid-load src switch) */}
+          <Show when={effectiveHtmlUrl()} keyed>
+            {(src) => (
               <iframe
-                sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
-                srcdoc={props.artifact.content}
-                style="position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff;"
+                src={src}
+                style={{
+                  position: "absolute",
+                  inset: "0",
+                  width: "100%",
+                  height: "100%",
+                  border: "0",
+                  background: "#fff",
+                  opacity: view() === "preview" ? "1" : "0",
+                  "pointer-events": view() === "preview" ? "auto" : "none",
+                }}
               />
-            </Match>
-            <Match when={props.artifact.lang === "svg"}>
-              <div
-                style="position:absolute;inset:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:16px;"
-                // eslint-disable-next-line solid/no-innerhtml
-                innerHTML={sanitizeSvg(props.artifact.content)}
-              />
-            </Match>
-            <Match when={props.artifact.lang === "mermaid"}>
-              <iframe
-                sandbox="allow-scripts allow-same-origin"
-                srcdoc={buildMermaidSrcdoc(props.artifact.content)}
-                style="position:absolute;inset:0;width:100%;height:100%;border:0;background:#1e1e1e;"
-              />
-            </Match>
-          </Switch>
+            )}
+          </Show>
         </Show>
 
+        {/* SVG */}
+        <Show when={props.artifact.lang === "svg" && view() === "preview"}>
+          <div
+            style="position:absolute;inset:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:16px;"
+            // eslint-disable-next-line solid/no-innerhtml
+            innerHTML={sanitizeSvg(props.artifact.content)}
+          />
+        </Show>
+
+        {/* Mermaid */}
+        <Show when={props.artifact.lang === "mermaid" && view() === "preview"}>
+          <iframe
+            sandbox="allow-scripts allow-same-origin"
+            srcdoc={buildMermaidSrcdoc(props.artifact.content)}
+            style="position:absolute;inset:0;width:100%;height:100%;border:0;background:#1e1e1e;"
+          />
+        </Show>
+
+        {/* Code tab */}
         <Show when={view() === "code"}>
-          <div class="h-full overflow-auto">
-            <pre
-              class="p-4 text-12-regular text-text-base whitespace-pre-wrap break-words"
-              style="margin:0;"
-            >
+          <div class="h-full overflow-auto" style="position:absolute;inset:0;">
+            <pre class="p-4 text-12-regular text-text-base whitespace-pre-wrap break-words" style="margin:0;">
               <code>{props.artifact.content}</code>
             </pre>
           </div>

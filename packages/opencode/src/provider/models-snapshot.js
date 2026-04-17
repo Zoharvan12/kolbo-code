@@ -17935,6 +17935,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "structured_output": true,
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -18028,6 +18029,7 @@ export const snapshot = {
         "reasoning": false,
         "tool_call": true,
         "structured_output": true,
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -18754,7 +18756,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -19760,7 +19762,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {
@@ -20986,7 +20988,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -21050,7 +21052,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {
@@ -29322,9 +29324,49 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
-        "knowledge": "2025-05-30",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25,
+          "context_over_200k": {
+            "input": 10,
+            "output": 37.5,
+            "cache_read": 1,
+            "cache_write": 12.5
+          }
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        }
+      },
+      "anthropic/claude-opus-4.7": {
+        "id": "anthropic/claude-opus-4.7",
+        "name": "Claude Opus 4.7",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2026-01-31",
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
         "modalities": {
           "input": [
             "text",
@@ -29575,6 +29617,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -31713,6 +31756,39 @@ export const snapshot = {
         "limit": {
           "context": 262144,
           "output": 65536
+        }
+      },
+      "glm-5.1": {
+        "id": "glm-5.1",
+        "name": "GLM-5.1",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-04-14",
+        "last_updated": "2026-04-14",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.87,
+          "output": 3.48,
+          "cache_read": 0.17
+        },
+        "limit": {
+          "context": 202752,
+          "output": 128000
         }
       },
       "qwen3-omni-flash": {
@@ -34292,6 +34368,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
+        "knowledge": "2025-05-31",
         "release_date": "2026-02",
         "last_updated": "2026-02",
         "modalities": {
@@ -38900,13 +38977,49 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-01-01",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-06",
         "last_updated": "2026-02-06",
         "modalities": {
           "input": [
             "image",
             "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
+        }
+      },
+      "anthropic/claude-opus-4.7": {
+        "id": "anthropic/claude-opus-4.7",
+        "name": "Claude Opus 4.7",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": false,
+        "knowledge": "2026-01-31",
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
           ],
           "output": [
             "text"
@@ -39149,7 +39262,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-01-01",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-18",
         "last_updated": "2026-02-18",
         "modalities": {
@@ -57430,6 +57543,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
+        "knowledge": "2025-05-31",
         "release_date": "2026-04-07",
         "last_updated": "2026-04-11",
         "modalities": {
@@ -57491,6 +57605,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {
@@ -57735,6 +57850,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-03-15",
         "modalities": {
@@ -60571,7 +60687,7 @@ export const snapshot = {
         "tool_call": true,
         "interleaved": true,
         "temperature": true,
-        "knowledge": "2025-07-31",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -60603,6 +60719,42 @@ export const snapshot = {
         },
         "provider": {
           "npm": "ai-gateway-provider"
+        }
+      },
+      "anthropic/claude-opus-4-7": {
+        "id": "anthropic/claude-opus-4-7",
+        "name": "Claude Opus 4.7",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": false,
+        "knowledge": "2026-01",
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic"
         }
       },
       "anthropic/claude-opus-4-1": {
@@ -60844,7 +60996,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08-31",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {
@@ -61058,7 +61210,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-03-31",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {
@@ -61747,6 +61899,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -67395,6 +67548,37 @@ export const snapshot = {
           "output": 128000
         }
       },
+      "anthropic/claude-opus-4.7": {
+        "id": "anthropic/claude-opus-4.7",
+        "name": "Claude-Opus-4.7",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": false,
+        "release_date": "2026-04-15",
+        "last_updated": "2026-04-15",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 4.3,
+          "output": 21,
+          "cache_read": 0.43,
+          "cache_write": 5.4
+        },
+        "limit": {
+          "context": 1048576,
+          "output": 128000
+        }
+      },
       "anthropic/claude-sonnet-4": {
         "id": "anthropic/claude-sonnet-4",
         "name": "Claude-Sonnet-4",
@@ -71365,7 +71549,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-03-18",
         "modalities": {
@@ -71739,6 +71923,40 @@ export const snapshot = {
           "output": 128000
         }
       },
+      "global.anthropic.claude-opus-4-7": {
+        "id": "global.anthropic.claude-opus-4-7",
+        "name": "Claude Opus 4.7 (Global)",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2026-01-31",
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        }
+      },
       "mistral.pixtral-large-2502-v1:0": {
         "id": "mistral.pixtral-large-2502-v1:0",
         "name": "Pixtral Large (25.02)",
@@ -71938,7 +72156,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-03-18",
         "modalities": {
@@ -72178,6 +72396,40 @@ export const snapshot = {
           "output": 131072
         }
       },
+      "us.anthropic.claude-opus-4-7": {
+        "id": "us.anthropic.claude-opus-4-7",
+        "name": "Claude Opus 4.7 (US)",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2026-01-31",
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        }
+      },
       "amazon.nova-2-lite-v1:0": {
         "id": "amazon.nova-2-lite-v1:0",
         "name": "Nova 2 Lite",
@@ -72370,7 +72622,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-03-18",
         "modalities": {
@@ -72403,7 +72655,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-03-18",
         "modalities": {
@@ -72428,6 +72680,40 @@ export const snapshot = {
           "output": 64000
         }
       },
+      "anthropic.claude-opus-4-7": {
+        "id": "anthropic.claude-opus-4-7",
+        "name": "Claude Opus 4.7",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2026-01-31",
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        }
+      },
       "global.anthropic.claude-opus-4-6-v1": {
         "id": "global.anthropic.claude-opus-4-6-v1",
         "name": "Claude Opus 4.6 (Global)",
@@ -72437,7 +72723,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-03-18",
         "modalities": {
@@ -72565,7 +72851,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-03-18",
         "modalities": {
@@ -73027,7 +73313,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-03-18",
         "modalities": {
@@ -73109,6 +73395,40 @@ export const snapshot = {
         "limit": {
           "context": 128000,
           "output": 4096
+        }
+      },
+      "eu.anthropic.claude-opus-4-7": {
+        "id": "eu.anthropic.claude-opus-4-7",
+        "name": "Claude Opus 4.7 (EU)",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2026-01-31",
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
         }
       },
       "minimax.minimax-m2.5": {
@@ -73459,7 +73779,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-03-18",
         "modalities": {
@@ -75235,6 +75555,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-03-16",
         "modalities": {
@@ -75392,6 +75713,38 @@ export const snapshot = {
           "output": 8192
         }
       },
+      "claude-opus-4-7": {
+        "id": "claude-opus-4-7",
+        "name": "Claude Opus 4.7",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 6,
+          "output": 30,
+          "cache_read": 0.6,
+          "cache_write": 7.5
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        }
+      },
       "qwen3-coder-480b-a35b-instruct-turbo": {
         "id": "qwen3-coder-480b-a35b-instruct-turbo",
         "name": "Qwen 3 Coder 480B Turbo",
@@ -75432,7 +75785,7 @@ export const snapshot = {
         "structured_output": true,
         "temperature": true,
         "release_date": "2026-02-16",
-        "last_updated": "2026-04-09",
+        "last_updated": "2026-04-16",
         "modalities": {
           "input": [
             "text",
@@ -75443,7 +75796,7 @@ export const snapshot = {
             "text"
           ]
         },
-        "open_weights": false,
+        "open_weights": true,
         "cost": {
           "input": 0.75,
           "output": 4.5
@@ -75516,34 +75869,6 @@ export const snapshot = {
         "limit": {
           "context": 1000000,
           "output": 131072
-        }
-      },
-      "mercury-edit-2": {
-        "id": "mercury-edit-2",
-        "name": "Mercury Edit 2",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": false,
-        "temperature": true,
-        "release_date": "2026-03-30",
-        "last_updated": "2026-03-30",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.25,
-          "output": 0.75,
-          "cache_read": 0.025
-        },
-        "limit": {
-          "context": 128000,
-          "output": 8192
         }
       },
       "zai-org-glm-4.7-flash": {
@@ -75787,36 +76112,6 @@ export const snapshot = {
           "output": 16384
         }
       },
-      "grok-code-fast-1": {
-        "id": "grok-code-fast-1",
-        "name": "Grok Code Fast 1",
-        "family": "grok",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "release_date": "2025-12-01",
-        "last_updated": "2026-03-12",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.25,
-          "output": 1.87,
-          "cache_read": 0.03
-        },
-        "limit": {
-          "context": 256000,
-          "output": 10000
-        }
-      },
       "qwen3-5-35b-a3b": {
         "id": "qwen3-5-35b-a3b",
         "name": "Qwen 3.5 35B A3B",
@@ -75827,7 +76122,7 @@ export const snapshot = {
         "structured_output": true,
         "temperature": true,
         "release_date": "2026-02-25",
-        "last_updated": "2026-04-12",
+        "last_updated": "2026-04-16",
         "modalities": {
           "input": [
             "text",
@@ -75838,7 +76133,7 @@ export const snapshot = {
             "text"
           ]
         },
-        "open_weights": false,
+        "open_weights": true,
         "cost": {
           "input": 0.3125,
           "output": 1.25,
@@ -76357,6 +76652,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-03-16",
         "modalities": {
@@ -76635,39 +76931,6 @@ export const snapshot = {
           "output": 65536
         }
       },
-      "minimax-m21": {
-        "id": "minimax-m21",
-        "name": "MiniMax M2.1",
-        "family": "minimax",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "interleaved": {
-          "field": "reasoning_content"
-        },
-        "structured_output": true,
-        "temperature": true,
-        "release_date": "2025-12-01",
-        "last_updated": "2026-03-16",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0.35,
-          "output": 1.5,
-          "cache_read": 0.04
-        },
-        "limit": {
-          "context": 198000,
-          "output": 32768
-        }
-      },
       "llama-3.2-3b": {
         "id": "llama-3.2-3b",
         "name": "Llama 3.2 3B",
@@ -76838,6 +77101,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
+        "knowledge": "2025-05-31",
         "release_date": "2026-04-08",
         "last_updated": "2026-04-08",
         "modalities": {
@@ -77230,7 +77494,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -77887,7 +78151,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {
@@ -78171,7 +78435,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {
@@ -78548,7 +78812,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -78880,7 +79144,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2026-02-17",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -78938,6 +79202,39 @@ export const snapshot = {
         "limit": {
           "context": 1048576,
           "output": 65536
+        }
+      },
+      "claude-opus-4-7": {
+        "id": "claude-opus-4-7",
+        "name": "Claude Opus 4.7",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": false,
+        "knowledge": "2026-01-31",
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25
+        },
+        "limit": {
+          "context": 200000,
+          "output": 128000
         }
       },
       "gpt-5-mini": {
@@ -79198,39 +79495,6 @@ export const snapshot = {
           "output": 128000
         }
       },
-      "claude-opus-4-5": {
-        "id": "claude-opus-4-5",
-        "name": "Claude Opus 4.5",
-        "family": "claude-opus",
-        "attachment": true,
-        "reasoning": true,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2025-03-31",
-        "release_date": "2025-11-24",
-        "last_updated": "2025-11-24",
-        "modalities": {
-          "input": [
-            "text",
-            "image",
-            "pdf"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 5,
-          "output": 25,
-          "cache_read": 0.5,
-          "cache_write": 6.25
-        },
-        "limit": {
-          "context": 200000,
-          "output": 64000
-        }
-      },
       "claude-opus-4-6": {
         "id": "claude-opus-4-6",
         "name": "Claude Opus 4.6",
@@ -79384,39 +79648,6 @@ export const snapshot = {
         "limit": {
           "context": 128000,
           "output": 16384
-        }
-      },
-      "claude-sonnet-4-5": {
-        "id": "claude-sonnet-4-5",
-        "name": "Claude Sonnet 4.5",
-        "family": "claude-sonnet",
-        "attachment": true,
-        "reasoning": true,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2025-07-31",
-        "release_date": "2025-09-29",
-        "last_updated": "2025-09-29",
-        "modalities": {
-          "input": [
-            "text",
-            "image",
-            "pdf"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 3,
-          "output": 15,
-          "cache_read": 0.3,
-          "cache_write": 3.75
-        },
-        "limit": {
-          "context": 200000,
-          "output": 64000
         }
       },
       "gpt-oss-120b": {
@@ -80087,7 +80318,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {
@@ -84896,7 +85127,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -85199,9 +85430,48 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25,
+          "context_over_200k": {
+            "input": 10,
+            "output": 37.5,
+            "cache_read": 1,
+            "cache_write": 12.5
+          }
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        }
+      },
+      "claude-opus-4-7@default": {
+        "id": "claude-opus-4-7@default",
+        "name": "Claude Opus 4.7",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": false,
+        "knowledge": "2026-01-31",
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
         "modalities": {
           "input": [
             "text",
@@ -91814,6 +92084,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -92017,7 +92288,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
-        "knowledge": "2025-05-30",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {
@@ -94269,6 +94540,35 @@ export const snapshot = {
           "output": 400000
         }
       },
+      "minimax-M2.7": {
+        "id": "minimax-M2.7",
+        "name": "MiniMax-M2.7",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.47,
+          "output": 1.4
+        },
+        "limit": {
+          "context": 202752,
+          "output": 131072
+        }
+      },
       "gemini-2.5-pro": {
         "id": "gemini-2.5-pro",
         "name": "Gemini 2.5 Pro",
@@ -94307,7 +94607,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-03-13",
         "modalities": {
@@ -94388,6 +94688,39 @@ export const snapshot = {
         "limit": {
           "context": 196000,
           "output": 196000
+        }
+      },
+      "glm-5.1": {
+        "id": "glm-5.1",
+        "name": "GLM-5.1",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-04-14",
+        "last_updated": "2026-04-14",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 1.31,
+          "output": 4.1,
+          "cache_read": 0.24
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
         }
       },
       "glm-4.5": {
@@ -94578,7 +94911,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-03-13",
         "modalities": {
@@ -98566,6 +98899,37 @@ export const snapshot = {
           "output": 128000
         }
       },
+      "zai/glm-5.1": {
+        "id": "zai/glm-5.1",
+        "name": "GLM 5.1",
+        "family": "glm",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-04-07",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 1.4,
+          "output": 4.4,
+          "cache_read": 0.26
+        },
+        "limit": {
+          "context": 202752,
+          "output": 202752
+        }
+      },
       "zai/glm-4.6v-flash": {
         "id": "zai/glm-4.6v-flash",
         "name": "GLM-4.6V-Flash",
@@ -99625,6 +99989,34 @@ export const snapshot = {
         "limit": {
           "context": 128000,
           "output": 128000
+        }
+      },
+      "inception/mercury-coder-small": {
+        "id": "inception/mercury-coder-small",
+        "name": "Mercury Coder Small Beta",
+        "family": "mercury",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2025-02-26",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.25,
+          "output": 1
+        },
+        "limit": {
+          "context": 32000,
+          "output": 16384
         }
       },
       "openai/gpt-5.1-codex-max": {
@@ -103230,9 +103622,41 @@ export const snapshot = {
         "tool_call": true,
         "interleaved": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02",
         "last_updated": "2026-02",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        }
+      },
+      "anthropic/claude-opus-4.7": {
+        "id": "anthropic/claude-opus-4.7",
+        "name": "Claude Opus 4.7",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": false,
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
         "modalities": {
           "input": [
             "text",
@@ -103332,7 +103756,7 @@ export const snapshot = {
         "tool_call": true,
         "interleaved": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -105085,6 +105509,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-02-17",
         "modalities": {
@@ -108951,6 +109376,7 @@ export const snapshot = {
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {
@@ -114680,7 +115106,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {
@@ -121126,7 +121552,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-08",
+        "knowledge": "2025-08-31",
         "release_date": "2026-02-17",
         "last_updated": "2026-03-13",
         "modalities": {
@@ -121182,6 +121608,39 @@ export const snapshot = {
         "limit": {
           "context": 200000,
           "output": 32000
+        }
+      },
+      "claude-opus-4-7": {
+        "id": "claude-opus-4-7",
+        "name": "Claude Opus 4.7",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": false,
+        "knowledge": "2026-01-31",
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
         }
       },
       "claude-3-haiku-20240307": {
@@ -121522,7 +121981,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-05",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-03-13",
         "modalities": {
@@ -121879,6 +122338,117 @@ export const snapshot = {
         "limit": {
           "context": 202752,
           "output": 98304
+        }
+      }
+    }
+  },
+  "hpc-ai": {
+    "id": "hpc-ai",
+    "env": [
+      "HPC_AI_API_KEY"
+    ],
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "https://api.hpc-ai.com/inference/v1",
+    "name": "HPC-AI",
+    "doc": "https://www.hpc-ai.com/doc/docs/quickstart/",
+    "models": {
+      "zai-org/glm-5.1": {
+        "id": "zai-org/glm-5.1",
+        "name": "GLM 5.1",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-04-08",
+        "last_updated": "2026-04-08",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.66,
+          "output": 2,
+          "cache_read": 0.12
+        },
+        "limit": {
+          "context": 202000,
+          "output": 202000
+        }
+      },
+      "minimax/minimax-m2.5": {
+        "id": "minimax/minimax-m2.5",
+        "name": "MiniMax M2.5",
+        "family": "minimax-m2.5",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": false,
+        "temperature": true,
+        "release_date": "2026-02-12",
+        "last_updated": "2026-03-25",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.14,
+          "output": 0.56,
+          "cache_read": 0.014
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 131072
+        }
+      },
+      "moonshotai/kimi-k2.5": {
+        "id": "moonshotai/kimi-k2.5",
+        "name": "Kimi K2.5",
+        "family": "kimi",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-01-01",
+        "release_date": "2026-01-01",
+        "last_updated": "2026-03-25",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.21,
+          "output": 1,
+          "cache_read": 0.03
+        },
+        "limit": {
+          "context": 262144,
+          "output": 262144
         }
       }
     }
@@ -122323,7 +122893,7 @@ export const snapshot = {
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-03-31",
+        "knowledge": "2025-05-31",
         "release_date": "2026-02-05",
         "last_updated": "2026-02-05",
         "modalities": {

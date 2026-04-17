@@ -327,6 +327,7 @@ export default function Page() {
   const sync = useSync()
   const dialog = useDialog()
   const language = useLanguage()
+  const isRTL = createMemo(() => language.locale() === "ar" || language.locale() === "he")
   const sdk = useSDK()
   const settings = useSettings()
   const prompt = usePrompt()
@@ -2047,6 +2048,7 @@ export default function Page() {
             <div onPointerDown={() => size.start()}>
               <ResizeHandle
                 direction="horizontal"
+                edge={isRTL() ? "start" : "end"}
                 size={layout.session.width()}
                 min={450}
                 max={typeof window === "undefined" ? 1000 : window.innerWidth * 0.45}
