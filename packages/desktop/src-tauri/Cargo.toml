@@ -67,6 +67,11 @@ objc2 = "0.6"
 objc2-web-kit = "0.3"
 
 
+[profile.release]
+opt-level = 1     # faster to compile than opt-level=3, unnoticeable in a desktop UI app
+lto = false       # disabling LTO saves 20-40min of link time on 3-core M1
+codegen-units = 16  # more parallel compilation units
+
 [patch.crates-io]
 specta = { git = "https://github.com/specta-rs/specta", rev = "591a5f3ddc78348abf4cbb541d599d65306d92b9" }
 specta-typescript = { git = "https://github.com/specta-rs/specta", rev = "591a5f3ddc78348abf4cbb541d599d65306d92b9" }
