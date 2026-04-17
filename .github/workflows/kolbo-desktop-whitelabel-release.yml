@@ -47,7 +47,7 @@ jobs:
             artifact-suffix: darwin-aarch64
 
     runs-on: ${{ matrix.platform }}
-    timeout-minutes: 50
+    timeout-minutes: 120
     if: endsWith(github.repository, '/kolbo-code')
 
     steps:
@@ -71,10 +71,22 @@ jobs:
         with:
           targets: ${{ matrix.rust-target }}
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
+      - name: Rust cache restore
+        id: rust-cache
+        uses: actions/cache/restore@v4
         with:
-          workspaces: packages/desktop/src-tauri
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/deps
+            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/.fingerprint
+            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/build
+            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/deps
+            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/.fingerprint
+            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/build
+          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/desktop/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            rust-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install dependencies
         run: bun install
@@ -223,9 +235,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Notarization is handled in the next step with a timeout to prevent indefinite hangs
           VITE_WHITELABEL_SPLASH: /whitelabels/${{ env.WHITELABEL }}/splash.jpg
           VITE_WHITELABEL_LOGO: ${{ steps.wl.outputs.logo_image }}
           VITE_WHITELABEL_NAME: ${{ steps.wl.outputs.brand_name }}
@@ -247,6 +257,47 @@ jobs:
             - **macOS**: Disk image (.dmg)
           releaseDraft: ${{ github.event.inputs.draft }}
           prerelease: false
+
+      - name: Notarize macOS DMG
+        if: matrix.platform == 'macos-14'
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DMG_DIR="packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
+          DMG=$(find "${DMG_DIR}" -maxdepth 1 -name "*.dmg" | head -1)
+          if [ -z "${DMG}" ]; then echo "⚠ No DMG found to notarize"; exit 1; fi
+          echo "Notarizing: $(basename ${DMG})"
+          brew install coreutils -q 2>/dev/null || true
+          gtimeout 900 xcrun notarytool submit "${DMG}" \
+            --apple-id "${APPLE_ID}" \
+            --password "${APPLE_PASSWORD}" \
+            --team-id "${APPLE_TEAM_ID}" \
+            --wait \
+            --verbose || { echo "⚠ Notarization failed or timed out"; exit 1; }
+          xcrun stapler staple "${DMG}"
+          echo "✓ Notarization and stapling complete"
+          TAG="${{ env.WHITELABEL }}-desktop-v${{ env.KOLBO_VERSION }}"
+          gh release upload "${TAG}" "${DMG}" --clobber -R ${{ github.repository }}
+          echo "✓ Notarized DMG uploaded"
+
+      - name: Save Rust cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/deps
+            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/.fingerprint
+            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/build
+            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/deps
+            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/.fingerprint
+            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/build
+          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/desktop/src-tauri/Cargo.lock') }}
 
       - name: Upload update bundles to release (Windows)
         if: matrix.platform == 'windows-latest'
