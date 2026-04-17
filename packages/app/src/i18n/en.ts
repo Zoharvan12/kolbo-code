@@ -284,11 +284,12 @@ export const dict = {
   "prompt.attachment.remove": "Remove attachment",
   "prompt.action.send": "Send",
   "prompt.action.stop": "Stop",
+  "prompt.action.uploading": "Uploading attachments…",
 
   "prompt.toast.pasteUnsupported.title": "Unsupported attachment",
   "prompt.toast.pasteUnsupported.description": "Only images, PDFs, text, audio, or video files can be attached here.",
   "prompt.toast.fileTooLarge.title": "File too large",
-  "prompt.toast.fileTooLarge.description": "Audio and video files must be under {{max}}.",
+  "prompt.toast.fileTooLarge.description": "Media files must be under 200 MB.",
   "prompt.toast.modelAgentRequired.title": "Select an agent and model",
   "prompt.toast.modelAgentRequired.description": "Choose an agent and model before sending a prompt.",
   "prompt.toast.worktreeCreateFailed.title": "Failed to create worktree",

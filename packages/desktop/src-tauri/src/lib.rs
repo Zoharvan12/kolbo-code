@@ -322,7 +322,9 @@ fn get_default_download_dir() -> String {
 
 #[derive(Clone, serde::Serialize, specta::Type)]
 struct UpdateDownloadProgress {
+    #[specta(type = f64)]
     downloaded: u64,
+    #[specta(type = Option<f64>)]
     total: Option<u64>,
 }
 

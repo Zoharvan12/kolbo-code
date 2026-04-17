@@ -182,20 +182,49 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
     ]
   })
 
-  const images = input.images.map((attachment) => {
-    return {
+  // Images → sent as multimodal file parts (vision models can process inline)
+  // Video/Audio → sent as a text URL reference to the AI (providers don't support video inline),
+  //               but kept as file parts in optimisticParts so the UI bubble renders them properly.
+  const imageParts: PromptRequestPart[] = []
+  const mediaFileParts: PromptRequestPart[] = []  // for optimistic UI only
+  const mediaNotes: string[] = []
+
+  for (const attachment of input.images) {
+    const url = attachment.publicUrl ?? attachment.dataUrl
+    const label = attachment.localPath ?? attachment.filename
+    const filePart: PromptRequestPart = {
       id: Identifier.ascending("part"),
       type: "file",
       mime: attachment.mime,
-      url: attachment.dataUrl,
-      filename: attachment.filename,
-    } satisfies PromptRequestPart
-  })
+      url,
+      filename: label,
+    }
+    if (attachment.mime.startsWith("image/")) {
+      imageParts.push(filePart)
+    } else {
+      // video or audio — tell the AI via text so it can pass the URL to generation tools
+      const kind = attachment.mime.startsWith("video/") ? "Video" : "Audio"
+      mediaNotes.push(`[${kind} attached — public URL: ${url}${label !== attachment.filename ? ` | local path: ${label}` : ""}]`)
+      // keep as file part for the optimistic UI message bubble
+      mediaFileParts.push(filePart)
+    }
+  }
 
-  requestParts.push(...files, ...context, ...agents, ...images)
+  if (mediaNotes.length > 0) {
+    requestParts.push({
+      id: Identifier.ascending("part"),
+      type: "text",
+      text: mediaNotes.join("\n"),
+    } satisfies PromptRequestPart)
+  }
+
+  requestParts.push(...files, ...context, ...agents, ...imageParts)
+
+  // optimisticParts = what the UI shows locally. Video/audio shown as file parts (not text notes).
+  const optimisticRequestParts = [...requestParts, ...mediaFileParts]
 
   return {
     requestParts,
-    optimisticParts: requestParts.map((part) => toOptimisticPart(part, input.sessionID, input.messageID)),
+    optimisticParts: optimisticRequestParts.map((part) => toOptimisticPart(part, input.sessionID, input.messageID)),
   }
 }

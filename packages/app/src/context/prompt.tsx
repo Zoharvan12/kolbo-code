@@ -2,7 +2,7 @@ import { createSimpleContext } from "@opencode-ai/ui/context"
 import { checksum } from "@opencode-ai/util/encode"
 import { useParams } from "@solidjs/router"
 import { batch, createMemo, createRoot, getOwner, onCleanup } from "solid-js"
-import { createStore, type SetStoreFunction } from "solid-js/store"
+import { createStore, produce, type SetStoreFunction } from "solid-js/store"
 import type { FileSelection } from "@/context/file"
 import { Persist, persisted } from "@/utils/persist"
 
@@ -33,6 +33,10 @@ export interface ImageAttachmentPart {
   filename: string
   mime: string
   dataUrl: string
+  localPath?: string
+  uploading?: boolean
+  publicUrl?: string
+  uploadError?: string
 }
 
 export type ContentPart = TextPart | FileAttachmentPart | AgentPart | ImageAttachmentPart
@@ -143,6 +147,15 @@ function createPromptActions(
         setStore("cursor", 0)
       })
     },
+    updateImageAttachment(id: string, patch: Partial<ImageAttachmentPart>) {
+      setStore(
+        "prompt",
+        produce((parts) => {
+          const item = parts.find((p) => p.type === "image" && p.id === id)
+          if (item) Object.assign(item, patch)
+        }),
+      )
+    },
   }
 }
 
@@ -221,6 +234,7 @@ function createPromptSession(dir: string, id: string | undefined) {
     },
     set: actions.set,
     reset: actions.reset,
+    updateImageAttachment: actions.updateImageAttachment,
   }
 }
 
@@ -292,6 +306,8 @@ export const { use: usePrompt, provider: PromptProvider } = createSimpleContext(
       },
       set: (prompt: Prompt, cursorPosition?: number, scope?: Scope) => pick(scope).set(prompt, cursorPosition),
       reset: (scope?: Scope) => pick(scope).reset(),
+      updateImageAttachment: (id: string, patch: Partial<ImageAttachmentPart>, scope?: Scope) =>
+        pick(scope).updateImageAttachment(id, patch),
     }
   },
 })

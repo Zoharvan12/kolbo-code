@@ -544,5 +544,74 @@ export const GlobalRoutes = lazy(() =>
           )
         }
       },
+    )
+    .post(
+      "/kolbo-files-upload-from-path",
+      describeRoute({
+        summary: "Proxy: read a local file by path and upload it to kolbo-api",
+        description:
+          "Accepts { path } JSON, reads the file from the local filesystem (server-side), and forwards it to POST /kolbo/v1/files on kolbo-api. Used by the desktop client when the native file picker returns paths instead of File objects.",
+        operationId: "global.kolbo-files-upload-from-path",
+        responses: {
+          200: {
+            description: "Upload succeeded",
+            content: {
+              "application/json": {
+                schema: resolver(z.object({ url: z.string(), mime_type: z.string().optional() })),
+              },
+            },
+          },
+          ...errors(400, 401, 502),
+        },
+      }),
+      async (c) => {
+        const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+        const apiKey =
+          auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+        if (!apiKey) {
+          return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+        }
+
+        let body: { path?: string }
+        try {
+          body = await c.req.json()
+        } catch {
+          return c.json({ error: { message: "Invalid JSON body", type: "bad_request" } }, 400)
+        }
+
+        const filePath = typeof body.path === "string" ? body.path.trim() : ""
+        if (!filePath) {
+          return c.json({ error: { message: "Missing 'path' field", type: "bad_request" } }, 400)
+        }
+
+        let fileBlob: Blob
+        let filename: string
+        try {
+          const bunFile = Bun.file(filePath)
+          fileBlob = await bunFile.arrayBuffer().then((buf) => new Blob([buf], { type: bunFile.type || "application/octet-stream" }))
+          filename = filePath.split(/[\\/]/).pop() || "upload.bin"
+        } catch (e) {
+          return c.json({ error: { message: `Cannot read file: ${(e as Error).message}`, type: "bad_request" } }, 400)
+        }
+
+        const outgoing = new FormData()
+        outgoing.append("file", fileBlob, filename)
+
+        try {
+          const res = await fetch(`${Partner.apiBase}/kolbo/v1/files`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${apiKey}` },
+            body: outgoing,
+          })
+          if (!res.ok) {
+            const body = await res.text().catch(() => "")
+            return c.json({ error: { message: `Upload rejected by kolbo-api (${res.status})`, type: "upstream_error" } }, 502)
+          }
+          const data = (await res.json()) as Record<string, unknown>
+          return c.json(data)
+        } catch (e) {
+          return c.json({ error: { message: `Upload failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+        }
+      },
     ),
 )

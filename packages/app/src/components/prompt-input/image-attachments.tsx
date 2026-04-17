@@ -7,6 +7,7 @@ type PromptImageAttachmentsProps = {
   attachments: ImageAttachmentPart[]
   onOpen: (attachment: ImageAttachmentPart) => void
   onRemove: (id: string) => void
+  onRetry?: (id: string) => void
   removeLabel: string
 }
 
@@ -60,6 +61,27 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
                     onClick={() => props.onOpen(attachment)}
                   />
                 </Show>
+
+                {/* Upload in-progress overlay */}
+                <Show when={attachment.uploading}>
+                  <div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md pointer-events-none">
+                    <div class="size-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                </Show>
+
+                {/* Upload error overlay — click to retry */}
+                <Show when={!attachment.uploading && !!attachment.uploadError}>
+                  <Tooltip value={`Upload failed: ${attachment.uploadError} — click to retry`} placement="top" contentClass="break-all max-w-64">
+                    <button
+                      type="button"
+                      onClick={() => props.onRetry?.(attachment.id)}
+                      class="absolute inset-0 flex items-center justify-center bg-red-900/60 rounded-md"
+                    >
+                      <Icon name="warning" class="size-5 text-red-300" />
+                    </button>
+                  </Tooltip>
+                </Show>
+
                 <button
                   type="button"
                   onClick={() => props.onRemove(attachment.id)}

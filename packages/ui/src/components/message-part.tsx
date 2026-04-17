@@ -1013,7 +1013,24 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
     () => props.parts?.find((p) => p.type === "text" && !(p as TextPart).synthetic) as TextPart | undefined,
   )
 
-  const text = createMemo(() => textPart()?.text || "")
+  const rawText = createMemo(() => textPart()?.text || "")
+
+  // Parse embedded media notes like "[Video attached — public URL: https://... | local path: ...]"
+  // so we can render inline players even after the server confirms the message (optimistic file parts are gone).
+  const MEDIA_NOTE_RE = /\[(Video|Audio) attached \u2014 public URL: (https?:\/\/[^\]|]+?)(?:\s*\|\s*local path:[^\]]+)?\]/g
+  const mediaFromNotes = createMemo(() => {
+    const t = rawText()
+    const results: { kind: "video" | "audio"; url: string }[] = []
+    let match: RegExpExecArray | null
+    MEDIA_NOTE_RE.lastIndex = 0
+    while ((match = MEDIA_NOTE_RE.exec(t)) !== null) {
+      results.push({ kind: match[1]!.toLowerCase() as "video" | "audio", url: match[2]!.trim() })
+    }
+    return results
+  })
+
+  // Visible text: strip embedded media notes so they don't clutter the bubble
+  const text = createMemo(() => rawText().replace(MEDIA_NOTE_RE, "").trim())
 
   const files = createMemo(() => (props.parts?.filter((p) => p.type === "file") as FilePart[]) ?? [])
 
@@ -1074,7 +1091,7 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
 
   return (
     <div data-component="user-message">
-      <Show when={attachments().length > 0}>
+      <Show when={attachments().length > 0 || mediaFromNotes().length > 0}>
         <div data-slot="user-message-attachments">
           <For each={attachments()}>
             {(file) => {
@@ -1091,20 +1108,70 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
                     if (type === "image") openImagePreview(file.url, name)
                   }}
                 >
-                  <Show
-                    when={type === "image"}
-                    fallback={
+                  <Switch>
+                    <Match when={type === "image"}>
+                      <img data-slot="user-message-attachment-image" src={file.url} alt={name} />
+                    </Match>
+                    <Match when={type === "video"}>
+                      <video
+                        data-slot="user-message-attachment-video"
+                        src={file.url}
+                        autoplay={false}
+                        loop
+                        muted
+                        playsinline
+                        preload="metadata"
+                        style="max-width:100%;max-height:200px;border-radius:8px;display:block"
+                        controls
+                      />
+                    </Match>
+                    <Match when={type === "audio"}>
+                      <audio
+                        data-slot="user-message-attachment-audio"
+                        src={file.url}
+                        controls
+                        style="min-width:200px;display:block;border-radius:8px"
+                      />
+                    </Match>
+                    <Match when={true}>
                       <div data-slot="user-message-attachment-file">
                         <FileIcon node={{ path: name, type: "file" }} />
                         <span data-slot="user-message-attachment-name">{name}</span>
                       </div>
-                    }
-                  >
-                    <img data-slot="user-message-attachment-image" src={file.url} alt={name} />
-                  </Show>
+                    </Match>
+                  </Switch>
                 </div>
               )
             }}
+          </For>
+          <For each={mediaFromNotes()}>
+            {(media) => (
+              <div data-slot="user-message-attachment" data-type={media.kind}>
+                <Switch>
+                  <Match when={media.kind === "video"}>
+                    <video
+                      data-slot="user-message-attachment-video"
+                      src={media.url}
+                      autoplay={false}
+                      loop
+                      muted
+                      playsinline
+                      preload="metadata"
+                      style="max-width:100%;max-height:200px;border-radius:8px;display:block"
+                      controls
+                    />
+                  </Match>
+                  <Match when={media.kind === "audio"}>
+                    <audio
+                      data-slot="user-message-attachment-audio"
+                      src={media.url}
+                      controls
+                      style="min-width:200px;display:block;border-radius:8px"
+                    />
+                  </Match>
+                </Switch>
+              </div>
+            )}
           </For>
         </div>
       </Show>

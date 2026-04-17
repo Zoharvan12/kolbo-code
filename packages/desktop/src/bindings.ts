@@ -23,7 +23,7 @@ export const commands = {
 	downloadFile: (url: string, destDir: string) => __TAURI_INVOKE<string>("download_file", { url, destDir }),
 	revealInFolder: (path: string) => __TAURI_INVOKE<null>("reveal_in_folder", { path }),
 	readTextFile: (path: string) => __TAURI_INVOKE<string>("read_text_file", { path }),
-	installUpdate: (url: string, onProgress: Channel<{ downloaded: number; total: number | null }>) => __TAURI_INVOKE<null>("install_update", { url, onProgress }),
+	installUpdate: (url: string, onProgress: Channel) => __TAURI_INVOKE<null>("install_update", { url, onProgress }),
 };
 
 /** Events */
@@ -46,6 +46,11 @@ export type ServerReadyData = {
 	};
 
 export type SqliteMigrationProgress = { type: "InProgress"; value: number } | { type: "Done" };
+
+export type UpdateDownloadProgress = {
+		downloaded: number,
+		total: number | null,
+	};
 
 export type WslConfig = {
 		enabled: boolean,

@@ -2426,6 +2426,7 @@ export default function Layout(props: ParentProps) {
               >
                 <ResizeHandle
                   direction="horizontal"
+                  edge={isRTL() ? "start" : "end"}
                   size={layout.sidebar.width()}
                   min={244}
                   max={typeof window === "undefined" ? 1000 : window.innerWidth * 0.3 + 64}

@@ -35,6 +35,7 @@ import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { useGlobalSDK } from "@/context/global-sdk"
+import { useServer } from "@/context/server"
 import { createSessionTabs } from "@/pages/session/helpers"
 import { promptEnabled, promptProbe } from "@/testing/prompt"
 import { detectTextDirection } from "@/utils/rtl"
@@ -136,6 +137,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const platform = usePlatform()
   const { params, tabs, view } = useSessionLayout()
   const globalSDK = useGlobalSDK()
+  const server = useServer()
 
   const [kolboPricing, setKolboPricing] = createSignal<KolboPricing>({})
   const [kolboBalance, setKolboBalance] = createSignal<number | null>(null)
@@ -288,6 +290,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const imageAttachments = createMemo(() =>
     prompt.current().filter((part): part is ImageAttachmentPart => part.type === "image"),
   )
+
+  const isUploadingAttachment = createMemo(() => imageAttachments().some((a) => a.uploading))
 
   const [store, setStore] = createStore<{
     popover: "at" | "slash" | null
@@ -479,7 +483,19 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   const escBlur = () => platform.platform === "desktop" && platform.os === "macos"
 
-  const pick = () => fileInputRef?.click()
+  const pick = async () => {
+    if (platform.openFilePickerDialog) {
+      // Desktop: native file picker returns actual filesystem paths
+      const result = await platform.openFilePickerDialog({ multiple: true }).catch(() => null)
+      if (!result) return
+      const paths = Array.isArray(result) ? result : [result]
+      for (const p of paths) {
+        void addAttachmentFromPath(p)
+      }
+    } else {
+      fileInputRef?.click()
+    }
+  }
 
   const setMode = (mode: "normal" | "shell") => {
     setStore("mode", mode)
@@ -1110,7 +1126,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     return true
   }
 
-  const { addAttachments, removeAttachment, handlePaste, handleDragOver, handleDragLeave, handleDrop } = createPromptAttachments({
+  const { addAttachments, addAttachmentFromPath, removeAttachment, retryAttachment, handlePaste, handleDragOver, handleDragLeave, handleDrop } = createPromptAttachments({
     editor: () => editorRef,
     isDialogActive: () => !!dialog.active,
     setDraggingType: (type) => setStore("draggingType", type),
@@ -1120,6 +1136,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     },
     addPart,
     readClipboardImage: platform.readClipboardImage,
+    serverUrl: () => server.current?.http.url,
   })
 
   const variants = createMemo(() => ["default", ...local.model.variant.list()])
@@ -1299,6 +1316,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
       if (event.repeat) return
+      if (isUploadingAttachment()) return
       if (
         working() &&
         prompt
@@ -1367,6 +1385,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             dialog.show(() => <ImagePreview src={attachment.dataUrl} alt={attachment.filename} />)
           }
           onRemove={removeAttachment}
+          onRetry={retryAttachment}
           removeLabel={language.t("prompt.attachment.remove")}
         />
         <div
@@ -1452,11 +1471,15 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             />
 
             <div class="flex items-center gap-1 pointer-events-auto">
-              <Tooltip placement="top" inactive={!working() && blank()} value={tip()}>
+              <Tooltip
+                placement="top"
+                inactive={!working() && blank() && !isUploadingAttachment()}
+                value={isUploadingAttachment() ? language.t("prompt.action.uploading") : tip()}
+              >
                 <IconButton
                   data-action="prompt-submit"
                   type="submit"
-                  disabled={store.mode !== "normal" || (!working() && blank())}
+                  disabled={store.mode !== "normal" || (!working() && blank()) || isUploadingAttachment()}
                   tabIndex={store.mode === "normal" ? undefined : -1}
                   icon={stopping() ? "stop" : "arrow-up"}
                   variant="primary"

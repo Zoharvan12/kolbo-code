@@ -329,7 +329,7 @@ const createPlatform = (): Platform => {
             const { Channel } = await import("@tauri-apps/api/core")
             const ch = new Channel<{ downloaded: number; total: number | null }>()
             ch.onmessage = (msg) => onProgress(msg)
-            await commands.installUpdate(exeUrl, ch)
+            await commands.installUpdate(exeUrl, ch as unknown as import("@tauri-apps/api/core").Channel)
           },
         }
       : {}),
