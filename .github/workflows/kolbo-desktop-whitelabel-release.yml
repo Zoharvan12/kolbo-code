@@ -252,19 +252,6 @@ jobs:
             ls "$BASE/@kolbo/" 2>/dev/null || echo "None found"
           fi
 
-      - name: Setup SSL.com CodeSignTool (Windows)
-        if: matrix.platform == 'windows-latest' && (inputs.sign == 'true' || github.event.inputs.sign == 'true')
-        shell: pwsh
-        run: |
-          $toolDir = Join-Path $env:RUNNER_TOOL_CACHE "codesigntool"
-          New-Item -ItemType Directory -Force -Path $toolDir | Out-Null
-          $zipPath = Join-Path $toolDir "codesigntool.zip"
-          Invoke-WebRequest -Uri "https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.2/CodeSignTool-v1.3.2-windows.zip" -OutFile $zipPath -UseBasicParsing
-          Expand-Archive -Path $zipPath -DestinationPath $toolDir -Force
-          $bat = Get-ChildItem $toolDir -Recurse -Filter "CodeSignTool.bat" | Select-Object -First 1
-          echo "CODESIGN_TOOL_PATH=$($bat.DirectoryName)" >> $env:GITHUB_ENV
-          Write-Host "CodeSignTool ready: $($bat.FullName)"
-
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -272,11 +259,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
-          SSLCOM_USERNAME: ${{ secrets.SSLCOM_USERNAME }}
-          SSLCOM_PASSWORD: ${{ secrets.SSLCOM_PASSWORD }}
-          SSLCOM_CREDENTIAL_ID: ${{ secrets.SSLCOM_CREDENTIAL_ID }}
-          SSLCOM_TOTP_SECRET: ${{ secrets.SSLCOM_TOTP_SECRET }}
-          # Notarization is handled in the next step with a timeout to prevent indefinite hangs
           VITE_WHITELABEL_SPLASH: /whitelabels/${{ env.WHITELABEL }}/splash.jpg
           VITE_WHITELABEL_LOGO: ${{ steps.wl.outputs.logo_image }}
           VITE_WHITELABEL_NAME: ${{ steps.wl.outputs.brand_name }}
@@ -298,6 +280,19 @@ jobs:
             - **macOS**: Disk image (.dmg)
           releaseDraft: ${{ github.event.inputs.draft }}
           prerelease: false
+
+      - name: Sign Windows installer (SSL.com eSigner)
+        if: matrix.platform == 'windows-latest' && (inputs.sign == 'true' || github.event.inputs.sign == 'true')
+        uses: SSLcom/esigner-codesign@v1.3.2
+        with:
+          command: sign
+          username: ${{ secrets.SSLCOM_USERNAME }}
+          password: ${{ secrets.SSLCOM_PASSWORD }}
+          credential_id: ${{ secrets.SSLCOM_CREDENTIAL_ID }}
+          totp_secret: ${{ secrets.SSLCOM_TOTP_SECRET }}
+          file_path: ${{ github.workspace }}\packages\desktop\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe
+          malware_block: "true"
+          override: "true"
 
       - name: Notarize macOS DMG
         if: matrix.platform == 'macos-14'
