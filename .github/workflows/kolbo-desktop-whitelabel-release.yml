@@ -52,8 +52,8 @@ permissions:
   contents: write
 
 env:
-  WHITELABEL: ${{ github.event.inputs.whitelabel }}
-  KOLBO_VERSION: ${{ github.event.inputs.version }}
+  WHITELABEL: ${{ inputs.whitelabel || github.event.inputs.whitelabel }}
+  KOLBO_VERSION: ${{ inputs.version || github.event.inputs.version }}
 
 jobs:
   build:

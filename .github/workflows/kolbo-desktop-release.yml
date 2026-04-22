@@ -45,7 +45,7 @@ permissions:
   contents: write
 
 env:
-  KOLBO_VERSION: ${{ github.event.inputs.version }}
+  KOLBO_VERSION: ${{ inputs.version || github.event.inputs.version }}
 
 jobs:
   build:

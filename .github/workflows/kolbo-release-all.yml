@@ -23,6 +23,9 @@ on:
           - "false"
           - "true"
 
+permissions:
+  contents: write
+
 jobs:
   main:
     uses: ./.github/workflows/kolbo-desktop-release.yml
