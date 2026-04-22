@@ -202,11 +202,11 @@ jobs:
           $toolDir = Join-Path $env:RUNNER_TOOL_CACHE "codesigntool"
           New-Item -ItemType Directory -Force -Path $toolDir | Out-Null
           $zipPath = Join-Path $toolDir "codesigntool.zip"
-          Invoke-WebRequest -Uri "https://github.com/SSLcom/esigner-codesign/releases/download/v1.3.2/SSLcom-CodeSignTool-v1.3.2-win.zip" -OutFile $zipPath -UseBasicParsing
+          Invoke-WebRequest -Uri "https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.2/CodeSignTool-v1.3.2-windows.zip" -OutFile $zipPath -UseBasicParsing
           Expand-Archive -Path $zipPath -DestinationPath $toolDir -Force
-          $jar = Get-ChildItem $toolDir -Recurse -Filter "CodeSignTool.jar" | Select-Object -First 1 -ExpandProperty FullName
-          echo "CODESIGN_TOOL_PATH=$jar" >> $env:GITHUB_ENV
-          Write-Host "CodeSignTool ready: $jar"
+          $bat = Get-ChildItem $toolDir -Recurse -Filter "CodeSignTool.bat" | Select-Object -First 1
+          echo "CODESIGN_TOOL_PATH=$($bat.DirectoryName)" >> $env:GITHUB_ENV
+          Write-Host "CodeSignTool ready: $($bat.FullName)"
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0

@@ -24,15 +24,16 @@ if (-not $username -or -not $password -or -not $credentialId -or -not $totpSecre
   exit 0
 }
 
-# Locate CodeSignTool JAR installed by the setup step
-$jarPath = $env:CODESIGN_TOOL_PATH
-if (-not $jarPath -or -not (Test-Path $jarPath)) {
-  $jarPath = Get-ChildItem "$env:RUNNER_TOOL_CACHE\codesigntool" -Recurse -Filter "CodeSignTool.jar" -ErrorAction SilentlyContinue |
-             Select-Object -First 1 -ExpandProperty FullName
+# Locate CodeSignTool.bat installed by the setup step (CODESIGN_TOOL_PATH = directory)
+$toolDir = $env:CODESIGN_TOOL_PATH
+if (-not $toolDir -or -not (Test-Path $toolDir)) {
+  $toolDir = Get-ChildItem "$env:RUNNER_TOOL_CACHE\codesigntool" -Recurse -Filter "CodeSignTool.bat" -ErrorAction SilentlyContinue |
+             Select-Object -First 1 -ExpandProperty DirectoryName
 }
-if (-not $jarPath) {
-  throw "CodeSignTool.jar not found. Ensure the SSL.com setup step ran before the Tauri build."
+if (-not $toolDir) {
+  throw "CodeSignTool.bat not found. Ensure the SSL.com setup step ran before the Tauri build."
 }
+$batPath = Join-Path $toolDir "CodeSignTool.bat"
 
 foreach ($file in $Path) {
   $resolved = Resolve-Path $file -ErrorAction SilentlyContinue
@@ -41,7 +42,7 @@ foreach ($file in $Path) {
   $filePath = $resolved.Path
   Write-Host "Signing: $filePath"
 
-  java -jar $jarPath sign `
+  & $batPath sign `
     "-username=$username" `
     "-password=$password" `
     "-credential_id=$credentialId" `
