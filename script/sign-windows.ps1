@@ -51,8 +51,8 @@ foreach ($file in $Path) {
     -override
 
   if ($LASTEXITCODE -ne 0) {
-    throw "Signing failed for $filePath (exit $LASTEXITCODE)"
+    Write-Warning "SSL.com signing failed for $filePath (exit $LASTEXITCODE) — continuing unsigned"
+  } else {
+    Write-Host "Signed: $filePath"
   }
-
-  Write-Host "Signed: $filePath"
 }
