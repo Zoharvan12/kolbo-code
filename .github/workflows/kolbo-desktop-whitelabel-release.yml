@@ -281,6 +281,15 @@ jobs:
           releaseDraft: ${{ github.event.inputs.draft }}
           prerelease: false
 
+      - name: Resolve Windows installer path
+        if: matrix.platform == 'windows-latest'
+        id: win-exe
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "packages\desktop\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis" -Filter "*.exe" | Select-Object -First 1
+          echo "path=$($exe.FullName)" >> $env:GITHUB_OUTPUT
+          Write-Host "Installer: $($exe.FullName)"
+
       - name: Sign Windows installer (SSL.com eSigner)
         if: matrix.platform == 'windows-latest' && (inputs.sign == 'true' || github.event.inputs.sign == 'true')
         uses: SSLcom/esigner-codesign@v1.3.2
@@ -290,7 +299,7 @@ jobs:
           password: ${{ secrets.SSLCOM_PASSWORD }}
           credential_id: ${{ secrets.SSLCOM_CREDENTIAL_ID }}
           totp_secret: ${{ secrets.SSLCOM_TOTP_SECRET }}
-          file_path: ${{ github.workspace }}\packages\desktop\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe
+          file_path: ${{ steps.win-exe.outputs.path }}
           malware_block: "true"
           override: "true"
 
