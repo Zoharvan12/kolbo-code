@@ -1,0 +1,42 @@
+name: kolbo-release-all
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 1.0.27)"
+        required: true
+      sign:
+        description: "Sign Windows binaries (uses signing credits)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      draft:
+        description: "Create as draft release"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  main:
+    uses: ./.github/workflows/kolbo-desktop-release.yml
+    secrets: inherit
+    with:
+      version: ${{ github.event.inputs.version }}
+      sign: ${{ github.event.inputs.sign }}
+      draft: ${{ github.event.inputs.draft }}
+
+  sapir:
+    uses: ./.github/workflows/kolbo-desktop-whitelabel-release.yml
+    secrets: inherit
+    with:
+      whitelabel: sapir
+      version: ${{ github.event.inputs.version }}
+      sign: ${{ github.event.inputs.sign }}
+      draft: ${{ github.event.inputs.draft }}

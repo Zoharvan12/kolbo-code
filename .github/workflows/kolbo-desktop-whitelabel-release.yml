@@ -1,6 +1,22 @@
 name: kolbo-desktop-whitelabel-release
 
 on:
+  workflow_call:
+    inputs:
+      whitelabel:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      draft:
+        required: false
+        type: string
+        default: "false"
+      sign:
+        required: false
+        type: string
+        default: "true"
   workflow_dispatch:
     inputs:
       whitelabel:
@@ -13,6 +29,14 @@ on:
         default: "1.0.0"
       draft:
         description: "Create as draft release"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      sign:
+        description: "Sign Windows binaries (uses signing credits)"
         required: false
         default: "true"
         type: choice
@@ -229,7 +253,7 @@ jobs:
           fi
 
       - name: Setup SSL.com CodeSignTool (Windows)
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-latest' && github.event.inputs.sign == 'true'
         shell: pwsh
         run: |
           $toolDir = Join-Path $env:RUNNER_TOOL_CACHE "codesigntool"
