@@ -7,6 +7,8 @@ description: Generate, edit, or analyze creative media through Kolbo AI. Load th
 
 You have direct access to the Kolbo AI creative platform via MCP tools (auto-configured by `kolbo auth login`). Use them to generate and deliver real content — do NOT just describe what you would create.
 
+**Response style:** Be concise. When reporting results, share URLs, costs, and status — no narration. Skip preamble ("I'll now generate…") and postamble ("I've successfully created…"). One line per result is enough.
+
 ## Available MCP Tools
 
 ### Generation
@@ -74,6 +76,20 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 | `chat_list_conversations` | List your SDK chat conversations. |
 | `chat_get_messages` | Fetch messages in a conversation (with media URLs). |
 
+### App Builder
+
+| Tool | Description |
+|------|-------------|
+| `app_builder_list_projects` | List all Kolbo projects to find a `project_id` for App Builder. |
+| `app_builder_create_session` | Create a new App Builder session inside a project. Returns `session_id`. |
+| `app_builder_generate_app` | Generate a full React app from a text prompt. Fires build, polls until deployed, returns live URL. |
+| `app_builder_edit_app` | Edit an existing app with a natural language instruction. Same fire-and-poll pattern. |
+| `app_builder_get_build_status` | Check current build status manually (fallback after timeout). |
+| `app_builder_get_session` | Get session details including GitHub repo URL and Supabase connection info for local dev. |
+| `app_builder_list_sessions` | List all App Builder sessions in a project. |
+| `app_builder_list_generations` | List all generations for a session (needed for `edit_app`). |
+| `app_builder_delete_session` | Permanently delete a session and all resources. IRREVERSIBLE. |
+
 ## ⚠️ Generate vs Edit — Know the Difference
 
 | User intent | Action | NOT this |
@@ -85,6 +101,14 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 | "Restyle this video as anime" | `generate_video_from_video` (Kolbo MCP) | — |
 
 **`generate_video` creates NEW videos from text prompts. It cannot edit, cut, trim, merge, or modify existing video files.** For any operation on an existing video file, use FFmpeg via the `video-production` skill.
+
+## ⚠️ Never Duplicate a Generation
+
+Before calling any generation tool, check your conversation history. If you already called that tool with the same or similar prompt in this session:
+- Do NOT call it again — even if it was aborted or interrupted (it is still running server-side and will complete)
+- Only retry if the user explicitly says "retry", "redo", or "try again"
+- Each duplicate wastes real credits from the user's balance
+- If unsure whether a generation went through, use `get_generation_status` to check — the API returns 202 immediately and processes in the background, so aborted tool calls still generate
 
 ## Core Workflow
 
@@ -175,13 +199,6 @@ Creative generations bill against the user's Kolbo credit balance. **Billing uni
 - **300 requests per minute** global across all media endpoints
 - **Uploads** (`upload_media`): 300/min, no credit cost — much lighter than generation
 - The API **queues** requests internally — it never silently drops them. If you're within limits, every request will be processed.
-
-**⚠️ NEVER duplicate a generation you already fired.**
-Before calling any generation tool, check your conversation history. If you already called that tool with the same or similar prompt in this session:
-- Do NOT call it again — even if it was aborted or interrupted (it is still running server-side and will complete)
-- Only retry if the user explicitly says "retry", "redo", or "try again"
-- Each duplicate wastes real credits from the user's balance
-- If unsure whether a generation went through, use `get_generation_status` to check — the API returns 202 immediately and processes in the background, so aborted tool calls still generate
 
 **Batch generation workflow (≤10 items):**
 1. Confirm cost ONCE — or skip if the user already specified model, count, and duration (e.g. "make 5 videos, seedance 2 fast, 15s" IS the confirmation — act immediately)
@@ -579,6 +596,43 @@ Use `chat_list_conversations` and `chat_get_messages` to browse conversation his
 
 ---
 
+## App Builder
+
+Use the App Builder tools to generate and iterate on full React apps from a text prompt. The backend auto-provisions a GitHub repo, Supabase database (when the app needs storage), and a live hosted deployment — all in one flow.
+
+### Standard Workflow
+
+1. **Find project ID**: `app_builder_list_projects` → pick the right project
+2. **Create session**: `app_builder_create_session` with `project_id`
+3. **Generate app**: `app_builder_generate_app` with `session_id` + `prompt`
+   - Fires the build in the background, polls until `build_status === "deployed"` (up to 5 min)
+   - Always surface the `deployment_url` to the user: **"Your app is live at: [url]"**
+4. **Iterate**: `app_builder_list_generations` → get `generation_id` → `app_builder_edit_app` with natural language instruction
+
+No manual polling needed — `generate_app` and `edit_app` block until the build completes.
+
+### Local Dev Workflow
+
+If the user wants to run the app locally or connect to the database directly:
+```
+app_builder_get_session(session_id) → returns:
+  github_repo_url  →  git clone <url> && npm install && npm run dev
+  supabase_url     →  paste into .env as NEXT_PUBLIC_SUPABASE_URL
+  supabase_anon_key → paste into .env as NEXT_PUBLIC_SUPABASE_ANON_KEY
+```
+
+### Whitelabel Support
+
+Works automatically — the MCP client routes App Builder calls through whitelabel API endpoints just like all other Kolbo tools.
+
+### ⚠️ Rules
+
+- **Always confirm before `app_builder_delete_session`** — it permanently deletes the GitHub repo, Supabase DB (unless user-connected), deployed files, and all history. IRREVERSIBLE.
+- **After every successful build**, show the `deployment_url` prominently — that's the live public URL, no setup needed.
+- **On build timeout** (rare): use `app_builder_get_build_status` to check manually, then continue or report to user.
+
+---
+
 ## Image Analysis (when the user uploads images)
 
 When the user shares an image and asks about it:
@@ -691,6 +745,10 @@ Natural-language triggers that should prompt this skill + a tool call:
 - "What's in this image?" (with upload) → Read the image directly with your own vision — no Kolbo API call needed
 - "Analyze these 10 frames" (with multiple images) → Read all images directly with your own vision — you handle up to 10 natively
 - "Analyze these 5 videos" → upload all 5 with `upload_media`, then ONE `chat_send_message` with all 5 URLs in `media_urls`
+- "Build me a todo app" / "Create a React app with a login form" / "Make me a landing page with a waitlist" → `app_builder_list_projects` → `app_builder_create_session` → `app_builder_generate_app` → show `deployment_url`
+- "Add dark mode to my app" / "Change the color scheme" / "Add a contact form" → `app_builder_list_generations` → `app_builder_edit_app`
+- "How do I run my app locally?" / "Give me the GitHub repo" / "I want the Supabase credentials" → `app_builder_get_session` → show `github_repo_url` + `supabase_url` + `supabase_anon_key`
+- "List my apps" / "What App Builder sessions do I have?" → `app_builder_list_projects` → `app_builder_list_sessions`
 - "Create motion graphics" / "animated text" / "title sequence" → load the `remotion-best-practices` skill for Remotion-based motion graphics
 - "Edit this video" / "cut this clip" / "remove silence" / "add subtitles" / "convert to 9:16" → load the `video-production` skill for FFmpeg-based editing
 - "Create a short-form video" / "make a reel" / "YouTube short" → load the `short-form-video` skill
