@@ -82,6 +82,19 @@ jobs:
           # to build in CI.
           bun run script/build.ts --skip-embed-web-ui
 
+      - name: Sign Windows CLI binary
+        uses: SSLcom/esigner-codesign@v1
+        with:
+          command: sign
+          username: ${{ secrets.SSLCOM_USERNAME }}
+          password: ${{ secrets.SSLCOM_PASSWORD }}
+          credential_id: ${{ secrets.SSLCOM_CREDENTIAL_ID }}
+          totp_secret: ${{ secrets.SSLCOM_TOTP_SECRET }}
+          file_path: packages/opencode/dist/kolbo-windows-x64/bin/kolbo.exe
+          malware_block: "true"
+          override: "true"
+        continue-on-error: true
+
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

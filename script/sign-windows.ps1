@@ -10,61 +10,48 @@ if (-not $Path -or $Path.Count -eq 0) {
 }
 
 if ($env:GITHUB_ACTIONS -ne "true") {
-  Write-Host "Skipping Windows signing because this is not running on GitHub Actions"
+  Write-Host "Skipping Windows signing (not on GitHub Actions)"
   exit 0
 }
 
-$vars = @{
-  endpoint = $env:AZURE_TRUSTED_SIGNING_ENDPOINT
-  account = $env:AZURE_TRUSTED_SIGNING_ACCOUNT_NAME
-  profile = $env:AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE
-}
+$username     = $env:SSLCOM_USERNAME
+$password     = $env:SSLCOM_PASSWORD
+$credentialId = $env:SSLCOM_CREDENTIAL_ID
+$totpSecret   = $env:SSLCOM_TOTP_SECRET
 
-if ($vars.Values | Where-Object { -not $_ }) {
-  Write-Host "Skipping Windows signing because Azure Artifact Signing is not configured"
+if (-not $username -or -not $password -or -not $credentialId -or -not $totpSecret) {
+  Write-Host "Skipping Windows signing (SSLCOM_* env vars not set)"
   exit 0
 }
 
-$moduleVersion = "0.5.8"
-$module = Get-Module -ListAvailable -Name TrustedSigning | Where-Object { $_.Version -eq [version] $moduleVersion }
+# Locate CodeSignTool JAR installed by the setup step
+$jarPath = $env:CODESIGN_TOOL_PATH
+if (-not $jarPath -or -not (Test-Path $jarPath)) {
+  $jarPath = Get-ChildItem "$env:RUNNER_TOOL_CACHE\codesigntool" -Recurse -Filter "CodeSignTool.jar" -ErrorAction SilentlyContinue |
+             Select-Object -First 1 -ExpandProperty FullName
+}
+if (-not $jarPath) {
+  throw "CodeSignTool.jar not found. Ensure the SSL.com setup step ran before the Tauri build."
+}
 
-if (-not $module) {
-  try {
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
+foreach ($file in $Path) {
+  $resolved = Resolve-Path $file -ErrorAction SilentlyContinue
+  if (-not $resolved) { Write-Warning "File not found: $file"; continue }
+
+  $filePath = $resolved.Path
+  Write-Host "Signing: $filePath"
+
+  java -jar $jarPath sign `
+    "-username=$username" `
+    "-password=$password" `
+    "-credential_id=$credentialId" `
+    "-totp_secret=$totpSecret" `
+    "-input_file_path=$filePath" `
+    -override
+
+  if ($LASTEXITCODE -ne 0) {
+    throw "Signing failed for $filePath (exit $LASTEXITCODE)"
   }
-  catch {
-    Write-Host "NuGet package provider install skipped: $($_.Exception.Message)"
-  }
 
-  Install-Module -Name TrustedSigning -RequiredVersion $moduleVersion -Force -Repository PSGallery -Scope CurrentUser
+  Write-Host "Signed: $filePath"
 }
-
-Import-Module TrustedSigning -RequiredVersion $moduleVersion -Force
-
-$files = @($Path | ForEach-Object { Resolve-Path $_ -ErrorAction SilentlyContinue } | Select-Object -ExpandProperty Path -Unique)
-
-if (-not $files -or $files.Count -eq 0) {
-  throw "No files matched the requested paths"
-}
-
-$params = @{
-  Endpoint                         = $vars.endpoint
-  CodeSigningAccountName           = $vars.account
-  CertificateProfileName           = $vars.profile
-  Files                            = ($files -join ",")
-  FileDigest                       = "SHA256"
-  TimestampDigest                  = "SHA256"
-  TimestampRfc3161                 = "http://timestamp.acs.microsoft.com"
-  ExcludeEnvironmentCredential     = $true
-  ExcludeWorkloadIdentityCredential = $true
-  ExcludeManagedIdentityCredential = $true
-  ExcludeSharedTokenCacheCredential = $true
-  ExcludeVisualStudioCredential    = $true
-  ExcludeVisualStudioCodeCredential = $true
-  ExcludeAzureCliCredential        = $false
-  ExcludeAzurePowerShellCredential = $true
-  ExcludeAzureDeveloperCliCredential = $true
-  ExcludeInteractiveBrowserCredential = $true
-}
-
-Invoke-TrustedSigning @params
