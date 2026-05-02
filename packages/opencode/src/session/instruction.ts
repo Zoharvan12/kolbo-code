@@ -136,12 +136,52 @@ export namespace Instruction {
 
           // The first project-level match wins so we don't stack AGENTS.md/CLAUDE.md from every ancestor.
           if (!Flag.KOLBO_DISABLE_PROJECT_CONFIG) {
+            let foundProjectFile = false
             for (const file of FILES) {
               const matches = yield* fs.findUp(file, Instance.directory, Instance.worktree)
               if (matches.length > 0) {
                 matches.forEach((item) => paths.add(path.resolve(item)))
+                foundProjectFile = true
                 break
               }
+            }
+
+            // No instruction file found — create a starter KOLBO.md in the project root
+            if (!foundProjectFile) {
+              const kolboMd = path.join(Instance.directory, "KOLBO.md")
+              const starter = [
+                "# Project Instructions",
+                "",
+                "## Overview",
+                "<!-- What is this project? What problem does it solve? -->",
+                "",
+                "## Tech Stack",
+                "<!-- Languages, frameworks, libraries, databases -->",
+                "",
+                "## Project Structure",
+                "<!-- Key folders and what lives in them -->",
+                "",
+                "## Dev Workflow",
+                "<!-- How to install, run, test, and build -->",
+                "```",
+                "# install",
+                "# run dev",
+                "# run tests",
+                "# build",
+                "```",
+                "",
+                "## Conventions",
+                "<!-- Naming, formatting, patterns the AI should follow -->",
+                "",
+                "## Important Notes",
+                "<!-- Gotchas, constraints, things to never do -->",
+                "",
+                "## Project Memory",
+                "<!-- Kolbo updates this section automatically with discoveries, decisions, and context learned across sessions -->",
+              ].join("\n")
+              yield* fs.writeFileString(kolboMd, starter).pipe(Effect.orDie)
+              paths.add(kolboMd)
+              log.info("created starter KOLBO.md", { path: kolboMd })
             }
           }
 
@@ -175,10 +215,26 @@ export namespace Instruction {
           const files = yield* Effect.forEach(Array.from(paths), read, { concurrency: 8 })
           const remote = yield* Effect.forEach(urls, fetch, { concurrency: 4 })
 
-          return [
+          const result = [
             ...Array.from(paths).flatMap((item, i) => (files[i] ? [`Instructions from: ${item}\n${files[i]}`] : [])),
             ...urls.flatMap((item, i) => (remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : [])),
           ]
+
+          // If a KOLBO.md exists in the project root, instruct the AI to maintain its Project Memory section
+          const kolboMd = path.join(Instance.directory, "KOLBO.md")
+          const hasKolboMd = Array.from(paths).some((p) => path.resolve(p) === path.resolve(kolboMd))
+          if (hasKolboMd) {
+            result.push(
+              [
+                "## Project Memory Instructions",
+                `You have access to a project memory file at: ${kolboMd}`,
+                "When you discover something significant about this project — an architectural decision, a key constraint, a recurring pattern, a gotcha, or important context — update the '## Project Memory' section of that file using your edit/write tools.",
+                "Keep entries concise and factual. Only record things that would be genuinely useful to know in future sessions. Do not record trivial or transient details.",
+              ].join("\n"),
+            )
+          }
+
+          return result
         })
 
         const find = Effect.fn("Instruction.find")(function* (dir: string) {
