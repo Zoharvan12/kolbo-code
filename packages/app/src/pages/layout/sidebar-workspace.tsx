@@ -17,7 +17,8 @@ import { type LocalProject } from "@/context/layout"
 import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
 import { NewSessionItem, SessionItem, SessionSkeleton } from "./sidebar-items"
-import { sortedRootSessions, workspaceKey } from "./helpers"
+import { sortedRootSessions } from "./helpers"
+import { pathKey } from "@/utils/path-key"
 
 type InlineEditorComponent = (props: {
   id: string
@@ -308,7 +309,7 @@ export const SortableWorkspace = (props: {
   const slug = createMemo(() => base64Encode(props.directory))
   const sessions = createMemo(() => sortedRootSessions(workspaceStore, props.sortNow()))
   const local = createMemo(() => props.directory === props.project.worktree)
-  const active = createMemo(() => workspaceKey(props.ctx.currentDir()) === workspaceKey(props.directory))
+  const active = createMemo(() => pathKey(props.ctx.currentDir()) === pathKey(props.directory))
   const workspaceValue = createMemo(() => {
     const branch = workspaceStore.vcs?.branch
     const name = branch ?? getFilename(props.directory)
