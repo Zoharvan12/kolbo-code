@@ -954,6 +954,30 @@ export namespace ProviderTransform {
     if (model.api.npm === "@ai-sdk/azure") {
       return { openai: options, azure: options }
     }
+
+    // For these SDKs the AI SDK resolves providerOptions by top-level key, so
+    // dot-separated user keys like "anthropic.thinking" must be split so they
+    // nest correctly rather than being passed as a literal string key.
+    const usesDotSplitOptions =
+      model.api.npm === "@ai-sdk/openai-compatible" ||
+      model.api.npm === "@ai-sdk/openai" ||
+      model.api.npm === "@ai-sdk/anthropic"
+
+    if (usesDotSplitOptions) {
+      const result: Record<string, any> = {}
+      for (const [k, v] of Object.entries(options)) {
+        const dot = k.indexOf(".")
+        if (dot > 0) {
+          const ns = k.slice(0, dot)
+          const rest = k.slice(dot + 1)
+          result[ns] = { ...(result[ns] ?? {}), [rest]: v }
+        } else {
+          result[k] = v
+        }
+      }
+      return result
+    }
+
     return { [key]: options }
   }
 
