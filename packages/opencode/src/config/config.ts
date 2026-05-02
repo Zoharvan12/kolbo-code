@@ -1640,18 +1640,22 @@ export namespace Config {
           const input = writable(config)
 
           let next: Info
+          let changed: boolean
           if (!file.endsWith(".jsonc")) {
             const existing = parseConfig(before, file)
             const merged = mergeDeep(writable(existing), input)
-            yield* fs.writeFileString(file, JSON.stringify(merged, null, 2)).pipe(Effect.orDie)
+            const serialized = JSON.stringify(merged, null, 2)
+            changed = serialized !== before
+            if (changed) yield* fs.writeFileString(file, serialized).pipe(Effect.orDie)
             next = merged
           } else {
             const updated = patchJsonc(before, input)
+            changed = updated !== before
             next = parseConfig(updated, file)
-            yield* fs.writeFileString(file, updated).pipe(Effect.orDie)
+            if (changed) yield* fs.writeFileString(file, updated).pipe(Effect.orDie)
           }
 
-          yield* invalidate()
+          if (changed) yield* invalidate()
           return next
         })
 

@@ -1083,6 +1083,34 @@ export namespace Provider {
             return true
           }
 
+          // Plugin hooks run first; config overrides them (user config takes precedence)
+          for (const hook of plugins) {
+            const p = hook.provider
+            const models = p?.models
+            if (!p || !models) continue
+
+            const providerID = ProviderID.make(p.id)
+            if (disabled.has(providerID)) continue
+
+            const provider = providers[providerID]
+            if (!provider) continue
+            const pluginAuth = yield* auth.get(providerID).pipe(Effect.orDie)
+
+            provider.models = yield* Effect.promise(async () => {
+              const next = await models(provider, { auth: pluginAuth })
+              return Object.fromEntries(
+                Object.entries(next).map(([id, model]) => [
+                  id,
+                  {
+                    ...model,
+                    id: ModelID.make(id),
+                    providerID,
+                  },
+                ]),
+              )
+            })
+          }
+
           // extend database from config
           for (const [providerID, provider] of configProviders) {
             const existing = database[providerID]
@@ -1264,33 +1292,6 @@ export namespace Provider {
               } catch (e) {
                 log.warn("state discovery error", { id: "gitlab", error: e })
               }
-            })
-          }
-
-          for (const hook of plugins) {
-            const p = hook.provider
-            const models = p?.models
-            if (!p || !models) continue
-
-            const providerID = ProviderID.make(p.id)
-            if (disabled.has(providerID)) continue
-
-            const provider = providers[providerID]
-            if (!provider) continue
-            const pluginAuth = yield* auth.get(providerID).pipe(Effect.orDie)
-
-            provider.models = yield* Effect.promise(async () => {
-              const next = await models(provider, { auth: pluginAuth })
-              return Object.fromEntries(
-                Object.entries(next).map(([id, model]) => [
-                  id,
-                  {
-                    ...model,
-                    id: ModelID.make(id),
-                    providerID,
-                  },
-                ]),
-              )
             })
           }
 

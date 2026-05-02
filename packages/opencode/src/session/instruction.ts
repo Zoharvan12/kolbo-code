@@ -126,6 +126,14 @@ export namespace Instruction {
           const config = yield* cfg.get()
           const paths = new Set<string>()
 
+          // Global files load first; project files override them (project-specific wins)
+          for (const file of globalFiles()) {
+            if (yield* fs.existsSafe(file)) {
+              paths.add(path.resolve(file))
+              break
+            }
+          }
+
           // The first project-level match wins so we don't stack AGENTS.md/CLAUDE.md from every ancestor.
           if (!Flag.KOLBO_DISABLE_PROJECT_CONFIG) {
             for (const file of FILES) {
@@ -134,13 +142,6 @@ export namespace Instruction {
                 matches.forEach((item) => paths.add(path.resolve(item)))
                 break
               }
-            }
-          }
-
-          for (const file of globalFiles()) {
-            if (yield* fs.existsSafe(file)) {
-              paths.add(path.resolve(file))
-              break
             }
           }
 
