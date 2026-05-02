@@ -311,17 +311,26 @@ export namespace MCP {
           )
         }
 
+        if (!URL.canParse(mcp.url)) {
+          log.warn("invalid remote mcp url", { key })
+          return {
+            client: undefined as MCPClient | undefined,
+            status: { status: "failed" as const, error: `Invalid MCP URL for "${key}"` },
+          }
+        }
+        const remoteUrl = new URL(mcp.url)
+
         const transports: Array<{ name: string; transport: TransportWithAuth }> = [
           {
             name: "StreamableHTTP",
-            transport: new StreamableHTTPClientTransport(new URL(mcp.url), {
+            transport: new StreamableHTTPClientTransport(remoteUrl, {
               authProvider,
               requestInit: mcp.headers ? { headers: mcp.headers } : undefined,
             }),
           },
           {
             name: "SSE",
-            transport: new SSEClientTransport(new URL(mcp.url), {
+            transport: new SSEClientTransport(remoteUrl, {
               authProvider,
               requestInit: mcp.headers ? { headers: mcp.headers } : undefined,
             }),
@@ -788,6 +797,7 @@ export namespace MCP {
           },
         )
 
+        if (!URL.canParse(mcpConfig.url)) throw new Error(`Invalid MCP URL for "${mcpName}"`)
         const transport = new StreamableHTTPClientTransport(new URL(mcpConfig.url), { authProvider })
 
         return yield* Effect.tryPromise({

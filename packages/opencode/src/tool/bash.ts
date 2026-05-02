@@ -290,7 +290,7 @@ function preview(text: string) {
 async function parse(command: string, ps: boolean) {
   const tree = await parser().then((p) => (ps ? p.ps : p.bash).parse(command))
   if (!tree) throw new Error("Failed to parse command")
-  return tree.rootNode
+  return tree
 }
 
 async function ask(ctx: Tool.Context, scan: Scan) {

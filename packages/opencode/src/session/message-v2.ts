@@ -630,7 +630,7 @@ export namespace MessageV2 {
         return {
           type: "content",
           value: [
-            { type: "text", text: outputObject.text },
+            ...(outputObject.text ? [{ type: "text", text: outputObject.text }] : []),
             ...attachments.map((attachment) => ({
               type: "media",
               mediaType: attachment.mime,
