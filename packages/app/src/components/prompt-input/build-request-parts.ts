@@ -199,12 +199,32 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
       url,
       filename: label,
     }
-    if (attachment.mime.startsWith("image/")) {
+    if (attachment.mime.startsWith("image/") || attachment.mime === "application/pdf") {
+      // Images and PDFs: sent as inline file parts so vision/document models can read them.
+      // Also emit a source note so the agent knows how to reference the file for tool use.
       imageParts.push(filePart)
+      const kind = attachment.mime === "application/pdf" ? "PDF" : "Image"
+      const sourceParts: string[] = []
+      if (attachment.localPath) sourceParts.push(`local path: ${attachment.localPath}`)
+      if (attachment.publicUrl) sourceParts.push(`URL: ${attachment.publicUrl}`)
+      if (sourceParts.length > 0) {
+        imageParts.push({
+          id: Identifier.ascending("part"),
+          type: "text",
+          text: `[${kind} — ${sourceParts.join(" | ")}]`,
+          synthetic: true,
+        } satisfies PromptRequestPart)
+      }
     } else {
-      // video or audio — tell the AI via text so it can pass the URL to generation tools
+      // Video/audio: providers don't support these inline, so pass source info as text
+      // so the agent can hand the URL/path to generation tools (ffmpeg, Remotion, etc.).
       const kind = attachment.mime.startsWith("video/") ? "Video" : "Audio"
-      mediaNotes.push(`[${kind} attached — public URL: ${url}${label !== attachment.filename ? ` | local path: ${label}` : ""}]`)
+      const sourceParts: string[] = []
+      if (attachment.localPath) sourceParts.push(`local path: ${attachment.localPath}`)
+      if (attachment.publicUrl) sourceParts.push(`URL: ${attachment.publicUrl}`)
+      else if (attachment.dataUrl && !attachment.dataUrl.startsWith("data:")) sourceParts.push(`URL: ${attachment.dataUrl}`)
+      const sourceNote = sourceParts.length > 0 ? ` — ${sourceParts.join(" | ")}` : ""
+      mediaNotes.push(`[${kind} attached${sourceNote}]`)
       // keep as file part for the optimistic UI message bubble
       mediaFileParts.push(filePart)
     }

@@ -1201,7 +1201,7 @@ export function Markdown(
           if (!content) continue
           document.dispatchEvent(
             new CustomEvent("kolbo:artifact", {
-              detail: { content, lang, autoOpen: true },
+              detail: { content, lang },
             }),
           )
           break

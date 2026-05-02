@@ -33,7 +33,7 @@ import { fetch as tauriFetch } from "@tauri-apps/plugin-http"
 import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification"
 import { type as ostype } from "@tauri-apps/plugin-os"
 import { relaunch } from "@tauri-apps/plugin-process"
-import { open as shellOpen } from "@tauri-apps/plugin-shell"
+import { openUrl } from "@tauri-apps/plugin-opener"
 import { Store } from "@tauri-apps/plugin-store"
 import { check, type Update } from "@tauri-apps/plugin-updater"
 import { createResource, onCleanup, onMount, Show } from "solid-js"
@@ -127,7 +127,11 @@ const createPlatform = (): Platform => {
     },
 
     openLink(url: string) {
-      void shellOpen(url).catch(() => undefined)
+      console.log("[openLink] opening:", url)
+      void openUrl(url).catch((e) => console.error("[openLink] openUrl failed:", e))
+    },
+    openHtmlPreview(content: string) {
+      void commands.openHtmlPreview(content).catch((e) => console.error("[openHtmlPreview] failed:", e))
     },
     async openPath(path: string, app?: string) {
       await commands.openPath(path, app ?? null)

@@ -437,12 +437,12 @@ export default function Page() {
 
   onMount(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ content: string; lang: string }>).detail
+      const detail = (e as CustomEvent<{ content: string; lang: string; autoOpen?: boolean }>).detail
       const lang = detail.lang as ArtifactData["lang"]
       if (lang !== "html" && lang !== "svg" && lang !== "mermaid") return
       setArtifact({ content: detail.content, lang })
       setArtifactsTabActive(true)
-      if (!view().reviewPanel.opened()) view().reviewPanel.open()
+      if (detail.autoOpen && !view().reviewPanel.opened()) view().reviewPanel.open()
     }
     document.addEventListener("kolbo:artifact", handler)
     onCleanup(() => document.removeEventListener("kolbo:artifact", handler))

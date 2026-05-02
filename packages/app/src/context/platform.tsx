@@ -25,6 +25,9 @@ export type Platform = {
   /** Open a local path in a local app (desktop only) */
   openPath?(path: string, app?: string): Promise<void>
 
+  /** Write HTML to a temp file and open it in the default browser (desktop only) */
+  openHtmlPreview?(content: string): void
+
   /** Restart the app  */
   restart(): Promise<void>
 

@@ -1,5 +1,6 @@
-import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js"
 import { useLanguage } from "@/context/language"
+import { usePlatform } from "@/context/platform"
 import { useServer } from "@/context/server"
 
 export type ArtifactData = {
@@ -56,10 +57,33 @@ async function storeHtmlPreview(serverUrl: string, content: string): Promise<str
   }
 }
 
+// Design width assumed for HTML previews — content is scaled to fit the panel
+const HTML_DESIGN_WIDTH = 1280
+
 export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
   const language = useLanguage()
+  const platform = usePlatform()
   const server = useServer()
   const [view, setView] = createSignal<"preview" | "code">("preview")
+  const [panelWidth, setPanelWidth] = createSignal(HTML_DESIGN_WIDTH)
+  const [panelHeight, setPanelHeight] = createSignal(720)
+  let contentDivRef: HTMLDivElement | undefined
+
+  onMount(() => {
+    if (!contentDivRef) return
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0].contentRect
+      setPanelWidth(rect.width)
+      setPanelHeight(rect.height)
+    })
+    ro.observe(contentDivRef)
+    onCleanup(() => ro.disconnect())
+  })
+
+  const htmlScale = createMemo(() => {
+    const w = panelWidth()
+    return w > 0 && w < HTML_DESIGN_WIDTH ? w / HTML_DESIGN_WIDTH : 1
+  })
 
   // HTTP URL from sidecar for the HTML content.
   // null = still loading, "" = failed (fall back to blob)
@@ -140,23 +164,37 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
         <div class="flex-1" />
 
         <Show when={props.artifact.lang === "html"}>
-          <button
-            type="button"
-            class="flex items-center justify-center w-6 h-6 rounded text-text-weak hover:text-text-base hover:bg-surface-base-hover transition-colors duration-100"
-            aria-label={language.t("artifact.openInTab")}
-            title={language.t("artifact.openInTab")}
-            onClick={() => {
-              const u = effectiveHtmlUrl()
-              if (u) window.open(u, "_blank", "noopener,noreferrer")
-            }}
-          >
-            ↗
-          </button>
+          {(() => {
+            const handleOpen = () => {
+              // Use the Rust temp-file approach — works even when sidecar is unreachable
+              if (platform.openHtmlPreview) {
+                platform.openHtmlPreview(props.artifact.content)
+                return
+              }
+              // Web fallback: open sidecar URL if available
+              const u = htmlPreviewUrl()
+              if (u) platform.openLink(u)
+            }
+            return (
+              <button
+                type="button"
+                class="flex items-center gap-1.5 px-2.5 py-1 rounded text-12-medium border border-border-weak-base text-text-base hover:bg-surface-base-hover hover:text-text-strong transition-colors duration-100"
+                aria-label={language.t("artifact.openInTab")}
+                title={language.t("artifact.openInTab")}
+                onClick={handleOpen}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7 1h4v4M11 1L5.5 6.5M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {language.t("artifact.openInTab")}
+              </button>
+            )
+          })()}
         </Show>
       </div>
 
       {/* Content */}
-      <div class="flex-1 min-h-0 overflow-hidden relative">
+      <div ref={(el) => { contentDivRef = el }} class="flex-1 min-h-0 overflow-hidden relative">
 
         {/* HTML — wait for HTTP URL so WebView2 composites WebGL/Canvas correctly */}
         <Show when={props.artifact.lang === "html"}>
@@ -167,18 +205,21 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
             </div>
           </Show>
 
-          {/* Iframe — only rendered once we have a stable URL (no mid-load src switch) */}
+          {/* Iframe — scaled to fit panel width so fixed-width HTML isn't cropped */}
           <Show when={effectiveHtmlUrl()} keyed>
             {(src) => (
               <iframe
                 src={src}
                 style={{
                   position: "absolute",
-                  inset: "0",
-                  width: "100%",
-                  height: "100%",
+                  top: "0",
+                  left: "0",
+                  width: `${HTML_DESIGN_WIDTH}px`,
+                  height: `${panelHeight() / htmlScale()}px`,
                   border: "0",
                   background: "#fff",
+                  "transform-origin": "top left",
+                  transform: `scale(${htmlScale()})`,
                   opacity: view() === "preview" ? "1" : "0",
                   "pointer-events": view() === "preview" ? "auto" : "none",
                 }}

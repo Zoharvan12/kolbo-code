@@ -1199,6 +1199,35 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                   ]
                 }
 
+                // Media files (image/video/audio): file:// URLs can't be fetched by external
+                // LLM providers. Read the bytes locally and convert to a base64 data URL so
+                // the model can actually see the content. This handles both the race condition
+                // where the user sends before the async CDN upload completes, and the case
+                // where no upload was started (e.g. drag-from-file-tree via attachFromUrl).
+                if (MessageV2.isMedia(part.mime)) {
+                  const fileExit = yield* fsys.readFile(filepath).pipe(Effect.exit)
+                  if (Exit.isSuccess(fileExit)) {
+                    return [
+                      {
+                        ...part,
+                        url: `data:${part.mime};base64,${Buffer.from(fileExit.value).toString("base64")}`,
+                        messageID: info.id,
+                        sessionID: input.sessionID,
+                      },
+                    ]
+                  }
+                  log.warn("media file not readable, using placeholder", { filepath, mime: part.mime })
+                  return [
+                    {
+                      messageID: info.id,
+                      sessionID: input.sessionID,
+                      type: "text" as const,
+                      synthetic: true,
+                      text: `[Attached media not accessible: ${part.filename ?? filepath}]`,
+                    },
+                  ]
+                }
+
                 yield* filetime.read(input.sessionID, filepath)
                 return [
                   {

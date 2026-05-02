@@ -2079,14 +2079,14 @@ ToolRegistry.register({
       )
     }
 
-    // Auto-open preview when HTML file write completes
+    // Update artifact content when HTML file write completes (panel opens only on explicit click)
     createEffect(
       on(
         () => props.status,
         (status, prev) => {
           if (prev !== "running" || status !== "completed") return
           if (!isHtmlFile()) return
-          dispatchArtifact(true)
+          dispatchArtifact(false)
         },
         { defer: true },
       ),
@@ -2154,34 +2154,56 @@ ToolRegistry.register({
 
         {/* Inline scaled iframe preview — always visible outside the accordion */}
         <Show when={isHtmlFile() && props.input.content}>
-          <div
-            class="relative overflow-hidden cursor-pointer group mx-3 mb-3 mt-1 rounded-md border border-border-weaker-base bg-black"
-            style={{ height: "320px" }}
-            onClick={() => dispatchArtifact(true)}
-          >
-            <Show when={thumbnailUrl()} keyed>
-              {(src) => (
-                <iframe
-                  src={src}
-                  title="HTML Preview"
-                  class="transition-[filter] duration-200 group-hover:[filter:blur(3px)]"
-                  style={{
-                    display: "block",
-                    width: "200%",
-                    height: "640px",
-                    zoom: "0.5",
-                    border: "0",
-                    "pointer-events": "none",
-                  }}
-                />
-              )}
-            </Show>
-            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 flex items-center justify-center">
-              <div class="bg-white text-gray-900 px-5 py-2 rounded-lg font-semibold shadow-xl" style={{ "font-size": "14px" }}>
-                {i18n.t("ui.artifact.preview")}
+          {(() => {
+            const THUMB_DESIGN_W = 1280
+            const THUMB_H = 320
+            const [thumbScale, setThumbScale] = createSignal(1)
+            let thumbContainerRef: HTMLDivElement | undefined
+            onMount(() => {
+              if (!thumbContainerRef) return
+              const ro = new ResizeObserver((entries) => {
+                const w = entries[0].contentRect.width
+                if (w > 0) setThumbScale(w / THUMB_DESIGN_W)
+              })
+              ro.observe(thumbContainerRef)
+              onCleanup(() => ro.disconnect())
+            })
+            return (
+              <div
+                ref={(el) => { thumbContainerRef = el }}
+                class="relative overflow-hidden cursor-pointer group mx-3 mb-3 mt-1 rounded-md border border-border-weaker-base bg-black"
+                style={{ height: `${THUMB_H}px` }}
+                onClick={() => dispatchArtifact(true)}
+              >
+                <Show when={thumbnailUrl()} keyed>
+                  {(src) => (
+                    <iframe
+                      src={src}
+                      title="HTML Preview"
+                      class="transition-[filter] duration-200 group-hover:[filter:blur(3px)]"
+                      style={{
+                        display: "block",
+                        position: "absolute",
+                        top: "0",
+                        left: "0",
+                        width: `${THUMB_DESIGN_W}px`,
+                        height: `${THUMB_H / thumbScale()}px`,
+                        border: "0",
+                        "transform-origin": "top left",
+                        transform: `scale(${thumbScale()})`,
+                        "pointer-events": "none",
+                      }}
+                    />
+                  )}
+                </Show>
+                <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 flex items-center justify-center">
+                  <div class="bg-white text-gray-900 px-5 py-2 rounded-lg font-semibold shadow-xl" style={{ "font-size": "14px" }}>
+                    {i18n.t("ui.artifact.preview")}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )
+          })()}
         </Show>
       </div>
     )
@@ -2514,6 +2536,20 @@ function extractUrls(text: string | undefined): string[] {
 const downloadIconSvg =
   '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13.9583 10.6257L10 14.584L6.04167 10.6257M10 2.08398V13.959M16.25 17.9173H3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>'
 
+// Pause all other media elements when one starts playing
+if (typeof document !== "undefined") {
+  document.addEventListener(
+    "play",
+    (e) => {
+      const playing = e.target as HTMLMediaElement
+      document.querySelectorAll<HTMLMediaElement>("video, audio").forEach((el) => {
+        if (el !== playing) el.pause()
+      })
+    },
+    true,
+  )
+}
+
 function useMediaSetup(getRef: () => HTMLDivElement | undefined) {
   const i18n = useI18n()
   const ops = usePlatformOps()
@@ -2666,8 +2702,16 @@ function KolboAudioTool(props: { tool: string; status?: string; input?: Record<s
   )
 }
 
-const KOLBO_IMAGE_TOOLS = ["kolbo_generate_image"]
-const KOLBO_VIDEO_TOOLS = ["kolbo_generate_video", "kolbo_generate_video_from_image"]
+const KOLBO_IMAGE_TOOLS = ["kolbo_generate_image", "kolbo_generate_image_edit", "kolbo_edit_image"]
+const KOLBO_VIDEO_TOOLS = [
+  "kolbo_generate_video",
+  "kolbo_generate_video_from_image",
+  "kolbo_generate_video_from_video",
+  "kolbo_generate_elements",
+  "kolbo_generate_first_last_frame",
+  "kolbo_generate_lipsync",
+  "kolbo_edit_video",
+]
 const KOLBO_AUDIO_TOOLS = ["kolbo_generate_music", "kolbo_generate_speech", "kolbo_generate_sound"]
 
 for (const name of KOLBO_IMAGE_TOOLS) {
@@ -2679,3 +2723,67 @@ for (const name of KOLBO_VIDEO_TOOLS) {
 for (const name of KOLBO_AUDIO_TOOLS) {
   ToolRegistry.register({ name, render: (props) => <KolboAudioTool {...props} tool={props.tool} /> })
 }
+
+// Creative Director can return images or videos — detect by URL extension
+ToolRegistry.register({
+  name: "kolbo_generate_creative_director",
+  render: (props) => {
+    const urls = createMemo(() => {
+      if (props.status !== "completed") return []
+      return extractUrls(props.output)
+    })
+    const isVideo = (url: string) => /\.(mp4|webm|mov|avi|m4v)(\?|$)/i.test(url)
+    const videoUrls = createMemo(() => urls().filter(isVideo))
+    const imageUrls = createMemo(() => urls().filter((u) => !isVideo(u)))
+    return (
+      <div>
+        <Show when={videoUrls().length > 0}>
+          <KolboVideoTool {...props} tool={props.tool} output={videoUrls().join("\n")} />
+        </Show>
+        <Show when={imageUrls().length > 0}>
+          <KolboImageTool {...props} tool={props.tool} output={imageUrls().join("\n")} />
+        </Show>
+        <Show when={urls().length === 0}>
+          <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
+        </Show>
+      </div>
+    )
+  },
+})
+
+// 3D tool returns GLB/FBX/OBJ/USDZ download links
+ToolRegistry.register({
+  name: "kolbo_generate_3d",
+  render: (props) => {
+    const urls = createMemo(() => {
+      if (props.status !== "completed") return []
+      return extractUrls(props.output)
+    })
+    return (
+      <div>
+        <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
+        <Show when={urls().length > 0}>
+          <div class="flex flex-wrap gap-2 px-3 pb-3">
+            <For each={urls()}>
+              {(url) => {
+                const ext = url.split(".").pop()?.split("?")[0]?.toUpperCase() ?? "FILE"
+                return (
+                  <a
+                    href={url}
+                    download={ext.toLowerCase()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;border:1px solid var(--border-weak-base);background:var(--background-stronger);color:var(--text-base);text-decoration:none;font-size:13px"
+                  >
+                    {downloadIconSvg && <span innerHTML={downloadIconSvg} style="display:flex" />}
+                    {ext}
+                  </a>
+                )
+              }}
+            </For>
+          </div>
+        </Show>
+      </div>
+    )
+  },
+})

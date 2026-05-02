@@ -419,7 +419,25 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     // 2. Filesystem file objects (drag from OS file manager)
     const dropped = event.dataTransfer?.files
     if (dropped && dropped.length > 0) {
-      await addAttachments(Array.from(dropped))
+      const files = Array.from(dropped)
+      let anyHandled = false
+      for (const file of files) {
+        const ok = await add(file, false)
+        if (ok) {
+          anyHandled = true
+          continue
+        }
+        // Unrecognized type (e.g. .zip, folder) — if the platform exposes a local
+        // path (Tauri/Electron), add it as a file-reference @mention so the agent
+        // can still use it. Falls back to a toast if no path is available.
+        const localPath = (file as File & { path?: string }).path
+        if (localPath) {
+          input.focusEditor()
+          input.addPart({ type: "file", path: localPath, content: "@" + localPath, start: 0, end: 0 })
+          anyHandled = true
+        }
+      }
+      if (!anyHandled && files.length > 0) warn()
       return
     }
 

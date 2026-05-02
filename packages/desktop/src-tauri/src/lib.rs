@@ -192,6 +192,16 @@ fn open_path(_app: AppHandle, path: String, app_name: Option<String>) -> Result<
         .map_err(|e| format!("Failed to open path: {e}"))
 }
 
+#[tauri::command]
+#[specta::specta]
+fn open_html_preview(content: String) -> Result<(), String> {
+    let tmp = std::env::temp_dir().join("kolbo-preview.html");
+    std::fs::write(&tmp, content.as_bytes())
+        .map_err(|e| format!("Failed to write preview file: {e}"))?;
+    tauri_plugin_opener::open_path(tmp.to_string_lossy().as_ref(), None::<&str>)
+        .map_err(|e| format!("Failed to open preview: {e}"))
+}
+
 #[cfg(target_os = "macos")]
 fn check_macos_app(app_name: &str) -> bool {
     // Check common installation locations
@@ -556,6 +566,7 @@ fn make_specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             wsl_path,
             resolve_app_path,
             open_path,
+            open_html_preview,
             get_default_download_dir,
             download_file,
             reveal_in_folder,
