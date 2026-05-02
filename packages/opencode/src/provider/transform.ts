@@ -375,7 +375,10 @@ export namespace ProviderTransform {
     )
     const adaptiveEfforts = ["low", "medium", "high", "max"]
     if (
-      id.includes("deepseek") ||
+      id.includes("deepseek-chat") ||
+      id.includes("deepseek-reasoner") ||
+      id.includes("deepseek-r1") ||
+      id.includes("deepseek-v3") ||
       id.includes("minimax") ||
       id.includes("glm") ||
       id.includes("mistral") ||
@@ -501,8 +504,13 @@ export namespace ProviderTransform {
       // https://v5.ai-sdk.dev/providers/ai-sdk-providers/deepinfra
       case "venice-ai-sdk-provider":
       // https://docs.venice.ai/overview/guides/reasoning-models#reasoning-effort
-      case "@ai-sdk/openai-compatible":
-        return Object.fromEntries(WIDELY_SUPPORTED_EFFORTS.map((effort) => [effort, { reasoningEffort: effort }]))
+      case "@ai-sdk/openai-compatible": {
+        const efforts = [...WIDELY_SUPPORTED_EFFORTS]
+        if (model.api.id.includes("deepseek-v4")) {
+          efforts.push("max")
+        }
+        return Object.fromEntries(efforts.map((effort) => [effort, { reasoningEffort: effort }]))
+      }
 
       case "@ai-sdk/azure":
         // https://v5.ai-sdk.dev/providers/ai-sdk-providers/azure
