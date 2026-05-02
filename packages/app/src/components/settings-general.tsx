@@ -12,6 +12,7 @@ import { useParams } from "@solidjs/router"
 import { useLanguage, FLAG_MAP } from "@/context/language"
 import { usePermission } from "@/context/permission"
 import { usePlatform } from "@/context/platform"
+import { useGlobalSync } from "@/context/global-sync"
 import {
   monoDefault,
   monoFontFamily,
@@ -71,6 +72,7 @@ export const SettingsGeneral: Component = () => {
   const platform = usePlatform()
   const params = useParams()
   const settings = useSettings()
+  const globalSync = useGlobalSync()
 
   onMount(() => {
     void theme.loadThemes()
@@ -311,6 +313,22 @@ export const SettingsGeneral: Component = () => {
             <Switch
               checked={settings.general.shellToolPartsExpanded()}
               onChange={(checked) => settings.general.setShellToolPartsExpanded(checked)}
+            />
+          </div>
+        </SettingsRow>
+
+        <SettingsRow
+          title="Shell"
+          description="Path to the shell used for running bash commands. Leave blank to use the default shell."
+        >
+          <div data-action="settings-shell-path" class="w-[240px]">
+            <TextField
+              value={globalSync.data.config?.shell ?? ""}
+              placeholder="Default"
+              onBlur={(e: FocusEvent & { target: HTMLInputElement }) => {
+                const value = e.target.value.trim() || undefined
+                void globalSync.updateConfig({ shell: value })
+              }}
             />
           </div>
         </SettingsRow>

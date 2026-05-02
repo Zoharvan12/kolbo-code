@@ -1442,6 +1442,10 @@ export type Config = {
         };
     };
     /**
+     * Shell to use for running commands, eg /bin/bash or C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+     */
+    shell?: string;
+    /**
      * Additional instruction files or patterns to include
      */
     instructions?: Array<string>;

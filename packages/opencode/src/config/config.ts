@@ -34,6 +34,7 @@ import { Account } from "@/account"
 import { isRecord } from "@/util/record"
 import { ConfigPaths } from "./paths"
 import { Filesystem } from "@/util/filesystem"
+import { Shell } from "@/shell/shell"
 import type { ConsoleState } from "./console-state"
 import { AppFileSystem } from "@/filesystem"
 import { InstanceState } from "@/effect/instance-state"
@@ -1084,6 +1085,7 @@ export namespace Config {
             error: "For custom LSP servers, 'extensions' array is required.",
           },
         ),
+      shell: z.string().optional().describe("Shell to use for running commands, eg /bin/bash or C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
       instructions: z.array(z.string()).optional().describe("Additional instruction files or patterns to include"),
       layout: Layout.optional().describe("@deprecated Always uses stretch layout."),
       permission: Permission.optional(),
@@ -1336,6 +1338,7 @@ export namespace Config {
 
         const [cachedGlobal, invalidateGlobal] = yield* Effect.cachedInvalidateWithTTL(
           loadGlobal().pipe(
+            Effect.tap((cfg) => Effect.sync(() => Shell.setConfiguredShell(cfg.shell))),
             Effect.tapError((error) =>
               Effect.sync(() => log.error("failed to load global config, using defaults", { error: String(error) })),
             ),

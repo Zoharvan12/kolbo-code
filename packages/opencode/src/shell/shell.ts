@@ -104,7 +104,37 @@ export namespace Shell {
     return POSIX.has(name(file))
   }
 
-  export const preferred = lazy(() => select(process.env.SHELL))
+  let _configuredShell: string | undefined
 
-  export const acceptable = lazy(() => select(process.env.SHELL, { acceptable: true }))
+  export function setConfiguredShell(shell: string | undefined) {
+    _configuredShell = shell
+    preferred.reset()
+    acceptable.reset()
+  }
+
+  export const preferred = lazy(() => select(_configuredShell ?? process.env.SHELL))
+
+  export const acceptable = lazy(() => select(_configuredShell ?? process.env.SHELL, { acceptable: true }))
+
+  export async function list() {
+    const results: string[] = []
+    if (process.platform === "win32") {
+      const pwsh = which("pwsh.exe")
+      if (pwsh) results.push(pwsh)
+      const powershell = which("powershell.exe")
+      if (powershell) results.push(powershell)
+      const bash = gitbash()
+      if (bash) results.push(bash)
+      const cmd = process.env.COMSPEC || "cmd.exe"
+      if (cmd) results.push(cmd)
+    } else {
+      const candidates = ["/bin/zsh", "/bin/bash", "/bin/sh", "/usr/bin/fish", "/usr/bin/nu"]
+      for (const c of candidates) {
+        if (Filesystem.stat(c)?.size) results.push(c)
+      }
+    }
+    const current = process.env.SHELL
+    if (current && !results.includes(current)) results.unshift(current)
+    return results
+  }
 }
