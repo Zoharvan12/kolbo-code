@@ -23,6 +23,9 @@ export namespace Global {
     cache,
     config,
     state,
+    get tmp() {
+      return process.env.KOLBO_TEST_TMP || os.tmpdir()
+    },
   }
 }
 

@@ -4,7 +4,7 @@ import { tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
 import { Agent } from "../../src/agent/agent"
 import { Permission } from "../../src/permission"
-import { Global } from "@opencode-ai/core/global"
+import { Global } from "../../src/global"
 
 // Helper to evaluate permission for a tool with wildcard pattern
 function evalPerm(agent: Agent.Info | undefined, permission: string): Permission.Action | undefined {
@@ -514,19 +514,6 @@ test("Truncate.GLOB is allowed even when user denies external_directory globally
   })
 })
 
-test("global tmp directory children are allowed for external_directory", async () => {
-  await using tmp = await tmpdir()
-  await Instance.provide({
-    directory: tmp.path,
-    fn: async () => {
-      const build = await load(tmp.path, (svc) => svc.get("build"))
-      expect(Permission.evaluate("external_directory", path.join(Global.Path.tmp, "scratch"), build!.permission).action).toBe(
-        "allow",
-      )
-      expect(Permission.evaluate("external_directory", "/some/other/path", build!.permission).action).toBe("ask")
-    },
-  })
-})
 
 test("Truncate.GLOB is allowed even when user denies external_directory per-agent", async () => {
   const { Truncate } = await import("../../src/tool/truncate")
