@@ -383,17 +383,23 @@ jobs:
       - name: Build and publish update manifest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASES_REPO_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
           KOLBO_VERSION: ${{ github.event.inputs.version }}
         run: |
           TAG="desktop-v${KOLBO_VERSION}"
-          REPO="${{ github.repository }}"
+          SRC_REPO="${{ github.repository }}"
+          RELEASES_REPO="Zoharvan12/kolbo-releases"
 
-          # Download all assets from the versioned release
+          # Download all assets from the versioned release (source repo)
           mkdir -p /tmp/assets
-          gh release download "${TAG}" -R "${REPO}" -D /tmp/assets/
+          gh release download "${TAG}" -R "${SRC_REPO}" -D /tmp/assets/
           ls /tmp/assets/
 
-          # Find signature files
+          # Re-upload versioned installer assets to kolbo-releases
+          WIN_EXE=$(find /tmp/assets -name "*.exe" ! -name "*.zip" | head -1)
+          MAC_DMG=$(find /tmp/assets -name "*.dmg" | head -1)
+          WIN_ZIP_FILE=$(find /tmp/assets -name "*.nsis.zip" | head -1)
+          MAC_TAR_FILE=$(find /tmp/assets -name "*.app.tar.gz" | head -1)
           WIN_SIG_FILE=$(find /tmp/assets -name "*.nsis.zip.sig" | head -1)
           MAC_SIG_FILE=$(find /tmp/assets -name "*.app.tar.gz.sig" | head -1)
 
@@ -402,15 +408,31 @@ jobs:
             exit 1
           fi
 
+          # Ensure versioned release exists on kolbo-releases
+          GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release view "${TAG}" -R "${RELEASES_REPO}" 2>/dev/null || \
+            GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release create "${TAG}" -R "${RELEASES_REPO}" \
+              --title "Kolbo Code v${KOLBO_VERSION}" \
+              --notes "Kolbo Code v${KOLBO_VERSION}" \
+              --latest 2>/dev/null || true
+
+          # Upload installer + update bundles to kolbo-releases
+          FILES=""
+          [ -n "${WIN_EXE}" ] && FILES="${FILES} ${WIN_EXE}"
+          [ -n "${MAC_DMG}" ] && FILES="${FILES} ${MAC_DMG}"
+          [ -n "${WIN_ZIP_FILE}" ] && FILES="${FILES} ${WIN_ZIP_FILE}"
+          [ -n "${MAC_TAR_FILE}" ] && FILES="${FILES} ${MAC_TAR_FILE}"
+          [ -n "${WIN_SIG_FILE}" ] && FILES="${FILES} ${WIN_SIG_FILE}"
+          [ -n "${MAC_SIG_FILE}" ] && FILES="${FILES} ${MAC_SIG_FILE}"
+          GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release upload "${TAG}" ${FILES} --clobber -R "${RELEASES_REPO}"
+          echo "✓ Assets uploaded to kolbo-releases/${TAG}"
+
           WIN_SIG=$(cat "${WIN_SIG_FILE}")
           MAC_SIG=$(cat "${MAC_SIG_FILE}")
-
-          # Asset names (GitHub converts spaces→dots on upload)
           WIN_ZIP=$(basename "${WIN_SIG_FILE}" .sig)
           MAC_TAR=$(basename "${MAC_SIG_FILE}" .sig)
 
-          WIN_URL="https://github.com/${REPO}/releases/download/${TAG}/${WIN_ZIP}"
-          MAC_URL="https://github.com/${REPO}/releases/download/${TAG}/${MAC_TAR}"
+          WIN_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${WIN_ZIP}"
+          MAC_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${MAC_TAR}"
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           cat > latest.json << MANIFEST
@@ -431,27 +453,24 @@ jobs:
           }
           MANIFEST
 
-          # Ensure updater release exists
-          gh release view updater -R "${REPO}" 2>/dev/null || \
-            gh release create updater -R "${REPO}" \
+          # Ensure updater release exists on kolbo-releases
+          GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release view updater -R "${RELEASES_REPO}" 2>/dev/null || \
+            GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release create updater -R "${RELEASES_REPO}" \
               --title "Auto-updater manifest" \
               --notes "Auto-updated by CI. Do not delete this release." \
               --prerelease
 
-          gh release upload updater latest.json --clobber -R "${REPO}"
-          echo "✓ Update manifest published to updater release"
+          GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release upload updater latest.json --clobber -R "${RELEASES_REPO}"
+          echo "✓ Update manifest published to kolbo-releases/updater"
 
           # Upload fixed-name installers for permanent "always latest" download links
-          WIN_EXE=$(find /tmp/assets -name "*.exe" ! -name "*.zip" | head -1)
-          MAC_DMG=$(find /tmp/assets -name "*.dmg" | head -1)
-
           if [ -n "${WIN_EXE}" ]; then
             cp "${WIN_EXE}" /tmp/kolbo-code-setup.exe
-            gh release upload updater /tmp/kolbo-code-setup.exe --clobber -R "${REPO}"
+            GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release upload updater /tmp/kolbo-code-setup.exe --clobber -R "${RELEASES_REPO}"
             echo "✓ Uploaded kolbo-code-setup.exe (latest)"
           fi
           if [ -n "${MAC_DMG}" ]; then
             cp "${MAC_DMG}" /tmp/kolbo-code.dmg
-            gh release upload updater /tmp/kolbo-code.dmg --clobber -R "${REPO}"
+            GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release upload updater /tmp/kolbo-code.dmg --clobber -R "${RELEASES_REPO}"
             echo "✓ Uploaded kolbo-code.dmg (latest)"
           fi

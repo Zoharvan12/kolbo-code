@@ -175,7 +175,7 @@ jobs:
             if (!conf.plugins) conf.plugins = {};
             if (!conf.plugins.updater) conf.plugins.updater = {};
             conf.plugins.updater.endpoints = [
-              'https://github.com/Zoharvan12/kolbo-code/releases/download/updater/${WHITELABEL}-latest.json'
+              'https://github.com/Zoharvan12/kolbo-releases/releases/download/updater/${WHITELABEL}-latest.json'
             ];
             fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
           "
@@ -418,14 +418,16 @@ jobs:
       - name: Build and publish update manifest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASES_REPO_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
           WHITELABEL: ${{ inputs.whitelabel || github.event.inputs.whitelabel }}
           KOLBO_VERSION: ${{ inputs.version || github.event.inputs.version }}
         run: |
           TAG="${WHITELABEL}-desktop-v${KOLBO_VERSION}"
-          REPO="${{ github.repository }}"
+          SRC_REPO="${{ github.repository }}"
+          RELEASES_REPO="Zoharvan12/kolbo-releases"
 
           mkdir -p /tmp/assets
-          gh release download "${TAG}" -R "${REPO}" -D /tmp/assets/
+          gh release download "${TAG}" -R "${SRC_REPO}" -D /tmp/assets/
           ls /tmp/assets/
 
           WIN_SIG_FILE=$(find /tmp/assets -name "*.nsis.zip.sig" | head -1)
@@ -436,12 +438,33 @@ jobs:
             exit 1
           fi
 
+          # Re-upload versioned assets to kolbo-releases
+          WIN_EXE=$(find /tmp/assets -name "*.exe" ! -name "*.zip" | head -1)
+          MAC_DMG=$(find /tmp/assets -name "*.dmg" | head -1)
+          WIN_ZIP_FILE=$(find /tmp/assets -name "*.nsis.zip" | head -1)
+          MAC_TAR_FILE=$(find /tmp/assets -name "*.app.tar.gz" | head -1)
+
+          GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release view "${TAG}" -R "${RELEASES_REPO}" 2>/dev/null || \
+            GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release create "${TAG}" -R "${RELEASES_REPO}" \
+              --title "${{ inputs.whitelabel || github.event.inputs.whitelabel }} v${KOLBO_VERSION}" \
+              --notes "Whitelabel build v${KOLBO_VERSION}" 2>/dev/null || true
+
+          FILES=""
+          [ -n "${WIN_EXE}" ] && FILES="${FILES} ${WIN_EXE}"
+          [ -n "${MAC_DMG}" ] && FILES="${FILES} ${MAC_DMG}"
+          [ -n "${WIN_ZIP_FILE}" ] && FILES="${FILES} ${WIN_ZIP_FILE}"
+          [ -n "${MAC_TAR_FILE}" ] && FILES="${FILES} ${MAC_TAR_FILE}"
+          [ -n "${WIN_SIG_FILE}" ] && FILES="${FILES} ${WIN_SIG_FILE}"
+          [ -n "${MAC_SIG_FILE}" ] && FILES="${FILES} ${MAC_SIG_FILE}"
+          GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release upload "${TAG}" ${FILES} --clobber -R "${RELEASES_REPO}"
+          echo "✓ Assets uploaded to kolbo-releases/${TAG}"
+
           WIN_SIG=$(cat "${WIN_SIG_FILE}")
           MAC_SIG=$(cat "${MAC_SIG_FILE}")
           WIN_ZIP=$(basename "${WIN_SIG_FILE}" .sig)
           MAC_TAR=$(basename "${MAC_SIG_FILE}" .sig)
-          WIN_URL="https://github.com/${REPO}/releases/download/${TAG}/${WIN_ZIP}"
-          MAC_URL="https://github.com/${REPO}/releases/download/${TAG}/${MAC_TAR}"
+          WIN_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${WIN_ZIP}"
+          MAC_URL="https://github.com/${RELEASES_REPO}/releases/download/${TAG}/${MAC_TAR}"
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           cat > ${WHITELABEL}-latest.json << MANIFEST
@@ -462,35 +485,28 @@ jobs:
           }
           MANIFEST
 
-          gh release view updater -R "${REPO}" 2>/dev/null || \
-            gh release create updater -R "${REPO}" \
+          GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release view updater -R "${RELEASES_REPO}" 2>/dev/null || \
+            GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release create updater -R "${RELEASES_REPO}" \
               --title "Auto-updater manifest" \
               --notes "Auto-updated by CI. Do not delete this release." \
               --prerelease
 
-          gh release upload updater ${WHITELABEL}-latest.json --clobber -R "${REPO}"
-          echo "✓ Update manifest published as ${WHITELABEL}-latest.json"
+          GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release upload updater ${WHITELABEL}-latest.json --clobber -R "${RELEASES_REPO}"
+          echo "✓ Update manifest published as ${WHITELABEL}-latest.json to kolbo-releases"
 
-          # Upload fixed-name installers for permanent "always latest" download links
-          # Read downloadSlug from whitelabel config (checkout needed — use inline node)
-          # Since we don't have the repo checked out here, derive slug from WHITELABEL env
-          # Convention: downloadSlug is stored in the config.json; fall back to WHITELABEL slug
           DOWNLOAD_SLUG="${WHITELABEL}-code"
           case "${WHITELABEL}" in
             sapir) DOWNLOAD_SLUG="sapir-code" ;;
             *) DOWNLOAD_SLUG="${WHITELABEL}-code" ;;
           esac
 
-          WIN_EXE=$(find /tmp/assets -name "*.exe" ! -name "*.zip" | head -1)
-          MAC_DMG=$(find /tmp/assets -name "*.dmg" | head -1)
-
           if [ -n "${WIN_EXE}" ]; then
             cp "${WIN_EXE}" /tmp/${DOWNLOAD_SLUG}-setup.exe
-            gh release upload updater /tmp/${DOWNLOAD_SLUG}-setup.exe --clobber -R "${REPO}"
+            GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release upload updater /tmp/${DOWNLOAD_SLUG}-setup.exe --clobber -R "${RELEASES_REPO}"
             echo "✓ Uploaded ${DOWNLOAD_SLUG}-setup.exe (latest)"
           fi
           if [ -n "${MAC_DMG}" ]; then
             cp "${MAC_DMG}" /tmp/${DOWNLOAD_SLUG}.dmg
-            gh release upload updater /tmp/${DOWNLOAD_SLUG}.dmg --clobber -R "${REPO}"
+            GH_TOKEN="${RELEASES_REPO_TOKEN}" gh release upload updater /tmp/${DOWNLOAD_SLUG}.dmg --clobber -R "${RELEASES_REPO}"
             echo "✓ Uploaded ${DOWNLOAD_SLUG}.dmg (latest)"
           fi

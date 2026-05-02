@@ -15,7 +15,7 @@ const koduRoot = Bun.file(path.join(monoroot, "packages/opencode/package.json"))
   ? monoroot
   : path.resolve(import.meta.dir, "../../../kodu")
 
-const binaryPath = windowsify(`${koduRoot}/packages/opencode/dist/${sidecarConfig.ocBinary}/bin/kodu`)
+const binaryPath = windowsify(`${koduRoot}/packages/opencode/dist/${sidecarConfig.ocBinary}/bin/kolbo`)
 
 // Skip the CLI rebuild if SKIP_CLI_BUILD is set or if the binary already exists
 if (!Bun.env.SKIP_CLI_BUILD && !Bun.file(binaryPath.replace(/\.exe$/, "") + (process.platform === "win32" ? ".exe" : "")).size) {
