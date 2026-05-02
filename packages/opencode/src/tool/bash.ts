@@ -12,13 +12,8 @@ import { Language, type Node } from "web-tree-sitter"
 import { Filesystem } from "@/util/filesystem"
 import { Process } from "@/util/process"
 import { fileURLToPath } from "url"
-<<<<<<< HEAD
 import { Flag } from "@/flag/flag"
-=======
-import { Config } from "@/config/config"
-import { Flag } from "@opencode-ai/core/flag/flag"
-import { Global } from "@opencode-ai/core/global"
->>>>>>> 228397919 (Preapprove agent tmp directory access (#25226))
+import { Global } from "@/global"
 import { Shell } from "@/shell/shell"
 
 import { BashArity } from "@/permission/arity"
@@ -506,11 +501,6 @@ export const BashTool = Tool.define("bash", async () => {
         },
         ctx,
       )
-<<<<<<< HEAD
-    },
-  }
-})
-=======
       return {
         ...process.env,
         ...extra.env,
@@ -737,4 +727,3 @@ export const BashTool = Tool.define("bash", async () => {
       })
   }),
 )
->>>>>>> 228397919 (Preapprove agent tmp directory access (#25226))

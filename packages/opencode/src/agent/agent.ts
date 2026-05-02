@@ -23,7 +23,6 @@ import { Effect, ServiceMap, Layer } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { makeRuntime } from "@/effect/run-service"
 
-<<<<<<< HEAD
 export namespace Agent {
   export const Info = z
     .object({
@@ -40,87 +39,6 @@ export namespace Agent {
         .object({
           modelID: ModelID.zod,
           providerID: ProviderID.zod,
-=======
-export const Info = Schema.Struct({
-  name: Schema.String,
-  description: Schema.optional(Schema.String),
-  mode: Schema.Literals(["subagent", "primary", "all"]),
-  native: Schema.optional(Schema.Boolean),
-  hidden: Schema.optional(Schema.Boolean),
-  topP: Schema.optional(Schema.Finite),
-  temperature: Schema.optional(Schema.Finite),
-  color: Schema.optional(Schema.String),
-  permission: Permission.Ruleset,
-  model: Schema.optional(
-    Schema.Struct({
-      modelID: ModelID,
-      providerID: ProviderID,
-    }),
-  ),
-  variant: Schema.optional(Schema.String),
-  prompt: Schema.optional(Schema.String),
-  options: Schema.Record(Schema.String, Schema.Unknown),
-  steps: Schema.optional(Schema.Finite),
-})
-  .annotate({ identifier: "Agent" })
-  .pipe(withStatics((s) => ({ zod: zod(s) })))
-export type Info = DeepMutable<Schema.Schema.Type<typeof Info>>
-
-export interface Interface {
-  readonly get: (agent: string) => Effect.Effect<Info>
-  readonly list: () => Effect.Effect<Info[]>
-  readonly defaultAgent: () => Effect.Effect<string>
-  readonly generate: (input: {
-    description: string
-    model?: { providerID: ProviderID; modelID: ModelID }
-  }) => Effect.Effect<{
-    identifier: string
-    whenToUse: string
-    systemPrompt: string
-  }>
-}
-
-type State = Omit<Interface, "generate">
-
-export class Service extends Context.Service<Service, Interface>()("@opencode/Agent") {}
-
-export const layer = Layer.effect(
-  Service,
-  Effect.gen(function* () {
-    const config = yield* Config.Service
-    const auth = yield* Auth.Service
-    const plugin = yield* Plugin.Service
-    const skill = yield* Skill.Service
-    const provider = yield* Provider.Service
-
-    const state = yield* InstanceState.make<State>(
-      Effect.fn("Agent.state")(function* (ctx) {
-        const cfg = yield* config.get()
-        const skillDirs = yield* skill.dirs()
-        const whitelistedDirs = [
-          Truncate.GLOB,
-          path.join(Global.Path.tmp, "*"),
-          ...skillDirs.map((dir) => path.join(dir, "*")),
-        ]
-
-        const defaults = Permission.fromConfig({
-          "*": "allow",
-          doom_loop: "ask",
-          external_directory: {
-            "*": "ask",
-            ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
-          },
-          question: "deny",
-          plan_enter: "deny",
-          plan_exit: "deny",
-          // mirrors github.com/github/gitignore Node.gitignore pattern for .env files
-          read: {
-            "*": "allow",
-            "*.env": "ask",
-            "*.env.*": "ask",
-            "*.env.example": "allow",
-          },
->>>>>>> 228397919 (Preapprove agent tmp directory access (#25226))
         })
         .optional(),
       variant: z.string().optional(),
@@ -163,7 +81,11 @@ export const layer = Layer.effect(
         Effect.fn("Agent.state")(function* (ctx) {
           const cfg = yield* config.get()
           const skillDirs = yield* skill.dirs()
-          const whitelistedDirs = [Truncate.GLOB, ...skillDirs.map((dir) => path.join(dir, "*"))]
+          const whitelistedDirs = [
+            Truncate.GLOB,
+            path.join(Global.Path.tmp, "*"),
+            ...skillDirs.map((dir) => path.join(dir, "*")),
+          ]
 
           const defaults = Permission.fromConfig({
             "*": "allow",
