@@ -297,16 +297,22 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
               // buffer. plainText reads logicalText so the onInput
               // callback (which feeds into the fuzzysort filter) gets
               // correct logical-order text to match against.
-              if (isRTL()) {
+              // Always install — isRTL() checked at call time so language
+              // switches after mount take effect without restart.
+              {
                 let logicalText = ""
                 const _origSetText = r.setText.bind(r)
                 const _origClear = r.clear.bind(r)
+                const RTL_RE = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/
                 const syncVisual = () => {
-                  const visual = toVisual(logicalText)
-                  _origSetText(visual)
-                  // Cursor at visual column 0 for RTL content (newest
-                  // char lives there); end-of-line for LTR content.
-                  r.cursorOffset = visual !== logicalText ? 0 : Bun.stringWidth(visual)
+                  if (isRTL()) {
+                    const visual = toVisual(logicalText)
+                    _origSetText(visual)
+                    r.cursorOffset = RTL_RE.test(logicalText) ? 0 : Bun.stringWidth(visual)
+                  } else {
+                    _origSetText(logicalText)
+                    r.cursorOffset = Bun.stringWidth(logicalText)
+                  }
                 }
                 r.insertText = (text: string) => {
                   logicalText = logicalText + text.replace(/[\n\r]/g, "")
@@ -322,8 +328,13 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                 }
                 r.setText = (value: string) => {
                   logicalText = value.replace(/[\n\r]/g, "")
-                  _origSetText(toVisual(logicalText))
-                  r.cursorOffset = 0
+                  if (isRTL()) {
+                    _origSetText(toVisual(logicalText))
+                    r.cursorOffset = RTL_RE.test(logicalText) ? 0 : Bun.stringWidth(logicalText)
+                  } else {
+                    _origSetText(logicalText)
+                    r.cursorOffset = Bun.stringWidth(logicalText)
+                  }
                 }
                 r.clear = () => {
                   logicalText = ""

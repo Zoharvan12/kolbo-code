@@ -1841,7 +1841,9 @@ export function Prompt(props: PromptProps) {
                 // We intercept insertText/deleteCharBackward to keep a logicalText buffer,
                 // store the bidi-visual string in the opentui buffer, and expose logicalText
                 // via plainText so the rest of the app works with correct logical order.
-                if (isRTL()) {
+                // Always install the bidi wrapper — isRTL() is checked at call time
+                // so language switches after mount (e.g. via dialog) take effect.
+                {
                   let logicalText = ""
                   // Logical cursor: character index into logicalText where
                   // the next insert happens / backspace deletes before.
@@ -1854,22 +1856,7 @@ export function Prompt(props: PromptProps) {
                   // RTL regex (same as in i18n module)
                   const RTL_RE = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/
 
-                  // Check whether a line gets bidi-reordered by toVisual
-                  const isReordered = (line: string): boolean => {
-                    if (!line || !RTL_RE.test(line)) return false
-                    return toVisual(line) !== line
-                  }
-
-                  // ── Cursor mapping ──────────────────────────────────
-                  // For single-line text the mapping is simple:
-                  //   RTL reordered → logicalPos = charCount − visualCharPos
-                  //   LTR (no reorder) → logicalPos = visualCharPos
-                  //
-                  // For multi-line text we find which line the opentui
-                  // cursor sits on, then apply the per-line formula.
-
-                  // Convert width-based offset to character index within a
-                  // string (accounts for potential double-width chars).
+                  // Convert width-based offset to character index within a string.
                   const widthToCharIdx = (str: string, widthOff: number): number => {
                     let w = 0
                     for (let i = 0; i < str.length; i++) {
@@ -1884,13 +1871,14 @@ export function Prompt(props: PromptProps) {
                     return Bun.stringWidth(str.slice(0, idx))
                   }
 
-                  // Read current visual cursorOffset and derive logicalCursor
+                  // Read current visual cursorOffset and derive logicalCursor.
+                  // In LTR mode visual and logical are identical; in RTL mode RTL lines are flipped.
                   const readLogicalCursor = () => {
                     if (!logicalText) { logicalCursor = 0; return }
 
+                    const rtl = isRTL()
                     const logicalLines = logicalText.split("\n")
-                    const visualText = toVisualLines(logicalText)
-                    const visualLines = visualText.split("\n")
+                    const visualLines = rtl ? toVisualLines(logicalText).split("\n") : logicalLines
 
                     // Find which visual line the cursor is on
                     let remaining = r.cursorOffset
@@ -1910,7 +1898,7 @@ export function Prompt(props: PromptProps) {
                     const visualCharIdx = widthToCharIdx(vLine, remaining)
 
                     let charInLine: number
-                    if (isReordered(lLine)) {
+                    if (rtl && RTL_RE.test(lLine)) {
                       // RTL: visual left = logical end
                       charInLine = lLine.length - visualCharIdx
                     } else {
@@ -1926,16 +1914,17 @@ export function Prompt(props: PromptProps) {
                     logicalCursor = abs + charInLine
                   }
 
-                  // Push logicalText + logicalCursor into the opentui visual
-                  // buffer, positioning the cursor correctly.
+                  // Push logicalText + logicalCursor into the opentui visual buffer.
+                  // In LTR mode text is stored as-is; in RTL mode it is bidi-reordered.
                   const syncVisual = () => {
-                    const visualText = toVisualLines(logicalText)
+                    const rtl = isRTL()
+                    const visualText = rtl ? toVisualLines(logicalText) : logicalText
                     _origSetText(visualText)
 
                     if (!logicalText) { r.cursorOffset = 0; return }
 
                     const logicalLines = logicalText.split("\n")
-                    const visualLines = visualText.split("\n")
+                    const visualLines = rtl ? visualText.split("\n") : logicalLines
 
                     // Find which logical line logicalCursor falls on
                     let cursor = logicalCursor
@@ -1953,7 +1942,7 @@ export function Prompt(props: PromptProps) {
                     const charInLine = Math.max(0, Math.min(lLine.length, cursor))
 
                     let visualCharIdx: number
-                    if (isReordered(lLine)) {
+                    if (rtl && RTL_RE.test(lLine)) {
                       // RTL: logical end → visual left (0)
                       visualCharIdx = lLine.length - charInLine
                     } else {
@@ -2007,11 +1996,12 @@ export function Prompt(props: PromptProps) {
                   r.setText = (value: string) => {
                     logicalText = value
                     logicalCursor = value.length
-                    _origSetText(toVisualLines(logicalText))
-                    // Position cursor at logical end (visual 0 for RTL)
-                    if (isReordered(value)) {
-                      r.cursorOffset = 0
+                    if (isRTL()) {
+                      _origSetText(toVisualLines(logicalText))
+                      // Position cursor at logical end (visual 0 for RTL lines)
+                      r.cursorOffset = RTL_RE.test(value) ? 0 : Bun.stringWidth(value)
                     } else {
+                      _origSetText(value)
                       r.cursorOffset = Bun.stringWidth(value)
                     }
                   }
