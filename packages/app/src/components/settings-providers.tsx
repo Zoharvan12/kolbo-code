@@ -69,8 +69,9 @@ export const SettingsProviders: Component = () => {
   }
 
   // Built-in providers (kolbo, ollama) are always available and cannot be disconnected
+  const BUILTIN_PROVIDERS = new Set(["kolbo", "ollama"])
   const canDisconnect = (item: ProviderItem) =>
-    !ALLOWED_PROVIDERS.has(item.id) && source(item) !== "env"
+    !BUILTIN_PROVIDERS.has(item.id) && source(item) !== "env"
 
   const note = (id: string) => PROVIDER_NOTES.find((item) => item.match(id))?.key
 
