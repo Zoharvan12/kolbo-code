@@ -5,9 +5,7 @@ description: Generate, edit, or analyze creative media through Kolbo AI. Load th
 
 # Kolbo AI — Creative Generation, Analysis & Transcription
 
-You have direct access to the Kolbo AI creative platform via MCP tools. Use them to generate and deliver real content — do NOT just describe what you would create.
-
-**Response style:** Concise. Share URLs, costs, status — no preamble or postamble.
+You have direct access to the Kolbo AI creative platform via MCP tools (auto-configured by `kolbo auth login`). Use them to generate and deliver real content — do NOT just describe what you would create.
 
 ## Available MCP Tools
 
@@ -17,466 +15,490 @@ You have direct access to the Kolbo AI creative platform via MCP tools. Use them
 |------|-------------|
 | `generate_image` | Create a **single** image from a text prompt. Supports Visual DNA, moodboards, reference images, web-search grounding. |
 | `generate_image_edit` | Edit/transform an existing image (background removal, color changes, compositing). Pass source images + edit prompt. |
-| `generate_creative_director` | **Generate 2–8 related images or videos as one coherent set.** Use INSTEAD of multiple `generate_image` calls for storyboards, campaigns, product sets, character sheets, scene variations. |
-| `generate_video` | Create videos from text prompts. Does **not** support Visual DNA — use `generate_elements` for character-consistent video. |
+| `generate_creative_director` | **Generate 2–8 related images or videos as one coherent set.** Use this INSTEAD of multiple `generate_image` calls whenever the user wants more than one related output (storyboards, ad campaigns, product sets, character sheets, scene variations). Handles style consistency and runs scenes in parallel internally. |
+| `generate_video` | Create videos from text prompts. Supports reference images for style/composition guidance. Does **not** support Visual DNA — use `generate_elements` for character-consistent video. |
 | `generate_video_from_image` | Animate a still image into video. Prompt describes the motion, not the subject. |
-| `generate_video_from_video` | Restyle/transform an existing video (style transfer, restyling, subject swap). Always `list_models type="video_to_video"` first — read `maxImages`/`maxVideos`/`maxElements`. |
-| `generate_elements` | Generate video from reference assets + prompt. **Supports Visual DNA.** Always `list_models type="elements"` first — read `elementsMaxImages`/`elementsMaxVideos`/`elementsMaxAudio`. |
-| `generate_first_last_frame` | Video that morphs from a first frame to a last frame. |
+| `generate_video_from_video` | Restyle/transform an existing video (style transfer, scene restyling, subject swap). Keeps the original motion. |
+| `generate_elements` | Generate video from reference assets (images/videos) + prompt. **Supports Visual DNA** for character-consistent video — this is the primary tool for animating characters/scenes with Visual DNA. |
+| `generate_first_last_frame` | Generate video that morphs from a first frame to a last frame (keyframe interpolation). |
 | `generate_lipsync` | Lipsync an audio track to a source image or video face. Accepts local files or URLs. |
 | `generate_music` | Create music from descriptions. Supports instrumental, custom lyrics, style, vocal gender. |
-| `generate_speech` | Convert text to speech. Default: ElevenLabs. Use `list_voices` to pick a voice. |
-| `generate_sound` | Generate sound effects (foley, ambient, impacts, UI sounds). |
+| `generate_speech` | Convert text to speech (TTS). Default: ElevenLabs. Use `list_voices` to pick a voice. |
+| `generate_sound` | Generate sound effects from descriptions (foley, ambient, impacts, UI sounds). |
 | `generate_3d` | Generate 3D models from text, single image, or multi-view images. Returns GLB, FBX, OBJ, USDZ. |
 
-### Editing
+### Transcription & Analysis
 
 | Tool | Description |
 |------|-------------|
-| `edit_image` | Targeted AI edit: `upscale` (2×–4×), `reframe`, `removebg`, `enhance_skin`, `magic_edit`. Faster/cheaper than `generate_image_edit` for these specific ops. |
-| `edit_video` | Targeted AI edit: `upscale`, `reframe`, `generate_audio`, `remove_watermark`, `face_swap`, `extend`, `magic_edit`, `lipsync`. |
+| `transcribe_audio` | Transcribe audio or video into text + SRT subtitles + word-by-word SRT. Accepts local files or URLs. |
 
-### Transcription, Discovery & Utilities
+### Voice & Model Discovery
 
 | Tool | Description |
 |------|-------------|
-| `transcribe_audio` | Transcribe audio/video → text + SRT + word-by-word SRT. |
-| `list_models` | Browse AI models filtered by type. |
-| `list_voices` | List TTS voices (filter by provider, language, gender). |
+| `list_models` | Browse available AI models filtered by type. |
+| `list_voices` | List available TTS voices with filtering by provider, language, gender. |
 | `check_credits` | Check remaining Kolbo credit balance. |
-| `get_generation_status` | Poll an in-progress generation by ID (fallback for timeouts). |
-| `upload_media` | Upload any local file to Kolbo CDN → public URL. Works for images, videos, audio, HTML, any file type. |
-| `list_media` | Browse uploaded media (filter by type, search). |
+| `get_generation_status` | Poll status of an in-progress generation by ID (fallback for timeouts). |
 
-### Visual DNA, Moodboards & Chat
+### Media Library
 
 | Tool | Description |
 |------|-------------|
-| `create_visual_dna` | Create a Visual DNA profile from reference images/video/audio. |
-| `list_visual_dnas` | List Visual DNA profiles (id, name, type, thumbnail). |
-| `get_visual_dna` | Fetch full profile details. |
+| `upload_media` | Upload ANY local file to Kolbo CDN → returns a public URL. Works for images, videos, audio, HTML, documents — any file type. Use for: feeding media to `chat_send_message`, sharing files publicly, hosting HTML pages, or multi-tool workflows. |
+| `list_media` | Browse user's uploaded media with filtering by type and search. |
+
+### Visual DNA (Character/Style Consistency)
+
+| Tool | Description |
+|------|-------------|
+| `create_visual_dna` | Create a Visual DNA profile from reference images/video/audio for character, style, product, or scene consistency. |
+| `list_visual_dnas` | List your Visual DNA profiles (id, name, type, thumbnail). |
+| `get_visual_dna` | Fetch full profile details including system_prompt and reference images. |
 | `delete_visual_dna` | Delete a Visual DNA profile. |
-| `list_moodboards` | List moodboards (personal, system, org). |
-| `get_moodboard` | Fetch moodboard details (master_prompt, style_guide, images). |
-| `list_presets` | Browse generation presets (image/video/music). |
-| `chat_send_message` | Send message to Kolbo AI chat. Pass `media_urls` (public URLs) to analyze video/audio. Omit `model` for Smart Select. |
-| `chat_list_conversations` | List SDK chat conversations. |
-| `chat_get_messages` | Fetch messages in a conversation. |
+
+### Moodboards & Presets
+
+| Tool | Description |
+|------|-------------|
+| `list_moodboards` | List available moodboards (personal, system presets, org). |
+| `get_moodboard` | Fetch a moodboard's master_prompt, style_guide, and images. |
+| `list_presets` | Browse generation presets (image/video/music templates with bundled style direction). |
+
+### Chat & Vision
+
+| Tool | Description |
+|------|-------------|
+| `chat_send_message` | Send a message to Kolbo AI chat. Pass `media_urls` (array of public URLs) to analyze images, videos, or audio — Smart Select auto-routes to Gemini vision when media is detected. Omit `model` for automatic routing. Supports web search and deep think modes. |
+| `chat_list_conversations` | List your SDK chat conversations. |
+| `chat_get_messages` | Fetch messages in a conversation (with media URLs). |
 
 ### App Builder
 
 | Tool | Description |
 |------|-------------|
-| `app_builder_list_projects` | List Kolbo projects → find `project_id`. |
-| `app_builder_create_session` | Create App Builder session → returns `session_id`. |
-| `app_builder_generate_app` | Generate full React app from prompt. Polls until deployed, returns live URL. |
-| `app_builder_edit_app` | Edit existing app with natural language instruction. |
-| `app_builder_get_build_status` | Check build status (fallback after timeout). |
-| `app_builder_get_session` | Get session details: GitHub repo URL, Supabase connection info. |
+| `app_builder_list_projects` | List all Kolbo projects to find a `project_id` for App Builder. |
+| `app_builder_create_session` | Create a new App Builder session inside a project. Returns `session_id`. |
+| `app_builder_generate_app` | Generate a full React app from a text prompt. Fires build, polls until deployed, returns live URL. |
+| `app_builder_edit_app` | Edit an existing app with a natural language instruction. Same fire-and-poll pattern. |
+| `app_builder_get_build_status` | Check current build status manually (fallback after timeout). |
+| `app_builder_get_session` | Get session details including GitHub repo URL and Supabase connection info for local dev. |
 | `app_builder_list_sessions` | List all App Builder sessions in a project. |
-| `app_builder_list_generations` | List generations for a session (needed for `edit_app`). |
+| `app_builder_list_generations` | List all generations for a session (needed for `edit_app`). |
 | `app_builder_delete_session` | Permanently delete a session and all resources. IRREVERSIBLE. |
 
----
+## ⚠️ Generate vs Edit — Know the Difference
 
-## ⚠️ Local vs Cloud — Use the Right Tool
+| User intent | Action | NOT this |
+|-------------|--------|----------|
+| "Create a video from scratch" / "Generate a video of..." | `generate_video` (Kolbo MCP) | — |
+| "Edit this video" / "Cut" / "Trim" / "Crop" / "Merge" / "Add subtitles" / "Remove silence" / "Speed up" / "Convert to 9:16" | Load `video-production` skill → FFmpeg | ❌ Do NOT call `generate_video` |
+| "Create motion graphics" / "Animated text" / "Title sequence" | Load `remotion-best-practices` skill → Remotion | ❌ Do NOT call `generate_video` |
+| "Animate this image" / "Make this photo move" | `generate_video_from_image` (Kolbo MCP) | — |
+| "Restyle this video as anime" | `generate_video_from_video` (Kolbo MCP) | — |
 
-**Default to local tools. Only use Kolbo AI when you actually need AI generation.**
-
-| Task | Use | NOT this |
-|------|-----|---------|
-| Trim / cut / merge / speed / crop / convert / extract audio / add subtitles / resize / format convert | `video-production` skill → **FFmpeg** | ❌ Kolbo tools |
-| Add text overlay / logo / watermark deterministically | **FFmpeg** drawtext/overlay | ❌ `edit_video` |
-| Resize or compress an image | **Sharp / ImageMagick / ffmpeg** | ❌ `edit_image` |
-| Create motion graphics / animated text / title sequence | `remotion-best-practices` skill | ❌ `generate_video` |
-| Create short-form video (edit-based) | `short-form-video` skill | ❌ `generate_video` |
-| Analyze an **image** | **`Read` tool directly** — you have built-in vision | ❌ `upload_media` + chat |
-| **AI background removal** (no hard edges needed) | `edit_image removebg` | ✓ |
-| **AI upscale** (beyond normal resize quality) | `edit_image upscale` / `edit_video upscale` | ✓ |
-| **AI face swap / style transfer / audio generation** | `edit_video` operations | ✓ |
-| Generate new content from scratch | Kolbo generation tools | ✓ |
-
-**Rule of thumb:** If the operation is deterministic (same input = same output every time), use a local tool. If it requires AI inference to produce the result, use Kolbo.
-
----
-
-## ⚠️ Generate vs Edit
-
-| User intent | Action |
-|-------------|--------|
-| "Create a video from scratch" | `generate_video` |
-| "Edit / Cut / Trim / Crop / Merge / Subtitles / Speed / Convert" | `video-production` skill → FFmpeg |
-| "Animate this image" | `generate_video_from_image` |
-| "Restyle this video as anime" | `generate_video_from_video` |
-| "Upscale image" / "Remove background (AI)" / "Retouch skin" | `edit_image` |
-| "Upscale video" / "Add AI audio" / "Extend video" / "Swap face" | `edit_video` |
-
-**`generate_video` creates NEW video from text. It cannot edit, cut, trim, or modify existing files.**
-
----
-
-## ⚠️ Critical Rules
-
-### Never Duplicate a Generation
-Before calling any generation tool, check conversation history. If you already called it with the same/similar prompt:
-- **Do NOT call again** — even if aborted (still running server-side)
-- Only retry if user explicitly says "retry", "redo", or "try again"
-- If unsure, use `get_generation_status` — the API returns 202 immediately and processes in the background
-
-### Parallel Batch vs Sequential Pipeline
-
-**Parallel batch** (independent same-type outputs) → fire all calls in one response:
-- "Make 5 images of different landscapes" → all 5 `generate_image` calls at once ✓
-
-**Sequential pipeline** (step N output feeds step N+1, or each stage is a distinct creative decision) → **pause after each stage, show result, wait for approval:**
-- "Generate an image, then animate it, then add music" → generate → show → confirm → animate → show → confirm → music
-- "Create Visual DNA then make 4 videos" → create → show → confirm → generate videos
-- Any workflow where step 2 uses step 1's URL/ID and involves a new creative direction
-
-**Exception:** user says "do it all automatically" or "run the whole pipeline" → execute without pausing.
-
----
+**`generate_video` creates NEW videos from text prompts. It cannot edit, cut, trim, merge, or modify existing video files.** For any operation on an existing video file, use FFmpeg via the `video-production` skill.
 
 ## Core Workflow
 
-1. **Check credits** once per conversation (`check_credits`). Skip if already checked.
-2. **Discover models** (`list_models type="..."`) — skip when user names a specific model.
-3. **Pick the model:**
-   - User named a model → use it directly, no questions
-   - Auto-select → only from **"Auto-selectable"** models (those with a `summary` in results). Prefer `[RECOMMENDED]`.
-   - Never auto-select from **"Named-only"** models (no summary = no quality signal)
-4. **Generation calls block** until complete (images: seconds; video: 1–5 min). Multiple tool calls in one response run concurrently.
-5. **Share the URL** — hand the real URL back. Never fabricate URLs.
+1. **Check credits** ONCE per conversation with `check_credits`. Skip if you already checked earlier in this session.
+2. **Discover models** with `list_models` using a `type` filter — but **skip this when the user names a specific model** (e.g. "seedance 2 fast"). Only call `list_models` when you need to discover or compare models.
+3. **Pick the model**: Follow this priority order:
+   - **User named a model** (e.g. "use Kling v2") → use that identifier directly, no questions asked.
+   - **Auto-select** → only from the **"Auto-selectable"** section of `list_models` results (models with a `summary`). Pick the cheapest one whose summary fits the task. Prefer `[RECOMMENDED]` when cost is similar.
+   - **Never auto-select** a model from the **"Named-only"** section (no summary) — you have no quality signal for it. Only use it if the user explicitly requested it by name.
+4. **How generation calls work**: Each tool call blocks until the generation is fully complete (the MCP server polls the API internally). For images this is seconds; for video it can be minutes. If a call times out, use `get_generation_status` with the returned generation ID. When you output multiple tool calls in a single response, they run concurrently — so batch calls finish in the time of the slowest one, not the sum.
+5. **Share the URL** — after a successful generation, hand the real URL back to the user. Never fabricate URLs.
+
+**For batch operations** (generating multiple items at once), see the "Rate Limiting & Batch Generation" section below — it overrides the per-item steps above.
 
 ### Model Types (for `list_models`)
 
-| DB Type | Use for |
-|---------|---------|
-| `text_to_img` | Image generation |
-| `image_editing` | Image editing |
-| `text_to_video` | Text-to-video |
-| `img_to_video` | Image-to-video animation |
-| `draw_to_video` | Draw-to-video (Hailuo, Seedance variants) |
-| `video_to_video` | Video restyling / style transfer |
-| `elements` | Reference-to-video (Visual DNA-driven) |
-| `firstlastgenerations` | Keyframe interpolation |
-| `lipsync-image` / `lipsync-video` | Lipsync (`lipsync` alias returns both) |
-| `music_gen` | Music generation |
-| `text_to_speech` | TTS |
-| `text_to_sound` | Sound effects |
-| `stt` | Transcription |
-| `text` | Chat / language models |
-| `3d_text_to_model` / `3d_image_to_model` / `3d_multi_image_to_model` / `3d_world` | 3D (`three_d` alias returns all four) |
+Use the DB type name directly. Legacy aliases (right column) still work but prefer DB names.
 
----
+| DB Type | Legacy alias | Use for |
+|---------|-------------|---------|
+| `text_to_img` | `image` | Still-image generation |
+| `image_editing` | `image_edit` | Image editing / transformation |
+| `text_to_video` | `video` | Text-to-video |
+| `img_to_video` | `video_from_image` | Image-to-video animation |
+| `draw_to_video` | — | Draw-to-video (Hailuo, Seedance variants) |
+| `video_to_video` | `video_from_video` | Video restyling / style transfer |
+| `elements` | *(same)* | Reference-to-video — Visual DNA-driven video |
+| `firstlastgenerations` | `first_last_frame` | Keyframe interpolation |
+| `lipsync-image` | (part of `lipsync`) | Lipsync with image source face |
+| `lipsync-video` | (part of `lipsync`) | Lipsync with video source face |
+| `music_gen` | `music` | Music generation |
+| `text_to_speech` | `speech` | Text-to-speech (TTS) |
+| `text_to_sound` | `sound` | Sound effects |
+| `stt` | `transcription` | Audio/video transcription |
+| `text` | `chat` | Chat / AI language models |
+| `3d_text_to_model` | (part of `three_d`) | 3D from text prompt |
+| `3d_image_to_model` | (part of `three_d`) | 3D from single image |
+| `3d_multi_image_to_model` | (part of `three_d`) | 3D from multiple images |
+| `3d_world` | (part of `three_d`) | 3D world generation |
 
-## Cost & Billing
+> **Note**: `lipsync` alias returns both `lipsync-image` + `lipsync-video`. `three_d` alias returns all four 3D types.
 
-| Type | Billing unit | Credit range |
-|------|-------------|-------------|
-| Image | per image (flat) | 1–30 cr |
-| Image edit | per image (flat) | 2–20 cr |
-| Video / Video-from-image / Elements / Lipsync | **cr/s × duration** | 2–30 cr/s |
-| Music | per generation (flat) | 15–60 cr |
-| Speech (TTS) | per 100 characters | 2–5 cr/100 chars |
-| Sound effects | per generation (flat) | 4–7 cr |
-| 3D model | per model (flat) | 5–300 cr |
-| Transcription | model.credit × duration_minutes | — |
+### Cost Awareness
 
-**Formulas:**
-- **Video/Lipsync**: `total = model_credit_per_second × duration_seconds` — never assume flat cost
+Creative generations bill against the user's Kolbo credit balance. **Billing units differ by type** — always apply the correct formula before generating.
+
+| Type | Billing unit | Credit range | Example |
+|------|-------------|-------------|---------|
+| **Image** | per image (flat) | 1–30 cr | Flux.1 Fast = 1 cr, Midjourney = 4 cr. If `resolution` is set, check the model's `resolutionMultipliers` from `list_models` — some families multiply cost significantly at higher tiers, others are flat. |
+| **Image edit** | per image (flat) | 2–20 cr | |
+| **Video** | **cr/s × duration** | 2–30 cr/s | Kandinsky 5 Fast × 5s = 10 cr; Seedance 2.0 × 10s = 300 cr. If `resolution` or native audio is set, check the model's `resolutionMultipliers` and `soundCreditMultiplier` from `list_models`. |
+| **Video from image** | **cr/s × duration** | 4–30 cr/s | Same per-second rule as text-to-video. Same multiplier check. |
+| **Elements (ref-to-video)** | **cr/s × duration** | 4–30 cr/s | Same per-second billing as video — check `credit` and multipliers in `list_models type="elements"`. |
+| **Lipsync** | **cr/s × duration** | 5–20 cr/s | |
+| **Music** | per generation (flat) | 15–60 cr | Suno v5 = 15 cr; ElevenLabs Music = 60 cr |
+| **Speech (TTS)** | per 100 characters | 2–5 cr/100 chars | ElevenLabs (5) × 500 chars = 25 cr; Google (2) × 500 chars = 10 cr |
+| **Sound effects** | per generation (flat) | 4–7 cr | |
+| **3D model** | per model (flat) | 5–300 cr | Trellis = 5 cr; Meshy v6 = 150 cr; Marble 1.1 = 300 cr |
+| **Transcription (stt)** | per minute of audio | model.credit × duration_minutes | |
+
+**Calculation formulas — apply when confirming cost:**
+- **Video / Lipsync**: `total = model_credit_per_second × duration_seconds`
+  - Get the `credit` value from `list_models` (or from a previous call in this session) and multiply by duration.
+  - Never assume the credit shown is a flat per-generation cost for these types.
+- **Music**: flat per generation — `total = model_credit` (duration does not change the cost).
 - **TTS**: `total = model_credit × ceil(character_count / 100)`
-- **Images/3D/Sound**: `total = model_credit × quantity`
-- **Music**: flat — `total = model_credit`
+  - Count the actual characters in the text before estimating. 1000 chars with ElevenLabs = 50 credits.
+- **Images / 3D / Sound effects**: `total = model_credit × quantity`
+- **Resolution / audio multipliers**: if the user sets `resolution` or the model has native audio, read `resolutionMultipliers[tier]` and `soundCreditMultiplier` from `list_models`. Formula: `final = base × resolutionMult × (sound ? soundMult : 1) × durationSeconds`.
 
-**Skip confirmation when:** user specified everything (model + count + duration) — that IS the confirmation · single generation under 5 credits.
+**Tier label → pixel mapping (rough):**
+- Images: `"1K"` ≈ 1024px, `"2K"` ≈ Full HD (1920×1080), `"3K"` ≈ QHD (2560×1440), `"4K"` ≈ UHD (3840×2160). Picker shows only tiers the model actually supports (per `supported_resolutions`).
+- Videos: `"720p"` / `"1080p"` / `"1440p"` / `"2160p"` = vertical pixels (720p = HD, 1080p = Full HD, 1440p = QHD, 2160p = 4K UHD). Some models use model-specific labels like `"512P"` / `"1024P"` (Hailuo).
 
-**Confirm when:** everything else — "This will generate X × Y using [model] at Z cr/s = **N credits total**. Proceed?" Suggest cheaper alternatives. For 100+ credit batches, run `check_credits` first.
+**Cost confirmation — know when to skip it:**
+- **User specified everything** (model, count, duration, e.g. "make 5 videos, seedance 2 fast, 15s, 16:9"): **ACT IMMEDIATELY** — that IS the confirmation. Do not re-explain costs or ask again.
+- **Single generation under 5 credits**: proceed without confirmation.
+- **Everything else**: calculate total cost, present a summary, and wait for the user to confirm before generating.
+- **Batch totalling 100+ credits**: run `check_credits` before starting to verify the balance is sufficient, and include the available balance in your cost summary.
 
----
+**When confirmation IS needed:**
+1. Calculate per-item cost using the formulas above.
+2. Multiply by the number of items.
+3. Present a summary: "This will generate 8 videos × 5s each using [model] at X cr/s = **Y credits total**. Proceed?"
+4. **Suggest cheaper alternatives** if available.
+5. Only proceed after the user confirms.
 
-## Rate Limiting & Batch Generation
+### Rate Limiting & Batch Generation (CRITICAL)
 
-**Limits:** 30 req/min images · 10 req/min per other type · 300 req/min global · `upload_media` 300/min (no credits). The API queues requests — it never silently drops them.
+**Rate limits** (per user, enforced server-side):
+- **Image generation**: 30 requests per minute (higher because images are fast and cheap)
+- **All other generation types**: 10 requests per minute per type (e.g. 10 video + 10 image = fine, but 11 video in 1 minute = 429)
+- **300 requests per minute** global across all media endpoints
+- **Uploads** (`upload_media`): 300/min, no credit cost — much lighter than generation
+- The API **queues** requests internally — it never silently drops them. If you're within limits, every request will be processed.
 
-**Batch workflow (≤10 items):**
-1. Confirm cost once (skip if user specified everything)
-2. Output ALL tool calls in one response — they run concurrently
-3. Never re-fire completed/in-progress generations
-4. On 429: wait 60s, retry only failed calls (max 2 retries)
+**⚠️ NEVER duplicate a generation you already fired.**
+Before calling any generation tool, check your conversation history. If you already called that tool with the same or similar prompt in this session:
+- Do NOT call it again — even if it was aborted or interrupted (it is still running server-side and will complete)
+- Only retry if the user explicitly says "retry", "redo", or "try again"
+- Each duplicate wastes real credits from the user's balance
+- If unsure whether a generation went through, use `get_generation_status` to check — the API returns 202 immediately and processes in the background, so aborted tool calls still generate
+
+**Batch generation workflow (≤10 items):**
+1. Confirm cost ONCE — or skip if the user already specified model, count, and duration (e.g. "make 5 videos, seedance 2 fast, 15s" IS the confirmation — act immediately)
+2. **Output ALL generation tool calls in a single response** — up to 10 per tool type. The system runs them concurrently, so 5 videos render in parallel and finish in the time of the slowest one, not 5× the time.
+3. Each call blocks until its generation is complete (images: seconds, video: 1-5 minutes). This is normal — don't apologize for the wait.
+4. Track what you've generated — never re-fire a completed or in-progress generation.
+5. After all complete, present all results together.
+6. If any fail with 429: wait 60 seconds and retry only the failed ones (max 2 retries).
 
 **Multi-image decision:**
-- General brief ("make 4 product shots", "character in 4 settings") → `generate_creative_director` with `scene_count`
-- Explicit separate prompts → parallel `generate_image` calls
+- User gives a **general brief** ("make 4 product shots", "create a storyboard", "show the character in 4 different settings") → use `generate_creative_director` with `scene_count`. Pass `visual_dna_ids` to keep a character consistent across all scenes.
+- User gives **explicit separate prompts** ("Image 1: X, Image 2: Y, Image 3: Z") → fire all as **parallel `generate_image` calls** in one response
+- Never call `generate_image` sequentially in a loop — either use `generate_creative_director` or fire all calls in one parallel batch
 
-**⚠️ Parameter names:**
-- `generate_image` → `num_images` (1–4): same prompt, different seeds (variations of one image)
-- `generate_creative_director` → `scene_count` (1–8): each scene gets its own distinct prompt. Never pass `num_images` to it.
+**⚠️ Parameter names — do NOT confuse these:**
+- `generate_image` → `num_images` (1–4): all images use the **same prompt**, just different random seeds — use this for "give me 4 variations of this image"
+- `generate_creative_director` → `scene_count` (1–8): each scene gets its **own distinct prompt** — use this for "make 8 different campaign shots" OR "show the character in 8 different scenes/outfits/moods". Always pass `visual_dna_ids` when character consistency matters. **Never pass `num_images` to `generate_creative_director`.**
 
-After `generate_creative_director`: list each scene's URL on a separate line. Do NOT create an HTML grid.
+**After `generate_creative_director` completes — share results as individual URLs, one per scene. Do NOT create an HTML grid artifact or any combined layout. Just list each scene's title and its image URL on separate lines.**
 
-**Don't narrate, just generate.** No "Generating Video 1 of 5…" — just call the tools. On interruption: pick up where you left off, skip already-fired calls, never restart from the beginning.
+**Don't narrate, just generate.** When the user says "make 5 videos", output all 5 tool calls in one response. Don't explain your plan, don't calculate step-by-step, don't say "Generating Video 1 of 5..." — just call the tools.
 
----
-
-## Post-Video: Remotion Studio Offer
-
-After any of these completes successfully with a video URL: `generate_video`, `generate_video_from_image`, `generate_elements`, `generate_first_last_frame`, `generate_lipsync`, `edit_video`
-
-**Append one offer line:** "Want to add text, captions, or effects in Remotion Studio? I can set it up and open it for you."
-
-Skip when: user already requested further editing · generation failed · user said they only want the raw video.
-
-### If user accepts — full workflow
-
-**Step 1 — Get video metadata** (in parallel with writing the composition):
-```bash
-# Use getVideoMetadata from @remotion/media-utils, or extract with ffprobe:
-ffprobe -v quiet -print_format json -show_streams "VIDEO_URL"
-# → read duration (seconds), width, height
-# durationInFrames = Math.ceil(duration * fps)
-```
-
-**Step 2 — Write the composition** into `kolbo-code/src/remotion/Root.tsx`.  
-Update `defaultProps.code` with your JSX, and set `durationInFrames`, `width`, `height` to match the source video:
-
-```tsx
-// kolbo-code/src/remotion/Root.tsx
-const videoCode = `
-import { AbsoluteFill, OffthreadVideo } from "remotion";
-export const MyAnimation = () => (
-  <AbsoluteFill>
-    <OffthreadVideo src="https://cdn.kolbo.ai/your-video.mp4" />
-    {/* Add overlays, captions, or effects here */}
-  </AbsoluteFill>
-);`;
-
-<Composition
-  id="DynamicComp"
-  component={DynamicComp}
-  durationInFrames={150}   // ← actual video duration in frames
-  fps={30}
-  width={1280}             // ← actual video width
-  height={720}             // ← actual video height
-  defaultProps={{ code: videoCode }}
-  calculateMetadata={({ props }) => ({
-    durationInFrames: props.durationInFrames as number,
-    fps: props.fps as number,
-  })}
-/>
-```
-
-Use `<OffthreadVideo>` not `<Video>` — `<Video>` uses a browser element and stutters during frame-accurate Remotion renders.
-
-**Step 3 — Start Remotion Studio in the background:**
-```bash
-cd kolbo-code && npx remotion studio &
-# Studio boots at http://localhost:3000
-```
-
-**Step 4 — Wait ~3 seconds, then open the browser automatically:**
-```bash
-# Windows:
-start http://localhost:3000
-# macOS:
-open http://localhost:3000
-# Linux:
-xdg-open http://localhost:3000
-```
-
-**Step 5 — Tell the user exactly what they're looking at:**
-> "Remotion Studio is open at **http://localhost:3000** — your video is loaded in the canvas. Use the timeline to scrub through it. When you're happy with the composition, tell me and I'll render the final video file."
-
-**Never say "open the URL from terminal output"** — users don't know what that means. Always open the browser programmatically and give them the direct link.
-
-### What to offer when user is in Studio
-- Animated captions / karaoke (pair with `transcribe_audio` → `word_by_word_srt_url`)
-- Text overlays / lower-thirds with spring-physics animations
-- Color grading via CSS filters
-- Intro/outro title cards
-- Music sync (`<Audio src={musicUrl} />` from `generate_music`)
-
-### Rendering when user approves
-```bash
-cd kolbo-code && npx remotion render DynamicComp output.mp4
-```
-Then share the local path with the user.
+**Handling interruptions:** If the user aborts or interrupts mid-batch (e.g. cancels Video 1, then says "do the rest" or "continue with 2-5"), pick up where you left off. Check which generations you already fired, skip those, and fire only the remaining ones. Never restart a batch from the beginning. Remember: aborted tool calls still process server-side — don't re-fire them.
 
 ---
 
 ## Transcription & Audio/Video Analysis
 
-Use `transcribe_audio` ONLY when user explicitly asks for: text transcript · SRT subtitles · word-by-word timed subtitles · what was **spoken** in the video.
+Use `transcribe_audio` ONLY when the user explicitly asks for:
+- A text transcript
+- Subtitles (SRT format)
+- Word-by-word timed subtitles (for karaoke, motion graphics, Remotion captions, video editing)
+- Summary of what was **spoken/said** in the video
+- Dialogue extraction from video
 
-**Do NOT use for visual analysis.** For visual analysis of video/audio → `upload_media` → `chat_send_message`.
+**Do NOT use `transcribe_audio` to "analyze" a video visually.** For visual analysis **of videos or audio**, use `upload_media` → `chat_send_message` with `media_urls`. For **images**, use the `Read` tool directly — you have built-in vision.
 
-**Workflow:**
-1. `transcribe_audio({ source: "url-or-absolute-path" })`
-2. Returns: `text` · `srt_url` · `word_by_word_srt_url` (ElevenLabs Scribe v2, one word per entry — ideal for karaoke, Remotion captions, precise cut points) · `txt_url` · `duration`
+### Workflow
+1. Call `transcribe_audio` with the `source` (URL or absolute local file path)
+2. The tool returns:
+   - `text` — full transcript as plain text
+   - `srt_url` — download URL for grouped SRT subtitles (configurable words-per-line)
+   - `word_by_word_srt_url` — download URL for **word-by-word SRT** (one word per subtitle entry with precise timestamps from ElevenLabs Scribe v2)
+   - `txt_url` — download URL for plain text file
+   - `duration` — audio duration in seconds
+3. Analyze the transcript text as needed (summarize, translate, extract topics, answer questions about content)
 
-**Formats:** Audio: mp3/wav/m4a/flac/aac · Video: mp4/mov/webm/mkv/avi/m4v · Max: 30 min
+### Supported Formats
+- **Audio**: mp3, wav, m4a, flac, aac
+- **Video** (extracts audio track): mp4, mov, webm, mkv, avi, m4v
 
-### Visual Media Analysis
+### Word-by-Word Transcription
+The `word_by_word_srt_url` contains an SRT file where each subtitle entry is a **single word** with precise start/end timestamps (powered by ElevenLabs Scribe v2). This is ideal for:
+- **Karaoke-style captions** — highlight one word at a time
+- **Remotion/motion graphics** — animate text word-by-word synced to audio
+- **Video editing** — precise cut points aligned to speech
+- **Accessibility** — word-level navigation for hearing-impaired users
+
+The regular `srt_url` groups words into readable subtitle lines (default 12 words per line, up to 2 lines per subtitle).
+
+### Use Cases & Examples
+- "Transcribe this podcast" → `transcribe_audio` with the audio URL
+- "What's being said in this video?" → `transcribe_audio` → analyze the returned text
+- "Generate subtitles for my video" → `transcribe_audio` → share the `srt_url`
+- "I need word-by-word timing for this audio" → `transcribe_audio` → share `word_by_word_srt_url`
+- "Summarize this meeting recording" → `transcribe_audio` → summarize the text
+- "Extract key points from this lecture" → `transcribe_audio` → analyze and extract
+
+### Long Content
+Transcription supports files up to 30 minutes. For longer content, split the file first or provide segments.
+
+### Visual Video/Audio/Image Analysis
+
+**The agent has built-in vision — ALWAYS prefer your own model for images:**
 
 | Media type | How to analyze |
 |------------|----------------|
-| **Image** | `Read` tool directly — you have built-in vision. **Always first choice. Never upload for image analysis.** |
-| **Video / Audio** | `upload_media` → `chat_send_message` with `media_urls` (Gemini auto-routes) |
-| **Transcription** | `transcribe_audio` only when user explicitly asks for spoken content |
+| **Image** (jpg, png, webp, etc.) | **Read it directly with the `Read` tool** — you see images natively. No upload, no API call, no rate-limit risk. This is ALWAYS the first choice for images. |
+| **Video / Audio** | `upload_media` → `chat_send_message` with `media_urls` (Gemini handles video/audio) |
+| **Transcription** | `transcribe_audio` — ONLY when user explicitly says "transcribe", "subtitles", "SRT", or "what's being said" |
 
-**NEVER use ffmpeg or frame extraction for analysis.**
+**⚠️ Image analysis priority: YOUR OWN VISION FIRST.**
+You are a multimodal model — you can see and analyze images directly via the `Read` tool. This is faster, free, and avoids API rate limits. **Never upload images to Kolbo or use `chat_send_message` for image analysis** unless the user explicitly asks to use a specific Kolbo chat model. Even with 10+ images, read them all yourself — you can handle up to 10 images in a single analysis pass.
 
-**Batching media in chat (CRITICAL):** Upload all files in one response (all `upload_media` calls at once), collect all CDN URLs, then ONE `chat_send_message` with all URLs in `media_urls` (max 10). Never send one message per file — it triggers rate limits.
+**NEVER use ffmpeg or frame extraction for analysis. NEVER ask the user — just pick the right path above.**
 
-**Local file editing:** Check for `[Image local path: ...]` / `[Video attached — local path: ...]` in conversation — use that path directly with ffmpeg/tools. If not available, use the CDN URL directly. Always use absolute paths with `upload_media`. Upload each output file exactly once.
+**Video/Audio analysis workflow — Step 1 is NOT optional:**
+1. `upload_media({ source: "/absolute/local/path/to/file.mp4" })` → returns `{ url, thumbnail_url, ... }`
+   - **Use `url`** — the actual CDN URL. Ignore `thumbnail_url` (preview JPG only).
+2. `chat_send_message({ message: "<your question>", media_urls: [result.url] })`
+   - **`media_urls` is mandatory** — the model only sees the video if you pass the CDN URL here.
+   - Always an **array**: `media_urls: ["https://cdn.kolbo.ai/..."]`
+   - **Omit `model`** — Smart Select auto-routes to Gemini when media is detected
+   - **Sessions do NOT remember media between messages.** On retry: reuse the same CDN `url` (no re-upload) but always pass `media_urls` again.
+   - **Batch / many videos**: use `list_models` to find the cheapest Gemini model and pass it explicitly for cheaper bulk runs
 
-**`media_urls` only accepts CDN URLs** — never pass local file paths, never construct URLs yourself, never use a transcription `.txt` URL as the video URL.
+### ⚠️ Batching Media in Chat Messages (CRITICAL)
 
----
+**Always send ALL media in ONE `chat_send_message` call.** The `media_urls` array accepts up to **10 URLs** in a single request. Never send one message per image/video.
 
-## Image & Video Editing Operations
+**Why this matters:** Each `upload_media` call + the final `chat_send_message` all count toward rate limits. Sending 10 uploads + 10 separate chat messages = 20 requests in rapid succession → "Too many generation requests" error. Instead:
 
-| User says | Tool | `operation` |
-|-----------|------|-------------|
-| "Upscale image" / "Make it 2×/3×/4×" | `edit_image` | `upscale` + `scale` |
-| "Reframe for Instagram" / "Crop to 16:9" | `edit_image` | `reframe` + `aspect_ratio` |
-| "Remove background (AI)" | `edit_image` | `removebg` |
-| "Retouch skin" / "Smooth portrait" | `edit_image` | `enhance_skin` + `skin_strength` |
-| "Add sunglasses" / "Change sky to sunset" | `edit_image` | `magic_edit` + `prompt` |
-| "Upscale video to 4K" | `edit_video` | `upscale` |
-| "Change video to 9:16" | `edit_video` | `reframe` + `aspect_ratio` |
-| "Add AI audio to video" | `edit_video` | `generate_audio` + `prompt` |
-| "Remove watermark" | `edit_video` | `remove_watermark` |
-| "Swap face with [image]" | `edit_video` | `face_swap` + `image_url` |
-| "Extend / lengthen video" | `edit_video` | `extend` + `duration` |
-| "Restyle video with prompt" | `edit_video` | `magic_edit` + `prompt` |
-| "Sync audio to face" | `edit_video` | `lipsync` + `audio_url` |
+1. Upload all files at once (output all `upload_media` calls in one response — uploads are 300/min and cost no credits).
+2. Collect ALL returned CDN URLs into one array.
+3. Send ONE `chat_send_message` with all URLs in `media_urls`.
 
-`edit_image` = single-op AI edits (faster/cheaper) · `generate_image_edit` = general prompt-based compositing with source images.
+**Example — analyzing 5 videos:**
+```
+# Step 1: Upload all in one response (all 5 upload_media calls at once)
+upload_media({ source: "video1.mp4" }) → url1
+upload_media({ source: "video2.mp4" }) → url2
+upload_media({ source: "video3.mp4" }) → url3
+upload_media({ source: "video4.mp4" }) → url4
+upload_media({ source: "video5.mp4" }) → url5
+
+# Step 2: ONE chat call with ALL media URLs
+chat_send_message({
+  message: "Analyze all 5 videos...",
+  media_urls: [url1, url2, url3, url4, url5]
+})
+```
+
+**Rate limit recovery:** If you hit "Too many generation requests", wait 60 seconds before retrying. On retry, do NOT re-upload — reuse the CDN URLs from step 1.
+
+**❌ Never do this:**
+- Pass a local file path in `media_urls` — it won't work, only CDN URLs work
+- Use the `.txt` URL from a transcription result as the video URL — that's text, not video
+- Skip `upload_media` and try to construct a URL yourself
+- Send separate `chat_send_message` calls for each media file — batch them into ONE call
+
+When in doubt, do visual analysis. Do not stop to ask.
 
 ---
 
 ## Image Prompts
 
-- **No meta-language:** no "Output:", "Tips:", "Notes:", "Resolution:", "Dimensions:" inside prompts.
-- **Order:** Subject → action/pose → environment → lighting → style.
-- **Length:** 2–3 focused sentences. Go longer only for genuinely complex scenes.
-- **Style specifics:** "1970s film photography" not "beautiful".
-- **`enhance_prompt: true`** (default) improves most prompts. Turn off only if user's prompt is already engineered.
+### Rules
+- **Clean prompts only.** No "Output:", "Tips:", "Notes:", "Resolution:", "Dimensions:", or any instructional/meta language inside the prompt. The prompt is what the model sees — anything not describing the image is noise.
+- **Length**: focused 2-3 sentences beats a bloated paragraph. Only go longer when the concept genuinely needs it (complex scenes, multiple subjects, specific technical requirements). Match prompt length to complexity.
+- **Order**: Subject → action/pose → environment → lighting → style.
+- **Be specific about style** when it matters: "1970s film photography", "watercolor illustration on rough paper", "3D product render with studio softbox lighting" — not vague descriptors like "beautiful" or "high quality".
+- **`enhance_prompt: true`** (default) will improve most prompts automatically. Turn it off only if the user's prompt is already fully engineered or they want literal wording.
 
-**Image-to-image:** Describe the change, not the image content.
-- ✓ "Turn the sky orange and add drifting clouds"
-- ✗ "A mountain landscape with an orange sky" (re-describes what's already there)
+### Image Editing (image-to-image)
+
+Use `generate_image_edit` when the user wants to modify an existing image. Pass the source image URL(s) in `source_images` and describe the change in `prompt`.
+
+- Good: "Turn the sky orange and add drifting clouds"
+- Bad: "A mountain landscape with an orange sky and drifting clouds" (re-describes what's already in the image)
+
+Simple edits deserve simple prompts. Only elaborate for genuinely complex, multi-step transformations.
+
+### Multi-Scene / Campaigns
+`generate_creative_director` is not only for storyboards and campaigns — use it whenever the user wants a character shown across multiple scenes, outfits, moods, or settings. It generates 1–8 scenes from one brief, each with its own distinct prompt, and keeps style consistent internally. Always pass `visual_dna_ids` when a character must look the same across scenes, and optionally `moodboard_id` for art direction.
+
+You can also do multiple parallel `generate_image` calls with the same `visual_dna_ids` when the user provides explicit per-image prompts.
 
 ---
 
 ## Visual DNA (Character/Style Consistency)
 
-**Workflow:** `create_visual_dna` (max 4 reference images) → use `id` in `visual_dna_ids` for `generate_image`, `generate_creative_director`, `generate_elements`.
+Visual DNA profiles capture the visual "identity" of a character, style, product, or scene from reference media.
 
-Types: `character` (default) · `style` · `product` · `scene` · `environment`
+### Workflow
+1. **Create** a profile with `create_visual_dna` — provide reference images (max 4), optionally video and audio
+2. **Types**: `character` (default), `style`, `product`, `scene`, `environment`
+3. **Use** the profile by passing its `id` in `visual_dna_ids` in: `generate_image`, `generate_creative_director`, `generate_elements`
+4. **List/inspect** profiles with `list_visual_dnas` / `get_visual_dna`
 
 ### ⚠️ @name Syntax — CRITICAL for Multi-Visual-DNA Prompts
 
-When using multiple Visual DNA profiles, reference each by name in the prompt:
+When using **multiple Visual DNA profiles in a single generation**, reference each profile by its name using the `@name` syntax directly in the prompt. This tells the engine which character or asset appears where:
+
 ```
 "@dana walks into @shop and picks up a product from the shelf"
 ```
-- Names are set in `create_visual_dna` (`name` field)
-- Use `@name` (lowercase, no spaces) inline in prompt
-- **Without `@name`, the engine blends all Visual DNAs indiscriminately**
 
-### ⚠️ Always Generate Reference Images First (MANDATORY)
+- Profile names are set during `create_visual_dna` (the `name` field)
+- Reference them as `@name` (lowercase, no spaces) inside the prompt text
+- Multiple profiles can appear in one prompt — the engine blends each one where it's mentioned
+- **Without `@name` references, the engine may blend all Visual DNAs together indiscriminately**
+- This works across `generate_image`, `generate_creative_director`, and `generate_elements`
 
-Before `create_visual_dna` for a character, fire both in parallel:
-1. **4-angle sheet:** `"[character], reference sheet: front/back/left/right views, 2×2 grid, neutral background, full body, photorealistic"` · 16:9
-2. **Close-up portrait:** `"[character], close-up portrait, face and shoulders, neutral background, soft studio lighting, photorealistic"` · 1:1
+**Example workflow — two-character scene:**
+1. Create Visual DNA `name: "dana"` (type: character) → `id: "vdna_abc"`
+2. Create Visual DNA `name: "shop"` (type: environment) → `id: "vdna_xyz"`
+3. Generate: `prompt: "@dana standing in @shop, picking up a product"`, `visual_dna_ids: ["vdna_abc", "vdna_xyz"]`
 
-Then `create_visual_dna` with: 4-angle sheet first, close-up second, plus user's reference photos if provided. Skip only if user says "use my image as-is" or already provides 3+ multi-angle references.
+### Visual DNA Limits (maxVisualDna)
 
-### maxVisualDna Limits
+Each model has a `maxVisualDna` field in `list_models` results — never pass more Visual DNAs than the model supports:
+- **Image models** (non-Kling): up to **8** Visual DNAs
+- **Kling image models**: up to **3** Visual DNAs
+- **Elements video models**: up to **3–5** Visual DNAs (model-dependent)
+- **All other models**: up to **3** Visual DNAs
 
-| Model type | Max |
-|------------|-----|
-| Image (non-Kling) | 8 |
-| Kling image | 3 |
-| Elements video | 3–5 (model-dependent) |
-| All other | 3 |
+Always check the `maxVisualDna` field from `list_models` for the exact limit of the chosen model.
 
-Always check `maxVisualDna` from `list_models`.
+### ⚠️ Visual DNA Creation — Always Generate Reference Images First (MANDATORY)
+
+**Before calling `create_visual_dna` for a character**, always generate 2 reference images first and include them alongside any user-provided images. These give the Visual DNA engine multi-angle coverage and dramatically improve consistency:
+
+**Step 1 — Generate both images in parallel (one `generate_image` call each, fire simultaneously):**
+
+1. **4-angle character sheet** — prompt: `"[character description], character reference sheet showing front view, back view, left side view, right side view, four panels arranged in a 2x2 grid, neutral solid background, full body, photorealistic"`, aspect ratio `16:9`
+2. **Close-up portrait** — prompt: `"[character description], close-up portrait, face and shoulders, neutral solid background, soft studio lighting, photorealistic"`, aspect ratio `1:1`
+
+**Step 2 — Call `create_visual_dna`** with:
+- `images`: the 4-angle sheet URL first, then the close-up URL — **plus** the user's reference photo(s) only if they provided one (i.e. a real person or existing character they want to match). If they gave no reference image, the 2 generated images alone are sufficient.
+- `type`: `"character"`
+- `name`: descriptive name
+
+**Why:** A single reference photo only shows one angle. The close-up gives the engine facial detail; the 4-angle sheet gives it body geometry and pose range. Together they produce far more consistent generations.
+
+**Skip this only if** the user explicitly says "just use my image as-is" or provides 3+ reference images already covering multiple angles.
 
 ### When to Use
-- Same character across images/campaign → `generate_image` / `generate_creative_director` with `visual_dna_ids`
-- Character-consistent video → `generate_elements` with `visual_dna_ids`
-- User says "keep the same look", "same character", "use that character"
-- Character in a specific environment → create character DNA + environment DNA, use `@name` syntax
+- User wants the same character across multiple **images** or a campaign → `generate_image` / `generate_creative_director` with `visual_dna_ids`
+- User wants to animate a character in video using **elements models** (Seedance 2, Kling O3 Reference, Grok Imagine, Veo 3.1, etc.) → `generate_elements` with `visual_dna_ids`
+- User wants a consistent brand style across a campaign → `generate_creative_director` with `visual_dna_ids`
+- User references "keep the same look", "same character", or "use that character"
+- User provides reference photos of a person/product to maintain consistency
+- User asks to put a character in a specific environment or scene → create both a character Visual DNA and an environment Visual DNA, use `@name` syntax to place them
 
 ### ⚠️ When NOT to Use Visual DNA
-- **Animating an image** → `generate_video_from_image` (source image IS the reference)
-- **`generate_video`** — does not support Visual DNA at all. Never pass `visual_dna_ids`.
-- **`generate_video_from_image`** / **`generate_first_last_frame`** — keyframes serve as reference
-- Only `generate_elements` supports Visual DNA for video
+- **Animating an image** ("make this photo move", "animate this image") → use `generate_video_from_image` and pass the image as the source. Do NOT attach `visual_dna_ids` — the source image IS the reference, Visual DNA adds no value here.
+- **Text-to-video** from a general description (no specific character to lock in) → use `generate_video` without `visual_dna_ids`
+- **`generate_video`** — does not support Visual DNA at all. Never pass `visual_dna_ids` to it.
+- **`generate_video_from_image`** — does not support Visual DNA. The source image serves as the visual reference.
+- **`generate_first_last_frame`** — does not support Visual DNA. The keyframes define the visual.
+- **The only video tool that supports Visual DNA is `generate_elements`** (elements-type models like Seedance 2, Kling O3 Reference, Grok Imagine). Use it when the user wants a character to appear consistently in a video scene.
 
 ---
 
 ## Video Prompts
 
+Video costs more per generation than images — write prompts deliberately to get it right the first time.
+
 ### Core Rules
-- **Order:** Subject → Action → Camera → Style → Constraints → Audio
-- **Length:** 80–280 words. Shorter = random. Longer = model forgets the start.
-- **Always specify at least one camera movement per shot** — even "static wide shot" counts.
-- **Max 3 shots per prompt** — more causes drift.
-- **Character consistency:** begin prompt with `same character throughout all shots`.
-- **Duration timecodes:** `[0s] [3s]` for 5s total; `[0s] [3s] [6s]` for 10s total.
+- **Order**: Subject → Action → Camera → Style → Constraints → Audio
+- **Length**: 80-280 words. Shorter = random. Longer = the model forgets the start.
+- **Always specify at least one camera movement per shot.** Even "static wide shot" is a valid explicit choice — just don't leave it unsaid.
+- **Character consistency**: when a character appears across shots, begin the prompt with the literal phrase `same character throughout all shots` to prevent identity drift.
+- **Max 3 shots per prompt.** More shots cause the model to drift.
+- **Duration-aware timecodes**: if the user gives a duration, space timecodes to fit (`[0s] [3s]` for 5s total; `[0s] [3s] [6s]` for 10s total). If no duration is given, describe shots sequentially without hardcoded timecodes.
 
-### Video-to-Video Model Capabilities (CRITICAL)
+### Image-to-Video
+The model can see the starting frame. Describe **what happens**, not what the image looks like. Focus on motion, camera, and action — don't re-describe the subject or setting.
+- Good: "Slow dolly-in on the subject. Her hair drifts in a light breeze. Soft particles float through the air. [6s]"
+- Bad: "A woman with long brown hair standing in a forest, wearing a red dress, with golden sunlight..." (re-describes the image)
 
-Always `list_models type="video_to_video"` first:
+### Video-to-Video (Restyle)
+Use `generate_video_from_video` to restyle an existing video. Describe the **new style**, not the original content — the model preserves the original motion.
+- Good: "Transform into anime style with cel-shading and vibrant colors"
+- Bad: "A person walking down a street" (re-describes what's already in the video)
 
-| Field | What to pass |
-|-------|-------------|
-| `maxImages > 0` | `reference_images` array |
-| `maxVideos > 1` | `reference_videos` array (extras beyond source) |
-| `maxElements > 0` | `elements` array |
+### Elements (Reference Assets → Video)
+Use `generate_elements` when the user has specific assets (product photos, character references) they want animated into a video. Pass them as `reference_images` (URLs) or `files` (local paths).
 
-### Elements Model Capabilities (CRITICAL)
+### First/Last Frame (Keyframe Interpolation)
+Use `generate_first_last_frame` when the user provides two keyframes and wants the model to create a smooth transition between them.
 
-Always `list_models type="elements"` first:
-
-| Field | What to pass |
-|-------|-------------|
-| `elementsMaxImages` | `reference_images` array |
-| `elementsMaxVideos` | `reference_videos` array |
-| `elementsMaxAudio > 0` | `audio_url` string |
+### Lipsync
+Use `generate_lipsync` to sync audio to a face in an image or video. Both `source` (face) and `audio` accept URLs or local file paths.
 
 ### Camera Vocabulary
 
-| Movement | Best for |
+Pick what fits the mood. Every shot gets at least one.
+
+| Movement | Use for |
 |----------|---------|
-| `slow dolly-in` | Intensity, focus pull |
-| `pull-back` / `dolly out` | Scale reveal, context |
-| `overhead top-down` | Geometry, pattern, abstraction |
-| `360° orbit` | Product showcase, bullet-time |
-| `handheld natural lag` | Urgency, documentary |
-| `tracking shot` | Subject follow |
-| `crash zoom` | Shock, impact |
-| `aerial pull-back` | Epic reveal, landscape scale |
+| `slow dolly-in` | Building intensity, focus pull |
+| `pull-back` / `dolly out` | Scale reveal, loneliness, context |
 | `extreme low-angle` | Power, heroic framing |
-| `crane up` / `crane down` | Grandeur, establishing |
+| `overhead top-down` | Geometry, pattern, abstraction |
+| `360° orbit` | Product showcase, bullet-time moments |
+| `handheld natural lag` | Urgency, documentary, grit |
+| `tracking shot` | Continuous follow of a subject |
+| `crash zoom` | Shock, impact moment |
+| `aerial pull-back` | Epic reveal, landscape scale |
+| `static drift` | Contemplative, subtle, meditative |
+| `crane up` / `crane down` | Grandeur, establishing, dismissal |
+| `whip pan` | Sharp transition, high energy |
 
-### Physics Vocabulary (only name what's relevant)
+### Physics Vocabulary (only name what matters for the scene)
 
-- **Cloth:** `cloth inertia`, `fabric lags behind movement`
-- **Water:** `water splashing with surface tension`, `droplets scattering`
-- **Hair:** `hair reacts to acceleration and wind`
-- **Impact:** `skin distorting on impact`, `delayed follow-through`
-- **Smoke:** `volumetric smoke curling and dissipating`
+- **Cloth**: `cloth inertia`, `fabric lags behind movement`
+- **Water**: `water splashing with surface tension`, `droplets scattering`, `puddle mirror reflection`
+- **Sand / dust**: `sand displacement`, `radial dust shockwave`
+- **Hair**: `hair reacts to acceleration and wind`
+- **Impact**: `skin distorting on impact`, `delayed follow-through`
+- **Smoke**: `volumetric smoke curling and dissipating`
 
-### Slow-Motion Format
-
-`extreme slow-motion [Xs] — [micro-movements in ultra slow-mo] — snap-back to full speed`
+Don't stuff every category in every prompt — only name the physics that genuinely drives the shot.
 
 ### Multi-Shot Format
+
+When the user wants a sequence (trailer, story, showcase), write each shot as a brief 1-2 sentence entry on its own line inside the prompt:
 
 ```
 Shot 1: [action + camera movement]
@@ -484,111 +506,251 @@ Shot 2: [action + camera movement]
 Shot 3: [action + camera movement]
 ```
 
-Describe what **happens**, not what things **look** like.
+Think like a director. Describe what **happens**, not what things **look** like.
 
-### By Video Type
+### Mood Presets
 
-- **Image-to-video:** Describe motion/camera — not what the image looks like.
-- **Video-to-video restyle:** Describe the **new style** — model preserves original motion.
-- **Elements:** Pass reference assets as `reference_images` (URLs) or `files` (local paths).
-- **First/Last Frame:** Describe the transition/motion between the two keyframes.
-- **Lipsync:** Both `source` (face) and `audio` accept URLs or local paths.
+Pick techniques that match the user's intent. A calm landscape and an action sequence need different tools.
 
-**Presets:** `generate_image`, `generate_video`, `generate_music` all accept `preset_id`. Use `list_presets type="image/video/music"` to discover.
+- **Cinematic / dramatic**: slow dolly-in, anamorphic 2.39:1, shallow depth of field, volumetric light, subtle film grain
+- **Product showcase**: 360° orbit, clean white or gradient backdrop, macro detail inserts, smooth tracking
+- **Dreamy / ethereal**: slow crane up, soft diffused light, gentle particle drift, muted pastels, static drift moments
+- **Action / intense**: crash zoom, handheld natural lag, extreme slow-motion at the peak beat, high contrast, fast cuts
+- **Nature / landscape**: aerial pull-back, golden hour lighting, wind physics on foliage, wide establishing shots
+- **Abstract / motion graphics**: overhead top-down, geometric patterns, bold color blocks, rhythmic cutting
+
+### Slow-Motion
+
+Extreme slow-motion is a tool, not a freeze frame. Always describe the micro-movements that *continue* during the slow beat (hair drifting, droplets crawling, fabric rippling), and specify the snap-back to full speed when relevant.
+
+Format: `extreme slow-motion [Xs] — [micro-movements in ultra slow-mo] — snap-back to full speed`
 
 ---
 
 ## 3D Generation
 
-Three modes: **text** (prompt-only) · **single image** + optional prompt · **multi-view** (2+ images, higher quality). Returns GLB, FBX, OBJ, USDZ. Discover models: `list_models type="three_d"`.
+Use `generate_3d` for creating 3D models. Three modes:
+- **Text mode**: prompt-only (e.g., "a medieval sword with ornate handle")
+- **Single image mode**: one reference image + optional prompt
+- **Multi-view mode**: 2+ reference images for higher-quality reconstruction
+
+Returns downloadable model files in GLB, FBX, OBJ, and USDZ formats. Use `list_models` with `type: "three_d"` to discover available models.
 
 ---
 
-## Music, Speech & Sound
+## Music Prompts
 
-**Music:** genre → mood → instrumentation → tempo → era. `instrumental: true` excludes vocals. `lyrics` accepts lyric text. `style` accepts tags ("lo-fi hip hop", "80s synthwave").
+Describe **genre → mood → instrumentation → tempo → era**, in that order.
 
-**Speech (TTS):** `list_voices` → filter by provider/language/gender → pass `voice_id` to `generate_speech`. Split long text at sentence boundaries.
+- `instrumental: true` excludes vocals.
+- `lyrics` accepts actual lyric text the model should sing.
+- `style` accepts short genre tags ("lo-fi hip hop", "orchestral cinematic", "80s synthwave").
+- Good: "Upbeat 80s synthwave, analog synths, gated reverb drums, 120 BPM, driving bassline, no vocals"
+- Bad: "A cool song" / "Something for a workout" (too vague)
 
-**Sound:** Describe **literally and physically** — not emotionally.
-- ✓ "Heavy wooden door creaking open slowly, echoing in a stone hallway"
-- ✗ "A scary sound"
+---
+
+## Speech (TTS)
+
+- Call `list_voices` to find available voices. Filter by `provider`, `language`, or `gender`.
+- Pass the returned `voice_id` (or the voice's display name like "Rachel") as the `voice` parameter in `generate_speech`.
+- For multilingual content, pick a voice that supports the target language.
+- For long text, split at natural sentence boundaries. Each generation has a character cap; chunk long-form content into multiple calls.
+
+---
+
+## Sound Effects
+
+- Describe the sound **literally and physically**. Avoid emotional framing.
+- Good: "Heavy wooden door creaking open slowly, echoing in a stone hallway, followed by distant dripping water"
+- Bad: "A scary sound" / "Creepy atmosphere" (the model can't render emotions directly — render the physical source)
+
+---
+
+## Moodboards & Presets
+
+**Moodboards** inject style direction as a **system-level prompt** (master prompt + style guide + reference images) — think of it as a persistent art direction layer applied on top of your generation. Pass a `moodboard_id` to any generation tool to apply its style. Moodboards can be combined with Visual DNA: the moodboard sets the overall aesthetic, while Visual DNA controls specific characters or objects.
+- `list_moodboards` to browse available options
+- `get_moodboard` to see full details (master_prompt, style_guide, images) before applying
+
+**Presets** bundle prompt templates + style direction for specific creative looks. Pass a `preset_id` to generation tools.
+- `list_presets` with optional `type` filter ("image", "video", "video_from_image", "music")
+
+---
+
+## Media Library
+
+Use `upload_media` to upload local files or URLs to the Kolbo CDN for stable hosting. Useful when:
+- A local file needs to be referenced in multiple generation calls
+- You want a permanent CDN URL instead of an ephemeral local path
+
+Use `list_media` to browse previously uploaded content (filter by type, search by name).
+
+---
+
+## Chat
+
+Use `chat_send_message` to interact with Kolbo AI models (GPT-4o, Claude, etc.) with optional web search and deep think modes. Conversations persist via `session_id` — omit to start new, pass to continue.
+
+**Media in chat:** Always batch all media into a single message. `media_urls` accepts up to 10 URLs per call. See the "Batching Media in Chat Messages" section above for the mandatory workflow.
+
+Use `chat_list_conversations` and `chat_get_messages` to browse conversation history.
 
 ---
 
 ## App Builder
 
-1. `app_builder_list_projects` → find project ID
-2. `app_builder_create_session` with `project_id`
-3. `app_builder_generate_app` — polls until deployed, returns `deployment_url`. **Always surface this URL.**
-4. Iterate: `app_builder_list_generations` → `app_builder_edit_app` with natural language
+Use the App Builder tools to generate and iterate on full React apps from a text prompt. The backend auto-provisions a GitHub repo, Supabase database (when the app needs storage), and a live hosted deployment — all in one flow.
 
-**Local dev:** `app_builder_get_session` → `github_repo_url`, `supabase_url`, `supabase_anon_key`
+### Standard Workflow
 
-⚠️ **Always confirm before `app_builder_delete_session`** — permanently deletes GitHub repo, Supabase DB, all history. IRREVERSIBLE.
+1. **Find project ID**: `app_builder_list_projects` → pick the right project
+2. **Create session**: `app_builder_create_session` with `project_id`
+3. **Generate app**: `app_builder_generate_app` with `session_id` + `prompt`
+   - Fires the build in the background, polls until `build_status === "deployed"` (up to 5 min)
+   - Always surface the `deployment_url` to the user: **"Your app is live at: [url]"**
+4. **Iterate**: `app_builder_list_generations` → get `generation_id` → `app_builder_edit_app` with natural language instruction
+
+No manual polling needed — `generate_app` and `edit_app` block until the build completes.
+
+### Local Dev Workflow
+
+If the user wants to run the app locally or connect to the database directly:
+```
+app_builder_get_session(session_id) → returns:
+  github_repo_url  →  git clone <url> && npm install && npm run dev
+  supabase_url     →  paste into .env as NEXT_PUBLIC_SUPABASE_URL
+  supabase_anon_key → paste into .env as NEXT_PUBLIC_SUPABASE_ANON_KEY
+```
+
+### Whitelabel Support
+
+Works automatically — the MCP client routes App Builder calls through whitelabel API endpoints just like all other Kolbo tools.
+
+### ⚠️ Rules
+
+- **Always confirm before `app_builder_delete_session`** — it permanently deletes the GitHub repo, Supabase DB (unless user-connected), deployed files, and all history. IRREVERSIBLE.
+- **After every successful build**, show the `deployment_url` prominently — that's the live public URL, no setup needed.
+- **On build timeout** (rare): use `app_builder_get_build_status` to check manually, then continue or report to user.
 
 ---
 
-## Image Analysis
+## Image Analysis (when the user uploads images)
 
-Analyze: composition, subjects, colors, lighting, style, text/signage, mood. Reference specific regions. Extract text verbatim when asked. **Cannot identify real people** — describe visible attributes only.
+When the user shares an image and asks about it:
+
+- **Analyze thoroughly**: describe composition, subjects, colors, lighting, style, text/signage, setting, mood, visible objects, and any embedded information (charts, diagrams, screenshots).
+- **Reference specific regions** when helpful: "top-left corner", "in the foreground", "the figure on the right".
+- **Extract text verbatim** when asked (OCR-style requests are fine).
+- **Cannot identify real people.** Describe hair, clothing, pose, expression, and apparent role — but never name a specific individual, even a well-known public figure. If the user insists, decline and offer to describe instead.
+- **Copyrighted content**: summarize and reference, don't reproduce verbatim large chunks.
+- If the user wants an **edit** based on the analysis, hand off to `generate_image_edit` (visual edit) or `generate_video_from_image` (motion).
 
 ---
 
 ## Limitations & Safety
 
-- **Real people:** never identify specific individuals. Describe visible attributes only.
-- **NSFW:** rephrase on safety failure, don't retry identically.
-- **Copyright:** style references fine; verbatim reproduction not.
-- **No fabricated URLs:** only share URLs returned from tool calls.
+- **Real people**: never identify specific real individuals in photos, even public figures. Describe visible attributes only.
+- **NSFW**: Kolbo enforces content safety at the model level. If a generation fails on safety grounds, rephrase the prompt rather than retrying identically.
+- **Copyright**: style references are fine (e.g. "in the style of Studio Ghibli"); verbatim reproduction of copyrighted material is not.
+- **No fabricated URLs**: only share URLs that actually came back from a tool call. Never guess a URL.
 
 ---
 
 ## Sharing HTML Artifacts
 
-A **Share** button appears in artifact previews (HTML, SVG, Mermaid). Clicking it uploads to Kolbo hosting and copies a permanent public URL. Requires `kolbo auth login`.
+When you generate an HTML, SVG, or Mermaid artifact in the chat, a **Share** button appears in the artifact preview toolbar (next to Desktop / Mobile). Clicking it:
+
+1. Uploads the artifact to Kolbo's hosting platform
+2. Copies a permanent public URL to the clipboard (e.g. `https://api.kolbo.ai/api/shared-artifact-raw/<token>`)
+3. Shows a toast confirming the link was copied
+
+Anyone with the URL can view the rendered page — no login required.
+
+**Requirements:** You must be logged in (`kolbo auth login`). The share button returns an error toast if you are not authenticated.
 
 ---
 
 ## Kolbo Code Documentation
 
-Docs at **[docs.kolbo.ai/docs/kolbo-code](https://docs.kolbo.ai/docs/kolbo-code)**:
+Full public documentation for Kolbo Code (the CLI you are running inside) lives at **[docs.kolbo.ai/docs/kolbo-code](https://docs.kolbo.ai/docs/kolbo-code)**. If the user asks about installation, authentication, voice input, supported languages, commands, or how to uninstall, point them to the matching page below rather than guessing:
 
 | Topic | Path |
 |-------|------|
-| Overview | `/docs/kolbo-code` |
-| Installation | `/docs/kolbo-code/installation` |
-| Authentication | `/docs/kolbo-code/authentication` |
-| Voice input | `/docs/kolbo-code/voice-input` |
-| Languages | `/docs/kolbo-code/languages` |
-| CLI commands | `/docs/kolbo-code/commands` |
-| Uninstall | `/docs/kolbo-code/uninstall` |
+| Overview & quick links | `/docs/kolbo-code` |
+| Installation (npm / bun / brew / scoop / choco) | `/docs/kolbo-code/installation` |
+| Sign in with Kolbo (device-code OAuth) | `/docs/kolbo-code/authentication` |
+| Push-to-talk voice input (hold `space`) | `/docs/kolbo-code/voice-input` |
+| 12 supported UI languages + RTL | `/docs/kolbo-code/languages` |
+| Full CLI command reference | `/docs/kolbo-code/commands` |
+| Uninstall + cleanup | `/docs/kolbo-code/uninstall` |
 
----
+The MDX sources are in the `kolbo-docs` repo under `content/docs/kolbo-code/`. When the user's question has a concrete answer in one of those pages, cite the path and summarize — do not invent new instructions.
 
 ## Troubleshooting
 
-**"API key is invalid or expired":** Whitelabel CLI overlap — user ran `kolbo` instead of their branded command (e.g. `sapir`). Fix: `sapir auth login` then restart session.
+### "API key is invalid or expired"
+This usually means the CLI is sending a key to the wrong API endpoint.
 
-**MCP tools not responding:** Run `<their-cli-command> auth login` to re-wire MCP config. Restart session.
+**Common cause — whitelabel overlap:** if the user previously used regular `kolbo` and then switched to a whitelabel/partner CLI (e.g. `sapir`), the old API key may still be cached against the main Kolbo API. Running `kolbo` instead of the branded command (`sapir`) overwrites the MCP config with the wrong endpoint.
 
-**429 Rate limited:** Wait 60s (window resets), retry only failed calls. Use `generate_creative_director` instead of multiple `generate_image` calls.
+**Fix:** tell the user to re-authenticate with their branded CLI command:
+```
+sapir auth login
+```
+(Replace `sapir` with their actual CLI command.)
+
+Then **restart the editor/session** so the MCP picks up the new key and endpoint.
+
+**Important:** whitelabel users must always use their branded CLI command (e.g. `sapir`), not `kolbo`, to keep the MCP pointed at the correct API.
+
+### MCP tools not responding or not found
+If Kolbo tools timeout or aren't listed, the MCP server may not be wired. Tell the user to run:
+```
+<their-cli-command> auth login
+```
+This re-wires the MCP configuration automatically. Then restart the session.
+
+### "Rate limited" (429 errors)
+Kolbo allows 10 generation requests per minute per user per tool type (video, image, etc. are separate pools). Wait 60 seconds (the window resets) and retry only the failed calls. Use `generate_creative_director` for batch image work instead of multiple `generate_image` calls. The API queues requests — it never silently drops them.
 
 ---
 
-## Examples (non-obvious routing only)
+## Examples
 
+Natural-language triggers that should prompt this skill + a tool call:
+
+- "Generate an image of a neon-lit Tokyo street at night" → `list_models` (image) → `generate_image`
+- "Use Midjourney to generate a Tokyo street" → `generate_image` with model "midjourney" (user named the model — skip `list_models`)
+- "Remove the background from this image" → `list_models` (image_edit) → `generate_image_edit`
+- "Create a storyboard for a coffee brand ad" → `list_models` (image) → `generate_creative_director`
+- "Create a 5-second cinematic video of ocean waves at sunset" → `list_models` (video) → `generate_video` with camera + mood guidance
 - "Make 5 videos with Seedance 2 Fast, 15s, 16:9" → fire all 5 `generate_video` calls in parallel (user specified everything — skip `list_models`, skip cost confirmation)
-- "Create a storyboard for a coffee brand ad" → `list_models` (image) → `generate_creative_director` with `scene_count`
-- "Put this character in 4 different scenes" → generate 4-angle sheet + portrait → `create_visual_dna` → `generate_creative_director` with `visual_dna_ids` + `scene_count: 4`
-- "Restyle this video as anime" → `list_models type="video_to_video"` → `generate_video_from_video` (read `maxImages`/`maxVideos` first)
-- "Add text to this video" → `video-production` skill → **FFmpeg drawtext** (not `edit_video`)
-- "Resize this image to 1080×1080" → **Sharp / ImageMagick** (not `edit_image`)
-- "Convert this video to mp4" → **FFmpeg** (not any Kolbo tool)
-- "What's in this image?" → **`Read` tool directly** (not `upload_media` + chat)
-- "Analyze these 5 videos" → `upload_media` all 5 in one response → ONE `chat_send_message` with all 5 URLs
-- "Transcribe this podcast" → `transcribe_audio` → analyze returned `text`
-- "Word-by-word subtitles for Remotion" → `transcribe_audio` → share `word_by_word_srt_url`
-- "Build me a todo app" → `app_builder_list_projects` → `app_builder_create_session` → `app_builder_generate_app` → show `deployment_url`
-- "Edit this video / cut / remove silence / add subtitles" → `video-production` skill → FFmpeg
-- "Create motion graphics / animated text" → `remotion-best-practices` skill
+- "Animate this product photo with a 360° orbit" → `list_models` (video_from_image) → `generate_video_from_image`
+- "Restyle this video as anime" → `generate_video_from_video`
+- "Make this character talk with this voiceover" → `generate_lipsync`
+- "Create a smooth transition between these two frames" → `generate_first_last_frame`
+- "Make a lo-fi hip hop beat, instrumental, 85 BPM" → `list_models` (music) → `generate_music`
+- "Say this in English with a natural female voice: Welcome to Kolbo" → `list_voices` → `generate_speech`
+- "Generate a door slam sound effect" → `list_models` (sound) → `generate_sound`
+- "Create a 3D model of a medieval castle" → `list_models` (three_d) → `generate_3d`
+- "Transcribe this podcast episode" → `transcribe_audio`
+- "What's being said in this video?" → `transcribe_audio` → analyze the text
+- "Generate word-by-word subtitles for this audio" → `transcribe_audio` → share `word_by_word_srt_url`
+- "Analyze this video" / "What do you see?" / "What's in this?" (with video file) → `upload_media` → `chat_send_message` with `media_urls` (omit model — auto-routes to Gemini)
+- "What prompts are shown in this video?" → `upload_media` → `chat_send_message` with `media_urls` (omit model — auto-routes to Gemini)
+- "Keep the same character across all these images" → `create_visual_dna` → `generate_image` with `visual_dna_ids`
+- "Upload this file to my media library" → `upload_media`
+- "Host this HTML page" / "Publish this landing page" / "Give me a public URL for this file" → `upload_media` → share the returned `url` (Kolbo CDN serves any file type publicly)
+- "What video models are available?" → `list_models` (video)
+- "How many credits do I have?" → `check_credits`
+- "What's in this image?" (with upload) → Read the image directly with your own vision — no Kolbo API call needed
+- "Analyze these 10 frames" (with multiple images) → Read all images directly with your own vision — you handle up to 10 natively
+- "Analyze these 5 videos" → upload all 5 with `upload_media`, then ONE `chat_send_message` with all 5 URLs in `media_urls`
+- "Build me a todo app" / "Create a React app with a login form" / "Make me a landing page with a waitlist" → `app_builder_list_projects` → `app_builder_create_session` → `app_builder_generate_app` → show `deployment_url`
+- "Add dark mode to my app" / "Change the color scheme" / "Add a contact form" → `app_builder_list_generations` → `app_builder_edit_app`
+- "How do I run my app locally?" / "Give me the GitHub repo" / "I want the Supabase credentials" → `app_builder_get_session` → show `github_repo_url` + `supabase_url` + `supabase_anon_key`
+- "List my apps" / "What App Builder sessions do I have?" → `app_builder_list_projects` → `app_builder_list_sessions`
+- "Create motion graphics" / "animated text" / "title sequence" → load the `remotion-best-practices` skill for Remotion-based motion graphics
+- "Edit this video" / "cut this clip" / "remove silence" / "add subtitles" / "convert to 9:16" → load the `video-production` skill for FFmpeg-based editing
+- "Create a short-form video" / "make a reel" / "YouTube short" → load the `short-form-video` skill
