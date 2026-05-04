@@ -31,6 +31,7 @@ import { showToast } from "@opencode-ai/ui/toast"
 import { checksum } from "@opencode-ai/util/encode"
 import { useSearchParams } from "@solidjs/router"
 import { NewSessionView, SessionHeader } from "@/components/session"
+import { DialogConnectProvider } from "@/components/dialog-connect-provider"
 import { type ArtifactData } from "@/components/artifact-preview"
 import { useComments } from "@/context/comments"
 import { getSessionPrefetch, SESSION_PREFETCH_TTL } from "@/context/global-sync/session-prefetch"
@@ -500,6 +501,25 @@ export default function Page() {
     },
   )
   const lastUserMessage = createMemo(() => visibleUserMessages().at(-1))
+
+  const lastAssistantMessage = createMemo(() => {
+    const msgs = messages()
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === "assistant") return msgs[i]
+    }
+  })
+
+  let handledAuthErrorId: string | undefined
+  createEffect(() => {
+    const last = lastAssistantMessage()
+    if (!last) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((last as any).error?.name !== "ProviderAuthError") return
+    if (last.id === handledAuthErrorId) return
+    if (dialog.active) return
+    handledAuthErrorId = last.id
+    dialog.show(() => <DialogConnectProvider provider="kolbo" />)
+  })
 
   createEffect(() => {
     const tab = activeFileTab()
