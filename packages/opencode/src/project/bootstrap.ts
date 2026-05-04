@@ -35,14 +35,21 @@ export async function InstanceBootstrap() {
     }
   })
 
-  // Auto-run /init on first launch if no instruction file exists
+  // Auto-run /init only on brand-new empty projects (no instruction file AND no existing code)
+  // Existing repos opened for the first time should not get a surprise /init session.
   if (!Instance.project.time.initialized) {
     const dir = Instance.directory
     const hasInstructionFile =
       existsSync(path.join(dir, "KOLBO.md")) ||
       existsSync(path.join(dir, "AGENTS.md")) ||
       existsSync(path.join(dir, "CLAUDE.md"))
-    if (!hasInstructionFile) {
+    const hasExistingCode =
+      existsSync(path.join(dir, "package.json")) ||
+      existsSync(path.join(dir, "Cargo.toml")) ||
+      existsSync(path.join(dir, "pyproject.toml")) ||
+      existsSync(path.join(dir, "go.mod")) ||
+      existsSync(path.join(dir, ".git"))
+    if (!hasInstructionFile && !hasExistingCode) {
       Session.create({ title: "Project initialization" })
         .then((session) =>
           SessionPrompt.command({

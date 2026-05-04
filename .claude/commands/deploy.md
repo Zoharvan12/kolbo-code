@@ -165,6 +165,29 @@ gh run list --repo Zoharvan12/kolbo-code --limit 5
 
 ---
 
+## Phase 6 — Sync legacy desktop updater endpoint (desktop releases only)
+
+Skip this phase if no desktop build was triggered.
+
+After a desktop release to `kolbo-releases`, old installs (pre-1.0.28) check a different URL: `https://github.com/Zoharvan12/kolbo-code/releases/download/updater/latest.json`. Without this step those users never see the update.
+
+```bash
+# Download manifests from kolbo-releases and push to legacy kolbo-code endpoint
+curl -sL "https://github.com/Zoharvan12/kolbo-releases/releases/download/updater/latest.json" > /tmp/latest.json
+gh release delete-asset updater latest.json --yes -R Zoharvan12/kolbo-code 2>/dev/null || true
+gh release upload updater /tmp/latest.json -R Zoharvan12/kolbo-code
+
+curl -sL "https://github.com/Zoharvan12/kolbo-releases/releases/download/updater/sapir-latest.json" > /tmp/sapir-latest.json
+gh release delete-asset updater sapir-latest.json --yes -R Zoharvan12/kolbo-code 2>/dev/null || true
+gh release upload updater /tmp/sapir-latest.json -R Zoharvan12/kolbo-code
+```
+
+Verify: `curl -sL "https://github.com/Zoharvan12/kolbo-code/releases/download/updater/latest.json" | head -3` — should show the new version.
+
+Report: "Phase 6 done — legacy updater endpoint synced"
+
+---
+
 ## Final summary
 
 Print a clean summary:

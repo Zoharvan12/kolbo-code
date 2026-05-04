@@ -1036,6 +1036,17 @@ export namespace MessageV2 {
           },
           { cause: e },
         ).toObject()
+      case e instanceof Error && ctx.providerID === "kolbo" && /unable to connect|cannot connect|ECONNREFUSED|ENOTFOUND|fetch failed/i.test(e.message):
+        // For the Kolbo provider, connection-level errors almost always mean an
+        // expired or revoked token (the Kolbo API is always reachable). Map to
+        // AuthError so the re-auth dialog shows automatically.
+        return new MessageV2.AuthError(
+          {
+            providerID: ctx.providerID,
+            message: e.message,
+          },
+          { cause: e },
+        ).toObject()
       case e instanceof Error:
         return new NamedError.Unknown({ message: errorMessage(e) }, { cause: e }).toObject()
       default:

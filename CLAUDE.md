@@ -86,3 +86,27 @@ git commit -m "release: vX.Y.Z"
 git tag -a vX.Y.Z -m "Release vX.Y.Z - description"
 git push origin dev && git push origin vX.Y.Z
 ```
+
+## Desktop Auto-Updater Rule (CRITICAL)
+
+After every desktop release to `kolbo-releases`, you MUST also update the legacy updater endpoint in `kolbo-code` so that users on older versions (which still check the old URL) can receive the update.
+
+**Why:** Versions before `1.0.28` have this hardcoded updater endpoint:
+`https://github.com/Zoharvan12/kolbo-code/releases/download/updater/latest.json`
+
+Starting from `1.0.28` the endpoint is `kolbo-releases`, but old installs will never switch unless we serve the new `latest.json` at the old URL too.
+
+**After every desktop release:**
+```bash
+# 1. Download the new manifest from kolbo-releases
+curl -sL "https://github.com/Zoharvan12/kolbo-releases/releases/download/updater/latest.json" > /tmp/latest.json
+
+# 2. Push it to the legacy endpoint in kolbo-code
+gh release delete-asset updater latest.json --yes -R Zoharvan12/kolbo-code 2>/dev/null || true
+gh release upload updater /tmp/latest.json --clobber -R Zoharvan12/kolbo-code
+
+# 3. Repeat for Sapir whitelabel
+curl -sL "https://github.com/Zoharvan12/kolbo-releases/releases/download/updater/sapir-latest.json" > /tmp/sapir-latest.json
+gh release delete-asset updater sapir-latest.json --yes -R Zoharvan12/kolbo-code 2>/dev/null || true
+gh release upload updater /tmp/sapir-latest.json --clobber -R Zoharvan12/kolbo-code
+```
