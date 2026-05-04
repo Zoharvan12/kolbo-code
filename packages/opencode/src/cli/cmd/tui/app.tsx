@@ -309,24 +309,24 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     if (!terminalTitleEnabled() || Flag.KOLBO_DISABLE_TERMINAL_TITLE) return
 
     if (route.data.type === "home") {
-      renderer.setTerminalTitle("Kolbo")
+      renderer.setTerminalTitle(Partner.name)
       return
     }
 
     if (route.data.type === "session") {
       const session = sync.session.get(route.data.sessionID)
       if (!session || SessionApi.isDefaultTitle(session.title)) {
-        renderer.setTerminalTitle("Kolbo")
+        renderer.setTerminalTitle(Partner.name)
         return
       }
 
       const title = session.title.length > 40 ? session.title.slice(0, 37) + "..." : session.title
-      renderer.setTerminalTitle(`Kolbo | ${title}`)
+      renderer.setTerminalTitle(`${Partner.name} | ${title}`)
       return
     }
 
     if (route.data.type === "plugin") {
-      renderer.setTerminalTitle(`Kolbo | ${route.data.id}`)
+      renderer.setTerminalTitle(`${Partner.name} | ${route.data.id}`)
     }
   })
 
