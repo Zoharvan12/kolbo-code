@@ -1033,11 +1033,26 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             switch (url.protocol) {
               case "https:":
               case "http:":
-                // CDN URL from POST /kolbo/v1/files. Pass through unchanged —
-                // the backend auto-injects uploaded media from a pending queue
-                // so the URL doesn't need to survive into the model messages.
-                // But saving it to the DB preserves the attachment in the
-                // session history for replay/export.
+                // For media (images, etc.): fetch bytes and embed as base64 so the model
+                // can see the content inline — AI providers can't fetch auth-gated CDN URLs.
+                if (MessageV2.isMedia(part.mime)) {
+                  const fetchExit = yield* Effect.tryPromise(async () => {
+                    const res = await fetch(part.url)
+                    if (!res.ok) throw new Error(`CDN fetch failed: ${res.status}`)
+                    return res.arrayBuffer()
+                  }).pipe(Effect.exit)
+                  if (Exit.isSuccess(fetchExit)) {
+                    return [
+                      {
+                        ...part,
+                        url: `data:${part.mime};base64,${Buffer.from(fetchExit.value).toString("base64")}`,
+                        messageID: info.id,
+                        sessionID: input.sessionID,
+                      },
+                    ]
+                  }
+                }
+                // Non-media or fetch failed — pass the URL through unchanged.
                 return [{ ...part, messageID: info.id, sessionID: input.sessionID }]
               case "data:":
                 if (part.mime === "text/plain") {
