@@ -71,7 +71,7 @@ jobs:
           #   artifact-suffix: linux-x64
 
     runs-on: ${{ matrix.platform }}
-    timeout-minutes: 120
+    timeout-minutes: 180
     if: endsWith(github.repository, '/kolbo-code')
 
     steps:
@@ -230,6 +230,21 @@ jobs:
           releaseDraft: ${{ github.event.inputs.draft }}
           prerelease: false
 
+      - name: Save Rust cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/deps
+            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/.fingerprint
+            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/build
+            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/deps
+            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/.fingerprint
+            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/build
+          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/desktop/src-tauri/Cargo.lock') }}
+
       - name: Resolve Windows installer path
         if: matrix.platform == 'windows-latest'
         id: win-exe
@@ -348,21 +363,6 @@ jobs:
 
           gh release upload "${TAG}" "${TAR_PATH}" "${TAR_PATH}.sig" --clobber -R ${{ github.repository }}
           echo "✓ Uploaded macOS update bundle"
-
-      - name: Save Rust cache
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/deps
-            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/.fingerprint
-            packages/desktop/src-tauri/target/aarch64-apple-darwin/release/build
-            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/deps
-            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/.fingerprint
-            packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/build
-          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/desktop/src-tauri/Cargo.lock') }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
