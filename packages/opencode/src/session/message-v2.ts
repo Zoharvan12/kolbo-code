@@ -23,6 +23,107 @@ interface FetchDecompressionError extends Error {
   path: string
 }
 
+// Kolbo MCP tool names that produce a durable media artifact and therefore should trigger a
+// system-reminder asking the model to update .kolbo/production.md. Discovery-only tools
+// (list_*, get_*, check_credits, chat_*, transcribe_audio) are intentionally excluded.
+//
+// Tool names arrive in EITHER form depending on opencode's MCP client sanitizer:
+//   - `kolbo_generate_image`           (current — single underscore namespace prefix)
+//   - `mcp__kolbo__generate_image`     (older / direct namespacing path)
+// Match both. The previous regex matched only the latter, so the nudge silently
+// never fired in production — which is why .kolbo/production.md wasn't getting
+// created on real media generations.
+const KOLBO_GENERATION_TOOL_NAMES = new Set([
+  "generate_image",
+  "generate_image_edit",
+  "generate_video",
+  "generate_video_from_image",
+  "generate_video_from_video",
+  "edit_image",
+  "edit_video",
+  "generate_elements",
+  "generate_first_last_frame",
+  "generate_lipsync",
+  "generate_music",
+  "generate_sound",
+  "generate_speech",
+  "generate_3d",
+  "generate_creative_director",
+  "create_visual_dna",
+  "upload_media",
+])
+function isKolboGenerationToolName(tool: string): boolean {
+  if (tool.startsWith("kolbo_")) return KOLBO_GENERATION_TOOL_NAMES.has(tool.slice("kolbo_".length))
+  if (tool.startsWith("mcp__kolbo__")) return KOLBO_GENERATION_TOOL_NAMES.has(tool.slice("mcp__kolbo__".length))
+  return false
+}
+
+function isKolboTool(tool: string): boolean {
+  return tool.startsWith("kolbo_") || tool.startsWith("mcp__kolbo__")
+}
+
+// Auth-expired marker stamped by kolbo-mcp's HTTP client (src/client.js) when
+// kolbo-api returns 401. The UI catches the same marker to open the in-app
+// reconnect dialog (see app/src/pages/session.tsx and tui/.../session/index.tsx).
+const KOLBO_AUTH_TAG_RE = /\[KOLBO_AUTH_(EXPIRED|MISSING)\]/
+
+// Replacement copy fed to the model in place of the raw kolbo-api auth error.
+// The raw error reads like "API key is invalid or expired... [KOLBO_AUTH_EXPIRED]"
+// — if the model sees that, it tends to paraphrase auth-mechanism advice at the
+// user. By the time this is rendered the UI has already popped the reconnect
+// dialog, so we want the model to (a) NOT talk about API keys or terminals,
+// (b) acknowledge briefly, (c) wait for the user to confirm reconnect before
+// retrying the same tool call.
+const KOLBO_AUTH_SANITIZED_MESSAGE =
+  "[KOLBO_AUTH_EXPIRED] Your Kolbo session expired. " +
+  "The reconnect dialog has been opened automatically — the user just needs to click Reconnect. " +
+  "Do NOT instruct them to open a terminal, run `kolbo auth login`, or copy an API key — those are wrong for desktop/web users and the in-app flow handles it for everyone. " +
+  "Reply with one short sentence telling them the dialog is open and you'll continue once they click Reconnect. " +
+  "Then wait. Do not call any other kolbo_* tool until they reply — the next call will fail the same way until they reconnect."
+
+// Self-contained nudge: includes the full stub so the model can act on it
+// without having loaded the kolbo SKILL.md. Fires only after a successful
+// kolbo_* generation tool call (see KOLBO_GENERATION_TOOL_NAMES), so non-media
+// sessions pay zero token cost.
+const PRODUCTION_LOG_REMINDER =
+  "\n\n<system-reminder>" +
+  "This was a Kolbo media-generation tool call. Before your next tool call or final reply, log this artifact to `.kolbo/production.md` in the workspace. " +
+  "This file is the durable registry of every URL/id you produce — it survives compaction and is how the user references prior work (\"the rainy scene\", \"scene 3\", \"@maya\"). " +
+  "\n\n" +
+  "Procedure:\n" +
+  "1. If the file does NOT exist (first generation in this workspace): use the `Write` tool with the exact stub below.\n" +
+  "2. If the file exists: `Read` it first (Edit requires a prior Read in the same session), then `Edit` to append the new artifact and rewrite the `## 🎯 Now` header.\n" +
+  "3. Body sections (below the first `---`) are append-only. To replace a prior artifact, mark the old line `(superseded YYYY-MM-DD)` and add the new entry beneath — never delete.\n" +
+  "4. Write entries as the user would reference them (\"the rainy scene\"), not the model's raw output. One bullet per artifact with URL, model, and ISO date. Include the `generation_id` when the tool returns one — needed for `get_generation_status` recovery and retry dedupe.\n" +
+  "5. Do not log failures — only successful generations.\n" +
+  "\n" +
+  "Stub for first-time creation:\n" +
+  "```md\n" +
+  "<!-- .kolbo/production.md — agent-managed media artifact registry.\n" +
+  "     User may hand-edit; agent must Read-before-Edit to reconcile. -->\n" +
+  "\n" +
+  "# Production Log\n" +
+  "\n" +
+  "## 🎯 Now\n" +
+  "\n" +
+  "**Brief:** <paraphrase of user's overall goal in 1-3 sentences>\n" +
+  "**Now working on:** <the immediate next step>\n" +
+  "**Last updated:** <ISO date>\n" +
+  "\n" +
+  "---\n" +
+  "\n" +
+  "## Production: <name from user's request>\n" +
+  "\n" +
+  "### Cast\n" +
+  "### Visual DNA\n" +
+  "### Scenes\n" +
+  "### Audio\n" +
+  "### Final\n" +
+  "```\n" +
+  "\n" +
+  "Subsection headings are suggestions — adapt to the actual production (logos, tracks, models, etc.) and omit empty ones. Do NOT echo the generated URL in your reply text; the chat UI already renders it as a gallery tile." +
+  "</system-reminder>"
+
 export namespace MessageV2 {
   export function isMedia(mime: string) {
     return (
@@ -726,7 +827,24 @@ export namespace MessageV2 {
           if (part.type === "tool") {
             toolNames.add(part.tool)
             if (part.state.status === "completed") {
-              const outputText = part.state.time.compacted ? "[Old tool result content cleared]" : part.state.output
+              // Nudge: after every successful Kolbo media-generation MCP tool call, append a
+              // system-reminder to the tool result so the model logs the artifact to
+              // .kolbo/production.md before its next tool call. See SKILL.md "Production Log".
+              const isKolboGenerationTool = isKolboGenerationToolName(part.tool)
+              const productionLogNudge =
+                isKolboGenerationTool && !part.state.time.compacted ? PRODUCTION_LOG_REMINDER : ""
+              // Sanitize Kolbo auth-expired errors that come through as a
+              // "completed" tool result with the auth tag in the output text.
+              // (MCP returns 4xx as data, not as a thrown error, in some paths.)
+              const rawOutput =
+                typeof part.state.output === "string" ? part.state.output : ""
+              const isKolboAuthExpired =
+                isKolboTool(part.tool) && KOLBO_AUTH_TAG_RE.test(rawOutput)
+              const outputText = part.state.time.compacted
+                ? "[Old tool result content cleared]"
+                : isKolboAuthExpired
+                ? KOLBO_AUTH_SANITIZED_MESSAGE
+                : part.state.output + productionLogNudge
               const attachments = part.state.time.compacted || options?.stripMedia ? [] : (part.state.attachments ?? [])
 
               // For providers that don't support media in tool results, extract media files
@@ -758,7 +876,24 @@ export namespace MessageV2 {
             }
             if (part.state.status === "error") {
               const output = part.state.metadata?.interrupted === true ? part.state.metadata.output : undefined
-              if (typeof output === "string") {
+              // Sanitize Kolbo auth-expired errors before the model sees them
+              // (see KOLBO_AUTH_SANITIZED_MESSAGE for rationale).
+              const errorText = part.state.error ?? ""
+              const isKolboAuthExpired =
+                isKolboTool(part.tool) &&
+                (KOLBO_AUTH_TAG_RE.test(errorText) ||
+                  (typeof output === "string" && KOLBO_AUTH_TAG_RE.test(output)))
+              if (isKolboAuthExpired) {
+                assistantMessage.parts.push({
+                  type: ("tool-" + part.tool) as `tool-${string}`,
+                  state: "output-available",
+                  toolCallId: part.callID,
+                  input: part.state.input,
+                  output: KOLBO_AUTH_SANITIZED_MESSAGE,
+                  ...(part.metadata?.providerExecuted ? { providerExecuted: true } : {}),
+                  ...(differentModel ? {} : { callProviderMetadata: providerMeta(part.metadata) }),
+                })
+              } else if (typeof output === "string") {
                 assistantMessage.parts.push({
                   type: ("tool-" + part.tool) as `tool-${string}`,
                   state: "output-available",
@@ -950,6 +1085,28 @@ export namespace MessageV2 {
     return filterCompacted(stream(sessionID))
   })
 
+  // Surfaced as the typed error message AND matched by SessionRetry to keep
+  // self-healing semantics in sync — see retry.ts.
+  export const CONNECTION_INTERRUPTED_MESSAGE = "Connection interrupted"
+
+  // OpenSSL / socket / undici prose patterns. Lives here so retry.ts can match
+  // against the same set without drift when a new TLS alert string appears.
+  export const TRANSIENT_NETWORK_MESSAGE_RE =
+    /SSL alert|tlsv1 alert|ssl3_read_bytes|socket hang up|Connection (?:closed|reset|terminated|aborted)|network is unreachable/i
+
+  // Transient TCP/TLS/socket errors that are safe to retry after a fresh
+  // handshake — long-idle keep-alive sockets get torn down upstream
+  // (`SSL alert number 80`) and only a new connection clears the state.
+  function isTransientNetworkError(e: unknown): boolean {
+    if (!(e instanceof Error)) return false
+    const code = (e as SystemError).code
+    if (code) {
+      if (/^(ECONNRESET|ETIMEDOUT|EPIPE|EAI_AGAIN|ENETUNREACH|ENETDOWN|EHOSTUNREACH)$/.test(code)) return true
+      if (code.startsWith("UND_ERR_")) return true
+    }
+    return TRANSIENT_NETWORK_MESSAGE_RE.test(e.message)
+  }
+
   export function fromError(
     e: unknown,
     ctx: { providerID: ProviderID; aborted?: boolean },
@@ -972,15 +1129,15 @@ export namespace MessageV2 {
           },
           { cause: e },
         ).toObject()
-      case (e as SystemError)?.code === "ECONNRESET":
+      case isTransientNetworkError(e):
         return new MessageV2.APIError(
           {
-            message: "Connection reset by server",
+            message: CONNECTION_INTERRUPTED_MESSAGE,
             isRetryable: true,
             metadata: {
               code: (e as SystemError).code ?? "",
               syscall: (e as SystemError).syscall ?? "",
-              message: (e as SystemError).message ?? "",
+              message: (e as Error).message ?? "",
             },
           },
           { cause: e },

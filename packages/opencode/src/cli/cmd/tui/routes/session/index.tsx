@@ -257,11 +257,37 @@ export function Session() {
   // esc re-fires the effect (dialog.stack is reactive) and re-opens the
   // dialog in a loop, and after a successful re-auth the stale errored
   // message would keep re-triggering the connect flow until a full restart.
+  //
+  // Two trigger sources, both mapped to the same dialog:
+  //   1. ProviderAuthError on the assistant message itself (model-inference
+  //      OAuth failed).
+  //   2. [KOLBO_AUTH_EXPIRED] / [KOLBO_AUTH_MISSING] tag inside a kolbo_*
+  //      MCP tool error. The MCP server stamps this when kolbo-api returns
+  //      401, so the agent never has to read auth strings and surface
+  //      terminal advice to the user.
+  const KOLBO_AUTH_TAG = /\[KOLBO_AUTH_(EXPIRED|MISSING)\]/
   let handledAuthErrorId: string | undefined
   createEffect(() => {
     const last = lastAssistant()
     if (!last || last.role !== "assistant") return
-    if (last.error?.name !== "ProviderAuthError") return
+    const providerAuth = last.error?.name === "ProviderAuthError"
+    const mcpAuth =
+      !providerAuth &&
+      Array.isArray(last.parts) &&
+      last.parts.some((p) => {
+        if (typeof p !== "object" || p === null) return false
+        const part = p as {
+          type?: string
+          tool?: string
+          state?: { status?: string }
+        }
+        if (!part.type?.startsWith("tool")) return false
+        const tool = part.tool ?? ""
+        if (!tool.startsWith("kolbo_") && !tool.startsWith("mcp__kolbo__")) return false
+        if (part.state?.status !== "error" && part.state?.status !== "output-error") return false
+        return KOLBO_AUTH_TAG.test(JSON.stringify(part.state ?? {}))
+      })
+    if (!providerAuth && !mcpAuth) return
     if (last.id === handledAuthErrorId) return
     if (dialog.stack.length > 0) return
     handledAuthErrorId = last.id
