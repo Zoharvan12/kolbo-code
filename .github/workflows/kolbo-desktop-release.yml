@@ -180,22 +180,30 @@ jobs:
               SKILLS_SRC="$(dirname "$(dirname "$KOLBO_BIN")")/skills"
             fi
           elif [ "$PLATFORM" == "macos-14" ]; then
-            # Universal sidecar: lipo arm64 + x64 kolbo binaries together so the
-            # universal .app can spawn the CLI on both Apple Silicon and Intel Macs.
+            # `tauri build --target universal-apple-darwin` internally builds
+            # arm64 + x64 SEPARATELY, then lipos the resulting app binaries.
+            # During each per-arch build, Tauri looks up the sidecar by the
+            # PER-ARCH triple (opencode-cli-aarch64-apple-darwin,
+            # opencode-cli-x86_64-apple-darwin), NOT a single universal-named
+            # file. Drop both per-arch binaries; Tauri handles the lipo of
+            # the final app bundle itself.
             ARM_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
             [ -f "$ARM_BIN" ] || ARM_BIN="$BASE/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
             X64_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
             [ -f "$X64_BIN" ] || X64_BIN="$BASE/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
-            DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}"
+            ARM_DEST="packages/desktop/src-tauri/sidecars/opencode-cli-aarch64-apple-darwin"
+            X64_DEST="packages/desktop/src-tauri/sidecars/opencode-cli-x86_64-apple-darwin"
             if [ -f "$ARM_BIN" ] && [ -f "$X64_BIN" ]; then
-              lipo -create "$ARM_BIN" "$X64_BIN" -output "$DEST"
-              chmod +x "$DEST"
-              echo "✓ Universal CLI sidecar created via lipo:"
-              lipo -info "$DEST"
+              cp "$ARM_BIN" "$ARM_DEST"
+              cp "$X64_BIN" "$X64_DEST"
+              chmod +x "$ARM_DEST" "$X64_DEST"
+              echo "✓ Per-arch CLI sidecars copied for universal build:"
+              ls -la "$ARM_DEST" "$X64_DEST"
               SKILLS_SRC="$(dirname "$(dirname "$ARM_BIN")")/skills"
-              KOLBO_BIN="$DEST"
+              KOLBO_BIN="$ARM_BIN"
+              DEST="$ARM_DEST"
             else
-              echo "⚠ Need both arm64 + x64 kolbo CLI binaries to build universal sidecar"
+              echo "⚠ Need both arm64 + x64 kolbo CLI binaries"
               echo "  arm64: $([ -f "$ARM_BIN" ] && echo found || echo MISSING)"
               echo "  x64:   $([ -f "$X64_BIN" ] && echo found || echo MISSING)"
               ls "$BASE/@kolbo/" 2>/dev/null || true
