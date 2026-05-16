@@ -634,6 +634,11 @@ pub fn spawn_command(
             "true".to_string(),
         ),
         ("KODU_CLIENT".to_string(), "desktop".to_string()),
+        // The runtime reads KOLBO_CLIENT; KODU_CLIENT is a stale upstream
+        // env var that no Kolbo code path actually reads. Set both during
+        // the deprecation window so downstream code (auth source scoping,
+        // telemetry) can rely on the rebranded name.
+        ("KOLBO_CLIENT".to_string(), "desktop".to_string()),
         (
             "XDG_STATE_HOME".to_string(),
             state_dir.to_string_lossy().to_string(),
@@ -664,6 +669,7 @@ pub fn spawn_command(
                 "KODU_EXPERIMENTAL_ICON_DISCOVERY=true".to_string(),
                 "KODU_EXPERIMENTAL_FILEWATCHER=true".to_string(),
                 "KODU_CLIENT=desktop".to_string(),
+                "KOLBO_CLIENT=desktop".to_string(),
                 "XDG_STATE_HOME=\"$HOME/.local/state\"".to_string(),
             ];
             env_prefix.extend(
@@ -671,6 +677,7 @@ pub fn spawn_command(
                     .filter(|(key, _)| key != "KODU_EXPERIMENTAL_ICON_DISCOVERY")
                     .filter(|(key, _)| key != "KODU_EXPERIMENTAL_FILEWATCHER")
                     .filter(|(key, _)| key != "KODU_CLIENT")
+                    .filter(|(key, _)| key != "KOLBO_CLIENT")
                     .filter(|(key, _)| key != "XDG_STATE_HOME")
                     .map(|(key, value)| format!("{}={}", key, shell_escape(value))),
             );

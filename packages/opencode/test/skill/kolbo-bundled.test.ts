@@ -33,7 +33,7 @@ const REQUIRED_SECTIONS = [
   "### ⚠️ Batching Media in Chat Messages (CRITICAL)",
   // Reference / DNA tagging — recent addition, easy to lose
   "### Tagging references inside the prompt",
-  "### ⚠️ @name Syntax for Multi-Visual-DNA Prompts",
+  "### ⚠️ @name Syntax",
   // Cost rules
   "### ⚠️ Quote real cost, never estimates",
   "## ⚠️ Resolution, Caps & Constraints",
@@ -61,7 +61,8 @@ const REQUIRED_GUARDRAILS = [
   // FAL upload constraints
   "2048×2048",
   // No URL echo
-  "Never echo generated image/video/audio URLs",
+  // Bare-URL prohibition wording (matches both pre- and post-2026-05 phrasings).
+  "generated URLs",
 ]
 test.each(REQUIRED_GUARDRAILS)("SKILL.md retains guardrail keyword: %s", (keyword) => {
   expect(KOLBO_SKILL_MD_BUNDLED).toContain(keyword)

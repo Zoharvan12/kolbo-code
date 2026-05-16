@@ -347,7 +347,7 @@ export namespace LLM {
       topK: params.topK,
       providerOptions: ProviderTransform.providerOptions(input.model, params.options),
       activeTools: Object.keys(tools).filter((x) => x !== "invalid"),
-      tools,
+      tools: ProviderTransform.tools(tools, input.model),
       toolChoice: input.toolChoice,
       maxOutputTokens: params.maxOutputTokens,
       abortSignal: input.abort,
@@ -367,7 +367,10 @@ export namespace LLM {
         ...input.model.headers,
         ...headers,
       },
-      maxRetries: input.retries ?? 0,
+      // One retry forces a fresh TCP/TLS handshake which is enough to recover
+      // from a long-idle dead socket. SessionRetry.policy provides the second
+      // tier for typed errors, so two here would compound and re-bill tokens.
+      maxRetries: input.retries ?? 1,
       messages,
       model: wrapLanguageModel({
         model: language,

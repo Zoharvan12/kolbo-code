@@ -8,6 +8,7 @@
       "creditsLeft": "{{n}} क्रेडिट शेष",
       "creditsLoading": "क्रेडिट लोड हो रहे हैं...",
       "creditsUsed": "{{n}} क्रेडिट उपयोग किए",
+      "creditsMedia": "{{n}} मीडिया क्रेडिट",
       "creditsCompact": "{{n}} क्रेडिट",
       "spent": "{{amount}} खर्च हुए"
     },

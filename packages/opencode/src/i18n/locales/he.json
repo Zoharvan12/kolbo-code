@@ -8,6 +8,7 @@
       "creditsLeft": "{{n}} קרדיטים נותרו",
       "creditsLoading": "טוען קרדיטים...",
       "creditsUsed": "נוצלו {{n}} קרדיטים",
+      "creditsMedia": "{{n}} קרדיטי מדיה",
       "creditsCompact": "{{n}} קרדיטים",
       "spent": "{{amount}} הוצאו"
     },

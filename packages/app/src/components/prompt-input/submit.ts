@@ -18,6 +18,7 @@ import { Identifier } from "@/utils/id"
 import { Worktree as WorktreeState } from "@/utils/worktree"
 import { buildRequestParts } from "./build-request-parts"
 import { setCursorPosition } from "./editor-dom"
+import { inFlightAttachments } from "./attachments"
 import { formatServerError } from "@/utils/server-errors"
 
 type PendingPrompt = {
@@ -69,6 +70,13 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
   const wait = async () => {
     const ok = await input.before?.()
     if (ok === false) return false
+    // Drain in-flight uploads so we never send a request that references an
+    // image whose CDN upload hasn't finished — without this, build-request-parts
+    // falls back to the base64 dataUrl and the bytes get burned into the
+    // session record, blowing context on every subsequent turn.
+    if (inFlightAttachments.size > 0) {
+      await Promise.allSettled(inFlightAttachments)
+    }
     return true
   }
 
@@ -457,6 +465,11 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       const customCommand = sync.data.command.find((c) => c.name === commandName)
       if (customCommand) {
         clearInput()
+        // Drain pending uploads so we never send base64 in place of a CDN URL
+        // (see the matching wait() in sendFollowupDraft).
+        if (inFlightAttachments.size > 0) {
+          await Promise.allSettled(inFlightAttachments)
+        }
         client.session
           .command({
             sessionID: session.id,
@@ -469,7 +482,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
               id: Identifier.ascending("part"),
               type: "file" as const,
               mime: attachment.mime,
-              url: attachment.dataUrl,
+              url: attachment.publicUrl ?? attachment.dataUrl,
               filename: attachment.filename,
             })),
           })

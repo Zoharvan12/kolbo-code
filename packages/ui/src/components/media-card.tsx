@@ -2,6 +2,7 @@ import { createSignal, Show, type JSX } from "solid-js"
 import { Icon } from "./icon"
 import { usePlatformOps } from "../context/platform-ops"
 import { useI18n } from "../context/i18n"
+import { useTheme } from "../theme/context"
 import { showToast } from "./toast"
 
 export type MediaCardProps = {
@@ -35,8 +36,16 @@ function isLocalPath(path?: string): boolean {
 export function MediaCard(props: MediaCardProps) {
   const ops = usePlatformOps()
   const i18n = useI18n()
+  const theme = useTheme()
   const [downloading, setDownloading] = createSignal(false)
   const [done, setDone] = createSignal(false)
+  const isDark = () => {
+    const scheme = theme.colorScheme()
+    if (scheme === "dark") return true
+    if (scheme === "light") return false
+    if (typeof window === "undefined") return false
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+  }
 
   const filename = () =>
     props.filename || extractFilename(props.path) || "download"
@@ -105,24 +114,67 @@ export function MediaCard(props: MediaCardProps) {
     void ops.openPath(dir)
   }
 
+  // Theme-aware overlay button: light glass on light theme, dark glass on
+  // dark theme. Both feel native vs. the page chrome while staying legible
+  // on top of arbitrary media via blur + drop shadow.
+  const btnBase = () =>
+    isDark()
+      ? "background:rgba(28,28,32,0.78);" +
+        "color:rgba(255,255,255,0.92);" +
+        "border:1px solid rgba(255,255,255,0.18);" +
+        "box-shadow:0 1px 2px rgba(0,0,0,0.30), 0 6px 16px rgba(0,0,0,0.40);" +
+        "backdrop-filter:blur(8px) saturate(140%);" +
+        "-webkit-backdrop-filter:blur(8px) saturate(140%);"
+      : "background:rgba(255,255,255,0.92);" +
+        "color:#18181b;" +
+        "border:1px solid rgba(0,0,0,0.08);" +
+        "box-shadow:0 1px 2px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.18);" +
+        "backdrop-filter:blur(6px);" +
+        "-webkit-backdrop-filter:blur(6px);"
+  const btnDone = () =>
+    "background:var(--surface-success-base);" +
+    "color:var(--text-on-success-base);" +
+    "border:1px solid color-mix(in srgb, var(--surface-success-base) 50%, #fff);" +
+    "box-shadow:0 1px 2px rgba(0,0,0,0.06), 0 6px 16px color-mix(in srgb, var(--surface-success-base) 35%, transparent);"
+
   return (
     <div class="group relative">
       {props.children}
       <Show when={showDownload() || showOpenFolder()}>
-        <div class="absolute top-2 right-2 z-10 flex gap-1.5 opacity-0 translate-y-1 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:translate-y-0">
+        <div class="absolute top-2 right-2 z-10 flex gap-1.5 opacity-0 translate-y-0.5 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:translate-y-0">
           <Show when={showDownload()}>
             <button
               type="button"
               title={downloading() ? i18n.t("ui.download.downloading") : done() ? i18n.t("ui.download.downloaded") : i18n.t("ui.download.download")}
               disabled={downloading()}
               onClick={handleDownload}
-              class={`flex items-center justify-center size-[30px] rounded-md border backdrop-blur-[8px] shadow-[0_2px_8px_rgba(0,0,0,0.45)] transition-all duration-150 disabled:opacity-40 ${
-                done()
-                  ? "bg-green-500/15 border-green-500/35 text-green-400"
-                  : "bg-black/58 border-white/[0.15] text-white/85 hover:bg-black/72 hover:border-white/28 hover:text-white"
-              }`}
+              class="flex items-center justify-center size-[30px] rounded-md transition-all duration-150 disabled:opacity-40 hover:scale-[1.08]"
+              style={done() ? btnDone() : btnBase()}
             >
-              <Icon name={done() ? "check-small" : "download"} size="small" />
+              <Show
+                when={done()}
+                fallback={
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path
+                      d="M8 2v8m0 0l3-3m-3 3l-3-3M3 13h10"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                }
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path
+                    d="M3.5 8.5l3 3 6-6"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </Show>
             </button>
           </Show>
           <Show when={showOpenFolder()}>
@@ -130,7 +182,8 @@ export function MediaCard(props: MediaCardProps) {
               type="button"
               title={i18n.t("ui.download.openInFolder")}
               onClick={handleOpenFolder}
-              class="flex items-center justify-center size-[30px] rounded-md border border-white/[0.15] bg-black/58 backdrop-blur-[8px] text-white/85 shadow-[0_2px_8px_rgba(0,0,0,0.45)] transition-all duration-150 hover:bg-black/72 hover:border-white/28 hover:text-white"
+              class="flex items-center justify-center size-[30px] rounded-full transition-all duration-150 hover:scale-[1.08]"
+              style={btnBase()}
             >
               <Icon name="folder" size="small" />
             </button>

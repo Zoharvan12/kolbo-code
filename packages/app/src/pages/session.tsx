@@ -491,8 +491,10 @@ export default function Page() {
     const c = mediaPartCount()
     const prev = lastMediaPartCount
     lastMediaPartCount = c
-    if (c <= 0) return
-    if (prev >= 0 && c <= prev) return
+    // First observation per session is a baseline — opening the panel on
+    // every session load (just because it already has media) is what we're
+    // avoiding here.
+    if (prev < 0 || c <= prev) return
     setCanvasTabActive(true)
     if (!view().reviewPanel.opened()) view().reviewPanel.open()
   })
@@ -569,7 +571,15 @@ export default function Page() {
   // Both surface the same dialog — the user clicks Reconnect, OAuth fires,
   // fresh key is written to ~/.kolbo/auth.json, MCP picks it up on the next
   // request via its existing _tryRefreshKey() path.
-  const KOLBO_AUTH_TAG = /\[KOLBO_AUTH_(EXPIRED|MISSING)\]/
+  // Matches both:
+  //   - v1.12+ structured marker:  [KOLBO_AUTH_EXPIRED] / [KOLBO_AUTH_MISSING]
+  //   - legacy v1.6–v1.11 strings: "API key is invalid or expired" / "kolbo
+  //     auth login" / "Kolbo API key not found"
+  // Necessary because the kolbo MCP runs via `npx -y @kolbo/mcp@latest` so
+  // users keep getting whatever's published on npm — until the v1.12 publish
+  // lands, the legacy fallback is what actually triggers the reconnect dialog.
+  const KOLBO_AUTH_PATTERN =
+    /\[KOLBO_AUTH_(EXPIRED|MISSING)\]|API key is invalid or expired|kolbo auth login|Kolbo API key not found/i
   const hasKolboMcpAuthFailure = (msg: unknown): boolean => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parts = (msg as any)?.parts
@@ -583,9 +593,12 @@ export default function Page() {
       if (!part?.type?.startsWith?.("tool")) continue
       const tool = part.tool ?? ""
       if (!tool.startsWith("kolbo_") && !tool.startsWith("mcp__kolbo__")) continue
-      if (part.state?.status !== "error" && part.state?.status !== "output-error") continue
+      // Legacy v1.6.x MCP returns the auth error as a "completed" tool result
+      // (the old client.js doesn't throw on 401), so we have to scan ALL tool
+      // states, not just status === "error". The pattern is specific enough
+      // that false positives are negligible.
       const blob = JSON.stringify(part.state ?? {})
-      if (KOLBO_AUTH_TAG.test(blob)) return true
+      if (KOLBO_AUTH_PATTERN.test(blob)) return true
     }
     return false
   }

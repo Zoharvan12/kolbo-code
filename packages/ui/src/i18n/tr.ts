@@ -155,4 +155,9 @@ export const dict = {
   "ui.download.openInFolder": "Klasörde aç",
   "ui.download.changeFolder": "Klasörü değiştir",
   "ui.download.openingInBrowser": "Tarayıcıda açılıyor",
+  "ui.kolbo.generatedImage": "Oluşturulan görsel",
+  "ui.kolbo.generatingImage": "Görsel oluşturuluyor…",
+  "ui.kolbo.generatingVideo": "Video oluşturuluyor…",
+  "ui.kolbo.generatingAudio": "Ses oluşturuluyor…",
+  "ui.kolbo.usedMedia": "{n} medya",
 }

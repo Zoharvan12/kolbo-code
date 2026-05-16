@@ -5,13 +5,17 @@
   &::after {
     content: "";
     position: absolute;
-    opacity: 0;
-    transition: opacity 0.15s ease-in-out;
+    /* Make the divider visible by default so users can see where it is.
+       Hover/active still bumps it to full opacity for stronger affordance. */
+    opacity: 0.55;
+    transition: opacity 0.15s ease-in-out, background-color 0.15s ease-in-out;
+    background-color: var(--border-weak-base);
   }
 
   &:hover::after,
   &:active::after {
     opacity: 1;
+    background-color: var(--text-link-base);
   }
 
   &[data-direction="horizontal"] {
@@ -28,7 +32,7 @@
     }
 
     &::after {
-      width: 3px;
+      width: 2px;
       inset-block: 0;
       inset-inline-start: 50%;
       transform: translateX(-50%);
@@ -49,10 +53,21 @@
     }
 
     &::after {
-      height: 3px;
+      height: 2px;
       inset-inline: 0;
       inset-block-start: 50%;
       transform: translateY(-50%);
     }
   }
+}
+
+/* RTL override (flat selector for maximum browser compatibility): when the
+   parent passes edge="start" purely to invert the drag-math (so drag-left
+   grows the conversation in RTL), the *visual* placement must still sit on
+   the inline-END side of the conversation column — its LEFT edge in RTL —
+   because that's where the side-panel boundary lives. */
+[dir="rtl"] [data-component="resize-handle"][data-direction="horizontal"][data-edge="start"] {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  transform: translateX(-50%);
 }

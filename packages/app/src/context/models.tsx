@@ -116,6 +116,11 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       const state = visibility().get(key)
       if (state === "hide") return false
       if (state === "show") return true
+      // Kolbo is the curated in-house catalog — show every model the server
+      // returns regardless of release date. Older "Kimi K2", "MiniMax-text-01"
+      // etc. were getting auto-hidden because their release_date is older
+      // than 6 months, even though we ship them as first-class options.
+      if (model.providerID === "kolbo") return true
       if (latestSet().has(key)) return true
       const date = release().get(key)
       if (!date?.isValid) return true

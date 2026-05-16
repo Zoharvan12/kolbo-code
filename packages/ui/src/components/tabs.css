@@ -85,6 +85,9 @@
       align-items: center;
       justify-content: center;
     }
+    [data-slot="tabs-trigger-close-button"][data-hidden="true"] {
+      display: none;
+    }
 
     [data-component="icon-button"] {
       margin: -0.25rem;

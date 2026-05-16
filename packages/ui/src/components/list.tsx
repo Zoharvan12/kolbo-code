@@ -138,7 +138,12 @@ export function List<T>(props: ListProps<T> & { ref?: (ref: ListRef) => void }) 
     requestAnimationFrame(() => {
       const element = findByKey(scroll, key)
       if (!element) return
-      scrollIntoView(scroll, element, "center")
+      // "nearest" only scrolls when the current item is off-screen; it leaves
+      // a list that opens with the current item already visible at the top
+      // alone. "center" aggressively re-centered on every render which made
+      // the list look like it was jumping/scrolling itself when the picker
+      // reopened or the search filter changed.
+      scrollIntoView(scroll, element, "nearest")
     })
   })
 

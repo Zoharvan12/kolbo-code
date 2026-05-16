@@ -308,3 +308,24 @@
   padding-right: 0.5rem;
   text-align: right;
 }
+
+/* Inline image previews + image-link previews flow with the document
+   direction. Without this they stick to the LTR margin and look misaligned
+   in Hebrew/Arabic replies. `margin-inline-start: 0` is a logical property —
+   becomes margin-right in RTL, margin-left in LTR automatically — so the
+   image hugs the start edge of its line in either direction. */
+[data-component="markdown"] [data-media-wrapper],
+[data-component="markdown"] [data-image-link-wrapper] {
+  margin-inline-start: 0;
+  margin-inline-end: auto;
+}
+[data-component="markdown"][dir="rtl"] [data-media-wrapper],
+[data-component="markdown"][dir="rtl"] [data-image-link-wrapper] {
+  /* Hover overlay (download button) is absolutely positioned at top:8px
+     right:8px in LTR — flip it to top:8px left:8px so it stays on the
+     visual start corner in RTL. */
+  & [data-media-overlay] {
+    right: auto;
+    left: 8px;
+  }
+}

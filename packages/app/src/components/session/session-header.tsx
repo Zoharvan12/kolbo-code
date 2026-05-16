@@ -497,6 +497,43 @@ export function SessionHeader() {
                 </TooltipKeybind>
 
                 <div class="hidden md:flex items-center gap-1 shrink-0">
+                  {(() => {
+                    const hasCanvasMedia = createMemo(() => {
+                      const id = params.id
+                      if (!id) return false
+                      const msgs = sync.data.message[id] ?? []
+                      for (const message of msgs) {
+                        const parts = sync.data.part[message.id] ?? []
+                        for (const part of parts) {
+                          if (part.type !== "tool") continue
+                          const tool = (part as { tool?: string }).tool
+                          if (typeof tool !== "string") continue
+                          if (tool.startsWith("kolbo_") || tool.startsWith("mcp__kolbo__")) return true
+                        }
+                      }
+                      return false
+                    })
+                    return (
+                      <Show when={hasCanvasMedia()}>
+                        <Tooltip placement="bottom" value={language.t("command.canvas.toggle")}>
+                          <Button
+                            variant="ghost"
+                            class="titlebar-icon h-6 px-2 box-border shrink-0 flex items-center gap-1.5 mx-1"
+                            onClick={() => {
+                              if (typeof document !== "undefined") {
+                                document.dispatchEvent(new CustomEvent("kolbo:open-canvas"))
+                              }
+                            }}
+                            aria-label={language.t("command.canvas.toggle")}
+                          >
+                            <Icon size="small" name="canvas" />
+                            <span class="text-11-regular text-text-weak">{language.t("session.header.tab.canvas")}</span>
+                          </Button>
+                        </Tooltip>
+                      </Show>
+                    )
+                  })()}
+
                   <TooltipKeybind
                     title={language.t("command.review.toggle")}
                     keybind={command.keybind("review.toggle")}

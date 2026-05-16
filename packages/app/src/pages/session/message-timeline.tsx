@@ -648,10 +648,10 @@ export function MessageTimeline(props: {
             onClick={props.onResumeScroll}
           >
             <div
-              class="flex items-center justify-center w-8 h-6 rounded-[6px] border border-[var(--gray-dark-7)] bg-[color-mix(in_srgb,var(--gray-dark-3)_80%,transparent)] backdrop-blur-[0.75px] transition-colors group-hover:border-[var(--gray-dark-8)] [--icon-base:var(--gray-dark-10)] group-hover:[--icon-base:var(--gray-dark-11)]"
+              class="flex items-center justify-center w-8 h-6 rounded-[6px] border border-[var(--border-weak-base)] bg-[color-mix(in_srgb,var(--surface-base)_85%,transparent)] backdrop-blur-[2px] transition-colors group-hover:border-[var(--border-base)] group-hover:bg-[var(--surface-base)] [--icon-base:var(--text-weak)] group-hover:[--icon-base:var(--text-base)]"
               style={{
                 "box-shadow":
-                  "0 51px 60px 0 rgba(0,0,0,0.13), 0 15.375px 18.088px 0 rgba(0,0,0,0.19), 0 6.386px 7.513px 0 rgba(0,0,0,0.25), 0 2.31px 2.717px 0 rgba(0,0,0,0.38)",
+                  "0 8px 24px -8px color-mix(in srgb, var(--text-base) 25%, transparent), 0 2px 6px -2px color-mix(in srgb, var(--text-base) 18%, transparent)",
               }}
             >
               <Icon name="arrow-down-to-line" size="small" />

@@ -65,7 +65,20 @@ function isKolboTool(tool: string): boolean {
 // Auth-expired marker stamped by kolbo-mcp's HTTP client (src/client.js) when
 // kolbo-api returns 401. The UI catches the same marker to open the in-app
 // reconnect dialog (see app/src/pages/session.tsx and tui/.../session/index.tsx).
+//
+// Defensive fallback: legacy kolbo-mcp builds (≤ v1.11) emitted the literal
+// string `API key is invalid or expired. Fix: run "kolbo auth login" in the
+// terminal, then restart this editor.` — and many users still have that cached
+// via `npx @kolbo/mcp@latest` until v1.12+ is published / their npm cache
+// expires. Match the legacy string too so the sanitizer works on every
+// install, not just brand-new ones. Both branches collapse to the same
+// "reconnect dialog is open" message for the model.
 const KOLBO_AUTH_TAG_RE = /\[KOLBO_AUTH_(EXPIRED|MISSING)\]/
+const KOLBO_AUTH_LEGACY_RE =
+  /API key is invalid or expired|kolbo auth login|Kolbo API key not found/i
+function looksLikeKolboAuthError(text: string): boolean {
+  return KOLBO_AUTH_TAG_RE.test(text) || KOLBO_AUTH_LEGACY_RE.test(text)
+}
 
 // Replacement copy fed to the model in place of the raw kolbo-api auth error.
 // The raw error reads like "API key is invalid or expired... [KOLBO_AUTH_EXPIRED]"
@@ -839,7 +852,7 @@ export namespace MessageV2 {
               const rawOutput =
                 typeof part.state.output === "string" ? part.state.output : ""
               const isKolboAuthExpired =
-                isKolboTool(part.tool) && KOLBO_AUTH_TAG_RE.test(rawOutput)
+                isKolboTool(part.tool) && looksLikeKolboAuthError(rawOutput)
               const outputText = part.state.time.compacted
                 ? "[Old tool result content cleared]"
                 : isKolboAuthExpired
@@ -881,8 +894,8 @@ export namespace MessageV2 {
               const errorText = part.state.error ?? ""
               const isKolboAuthExpired =
                 isKolboTool(part.tool) &&
-                (KOLBO_AUTH_TAG_RE.test(errorText) ||
-                  (typeof output === "string" && KOLBO_AUTH_TAG_RE.test(output)))
+                (looksLikeKolboAuthError(errorText) ||
+                  (typeof output === "string" && looksLikeKolboAuthError(output)))
               if (isKolboAuthExpired) {
                 assistantMessage.parts.push({
                   type: ("tool-" + part.tool) as `tool-${string}`,

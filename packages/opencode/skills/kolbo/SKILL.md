@@ -7,7 +7,7 @@ description: Generate, edit, or analyze creative media through Kolbo AI. Load th
 
 You have direct access to the Kolbo AI creative platform via MCP tools (auto-configured by `kolbo auth login`). Use them to generate and deliver real content — do NOT just describe what you would create.
 
-> 🚫 **Never echo generated image/video/audio URLs in your reply text.** The UI already renders every artifact as a gallery tile; echoing creates a duplicate preview. Refer to results by description ("the rainy scene"); store URLs in `.kolbo/production.md`. Full rule + Do/Don't table: see "Don't re-list generated URLs in your final message" below.
+> 🚫 **Don't dump generated URLs as bare text or markdown links in chat** — the UI already renders artifacts as a gallery tile + canvas. Refer by description ("the rainy scene"), store URLs in `.kolbo/production.md`. INLINE `![](url)` images ARE allowed and encouraged for catalog-style replies (per-item thumbs in numbered lists). Full rule + Do/Don't: see "Generated URLs in chat" section below.
 
 ## Available MCP Tools
 
@@ -76,6 +76,8 @@ You have direct access to the Kolbo AI creative platform via MCP tools (auto-con
 | `list_visual_dnas` | List your Visual DNA profiles (id, name, type, thumbnail). |
 | `get_visual_dna` | Fetch full profile details including system_prompt and reference images. |
 | `delete_visual_dna` | Delete a Visual DNA profile. |
+
+**Visual DNA routing (server-side, automatic):** passing `visual_dna_ids` is enough — the server expands the DNA's reference images and auto-routes the selected text-to-image model to its image-editing variant (e.g. `nano-banana-2` → `nano-banana-2-image-editing`). You do NOT need to also pass `reference_images` when using DNA. If the chosen model has no edit variant at all, the server falls back to using the DNA's images as style references on the t2i model. Either way, DNA payloads are never silently dropped.
 
 ### Moodboards & Presets
 
@@ -242,29 +244,42 @@ Creative generations bill against the user's Kolbo credit balance. **Billing uni
 - User gives **explicit separate prompts** ("Image 1: X, Image 2: Y, Image 3: Z") → fire all as **parallel `generate_image` calls** in one response
 - Never call `generate_image` sequentially in a loop — either use `generate_creative_director` or fire all calls in one parallel batch
 
+### ⚠️ Character-driven video — frames first, then animate (CRITICAL)
+
+For any ad / story / scene-based video featuring a Visual DNA character, do **NOT** jump straight from DNA to `generate_elements` / `generate_video` per shot. The right flow is:
+
+1. **Generate the shot frames first** as still images — one image per shot — via `generate_creative_director` (or parallel `generate_image` calls) with `visual_dna_ids`. The DNA is at its strongest in image generation: the character lands consistently, you can preview cheaply, and the user can approve/revise the frames before any expensive video runs.
+2. **Confirm the frames with the user** if there are more than ~3 shots, or if the user hasn't explicitly said "go straight to video."
+3. **Animate each frame to video** with `generate_video_from_image`, passing each approved frame as `image_url`. This is cheaper and more predictable than direct DNA→video, and identity is locked because the model is animating an existing pixel-perfect frame instead of re-inferring the character.
+
+**Why this matters:**
+- `generate_elements` + Seedance / Kling for direct character video is more expensive per shot and the character can drift between shots.
+- Image-to-video (`generate_video_from_image`) anchors the first frame to your approved still, so the character/setting/composition stays locked.
+- Frames are debuggable: if shot 4's pose is wrong you regenerate one image, not a 10-second video.
+
+**When to skip frames-first and go direct to `generate_elements`:**
+- User explicitly asks "go straight to video / skip the storyboard / use seedance for everything."
+- Single-shot quick experiments where no character consistency is needed.
+- The user supplies their own approved frames and just wants animation.
+
+Default to frames-first unless one of those applies. After all frames are approved, fire the image-to-video calls in parallel (subject to the bulk-generation ceilings below).
+
 **⚠️ Parameter names — do NOT confuse these:**
 - `generate_image` → `num_images` (1–4): all images use the **same prompt**, just different random seeds — use this for "give me 4 variations of this image"
 - `generate_creative_director` → `scene_count` (1–8): each scene gets its **own distinct prompt** — use this for "make 8 different campaign shots" OR "show the character in 8 different scenes/outfits/moods". Always pass `visual_dna_ids` when character consistency matters. **Never pass `num_images` to `generate_creative_director`.**
 
 **After `generate_creative_director` completes — share results as individual URLs, one per scene. Do NOT create an HTML grid artifact or any combined layout. Just list each scene's title and its image URL on separate lines.**
 
-### ⚠️ Don't re-list generated URLs in your final message (CRITICAL)
+### ⚠️ Generated URLs in chat (CRITICAL)
 
-The chat UI **already renders every generated image / video / audio inline** as a tile in a responsive grid the moment the tool result returns. Listing all the URLs again as text or markdown at the end of your message produces an ugly second copy of the gallery and forces the user to scroll past it.
+The chat renders markdown natively: `![alt](url)` becomes an inline image, `[label](url.png)` becomes a labeled link with an auto-preview, bare URLs become clickable links. Use whichever fits the reply:
 
-After a batch of `generate_image` / `generate_video` / `generate_creative_director` / etc. completes:
+- **Catalog-style replies** (numbered lists of characters / scenes / products where the user wants to *see* each item next to its description) — embed `![alt](url)` or `[label](url)` so each item shows its thumb inline. The agent decides; the renderer handles the rest.
+- **Conversational replies** ("4 shots ready") — keep the prose short; the canvas chip already shows the gallery, you don't need to re-list URLs.
 
-| Do | Don't |
-|---|---|
-| Briefly summarize what was made (1–2 sentences) | List every URL as `1. https://… 2. https://…` |
-| Note total credits spent | Re-emit `![alt](url)` markdown for every image |
-| Point to `.kolbo/production.md` for the durable index | Build an HTML `<table>` or `<div>` "summary grid" |
-| Mention any failures (with their generation_ids) | Re-describe each scene with its URL underneath |
-| Suggest the obvious next step ("animate scene 3?", "swap colors?") | Repeat the captions / prompts you already used |
+Avoid bare URL dumps (`1. https://… 2. https://…`) and HTML `<table>` grids — they're ugly and the canvas already provides a gallery. Anything you want the user to actually see inline should be wrapped in markdown image / link syntax.
 
-The exception: **inside `.kolbo/production.md` you SHOULD store every URL** — that's the durable record. The chat-message text is for human-readable summary only; the tiles in the grid + the production log are the real artifacts.
-
-For `generate_creative_director` specifically: when you DO need to identify scenes (e.g. so the user can refer to "scene 3" later), use a numbered list of *titles only* — no URLs, no markdown image syntax. The chat already shows them as a labeled grid.
+**Always** record every URL in `.kolbo/production.md` — that's the durable record, independent of what you show in chat.
 
 ### ⚠️ Bulk Generation (>10 items)
 
@@ -307,6 +322,52 @@ Bulk production-log entry shape:
 **Don't narrate** — output the tool calls, skip "Generating Video 1 of 5…" preambles.
 
 **Handling interruptions:** if the user aborts mid-batch then says "do the rest," check what you already fired, skip those, fire only the remainder. Never restart from the beginning.
+
+### Reading failure envelopes from `get_generation_status`
+
+When a generation fails, `get_generation_status` now returns a structured `failure` field alongside `error`:
+
+```json
+{
+  "state": "failed",
+  "error": "The input or output was flagged as sensitive…",
+  "failure": {
+    "message": "The input or output was flagged as sensitive…",
+    "category": "content_policy",      // content_policy | network | auth | model_failure | ...
+    "code": "CONTENT_FLAGGED_SENSITIVE",
+    "retryable": false,                 // true = transient, safe to retry; false = same input will fail again
+    "severity": "error",
+    "provider": "kie-nano-banana"
+  }
+}
+```
+
+Branch on `failure.category` / `failure.retryable`:
+
+- `category === "content_policy"` (or `code === "CONTENT_FLAGGED_SENSITIVE"`) → **do not retry the same prompt**. Tell the user the model refused, suggest a less explicit phrasing or a Visual DNA fallback. Log to `.kolbo/production.md` Failures section with the exact reason.
+- `category === "auth"` or `code === "[KOLBO_AUTH_EXPIRED]"` → surface the reconnect flow (`open_kolbo_app`), don't auto-retry.
+- `retryable === true` (transient: network, rate limit, provider 5xx) → retry once with the same payload after a short pause. If it fails again, surface to user.
+- `retryable === false` and unknown category → surface the raw `message` to the user, don't retry.
+
+If `failure` is absent (older kolbo-api), fall back to the heuristic in the next section.
+
+### ⚠️ Detecting failed generations (CRITICAL)
+
+A generation can fail in three distinct ways. Treat ALL three as failure — don't pretend it worked:
+
+1. **Tool returns `error`** — explicit failure, you see the error text. Easy case. Surface it to the user, suggest a retry, and log the `generation_id` if present so you can call `get_generation_status` later.
+2. **Tool returns `completed` but with NO URL in `urls`** — most common silent failure. The server marked the generation done but produced nothing (NSFW filter, model OOM, upstream provider 5xx, transient bug). Treat as failure. Do NOT log this to `.kolbo/production.md`. Do NOT claim the generation worked. Tell the user "the generation completed without an output — retrying" and re-fire ONCE.
+3. **Tool hangs / never returns** — the MCP poll timed out (the JS-side timeout in the MCP fired before the server-side generation finished, OR the server died mid-job). Two signals: (a) the tool result includes a timeout error mentioning `generation_id`, OR (b) the user comes back later and says "you said you were generating but I never got it."
+
+   - On case (a): IMMEDIATELY call `get_generation_status(generation_id)`. The server might be done — recover the URL instead of re-firing. Only retry if `status === "failed"`.
+   - On case (b): if you have a recorded `generation_id` in `.kolbo/production.md` for that step, call `get_generation_status` first. If you don't (because you never logged it — see Bulk Generation rules), the work is lost.
+
+**Always-true rules:**
+
+- **Don't celebrate a generation before reading the tool result.** "✅ done!" before checking that `urls` is non-empty is wrong. Even when the tool returns `completed`, verify there's at least one URL before reporting success.
+- **Don't auto-retry without surfacing the failure.** If a single generation fails, tell the user before silently retrying. If a BATCH partially fails, list the failed items with their reasons and the count of successful ones. Never paper over partials with "✅ all done!"
+- **Don't double-log failed items.** Failures DO NOT go into `.kolbo/production.md`'s artifact list. Only successful generations land there. Failures get a one-line note in chat + (optionally) a separate `## Failures` section in the production log with the `generation_id` for retry traceability.
+- **Surface the user's count.** If the user asked for 8 and you got 6 successes + 2 failures, the reply MUST say "6 of 8 ready" — not "videos ready." Misreporting partial success is the most common UX bug here.
 
 ---
 
@@ -502,6 +563,95 @@ You have native vision. **Always `Read` images directly** (you handle up to 10 p
 
 **NEVER ask the user which path to use — diagnose from the file profile and pick.**
 
+### Analyzing the source before a chained generation — when it's worth it
+
+Before feeding a media asset into another generation tool
+(`generate_image_edit`, `edit_image`, `generate_video_from_image`,
+`generate_first_last_frame`, `generate_video_from_video`, `edit_video`,
+`generate_elements`, `generate_lipsync`), think about whether you actually
+*know* what's in the source. If you don't, analyze it first so the next
+prompt can reference concrete details instead of generic adjectives.
+
+**Analyze first when:**
+
+- The source is **old** — more than a few turns back, or pulled via
+  `list_media` / `get_media` from earlier in the project. Context has
+  drifted; you likely don't remember the specifics.
+- The source was **user-provided without a description** — they pasted a
+  URL or uploaded a file but didn't say what it shows.
+- The previous prompt was **vague** ("make something pretty", "a cool
+  shot") — the output details matter and you don't know them.
+- The chain step needs to **preserve specific details** the original
+  prompt didn't pin down (exact pose, color of a prop, lighting direction,
+  audio room tone, etc.).
+- Source is a **video or audio** going into elements / video-from-video /
+  lipsync — motion direction, pacing, voice characteristics, and ambient
+  bed drive the next prompt and can't be guessed from a URL.
+
+**Skip analysis when:**
+
+- You **just generated** the asset in the same conversation with a precise
+  prompt — that prompt *is* the spec. Re-analyzing wastes credits.
+- The edit is **mechanical** — "remove background", "brighten 10%",
+  "loop to 5 seconds", "crop to 1:1". The source content doesn't matter.
+- The user already **described what's in it** in this turn.
+
+Default to skipping unless one of the "analyze first" cases applies — an
+analysis-per-step habit on long chains burns credits and latency without
+adding signal.
+
+**How to analyze (pick by media type):**
+
+| Source media | How |
+|---|---|
+| Image (URL or local) | Your native vision — view it directly. No `chat_send_message` round-trip needed. |
+| Video / Audio | `chat_send_message({ message: "Describe...", media_urls: [url] })`. Batch up to 10 URLs in **one** call (see batching rule above). Omit `model` so Smart Select routes to Gemini vision. |
+
+**What the analysis should extract** (use whatever is relevant for the next
+step's prompt):
+
+- **Subject** — pose, expression, framing (head-and-shoulders / full body / wide).
+- **Wardrobe & props** — exact colors, materials, distinguishing items.
+- **Scene & environment** — location, time of day, weather, background depth.
+- **Lighting & color palette** — dominant temperature, key/fill direction,
+  contrast, color grade.
+- **Camera** — angle, focal length feel (wide / portrait), depth-of-field.
+- **Motion** (videos only) — direction, speed, camera move (push-in,
+  pan, locked), what changes between first and last frame.
+- **Audio** (videos/audio only) — voice characteristics, ambient bed,
+  speech pace, music tempo/mood.
+- **Anything that already looks wrong** — artifacts, blurred faces, wrong
+  fingers, blown highlights, audio glitches — note these so the next prompt
+  either fixes them (edit) or doesn't preserve them (elements/video).
+
+**Then write the next prompt with concrete references**, not generic
+adjectives. Example for an image-to-video chain:
+
+Bad — generic, no analysis:
+```
+prompt: "Animate this image with a slow push-in"
+image_url: <generated still>
+```
+
+Good — analyzed first, prompt names the specifics:
+```
+prompt: "Slow 4-second dolly-in toward @maya's face from the medium shot;
+         the warm golden-hour rim light on her left shoulder stays
+         consistent; the wind moves the leaves behind her gently to the
+         right. Camera locked, no shake. Subject does not turn — she keeps
+         the half-smile and direct eye contact from the still."
+image_url: <generated still>
+visual_dna_ids: ["vdna_8f2c"]   // maya
+```
+
+The point is **not** to dump an essay into the prompt — it's to make sure
+every concrete detail the next model needs to preserve (or change) is
+named, so the chain doesn't lose continuity across steps.
+
+**Production-log tie-in:** when you analyze a generated still/clip, write
+a one-line description into `.kolbo/production.md` next to the URL — that
+way the next chained step can read the log instead of re-analyzing.
+
 ### ⚠️ Batching Media in Chat Messages (CRITICAL)
 
 **Send ALL media in ONE `chat_send_message` call.** `media_urls` accepts up to **10 URLs**. Each separate chat call counts toward rate limits — splitting trips "Too many generation requests."
@@ -683,16 +833,28 @@ You can combine all three reference types in a single call — they're additive,
 - Need an **overall style / palette / brand look** → `moodboard_id`.
 - Need all three at once → pass all three. They compose.
 
-### Tagging references inside the prompt (CRITICAL for multi-image accuracy)
+### Tagging references inside the prompt (CRITICAL for multi-reference accuracy)
 
-When a call passes more than one image — `reference_images`, `source_images`, OR `visual_dna_ids` — name them inside the prompt so the model knows **which image plays which role**. Without tags, models guess and the wrong reference bleeds into the wrong slot ("she ended up wearing the background's color" / "the second character got the first character's face").
+When a generation call passes ANY references — `reference_images`,
+`source_images`, `reference_videos`, `source_videos`, `reference_audio`,
+`elements`, OR `visual_dna_ids` — name them inside the prompt so the model
+knows **which asset plays which role**. Without tags, the engine guesses
+and the wrong reference bleeds into the wrong slot ("she ended up wearing
+the background's color" / "the second character got the first character's
+face" / "the wrong song was used as the rhythm reference").
 
-**Two tag namespaces, used together:**
+**Tag namespaces, used together:**
 
 | Tag | Refers to | Order rule |
 |---|---|---|
-| `@image1`, `@image2`, … | Plain images in `reference_images` / `source_images` | Position in the array — `@image1` = `images[0]`, `@image2` = `images[1]`, etc. |
-| `@<dna-name>` | A Visual DNA, e.g. `@maya`, `@product_hero` | Whatever label you logged in `.kolbo/production.md` next to its `vdna_*` id |
+| `@image1`, `@image2`, … | Plain images in `reference_images` / `source_images` | Position in the array — `@image1` = `images[0]`, etc. |
+| `@video1`, `@video2`, … | Videos in `reference_videos` / `source_videos` / video `elements` slots | Position in the array. |
+| `@Audio1`, `@Audio2`, … | Audio in `reference_audio` / `audio` slots (lipsync source, music style ref, voice clone, etc.) | Position in the array. |
+| `@<dna-name>` | A Visual DNA — use the literal `name` field from `create_visual_dna` / `list_visual_dnas` (any language, case-insensitive) | Name-based, never positional. See "@name Syntax" rule below. |
+
+**Reserved**: `@Image\d+`, `@Video\d+`, `@Audio\d+` are reserved by the Kinovi
+Omni Reference parser — they are NOT looked up as Visual DNAs. Never name a
+Visual DNA `Image1` / `Video2` / etc. (kolbo-api rejects this on creation).
 
 **How to write a tagged prompt:**
 
@@ -701,27 +863,44 @@ Place @maya at the coffee-shop counter from @image1, wearing the leather jacket 
 Keep the warm window light from @image1; ignore the people in the background of @image2.
 ```
 
-What that prompt does, at submission time:
-- `visual_dna_ids: [vdna_8f2c]` (the Visual DNA for `@maya`)
-- `reference_images: [coffee_shop.jpg, jacket_ref.jpg]` (in that exact order, so `@image1`/`@image2` resolve correctly)
-- The prompt names each one, so the model never has to guess which reference is the location vs. the wardrobe.
+```
+Animate @maya walking through @video1's snowy street, matching the camera move of @video1; ignore the people in @video1.
+```
+
+```
+Lipsync @video1's speaker to the dialogue track @audio1, keeping the original ambient room tone of @video1.
+```
+
+```
+Compose a 30s track in the style of @audio1 (slow tempo, no vocals), suitable for a product reveal video.
+```
+
+What a tagged prompt does at submission time:
+- `visual_dna_ids: [vdna_8f2c]` → bound to `@maya`
+- `reference_images: [coffee_shop.jpg, jacket_ref.jpg]` → bound to `@image1`, `@image2`
+- `reference_videos: [walking_clip.mp4]` → bound to `@video1`
+- `reference_audio: [dialogue.wav]` → bound to `@audio1`
+- The prompt names each one, so the engine never has to guess.
 
 **Rules:**
 
-1. **Order is contract.** `@imageN` is bound to position N in the array you pass. Reordering the array silently changes what `@imageN` points to — don't reorder mid-conversation; if you need to add a new ref, append it (`@image3`) rather than inserting.
-2. **For edits, the source is `@image1`.** In `generate_image_edit`, the first entry of `source_images` is the canonical base — refer to it as `@image1` ("brighten the sky in @image1"). Additional source images become `@image2`, `@image3`.
-3. **Visual DNA tags are name-based, not positional.** `@maya` always means the DNA you registered as "maya," regardless of where its id appears in `visual_dna_ids`. Pick names a human would type — short, no spaces, lowercase.
-4. **Tag every reference you actually want used.** If you pass a reference but never mention it in the prompt, the model often treats it as decorative — pass less, or name it explicitly.
-5. **Tags carry across the production log.** When you log a generation to `.kolbo/production.md`, write the prompt with the tags intact and record the `@name → URL` / `@name → vdna_id` binding next to the Visual DNA entry. That way "the rainy scene from last week" remains reproducible weeks later.
-6. **Don't tag a single-image call.** If there's only one reference and no DNA, prose ("this image", "the source") is fine — `@image1` is overhead.
+1. **Order is contract.** `@imageN` / `@videoN` / `@audioN` / `@elementN` are bound to position N in the array you pass. Reordering silently changes what each tag points to — don't reorder mid-conversation; if you need to add a new ref, append it (`@image3`, `@video2`, …) rather than inserting.
+2. **For edits, the source is `@image1` (or `@video1`).** In `generate_image_edit`, the first entry of `source_images` is the canonical base — refer to it as `@image1`. Same for video tools that take `source_videos`: the first entry is `@video1`. Additional sources become `@image2`/`@video2`/etc.
+3. **Visual DNA tags are name-based, not positional.** `@maya` always means the DNA you registered as `name: "maya"`, regardless of where its id sits in `visual_dna_ids`.
+4. **Tag every reference you actually pass.** If you pass a reference but never mention it in the prompt, the engine often treats it as decorative — either drop it or name it explicitly. This applies to images, videos, audio, AND Visual DNAs.
+5. **Tags carry across the production log.** When you log a generation to `.kolbo/production.md`, write the prompt with the tags intact and record the `@name → URL` / `@name → vdna_id` binding alongside. That way "the rainy scene from last week" remains reproducible weeks later.
+6. **Tag even single-reference calls when a DNA, video, or audio is involved.** Single plain image with no DNA can use prose ("this image"), but as soon as the call also carries a DNA, a video ref, or an audio ref, tag every asset so the engine knows the subject vs. the modifier role.
 
 **Failure modes the tags fix:**
 
 | Without tags | With tags |
 |---|---|
-| "Combine these two images" → model averages them | "Put the subject from @image1 into the scene of @image2" → clear roles |
+| "Combine these two images" → engine averages them | "Put the subject from @image1 into the scene of @image2" |
 | "Same character, new outfit" with 2 refs → wrong face | "Keep @maya's face from the Visual DNA; apply the outfit from @image1" |
-| "Edit this" with 3 source images → model edits whichever is first | "In @image1, replace the sky with the sky from @image2" |
+| "Edit this" with 3 source images → engine edits whichever is first | "In @image1, replace the sky with the sky from @image2" |
+| "Lipsync this video to this audio" with 2 audio tracks → wrong track picked | "Lipsync @video1 to @audio1; ignore @audio2 (that's the music bed)" |
+| "Match this video's style" with 2 video refs → blended motion | "Use @video1's camera move; use @video2's color grade" |
+| "Music like this" with a reference track → engine ignores it | "Compose in the style of @audio1, but slower and without vocals" |
 
 ---
 
@@ -818,22 +997,157 @@ Production-log entries should include the resolution and (for video) duration + 
 Visual DNA profiles capture the visual "identity" of a character, style, product, or scene from reference media.
 
 ### Workflow
-1. **Create** a profile with `create_visual_dna` — provide reference images (max 4), optionally video and audio
+1. **Create** a profile with `create_visual_dna` — provide reference images (max 4 — if the user gives more, pick the 4 most representative or ask which to keep; never pass 5+), optionally video and audio
 2. **Types**: `character` (default), `style`, `product`, `scene`, `environment`
 3. **Use** the profile by passing its `id` in `visual_dna_ids` in: `generate_image`, `generate_creative_director`, `generate_elements`
 4. **List/inspect** profiles with `list_visual_dnas` / `get_visual_dna`
 
-### ⚠️ @name Syntax for Multi-Visual-DNA Prompts
+### ⚠️ Pre-flight: Verify the Visual DNA Exists Before Using It (MANDATORY)
 
-When multiple Visual DNAs appear in one generation, reference each by `@name` in the prompt so the engine knows which profile plays which role. Names are set in `create_visual_dna` (lowercase, no spaces). Without `@name`, the engine may blend all DNAs indiscriminately. Works in `generate_image`, `generate_creative_director`, `generate_elements`.
+NEVER reference a Visual DNA by name, role, or assumed identity without first
+confirming it exists in the user's library. This is a frequent failure mode:
+the user mentions a character ("אסתר", "Maya", "the model from before"), the
+agent assumes a matching Visual DNA exists, calls `generate_image` /
+`generate_elements` with a guessed or fabricated `visual_dna_ids` value, and
+the generation fails or produces the wrong identity.
 
+**Before** any generation call that uses `visual_dna_ids`:
+
+1. Call `list_visual_dnas` to get the actual available DNAs (id + name).
+2. Match the user's reference (by name, type, or your `.kolbo/production.md`
+   log) to a real DNA in that list.
+3. If there is **no match**, STOP and ask the user one of:
+   - "I don't see a Visual DNA named <X> in your library. Do you want me
+     to create one now (I'll need reference image(s)), use an existing
+     DNA (<list>), or proceed without DNA using direct reference images?"
+4. Only proceed once you have a real `vdna_*` id confirmed by either the
+   list or a fresh `create_visual_dna` call you just made.
+
+Do NOT:
+- Invent a Visual DNA id or assume one exists from context.
+- Use the same DNA id for a different character because "it sounded close."
+- Carry a DNA id from `.kolbo/production.md` into a new generation without
+  re-confirming it still exists (`list_visual_dnas` is cheap — call it).
+
+When the user says "use the model אסתר" but you've only created a DNA for
+"זוהר", you MUST ask before generating — never silently substitute or guess.
+
+### ⚠️ Don't re-fetch / re-list your own outputs (CRITICAL)
+
+After a generation tool returns its URLs, those URLs are **already** in the canvas (the desktop app's gallery panel) and in `.kolbo/production.md`. Do **NOT** call `list_media`, `get_media`, `get_media_stats`, `list_visual_dnas`, or `chat_send_message` with `media_urls` on those URLs just to "verify" or "fetch thumbnails of the results" — that's pure noise:
+
+- It burns credits and time for zero new information.
+- Every such tool call streams partial output into the session, which forces the desktop canvas to re-evaluate (visible flicker on the gallery tiles).
+- The thumbnails returned by `list_media` / `get_media` are the SAME asset you just generated; you don't need a thumbnail of a thumbnail.
+
+**Only call list/get media tools when:**
+- The user explicitly asks ("what do I have in my library?", "show me my old DNAs").
+- You need details about something generated in an **earlier session** that you don't have a record of.
+- You're chasing a specific user reference like "the rainy clip from yesterday" that isn't in the current chat's `.kolbo/production.md`.
+
+**Only call `chat_send_message` with `media_urls` when:**
+- The user uploaded media themselves and asks you to analyze / describe / extract info from it.
+- You need to read a video / audio file you didn't generate.
+
+For media you generated this session, you already know the prompt, model, and result URL — write that into `.kolbo/production.md` and reference it from context.
+
+### ⚠️ Presenting list results — show thumbnails (MANDATORY)
+
+When you display the result of `list_visual_dnas`, `list_media`,
+`list_moodboards`, or any other tool that returns items with image/thumbnail
+URLs, render each item's thumbnail as a markdown image so the user can
+actually see what they have. The chat view auto-renders both `![](url)`
+markdown and bare image URLs, plus auto-injects a player below links to
+videos/audio — use that.
+
+Do NOT dump a text-only bullet list of ids + names when a thumbnail field
+is available in the response.
+
+**Visual DNA listing format:**
+```
+Visual DNAs (6):
+1. **Maya** — `vdna_abc` (character)
+   ![Maya](https://cdn.kolbo.ai/.../maya-thumb.jpg)
+2. **Tokyo Neon** — `vdna_xyz` (style)
+   ![Tokyo Neon](https://cdn.kolbo.ai/.../tokyo-thumb.jpg)
+```
+
+**Media listing format:**
+```
+1. **rain-loop.mp4** — `med_abc` (video, 5s, 1080p)
+   https://cdn.kolbo.ai/.../rain-loop.mp4
+2. **coffee-01.png** — `med_def` (image, 1024x1024)
+   ![](https://cdn.kolbo.ai/.../coffee-01.png)
+```
+
+Fields to read for the image source (use the first one present on the item):
+`thumbnail`, `thumbnail_url`, `preview_url`, `url`, `image`. For videos and
+audio, use the file `url` directly — the chat view renders a player inline.
+
+If an item lacks any image/preview field, fall back to text-only for that
+row, but never skip thumbnails on the rows that do have them.
+
+### ⚠️ @name Syntax — ALWAYS use it when passing visual_dna_ids (MANDATORY)
+
+Whenever a generation call passes `visual_dna_ids` (even just one), the
+prompt MUST refer to each Visual DNA by `@<exact-name>` — the literal `name`
+field as it was set in `create_visual_dna` and as it appears in
+`list_visual_dnas`. This is how the engine binds the DNA to a role in the
+scene. Without `@name`, the engine guesses, drops the DNA, or blends
+multiple DNAs together.
+
+**Use the actual stored name, programmatically.** When you call
+`list_visual_dnas` (or `create_visual_dna`), read the `name` field off the
+response and use that exact string after the `@`. Do NOT:
+
+- Translate the name into another language ("אסתר" / "esther" / "אסתי" —
+  pick whichever string is in `name` and use ONLY that one).
+- Invent a friendlier alias ("the model", "המודל", "her").
+- Write the character's name in plain text without the `@` prefix.
+- Drop the `@name` when only one DNA is passed — the engine still needs the
+  binding so it knows the DNA is the *subject* and not a passive style.
+
+**Wrong** (DNA `name` is `esther_model`, user wrote prompt in Hebrew):
+```
+prompt: "אסתר לובשת שרשרת זהב, פורטרט חצי גוף"
+visual_dna_ids: ["vdna_abc"]
+```
+The engine sees plain text "אסתר" and has no idea it should bind to the DNA.
+
+**Right:**
+```
+prompt: "@esther_model לובשת שרשרת זהב, פורטרט חצי גוף"
+visual_dna_ids: ["vdna_abc"]   // esther_model
+```
+
+**Multi-DNA example:**
 ```
 prompt: "@dana standing in @shop, picking up a product"
 visual_dna_ids: ["vdna_abc",  // dana
                  "vdna_xyz"]  // shop
 ```
 
-This composes with `@image1` / `@image2` positional tags for plain reference/source images — see "Tagging references inside the prompt" above for the full system.
+**How `@name` actually binds:** kolbo-api parses the prompt for `@<name>`
+mentions, queries the DB for a Visual DNA whose `name` matches
+(case-insensitive), and **replaces the `@name` token with that DNA's stored
+`systemPrompt`**. If no `@name` is in the prompt, the systemPrompt never
+gets injected — the `visual_dna_ids` slot is effectively wasted.
+
+The match is **literal and case-insensitive**, so:
+- The `@name` must equal the stored `name` field (e.g. if `name: "esther_model"`
+  → write `@esther_model`, not `@Esther`, not `@אסתר`, not `@the model`).
+- Any-language characters are supported — if the DNA was created with
+  `name: "אסתר"` you write `@אסתר`. Use the EXACT stored string.
+- Mentions terminate at punctuation (`.,!?`), double-spaces, another `@`,
+  or end of string. So `@maya, wearing...` matches `maya`.
+
+This composes with `@image1` / `@image2` positional tags for plain
+reference/source images — see "Tagging references inside the prompt" above
+for the full system.
+
+**Naming hint for `create_visual_dna`:** pick a short, lowercase, no-space
+Latin string for `name` (`esther_model`, `dana`, `tokyo_neon`) so it's
+trivially typable inside any prompt regardless of the user's language.
 
 ### Visual DNA Limits
 
@@ -1097,6 +1411,34 @@ Describe **genre → mood → instrumentation → tempo → era**, in that order
 ## Media Library
 
 The library covers both **uploaded files** and **AI-generated outputs the user has saved**. Tools fall into five groups: ingest, browse, lifecycle (delete/restore/move), folders, and favorites.
+
+### ⚠️ Present locally-produced media to the user
+
+When you produce a media file LOCALLY — `ffmpeg` via the `video-production` skill, Remotion render, manual `Bash` mux of audio + video, `edit_image` outputs saved to disk, any save-to-file flow — make sure the user can actually find and open it. Local files are invisible in the chat / canvas UI by default; only the path string makes it through.
+
+**Rules:**
+
+1. **Surface the file in chat as a clickable thing**, not just a path string. Write the line as a markdown link to a `file://` URL so the user can click to open it in their default app:
+   ```
+   ✅ Final video ready: [zohar_hagai_campaign.mp4](file:///Users/mymac/Documents/test agent 1/zohar_hagai_campaign.mp4) (45s · 1440×1440 · with music)
+   ```
+   The user clicks the link → the desktop app shell hands the path to the system → opens in QuickTime / VLC / Finder reveal, etc.
+
+2. **Always log the local path in `.kolbo/production.md`** under the artifact's entry — that's the durable record:
+   ```md
+   ## Final
+   - **Campaign video (45s)**
+     - local: /Users/mymac/Documents/test agent 1/zohar_hagai_campaign.mp4
+     - resolution: 1440×1440
+     - audio: Gilded Horizon (Track 1 & 2, 3:03)
+     - rendered: 2026-05-16
+   ```
+
+3. **Don't auto-upload to `upload_media`**. The user wants local-only files to stay local; they have the file on disk and can move/share it themselves. Upload only when the user explicitly asks ("upload this", "share publicly", "give me a CDN URL").
+
+4. **Reveal-in-Finder affordance for macOS** when finishing a multi-step production: in addition to the `file://` link, mention the parent directory path so the user can `cd` or open the folder. Many users want to see all the intermediate files (frames, alt cuts, original audio) in one place.
+
+5. **Files served via `file://` won't render inline** in the chat as `<video>` / `<img>` — the desktop WebView blocks file:// for security. Don't try to embed; just link.
 
 ### Routing — user says → call
 

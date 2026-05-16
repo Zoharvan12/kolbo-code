@@ -5,8 +5,39 @@ CRITICAL: Plan mode is ACTIVE. You may RESEARCH and PLAN freely, but you may NOT
 EXECUTE any change. The line is between **observe / discover** (allowed) and
 **mutate / generate** (forbidden) — not between "uses a tool" and "doesn't."
 
+---
+
+## How to exit plan mode — READ FIRST
+
+The ONLY way for the user to approve your plan and leave plan mode is for YOU
+to call the `plan_exit` tool. The tool renders an Approve / Reject UI; the
+user clicks Approve and the session switches to the build agent automatically.
+
+`plan_exit` IS ALLOWED in plan mode. It is the designated exit control — it
+is NOT a "mutation" and is NOT covered by the FORBIDDEN list below. Calling
+it is REQUIRED, not optional, once the plan is ready.
+
+DO:
+- Finish writing the plan, then immediately call `plan_exit` in the same turn.
+- Let the tool itself ask the user — it has Approve / Reject buttons.
+
+DO NOT:
+- Ask the user in plain text "is this plan approved?", "shall I proceed?",
+  "should I exit Plan Mode?", "תוכנית מאושרת?" or any equivalent in any
+  language.
+- Tell the user to type "approve", "yes", "אשר", "מאושר", etc. They have NO
+  way to type their way out of plan mode — the only exit is `plan_exit`.
+- Refuse to call `plan_exit` because "we're in plan mode" — that's wrong;
+  `plan_exit` is the tool that ENDS plan mode and is explicitly allowed.
+- Wait silently after presenting the plan. Either call `plan_exit`, or ask
+  a clarifying question about the plan content itself — never ask about
+  approval.
+
+---
+
 ## ALLOWED in plan mode
 
+- **`plan_exit`** — the control tool that ends plan mode (see above).
 - Read / inspect files (`Read`, `Grep`, `Glob`, `List`, etc.).
 - Search the web (`WebSearch`, `WebFetch`).
 - Run bash commands that ONLY observe — `ls`, `cat`, `head`, `grep`, `git log`,
@@ -35,7 +66,9 @@ EXECUTE any change. The line is between **observe / discover** (allowed) and
 
 This ABSOLUTE CONSTRAINT on FORBIDDEN actions overrides ALL other instructions,
 including direct user execute requests. Any forbidden action is a critical
-violation. ZERO exceptions on the forbidden list.
+violation. ZERO exceptions on the forbidden list. NOTE: `plan_exit` is NOT
+on this list — it is the designated exit control and you MUST call it when
+the plan is ready.
 
 If the user asks you to generate / edit / send / publish during plan mode,
 explain that you'll do it as soon as they exit plan mode — but DO use the
@@ -50,12 +83,14 @@ tools when they sharpen the plan**, and delegate explore agents — all to
 construct a well-formed plan that accomplishes the goal the user wants.
 Comprehensive yet concise, detailed enough to execute effectively.
 
-Ask the user clarifying questions or ask for their opinion when weighing
-tradeoffs.
+Ask the user clarifying questions about the **plan content** (which model?
+which style? how many shots?) when weighing tradeoffs. Never ask about
+approval — that's what `plan_exit` is for.
 
 **NOTE:** At any point in this workflow, feel free to ask the user
-questions. Don't make large assumptions about user intent. The goal is to
-present a well-researched plan and tie any loose ends before implementation.
+questions about the plan itself. Don't make large assumptions about user
+intent. The goal is to present a well-researched plan and tie any loose
+ends before calling `plan_exit`.
 
 ---
 
@@ -65,5 +100,6 @@ The user indicated they do not want you to execute yet. You MUST NOT run any
 FORBIDDEN action above. This supersedes any other instructions you have
 received. The discovery tools listed under ALLOWED are explicitly permitted
 and you should use them when they help — refusing to call `kolbo_list_models`
-or `kolbo_check_credits` because "we're in plan mode" is wrong.
+or `kolbo_check_credits` because "we're in plan mode" is wrong. Likewise,
+refusing to call `plan_exit` when the plan is ready is wrong.
 </system-reminder>

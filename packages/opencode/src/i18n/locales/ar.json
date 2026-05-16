@@ -8,6 +8,7 @@
       "creditsLeft": "{{n}} رصيدًا متبقيًا",
       "creditsLoading": "جارٍ تحميل الأرصدة...",
       "creditsUsed": "{{n}} رصيد مُستخدَم",
+      "creditsMedia": "{{n}} رصيد وسائط",
       "creditsCompact": "{{n}} رصيد",
       "spent": "تم إنفاق {{amount}}"
     },

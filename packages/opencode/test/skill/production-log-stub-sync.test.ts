@@ -73,7 +73,7 @@ const STUB_STRUCTURE_MARKERS = [
   "### Scenes",
   "### Audio",
   "### Final",
-] as const
+]
 
 test.each(STUB_STRUCTURE_MARKERS)(
   "SKILL.md stub contains structural marker: %s",
@@ -107,7 +107,7 @@ const PROCEDURAL_RULES = [
   "generation_id",
   // No URL echoing in chat replies.
   "Do NOT echo",
-] as const
+]
 
 test.each(PROCEDURAL_RULES)(
   "PRODUCTION_LOG_REMINDER teaches procedural rule keyword: %s",

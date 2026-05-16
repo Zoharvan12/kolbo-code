@@ -8,6 +8,7 @@ type ModelInfo = {
   id: string
   name: string
   provider: {
+    id: string
     name: string
   }
   capabilities?: {
@@ -21,9 +22,50 @@ type ModelInfo = {
   limit: {
     context: number
   }
+  cost?: {
+    input?: number
+    output?: number
+  }
 }
 
-export const ModelTooltip: Component<{ model: ModelInfo; latest?: boolean; free?: boolean }> = (props) => {
+/**
+ * Format a per-million-tokens rate as a per-1K-tokens decimal, with precision
+ * tuned to keep tiny rates legible (0.0040) and big rates compact (20.0).
+ * Shared with the picker rows in dialog-select-model.tsx.
+ */
+export function formatCreditsPerThousand(creditsPerMillion: number): string {
+  const v = creditsPerMillion / 1000
+  if (v >= 10) return v.toFixed(1)
+  if (v >= 1) return v.toFixed(2)
+  if (v >= 0.01) return v.toFixed(3)
+  return v.toFixed(4)
+}
+
+function formatPer1K(
+  providerID: string,
+  cost: { input?: number; output?: number } | undefined,
+  kolboPricing: { input: number; output: number } | undefined,
+) {
+  if (providerID === "kolbo") {
+    if (!kolboPricing) return undefined
+    if (kolboPricing.input === 0 && kolboPricing.output === 0) return undefined
+    return `${formatCreditsPerThousand(kolboPricing.input)} / ${formatCreditsPerThousand(kolboPricing.output)} cr per 1K`
+  }
+  if (!cost || cost.input == null || cost.output == null) return undefined
+  if (cost.input === 0 && cost.output === 0) return undefined
+  const fmt = (n: number) => {
+    const v = n / 1000
+    return v >= 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(3)}`
+  }
+  return `${fmt(cost.input)} / ${fmt(cost.output)} per 1K`
+}
+
+export const ModelTooltip: Component<{
+  model: ModelInfo
+  latest?: boolean
+  free?: boolean
+  kolboPricing?: { input: number; output: number }
+}> = (props) => {
   const language = useLanguage()
   const sourceName = (model: ModelInfo) => {
     const value = `${model.id} ${model.name}`.toLowerCase()
@@ -73,6 +115,7 @@ export const ModelTooltip: Component<{ model: ModelInfo; latest?: boolean; free?
       : language.t("model.tooltip.reasoning.none")
   }
   const context = () => language.t("model.tooltip.context", { limit: props.model.limit.context.toLocaleString() })
+  const pricing = () => formatPer1K(props.model.provider.id, props.model.cost, props.kolboPricing)
 
   return (
     <div class="flex flex-col gap-1 py-1">
@@ -86,6 +129,23 @@ export const ModelTooltip: Component<{ model: ModelInfo; latest?: boolean; free?
       </Show>
       <div class="text-12-regular text-text-invert-base">{reasoning()}</div>
       <div class="text-12-regular text-text-invert-base">{context()}</div>
+      <Show when={pricing()}>
+        {(value) => (
+          <div class="flex items-center gap-1.5 text-12-regular text-text-invert-base">
+            <svg
+              viewBox="0 0 16 16"
+              class="w-3.5 h-3.5 shrink-0 opacity-80"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <circle cx="8" cy="8" r="6.5" fill="currentColor" opacity="0.18" />
+              <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.2" />
+              <text x="8" y="11" text-anchor="middle" font-size="8.5" font-weight="700" fill="currentColor">¢</text>
+            </svg>
+            <span>{language.t("model.tooltip.pricing", { value: value() })}</span>
+          </div>
+        )}
+      </Show>
     </div>
   )
 }

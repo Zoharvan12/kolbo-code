@@ -224,6 +224,12 @@ for (const item of targets) {
   // Smoke test: only run if binary is for current platform
   if (item.os === process.platform && item.arch === process.arch && !item.abi) {
     const binaryPath = `dist/${name}/bin/kolbo`
+    // macOS kills unsigned Mach-O binaries on launch (SIGKILL). Ad-hoc sign locally so
+    // the smoke test passes; CI replaces this with a real Developer ID signature later.
+    if (process.platform === "darwin" && process.env.GITHUB_ACTIONS !== "true") {
+      await $`codesign --remove-signature ${binaryPath}`.nothrow().quiet()
+      await $`codesign --force --deep -s - ${binaryPath}`.nothrow()
+    }
     console.log(`Running smoke test: ${binaryPath} --version`)
     try {
       const versionOutput = await $`${binaryPath} --version`.text()

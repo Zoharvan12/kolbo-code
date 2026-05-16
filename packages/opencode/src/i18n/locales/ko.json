@@ -8,6 +8,7 @@
       "creditsLeft": "{{n}} 크레딧 남음",
       "creditsLoading": "크레딧 로딩 중...",
       "creditsUsed": "{{n}} 크레딧 사용됨",
+      "creditsMedia": "미디어 크레딧 {{n}}개",
       "creditsCompact": "{{n}} 크레딧",
       "spent": "{{amount}} 사용됨"
     },

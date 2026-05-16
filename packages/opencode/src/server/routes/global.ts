@@ -14,11 +14,78 @@ import { Config } from "../../config/config"
 import { errors } from "../error"
 import { Auth } from "../../auth"
 import { Partner } from "../../brand/partner"
+import { Global } from "../../global"
+import path from "path"
 
 const log = Log.create({ service: "server" })
 
 // Declared at module top to avoid temporal dead zone in Bun compiled binaries
 const _htmlPreviewStore = new Map<string, string>()
+
+// ── Kolbo model metadata cache ────────────────────────────────────────────
+// /kolbo/v1/models is hit on every page load by the model picker. The data
+// (pricing + avatars) changes rarely — a 5-minute TTL with single in-flight
+// dedup is plenty for live edits during development and avoids hammering
+// kolbo-api on every UI refresh.
+type KolboModelMetadata = {
+  pricing: Record<string, { input: number; output: number }>
+  avatars: Record<string, string | null>
+}
+const KOLBO_MODELS_TTL_MS = 5 * 60 * 1000
+let kolboModelCache: { at: number; data: KolboModelMetadata } | null = null
+let kolboModelInflight: Promise<KolboModelMetadata> | null = null
+
+async function fetchKolboModelMetadata(): Promise<KolboModelMetadata> {
+  const base = Partner.apiBase
+  const empty: KolboModelMetadata = { pricing: {}, avatars: {} }
+  try {
+    const res = await fetch(`${base}/kolbo/v1/models`)
+    if (!res.ok) return empty
+    const data = (await res.json()) as {
+      data?: Array<{
+        id: string
+        avatar?: string | null
+        pricing?: {
+          input_credits_per_million?: number
+          output_credits_per_million?: number
+        }
+      }>
+    }
+    const out: KolboModelMetadata = { pricing: {}, avatars: {} }
+    for (const m of data.data ?? []) {
+      const inRate = m.pricing?.input_credits_per_million
+      const outRate = m.pricing?.output_credits_per_million
+      if (typeof inRate === "number" && typeof outRate === "number") {
+        out.pricing[m.id] = { input: inRate, output: outRate }
+      }
+      if (typeof m.avatar === "string" && m.avatar.length > 0) {
+        out.avatars[m.id] = m.avatar
+      } else {
+        out.avatars[m.id] = null
+      }
+    }
+    return out
+  } catch {
+    return empty
+  }
+}
+
+async function getKolboModelMetadata(): Promise<KolboModelMetadata> {
+  const now = Date.now()
+  if (kolboModelCache && now - kolboModelCache.at < KOLBO_MODELS_TTL_MS) {
+    return kolboModelCache.data
+  }
+  if (kolboModelInflight) return kolboModelInflight
+  kolboModelInflight = fetchKolboModelMetadata()
+    .then((data) => {
+      kolboModelCache = { at: Date.now(), data }
+      return data
+    })
+    .finally(() => {
+      kolboModelInflight = null
+    })
+  return kolboModelInflight
+}
 
 export const GlobalDisposedEvent = BusEvent.define("global.disposed", z.object({}))
 
@@ -315,6 +382,74 @@ export const GlobalRoutes = lazy(() =>
       },
     )
     .get(
+      "/kolbo-session-usage",
+      describeRoute({
+        summary: "Get media credit spend for the current Kolbo Code app session",
+        description:
+          "Aggregates real, multiplier-adjusted credit spend tagged with this app's caller-session-id (set in the MCP env by ensureKolboMcpWired). Powers the desktop bottom-bar 'media N' counter.",
+        operationId: "global.kolbo-session-usage",
+        responses: {
+          200: {
+            description: "Caller-session usage breakdown",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    caller_session_id: z.string().nullable(),
+                    total: z.number(),
+                    count: z.number(),
+                    by_tool: z.array(z.object({ generation_type: z.string().nullable(), amount: z.number(), count: z.number() })),
+                    by_model: z.array(z.object({ model: z.string().nullable(), amount: z.number(), count: z.number() })),
+                    recent: z.array(z.any()),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(401, 502),
+        },
+      }),
+      async (c) => {
+        const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+        const apiKey =
+          auth?.type === "api"
+            ? auth.key
+            : auth?.type === "oauth"
+              ? auth.access
+              : undefined
+        const empty = { caller_session_id: null, total: 0, count: 0, by_tool: [], by_model: [], recent: [] }
+        if (!apiKey) return c.json(empty)
+
+        // Read the caller-session-id that wire.ts wrote into the MCP env when
+        // it persisted ~/.config/kolbo/kolbo.json. Single source of truth —
+        // no duplicate generation, no drift between MCP and server.
+        let callerSessionId: string | undefined
+        try {
+          const raw = await import("fs").then((fs) =>
+            fs.promises.readFile(path.join(Global.Path.config, "kolbo.json"), "utf8"),
+          )
+          callerSessionId = JSON.parse(raw)?.mcp?.kolbo?.environment?.KOLBO_CALLER_SESSION_ID
+        } catch {}
+        if (!callerSessionId) return c.json(empty)
+
+        const base = Partner.apiBase
+        try {
+          const url = `${base}/credit-usage/by-caller-session?caller_session_id=${encodeURIComponent(callerSessionId)}`
+          const res = await fetch(url, {
+            headers: {
+              "X-API-Key": apiKey,
+              "X-Kolbo-Caller-Session-Id": callerSessionId,
+            },
+          })
+          if (!res.ok) return c.json({ ...empty, caller_session_id: callerSessionId })
+          const json = (await res.json()) as { data?: typeof empty }
+          return c.json({ ...(json.data || empty), caller_session_id: callerSessionId })
+        } catch {
+          return c.json({ ...empty, caller_session_id: callerSessionId })
+        }
+      },
+    )
+    .get(
       "/kolbo-balance",
       describeRoute({
         summary: "Get Kolbo credit balance",
@@ -369,7 +504,7 @@ export const GlobalRoutes = lazy(() =>
       describeRoute({
         summary: "Get Kolbo model pricing",
         description:
-          "Fetch per-model credit pricing (credits per 1M input/output tokens) for Kolbo models from kolbo-api. Used to compute per-session credit consumption client-side.",
+          "Fetch per-model credit pricing (credits per 1M input/output tokens) for Kolbo models from kolbo-api. Used to compute per-session credit consumption client-side. Response is cached in-memory for 5 minutes — pricing rarely changes, but a server restart or 5-min TTL expiry triggers a fresh fetch from kolbo-api.",
         operationId: "global.kolbo-pricing",
         responses: {
           200: {
@@ -392,32 +527,40 @@ export const GlobalRoutes = lazy(() =>
         },
       }),
       async (c) => {
-        const base = Partner.apiBase
-        try {
-          // Public endpoint — no auth needed for model metadata.
-          const res = await fetch(`${base}/kolbo/v1/models`)
-          if (!res.ok) return c.json({})
-          const data = (await res.json()) as {
-            data?: Array<{
-              id: string
-              pricing?: {
-                input_credits_per_million?: number
-                output_credits_per_million?: number
-              }
-            }>
-          }
-          const out: Record<string, { input: number; output: number }> = {}
-          for (const m of data.data ?? []) {
-            const inRate = m.pricing?.input_credits_per_million
-            const outRate = m.pricing?.output_credits_per_million
-            if (typeof inRate === "number" && typeof outRate === "number") {
-              out[m.id] = { input: inRate, output: outRate }
-            }
-          }
-          return c.json(out)
-        } catch {
-          return c.json({})
-        }
+        const out = await getKolboModelMetadata()
+        return c.json(out.pricing)
+      },
+    )
+    .get(
+      "/kolbo-model-metadata",
+      describeRoute({
+        summary: "Get Kolbo model pricing + avatar in one call",
+        description:
+          "Returns combined pricing (per-1M credits) and avatar URL per Kolbo model. Backed by the same 5-minute in-memory cache as /kolbo-pricing so the desktop UI can fetch both in a single request without hitting kolbo-api on every page load.",
+        operationId: "global.kolbo-model-metadata",
+        responses: {
+          200: {
+            description: "Pricing + avatar per model",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    pricing: z.record(
+                      z.string(),
+                      z.object({ input: z.number(), output: z.number() }),
+                    ),
+                    avatars: z.record(z.string(), z.string().nullable()),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(401, 502),
+        },
+      }),
+      async (c) => {
+        const out = await getKolboModelMetadata()
+        return c.json(out)
       },
     )
     .get(
@@ -614,6 +757,87 @@ export const GlobalRoutes = lazy(() =>
           return c.json(data)
         } catch (e) {
           return c.json({ error: { message: `Upload failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+        }
+      },
+    )
+    .post(
+      "/kolbo-artifact-publish",
+      describeRoute({
+        summary: "Proxy: publish an HTML artifact to kolbo-api and get a shareable URL",
+        description:
+          "Accepts { title, content, type? } and forwards to POST /artifact/quick-share on kolbo-api with the user's stored Bearer auth. Returns the shareable site URL the user can hand out. Powers the desktop Artifact viewer's Publish button.",
+        operationId: "global.kolbo-artifact-publish",
+        responses: {
+          200: {
+            description: "Artifact published — returns shareableSlug + URLs",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    status: z.boolean(),
+                    data: z.record(z.string(), z.unknown()),
+                    duplicate: z.boolean().optional(),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(400, 401, 502),
+        },
+      }),
+      async (c) => {
+        const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+        const apiKey =
+          auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+        if (!apiKey) {
+          return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+        }
+
+        let body: { title?: string; content?: string; type?: string; allowJs?: boolean }
+        try {
+          body = await c.req.json()
+        } catch {
+          return c.json({ error: { message: "Invalid JSON body", type: "bad_request" } }, 400)
+        }
+        if (!body.title || !body.content) {
+          return c.json({ error: { message: "title and content are required", type: "bad_request" } }, 400)
+        }
+
+        try {
+          // /artifact/* uses the generic auth middleware which reads the
+          // Kolbo API key from X-API-Key (not Authorization: Bearer the way
+          // /kolbo/v1/* routes do).
+          const res = await fetch(`${Partner.apiBase}/artifact/quick-share`, {
+            method: "POST",
+            headers: {
+              "X-API-Key": apiKey,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+          })
+          const data = (await res.json().catch(() => ({}))) as any
+          if (!res.ok) {
+            return c.json(
+              { error: { message: data?.message || `Publish rejected (${res.status})`, type: "upstream_error" } },
+              502,
+            )
+          }
+          // Compose env-correct public URL. The canonical sites.kolbo.ai
+          // domain only resolves in production; for local/dev environments
+          // we serve the artifact straight off the kolbo-api host via
+          // /shared-artifact-raw/:shareToken (public, no auth, iframe-safe CSP).
+          const shareToken = data?.data?.shareToken
+          if (shareToken) {
+            const isProd = /(^|\/\/)api\.kolbo\.ai/i.test(Partner.apiBase)
+            const publicUrl = isProd
+              ? data?.data?.siteUrl ||
+                (data?.data?.shareableSlug ? `https://sites.kolbo.ai/${data.data.shareableSlug}` : `${Partner.apiBase}/shared-artifact-raw/${shareToken}`)
+              : `${Partner.apiBase}/shared-artifact-raw/${shareToken}`
+            data.data = { ...(data.data || {}), publicUrl }
+          }
+          return c.json(data as Record<string, unknown>)
+        } catch (e) {
+          return c.json({ error: { message: `Publish failed: ${(e as Error).message}`, type: "network_error" } }, 502)
         }
       },
     )

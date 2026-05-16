@@ -5,7 +5,7 @@ import { showToast } from "./toast"
 import DOMPurify from "dompurify"
 import morphdom from "morphdom"
 import { checksum } from "@opencode-ai/util/encode"
-import { ComponentProps, createEffect, createResource, createSignal, on, onCleanup, splitProps } from "solid-js"
+import { ComponentProps, createEffect, createMemo, createResource, createSignal, on, onCleanup, splitProps } from "solid-js"
 import { isServer } from "solid-js/web"
 import { stream } from "./markdown-stream"
 
@@ -532,9 +532,9 @@ async function hydrateHtmlPreviews(root: HTMLDivElement, ops: PlatformOps): Prom
 const downloadIconSvg =
   '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13.9583 10.6257L10 14.584L6.04167 10.6257M10 2.08398V13.959M16.25 17.9173H3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>'
 
-const videoExtPattern = /\.(mp4|webm|mov|avi|mkv|m4v)(\?.*)?$/i
-const audioExtPattern = /\.(mp3|wav|ogg|m4a|aac|flac|opus|wma)(\?.*)?$/i
-const imageExtPattern = /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)(\?.*)?$/i
+// Allow `#fragment` and signed-URL tails after the extension.
+const audioExtPattern = /\.(mp3|wav|ogg|m4a|aac|flac|opus|wma)(?=$|[?#])/i
+const imageExtPattern = /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)(?=$|[?#])/i
 
 function makeDraggable(el: HTMLElement, url: string) {
   el.draggable = true
@@ -547,61 +547,8 @@ function makeDraggable(el: HTMLElement, url: string) {
 }
 
 /**
- * Finds <a> tags linking to video URLs and inserts a <video> player below them.
- * Reuses data-media-wrapper / data-media-overlay / data-md-download conventions
- * so existing hover and download event delegation works automatically.
- */
-function wrapMarkdownVideos(root: HTMLDivElement, dlLabels: DownloadLabels): void {
-  const anchors = Array.from(root.querySelectorAll("a[href]"))
-  for (const anchor of anchors) {
-    if (!(anchor instanceof HTMLAnchorElement)) continue
-    const href = anchor.getAttribute("href") ?? ""
-    if (!videoExtPattern.test(href)) continue
-    if (anchor.closest("[data-video-wrapper]")) continue
-
-    const wrapper = document.createElement("div")
-    wrapper.setAttribute("data-video-wrapper", href)
-    wrapper.setAttribute("data-media-wrapper", href)
-    wrapper.style.cssText = "position:relative;display:block;max-width:100%;margin-top:8px"
-
-    const video = document.createElement("video")
-    video.src = href
-    video.controls = true
-    video.preload = "metadata"
-    video.style.cssText =
-      "display:block;max-width:100%;max-height:400px;border-radius:8px;" +
-      "border:1px solid var(--border-weak-base);background:#000"
-
-    const overlay = document.createElement("div")
-    overlay.setAttribute("data-media-overlay", "")
-    overlay.style.cssText =
-      "position:absolute;top:8px;right:8px;display:flex;gap:4px;" +
-      "opacity:0;transition:opacity 0.15s;pointer-events:none"
-
-    const btn = document.createElement("button")
-    btn.type = "button"
-    btn.title = dlLabels.download
-    btn.setAttribute("data-md-download", href)
-    btn.style.cssText =
-      "display:flex;align-items:center;justify-content:center;" +
-      "width:28px;height:28px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);" +
-      "background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);" +
-      "color:white;cursor:pointer;pointer-events:auto"
-    btn.innerHTML = downloadIconSvg
-    overlay.appendChild(btn)
-
-    makeDraggable(wrapper, href)
-
-    wrapper.appendChild(video)
-    wrapper.appendChild(overlay)
-
-    anchor.parentNode?.insertBefore(wrapper, anchor.nextSibling)
-  }
-}
-
-/**
  * Finds <a> tags linking to audio URLs and inserts an <audio> player below them.
- * Reuses the same download/hover conventions as wrapMarkdownVideos.
+ * Reuses the same download/hover conventions as the image wrappers.
  */
 function wrapMarkdownAudio(root: HTMLDivElement, dlLabels: DownloadLabels): void {
   const anchors = Array.from(root.querySelectorAll("a[href]"))
@@ -858,8 +805,177 @@ function decorate(root: HTMLDivElement, labels: CopyLabels, dlLabels: DownloadLa
   insertHtmlFileCards(root)
   wrapMarkdownImages(root, dlLabels)
   wrapMarkdownImageLinks(root, dlLabels)
-  wrapMarkdownVideos(root, dlLabels)
+  // Video inline embed (was previously disabled because preload="metadata"
+  // produced black tiles). Re-enabled using the same #t=0.05 + autoplay+
+  // muted+playsinline + onLoadedData pause trick that the canvas uses, so
+  // tiles freeze on the first decoded frame.
+  wrapMarkdownVideoLinks(root, dlLabels)
   wrapMarkdownAudio(root, dlLabels)
+  // After all media wrapping, fold runs of consecutive media-only blocks
+  // into a single grid so 6 images don't take 6 full-width rows.
+  groupConsecutiveMedia(root)
+}
+
+/**
+ * Inline-embed videos linked via `<a href="…mp4">` etc. Mirrors
+ * wrapMarkdownImageLinks shape so groupConsecutiveMedia treats both the
+ * same (looks for `[data-media-wrapper]`).
+ */
+function wrapMarkdownVideoLinks(root: HTMLDivElement, dlLabels: DownloadLabels): void {
+  const videoExtRe = /\.(mp4|webm|mov|m4v|mkv|avi|ogv)(\?.*)?$/i
+  const anchors = Array.from(root.querySelectorAll("a[href]"))
+  for (const anchor of anchors) {
+    if (!(anchor instanceof HTMLAnchorElement)) continue
+    const href = anchor.getAttribute("href") ?? ""
+    if (!videoExtRe.test(href)) continue
+    if (anchor.closest("[data-media-wrapper]")) continue
+
+    const wrapper = document.createElement("div")
+    wrapper.setAttribute("data-media-wrapper", href)
+    wrapper.setAttribute("data-lightbox-src", href)
+    wrapper.style.cssText = "position:relative;display:block;max-width:100%;margin-top:8px"
+
+    const video = document.createElement("video")
+    video.src = href.includes("#") ? href : `${href}#t=0.05`
+    video.preload = "auto"
+    video.muted = true
+    video.autoplay = true
+    video.playsInline = true
+    ;(video as HTMLVideoElement & { disablePictureInPicture: boolean }).disablePictureInPicture = true
+    video.setAttribute("controlslist", "nodownload nofullscreen noremoteplayback noplaybackrate")
+    video.style.cssText =
+      "display:block;max-width:100%;max-height:400px;border-radius:8px;" +
+      "border:1px solid var(--border-weak-base);cursor:pointer;background:#0b0b0c"
+    video.addEventListener("loadeddata", () => { try { video.pause() } catch {} }, { once: true })
+    video.addEventListener("click", () => {
+      try {
+        if (video.paused) { video.muted = false; void video.play() } else { video.pause() }
+      } catch {}
+    })
+
+    const overlay = document.createElement("div")
+    overlay.setAttribute("data-media-overlay", "")
+    overlay.style.cssText =
+      "position:absolute;top:8px;right:8px;display:flex;gap:4px;" +
+      "opacity:0;transition:opacity 0.15s;pointer-events:none;transform:translateY(2px)"
+
+    const btn = document.createElement("button")
+    btn.type = "button"
+    btn.title = dlLabels.download
+    btn.setAttribute("data-md-download", href)
+    btn.style.cssText =
+      "display:flex;align-items:center;justify-content:center;" +
+      "width:28px;height:28px;border-radius:4px;" +
+      "border:1px solid rgba(255,255,255,0.2);" +
+      "background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);color:white;" +
+      "cursor:pointer;pointer-events:auto"
+    btn.innerHTML = downloadIconSvg
+
+    overlay.appendChild(btn)
+    makeDraggable(wrapper, href)
+    wrapper.appendChild(video)
+    wrapper.appendChild(overlay)
+    anchor.insertAdjacentElement("afterend", wrapper)
+  }
+}
+
+/**
+ * Folds runs of sibling block-level elements that contain a single
+ * `[data-media-wrapper]` into a single grid container. Without this, a
+ * response with 6 generated images becomes 6 full-width rows; with it,
+ * they tile responsively.
+ *
+ * A block "qualifies" if its only meaningful content is a media wrapper
+ * (ignoring whitespace text nodes and the original `<a>` anchor that
+ * wrapMarkdownImageLinks / wrapMarkdownVideoLinks left behind).
+ */
+function groupConsecutiveMedia(root: HTMLDivElement): void {
+  // Block-level parents we'll inspect. Direct children of `root` and also
+  // children of <p> wrappers (markdown-it puts standalone images in <p>).
+  const blockSelectors = ["p", "div"]
+  const isMediaOnly = (el: Element): { ok: boolean; wrapper: HTMLElement | null } => {
+    // Already a grid? Skip.
+    if (el.classList.contains("kolbo-media-grid")) return { ok: false, wrapper: null }
+    // Has any text content (excluding the anchor's own text since we'll hide that)?
+    const wrappers = el.querySelectorAll("[data-media-wrapper]")
+    if (wrappers.length !== 1) return { ok: false, wrapper: null }
+    const wrapper = wrappers[0] as HTMLElement
+    // Verify nothing else lives in this block besides the wrapper, the
+    // anchor that spawned it (if any), and whitespace.
+    let extra = false
+    el.childNodes.forEach((node) => {
+      if (node === wrapper) return
+      if (node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() === "") return
+      if (node instanceof HTMLAnchorElement) {
+        const href = node.getAttribute("href") ?? ""
+        // Hide the original anchor so the embed stands alone in the grid.
+        if (wrapper.getAttribute("data-media-wrapper") === href) {
+          node.style.display = "none"
+          return
+        }
+      }
+      extra = true
+    })
+    if (extra) return { ok: false, wrapper: null }
+    return { ok: true, wrapper }
+  }
+
+  for (const sel of blockSelectors) {
+    const parents = new Set<Element>()
+    root.querySelectorAll(`${sel} [data-media-wrapper]`).forEach((w) => {
+      const p = w.closest(sel)
+      if (p && p.parentElement) parents.add(p.parentElement)
+    })
+    // Also check media wrappers that are direct children of root.
+    root.querySelectorAll("[data-media-wrapper]").forEach((w) => {
+      if (w.parentElement === root) parents.add(root)
+    })
+
+    parents.forEach((container) => {
+      const kids = Array.from(container.children)
+      let i = 0
+      while (i < kids.length) {
+        const start = kids[i]
+        const m = isMediaOnly(start)
+        if (!m.ok) { i++; continue }
+        // Gather the run.
+        const run: Element[] = [start]
+        let j = i + 1
+        while (j < kids.length) {
+          const m2 = isMediaOnly(kids[j])
+          if (!m2.ok) break
+          run.push(kids[j])
+          j++
+        }
+        if (run.length >= 2) {
+          const grid = document.createElement("div")
+          grid.className = "kolbo-media-grid"
+          grid.style.cssText =
+            "display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));" +
+            "gap:8px;margin-top:8px;align-items:start"
+          container.insertBefore(grid, start)
+          for (const block of run) {
+            // Extract the wrapper and let the grid handle layout. The
+            // surrounding <p>/<div> wrapper is now empty.
+            const wrappers = block.querySelectorAll("[data-media-wrapper]")
+            wrappers.forEach((w) => {
+              const el = w as HTMLElement
+              // Strip per-tile margin-top so the grid gap handles spacing.
+              el.style.marginTop = "0"
+              // Make tiles cap to cell height, not their own max.
+              const img = el.querySelector("img") as HTMLImageElement | null
+              const video = el.querySelector("video") as HTMLVideoElement | null
+              if (img) { img.style.maxHeight = ""; img.style.height = "auto"; img.style.width = "100%"; img.style.objectFit = "cover" }
+              if (video) { video.style.maxHeight = ""; video.style.height = "auto"; video.style.width = "100%"; video.style.objectFit = "cover" }
+              grid.appendChild(el)
+            })
+            block.remove()
+          }
+        }
+        i = j
+      }
+    })
+  }
 }
 
 /**
@@ -1217,14 +1333,26 @@ export function Markdown(
     if (pathLinksCleanup) pathLinksCleanup()
   })
 
-  // Detect RTL text direction from the rendered content
-  const textDir = () => {
-    const text = local.text ?? ""
-    if (!text) return "ltr"
-    const rtlChars = (text.match(/[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/g) || []).length
-    const ltrChars = (text.match(/[A-Za-z\u00C0-\u024F]/g) || []).length
-    return rtlChars > ltrChars ? "rtl" : "ltr"
-  }
+  // Strict majority would flip Hebrew-leaning messages back to LTR whenever
+  // they reference a few tool/model names, so we strip code and threshold on
+  // a ratio instead.
+  const RTL_RATIO_THRESHOLD = 0.3
+  // Bound the cost on long streaming messages \u2014 direction is decided by the
+  // opening prose, not by paragraph 40.
+  const DIR_SAMPLE_CHARS = 2000
+  const textDir = createMemo(() => {
+    const raw = local.text ?? ""
+    if (!raw) return "ltr"
+    const prose = raw
+      .slice(0, DIR_SAMPLE_CHARS)
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/`[^`]*`/g, "")
+    const rtlChars = (prose.match(/[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/g) || []).length
+    const ltrChars = (prose.match(/[A-Za-z\u00C0-\u024F]/g) || []).length
+    const total = rtlChars + ltrChars
+    if (total === 0) return "ltr"
+    return rtlChars / total >= RTL_RATIO_THRESHOLD ? "rtl" : "ltr"
+  })
 
   return (
     <div

@@ -43,7 +43,11 @@ type SessionView = {
   reviewOpen?: string[]
   pendingMessage?: string
   pendingMessageAt?: number
+  canvasGridCols?: number
+  canvasUserDismissed?: boolean
 }
+
+const DEFAULT_CANVAS_GRID_COLS = 2
 
 type TabHandoff = {
   dir: string
@@ -868,6 +872,31 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
               }
 
               this.closePath(path)
+            },
+          },
+          canvas: {
+            gridCols: createMemo(() => s().canvasGridCols ?? DEFAULT_CANVAS_GRID_COLS),
+            setGridCols(cols: number) {
+              const session = key()
+              const next = Math.max(1, Math.min(8, Math.floor(cols)))
+              const current = store.sessionView[session]
+              if (!current) {
+                setStore("sessionView", session, { scroll: {}, canvasGridCols: next })
+                return
+              }
+              if (current.canvasGridCols === next) return
+              setStore("sessionView", session, "canvasGridCols", next)
+            },
+            dismissed: createMemo(() => s().canvasUserDismissed === true),
+            setDismissed(value: boolean) {
+              const session = key()
+              const current = store.sessionView[session]
+              if (!current) {
+                setStore("sessionView", session, { scroll: {}, canvasUserDismissed: value })
+                return
+              }
+              if ((current.canvasUserDismissed ?? false) === value) return
+              setStore("sessionView", session, "canvasUserDismissed", value)
             },
           },
         }

@@ -283,7 +283,11 @@ export function resolveThemeVariant(variant: ThemeVariant, isDark: boolean): Res
   tokens["icon-disabled"] = neutral[isDark ? 6 : 7]
   tokens["icon-focus"] = colors.compact && !isDark ? tokens["text-strong"] : neutral[11]
   tokens["icon-invert-base"] = isDark ? neutral[0] : "#ffffff"
-  tokens["icon-weak-base"] = neutral[isDark ? 5 : 6]
+  // Dark mode: bumped from neutral[5] → neutral[7] so secondary icons stay
+  // legible against the dark surface (neutral[1-2]). neutral[5] sat too
+  // close to the background and read as faint smudges; neutral[7] keeps
+  // them subordinate to icon-base (neutral[9]) while being clearly visible.
+  tokens["icon-weak-base"] = neutral[isDark ? 7 : 6]
   tokens["icon-weak-hover"] = neutral[isDark ? 11 : 7]
   tokens["icon-weak-active"] = neutral[8]
   tokens["icon-weak-selected"] = neutral[isDark ? 8 : 9]
