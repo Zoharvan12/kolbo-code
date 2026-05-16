@@ -9,6 +9,7 @@ import z from "zod"
 import { BusEvent } from "@/bus/bus-event"
 import { Flag } from "../flag/flag"
 import { Log } from "../util/log"
+import { Partner } from "../brand/partner"
 import { CHANNEL as channel, VERSION as version } from "./meta"
 
 import semver from "semver"
@@ -146,7 +147,13 @@ export namespace Installation {
 
         const upgradeCurl = Effect.fnUntraced(
           function* (target: string) {
-            const response = yield* httpOk.execute(HttpClientRequest.get("https://kolbo.ai/install"))
+            // Brand-aware install URL: main → https://app.kolbo.ai/install.sh,
+            // sapir → https://sapir.kolbo.ai/install.sh, etc. Previous
+            // hardcoded "https://kolbo.ai/install" returned the marketing
+            // site's HTML 200 — bash choked on `<!DOCTYPE html>` and every
+            // self-update failed silently.
+            const installUrl = `${Partner.appBase.replace(/\/$/, "")}/install.sh`
+            const response = yield* httpOk.execute(HttpClientRequest.get(installUrl))
             const body = yield* response.text
             const bodyBytes = new TextEncoder().encode(body)
             const proc = ChildProcess.make("bash", [], {
