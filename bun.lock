@@ -226,7 +226,7 @@
     },
     "packages/desktop-electron": {
       "name": "@opencode-ai/desktop-electron",
-      "version": "1.4.3",
+      "version": "1.4.4",
       "dependencies": {
         "effect": "catalog:",
         "electron-context-menu": "4.1.2",
@@ -314,7 +314,7 @@
     },
     "packages/opencode": {
       "name": "@kolbo/kolbo-code",
-      "version": "2.1.16",
+      "version": "2.1.21",
       "bin": {
         "kolbo": "./bin/kolbo",
       },

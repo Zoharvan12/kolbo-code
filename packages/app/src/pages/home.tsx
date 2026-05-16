@@ -72,7 +72,7 @@ export default function Home() {
     <div class="mx-auto mt-55 w-full md:w-auto px-4">
       {import.meta.env.VITE_WHITELABEL_LOGO
         ? <img src={import.meta.env.VITE_WHITELABEL_LOGO} class="w-20 mx-auto mb-2" alt="Logo" />
-        : <Logo class="md:w-xl opacity-12" />
+        : <div class="mx-auto" style={{ width: "160px" }}><Logo class="opacity-12" /></div>
       }
       <Button
         size="large"

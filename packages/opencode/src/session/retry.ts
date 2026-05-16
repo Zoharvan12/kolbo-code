@@ -79,7 +79,10 @@ export namespace SessionRetry {
       return error.data.message.includes("Overloaded") ? "Provider is overloaded" : error.data.message
     }
 
-    // Check for rate limit patterns in plain text error messages
+    // Check for rate limit + transient network patterns in plain text error
+    // messages. Network branch catches errors that escape APIError typing
+    // (raw `SystemError` or `TypeError: fetch failed`) so a stale TLS socket
+    // after long idle gets retried instead of surfaced as gibberish.
     const msg = error.data?.message
     if (typeof msg === "string") {
       const lower = msg.toLowerCase()
@@ -89,6 +92,9 @@ export namespace SessionRetry {
         lower.includes("too many requests")
       ) {
         return msg
+      }
+      if (MessageV2.TRANSIENT_NETWORK_MESSAGE_RE.test(msg) || /econnreset|etimedout|epipe|und_err_/.test(lower)) {
+        return MessageV2.CONNECTION_INTERRUPTED_MESSAGE
       }
     }
 

@@ -155,4 +155,9 @@ export const dict = {
   "ui.download.openInFolder": "เปิดในโฟลเดอร์",
   "ui.download.changeFolder": "เปลี่ยนโฟลเดอร์",
   "ui.download.openingInBrowser": "กำลังเปิดในเบราว์เซอร์",
+  "ui.kolbo.generatedImage": "รูปภาพที่สร้าง",
+  "ui.kolbo.generatingImage": "กำลังสร้างรูปภาพ…",
+  "ui.kolbo.generatingVideo": "กำลังสร้างวิดีโอ…",
+  "ui.kolbo.generatingAudio": "กำลังสร้างเสียง…",
+  "ui.kolbo.usedMedia": "สื่อ {n} รายการ",
 }

@@ -166,9 +166,12 @@ export const ProviderRoutes = lazy(() =>
           method,
           code,
         })
-        // Wire MCP after successful Kolbo auth (desktop app doesn't go through CLI login)
+        // Wire MCP after successful Kolbo auth (desktop app doesn't go through CLI login).
+        // Must await: dispose() below this in the dialog tears down MCP state, and the
+        // next request lazy-spawns the @kolbo/mcp child process from kolbo.json. If the
+        // file hasn't been updated yet, the child boots with the stale KOLBO_API_KEY.
         if (providerID === "kolbo") {
-          ensureKolboMcpWired().catch(() => {})
+          await ensureKolboMcpWired().catch(() => {})
         }
         return c.json(true)
       },

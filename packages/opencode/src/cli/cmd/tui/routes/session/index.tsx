@@ -257,11 +257,46 @@ export function Session() {
   // esc re-fires the effect (dialog.stack is reactive) and re-opens the
   // dialog in a loop, and after a successful re-auth the stale errored
   // message would keep re-triggering the connect flow until a full restart.
+  //
+  // Two trigger sources, both mapped to the same dialog:
+  //   1. ProviderAuthError on the assistant message itself (model-inference
+  //      OAuth failed).
+  //   2. Kolbo MCP auth failure inside a kolbo_* tool result. Matches both:
+  //        - v1.12+ structured tag: [KOLBO_AUTH_EXPIRED] / [KOLBO_AUTH_MISSING]
+  //        - legacy v1.6–v1.11 strings ("API key is invalid or expired",
+  //          "kolbo auth login", "Kolbo API key not found") because the MCP
+  //          ships via `npx -y @kolbo/mcp@latest` and users keep getting
+  //          whatever's published on npm.
+  // Legacy MCP returns 401s as "completed" tool results (no throw), so we
+  // scan every tool part's state regardless of status.
+  const KOLBO_AUTH_PATTERN =
+    /\[KOLBO_AUTH_(EXPIRED|MISSING)\]|API key is invalid or expired|kolbo auth login|Kolbo API key not found/i
   let handledAuthErrorId: string | undefined
   createEffect(() => {
     const last = lastAssistant()
     if (!last || last.role !== "assistant") return
-    if (last.error?.name !== "ProviderAuthError") return
+    const providerAuth = last.error?.name === "ProviderAuthError"
+    // SDK type for AssistantMessage doesn't include `parts`, but at
+    // runtime the SyncEngine carries them on the same object. Cast
+    // through a permissive shape so the auth-error probe can keep
+    // scanning the tool parts inline without a separate parts() lookup.
+    const lastParts = (last as unknown as { parts?: unknown[] }).parts
+    const mcpAuth =
+      !providerAuth &&
+      Array.isArray(lastParts) &&
+      lastParts.some((p) => {
+        if (typeof p !== "object" || p === null) return false
+        const part = p as {
+          type?: string
+          tool?: string
+          state?: unknown
+        }
+        if (!part.type?.startsWith("tool")) return false
+        const tool = part.tool ?? ""
+        if (!tool.startsWith("kolbo_") && !tool.startsWith("mcp__kolbo__")) return false
+        return KOLBO_AUTH_PATTERN.test(JSON.stringify(part.state ?? {}))
+      })
+    if (!providerAuth && !mcpAuth) return
     if (last.id === handledAuthErrorId) return
     if (dialog.stack.length > 0) return
     handledAuthErrorId = last.id

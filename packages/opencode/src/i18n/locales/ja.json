@@ -8,6 +8,7 @@
       "creditsLeft": "残り {{n}} クレジット",
       "creditsLoading": "クレジットをロード中です...",
       "creditsUsed": "{{n}} クレジット使用",
+      "creditsMedia": "メディアクレジット {{n}}",
       "creditsCompact": "{{n}} クレジット",
       "spent": "{{amount}} 消費済み"
     },

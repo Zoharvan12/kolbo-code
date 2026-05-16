@@ -81,14 +81,83 @@ export namespace Agent {
         Effect.fn("Agent.state")(function* (ctx) {
           const cfg = yield* config.get()
           const skillDirs = yield* skill.dirs()
+          // Whitelisted external directories: paths outside the workspace
+          // that the agent is allowed to read/write without prompting.
+          // Same principle as the workspace `edit` rules below — paths
+          // that the agent system itself manages (memory, plans, sessions)
+          // shouldn't gate behind a permission prompt every time.
           const whitelistedDirs = [
             Truncate.GLOB,
             path.join(Global.Path.tmp, "*"),
             ...skillDirs.map((dir) => path.join(dir, "*")),
+            // Auto-memory store (per CLAUDE.md global config)
+            path.join(Global.Path.home, ".claude", "memory", "*"),
+            path.join(Global.Path.home, ".claude", "memory", "**"),
+            // Kolbo state / plans / artifacts (agent-managed)
+            path.join(Global.Path.data, "plans", "*"),
+            path.join(Global.Path.data, "**"),
+            // Wire.ts-managed skill mirrors
+            path.join(Global.Path.home, ".kolbo", "skills", "*"),
+            path.join(Global.Path.home, ".kolbo", "skills", "**"),
           ]
 
           const defaults = Permission.fromConfig({
+            // Catch-all "allow" goes FIRST so the specific "ask" rules below
+            // override it under evaluate()'s last-match-wins semantics. The
+            // mutating / side-effecting tools require explicit user approval
+            // (Claude Code-style defaults). The `auto-approve` agent re-applies
+            // `"*": "allow"` AFTER defaults in its merge — that wildcard
+            // becomes the final rule and bypasses every ask below. Users can
+            // also relax these per-tool / per-pattern via ~/.kolbo/config.json
+            // (user config merges last and wins).
             "*": "allow",
+            // The three tools with real side effects: shell, filesystem,
+            // network. `edit` covers edit/write/multiedit/apply_patch — they
+            // all request `permission: "edit"` in tool/{edit,write}.ts.
+            bash: "ask",
+            // Agent-managed system files in the workspace are auto-allowed.
+            // The SKILL system instructs the agent to maintain these files
+            // continuously (production log on every generation, project
+            // memory as discoveries are made, plan files in plan mode, etc.)
+            // — gating each write behind a permission prompt produces the
+            // failure mode where the model writes once, the prompt is
+            // dismissed, and the file silently never gets created. These
+            // paths are entirely scoped to the workspace's own metadata
+            // directories, so auto-allow is safe.
+            edit: {
+              "*": "ask",
+              // Kolbo production log + plans + agent configs + any other
+              // agent-managed metadata. Cover three relative-path shapes:
+              //   .kolbo/*                    (worktree-root case)
+              //   sub/dir/.kolbo/*            (parent-worktree case)
+              //   /abs/path/.kolbo/*          (absolute path case)
+              ".kolbo/*": "allow",
+              ".kolbo/**": "allow",
+              "**.kolbo/*": "allow",
+              "**.kolbo/**": "allow",
+              "**/.kolbo/*": "allow",
+              "**/.kolbo/**": "allow",
+              // Project-memory files (both common naming conventions)
+              "KOLBO.md": "allow",
+              "**KOLBO.md": "allow",
+              "**/KOLBO.md": "allow",
+              "CLAUDE.md": "allow",
+              "**CLAUDE.md": "allow",
+              "**/CLAUDE.md": "allow",
+              // Claude Code per-project config / memory / skills
+              ".claude/*": "allow",
+              ".claude/**": "allow",
+              "**.claude/*": "allow",
+              "**.claude/**": "allow",
+              "**/.claude/*": "allow",
+              "**/.claude/**": "allow",
+              // Worktree-scoped agent metadata
+              ".agents/*": "allow",
+              ".agents/**": "allow",
+              "**.agents/*": "allow",
+              "**.agents/**": "allow",
+            },
+            webfetch: "ask",
             doom_loop: "ask",
             external_directory: {
               "*": "ask",
@@ -155,6 +224,18 @@ export namespace Agent {
                     [path.relative(Instance.worktree, path.join(Global.Path.data, path.join("plans", "*.md")))]:
                       "allow",
                   },
+                  // Plan mode is discovery-only — strip heavy MCP generators
+                  // from the model's toolset (saves ~10-20k cached prefix
+                  // tokens per plan-agent invocation). Read-style MCP tools
+                  // stay available for cost/capability inspection.
+                  "kolbo_*": "deny",
+                  "mcp__*": "deny",
+                  "kolbo_list_*": "allow",
+                  "kolbo_get_*": "allow",
+                  "kolbo_check_credits": "allow",
+                  "mcp__*list_*": "allow",
+                  "mcp__*get_*": "allow",
+                  "mcp__*check_credits": "allow",
                 }),
                 user,
               ),

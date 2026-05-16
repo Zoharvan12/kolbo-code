@@ -1,6 +1,6 @@
 import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
-import { createMemo, createSignal, onMount, Show } from "solid-js"
+import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js"
 import { useI18n } from "@/i18n"
 import { sessionCredits, type ModelPricing } from "@/util/kolbo-credits"
 
@@ -17,6 +17,26 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   const msg = createMemo(() => props.api.state.session.messages(props.session_id))
   const [kolboBalance, setKolboBalance] = createSignal<number | null>(null)
   const [kolboPricing, setKolboPricing] = createSignal<Record<string, ModelPricing>>({})
+  // Real, multiplier-adjusted media spend for this app's caller-session-id.
+  // Mirrors the desktop bottom-bar field so terminal users see the same
+  // honest number — base × count estimates leave them blind to the 1.5–2×
+  // surcharge that resolution / sound multipliers add.
+  const [mediaSpend, setMediaSpend] = createSignal<number>(0)
+  const refreshMediaSpend = () => {
+    // Route lives under /global — without the prefix the SPA fallback returns
+    // HTML and JSON parse silently fails, leaving the field hidden.
+    fetch("/global/kolbo-session-usage", { headers: { Accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { total?: number } | null) => { if (d && typeof d.total === "number") setMediaSpend(d.total) })
+      .catch(() => {})
+  }
+
+  const refreshKolboBalance = () => {
+    props.api.client.global
+      .kolboBalance()
+      .then((res) => { if (res.data) setKolboBalance(res.data.available) })
+      .catch(() => {})
+  }
 
   // Pricing is stable across a session — fetch once on mount.
   onMount(() => {
@@ -26,6 +46,25 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         if (res.data) setKolboPricing(res.data as Record<string, ModelPricing>)
       })
       .catch(() => {})
+    refreshMediaSpend()
+    const t = setInterval(refreshMediaSpend, 12000)
+    onCleanup(() => clearInterval(t))
+
+    // Eagerly refresh balance + media spend when ANY Kolbo MCP tool call
+    // completes in this session. The 12s media-spend poll alone leaves
+    // the sidebar credits stale for up to 12s after each generation —
+    // which feels broken to a user iterating on prompts.
+    const off = props.api.event.on("message.part.updated", (evt: any) => {
+      const part = evt?.properties?.part
+      if (!part || part.type !== "tool") return
+      if (part.sessionID !== props.session_id) return
+      if (part.state?.status !== "completed") return
+      const tool = part.tool ?? ""
+      if (!tool.startsWith("kolbo_") && !tool.startsWith("mcp__kolbo__")) return
+      refreshKolboBalance()
+      refreshMediaSpend()
+    })
+    onCleanup(() => { try { off?.() } catch {} })
   })
 
   const state = createMemo(() => {
@@ -79,6 +118,9 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
           </Show>
           <Show when={state().creditsUsed > 0}>
             <text fg={theme().textMuted}>{t("sidebar.context.creditsUsed", { n: state().creditsUsed.toLocaleString() })}</text>
+          </Show>
+          <Show when={mediaSpend() > 0}>
+            <text fg={theme().textMuted}>{t("sidebar.context.creditsMedia", { n: mediaSpend().toLocaleString() })}</text>
           </Show>
         </Show>
         <Show when={!state().isKolbo && !state().isLocal}>

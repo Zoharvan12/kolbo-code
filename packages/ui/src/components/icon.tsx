@@ -28,6 +28,9 @@ const icons = {
   review: `<path d="M7 14.5H13M7 7.99512H10.0049M10.0049 7.99512H13M10.0049 7.99512V5M10.0049 7.99512V11M18 18V2L2 2L2 18H18Z" stroke="currentColor"/>`,
   "review-active": `<path d="M18 18V2L2 2L2 18H18Z" fill="currentColor" fill-opacity="0.1"/>
 <path d="M7 14.5H13M7 7.99512H10.0049M10.0049 7.99512H13M10.0049 7.99512V5M10.0049 7.99512V11M18 18V2L2 2L2 18H18Z" stroke="currentColor"/>`,
+  canvas: `<path d="M2 3.5h16v13H2zM2 12.5l4-4 3 3 3.5-3.5 5.5 5.5" stroke="currentColor" stroke-linecap="square"/><circle cx="6.5" cy="7" r="1.1" fill="currentColor"/>`,
+  "canvas-active": `<path d="M2 3.5h16v13H2z" fill="currentColor" fill-opacity="0.1"/>
+<path d="M2 3.5h16v13H2zM2 12.5l4-4 3 3 3.5-3.5 5.5 5.5" stroke="currentColor" stroke-linecap="square"/><circle cx="6.5" cy="7" r="1.1" fill="currentColor"/>`,
   expand: `<path d="M4.58301 10.4163V15.4163H9.58301M10.4163 4.58301H15.4163V9.58301" stroke="currentColor" stroke-linecap="square"/>`,
   collapse: `<path d="M16.666 8.33398H11.666V3.33398" stroke="currentColor" stroke-linecap="square"/><path d="M8.33398 16.666V11.666H3.33398" stroke="currentColor" stroke-linecap="square"/>`,
   code: `<path d="M8.7513 7.5013L6.2513 10.0013L8.7513 12.5013M11.2513 7.5013L13.7513 10.0013L11.2513 12.5013M2.91797 2.91797H17.0846V17.0846H2.91797V2.91797Z" stroke="currentColor"/>`,

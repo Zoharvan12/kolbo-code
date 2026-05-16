@@ -1,6 +1,6 @@
 import { useFilteredList } from "@opencode-ai/ui/hooks"
 import { useSpring } from "@opencode-ai/ui/motion-spring"
-import { createEffect, on, Component, Show, onCleanup, createMemo, createSignal, onMount } from "solid-js"
+import { createEffect, For, on, Component, Show, onCleanup, createMemo, createSignal, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/context/local"
 import { selectionFromLines, type SelectedLineRange, useFile } from "@/context/file"
@@ -20,12 +20,14 @@ import { useSync } from "@/context/sync"
 import { useComments } from "@/context/comments"
 import { Button } from "@opencode-ai/ui/button"
 import { DockShellForm, DockTray } from "@opencode-ai/ui/dock-surface"
+import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
 import { Icon } from "@opencode-ai/ui/icon"
 import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
 import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Select } from "@opencode-ai/ui/select"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { useTheme } from "@opencode-ai/ui/theme/context"
 import { ModelSelectorPopover } from "@/components/dialog-select-model"
 import { useProviders } from "@/hooks/use-providers"
 import { useCommand } from "@/context/command"
@@ -121,6 +123,28 @@ const EXAMPLES = [
 
 const NON_EMPTY_TEXT = /[^\s\u200B]/
 
+// Map agent name \u2192 icon (build/auto-approve/plan are first-party native
+// agents from packages/opencode/src/agent/agent.ts:181-220; user agents
+// fall through to a sensible default).
+type AgentIconName = "pencil-line" | "circle-check" | "checklist" | "magnifying-glass" | "brain"
+function agentIcon(name?: string): AgentIconName {
+  switch (name) {
+    case "build":
+      // The default doer agent — actively edits/writes code.
+      return "pencil-line"
+    case "auto-approve":
+      // "Auto-yes to every permission prompt" — a check-mark in a circle
+      // reads naturally as "approved by default".
+      return "circle-check"
+    case "plan":
+      return "checklist"
+    case "explore":
+      return "magnifying-glass"
+    default:
+      return "brain"
+  }
+}
+
 export const PromptInput: Component<PromptInputProps> = (props) => {
   const sdk = useSDK()
   const sync = useSync()
@@ -134,6 +158,14 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const command = useCommand()
   const permission = usePermission()
   const language = useLanguage()
+  const theme = useTheme()
+  const isDark = () => {
+    const scheme = theme.colorScheme()
+    if (scheme === "dark") return true
+    if (scheme === "light") return false
+    if (typeof window === "undefined") return false
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+  }
   const platform = usePlatform()
   const { params, tabs, view } = useSessionLayout()
   const globalSDK = useGlobalSDK()
@@ -141,13 +173,84 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   const [kolboPricing, setKolboPricing] = createSignal<KolboPricing>({})
   const [kolboBalance, setKolboBalance] = createSignal<number | null>(null)
+  // Real, multiplier-adjusted media spend tagged with this app's caller-
+  // session-id (kolbo-api → /credit-usage/by-caller-session). Powers the
+  // "media N" counter in the bottom bar. Polled on mount + every 12s and
+  // refreshed eagerly when the user submits a message (which usually means
+  // a generation tool is about to fire). The endpoint is cached; this is
+  // cheap.
+  const [mediaSpend, setMediaSpend] = createSignal<{ total: number; byTool: Array<{ generation_type: string | null; amount: number; count: number }> } | null>(null)
+  const refreshMediaSpend = () => {
+    // Route lives under the /global router mount — without the prefix the SPA
+    // fallback returns index.html, JSON parse fails, the field stays hidden.
+    fetch("/global/kolbo-session-usage", { headers: { Accept: "application/json" } })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { total?: number; by_tool?: Array<{ generation_type: string | null; amount: number; count: number }> } | null) => {
+        if (data && typeof data.total === "number") {
+          setMediaSpend({ total: data.total, byTool: data.by_tool || [] })
+        }
+      })
+      .catch(() => {})
+  }
+  const refreshKolboBalance = () => {
+    globalSDK.client.global.kolboBalance()
+      .then((res) => { if (res.data != null) setKolboBalance((res.data as { available: number }).available) })
+      .catch(() => {})
+  }
   onMount(() => {
     globalSDK.client.global.kolboPricing()
       .then((res) => { if (res.data) setKolboPricing(res.data as KolboPricing) })
       .catch(() => {})
-    globalSDK.client.global.kolboBalance()
-      .then((res) => { if (res.data != null) setKolboBalance((res.data as { available: number }).available) })
-      .catch(() => {})
+    refreshKolboBalance()
+    refreshMediaSpend()
+    const t = setInterval(refreshMediaSpend, 12000)
+    onCleanup(() => clearInterval(t))
+  })
+
+  // Eagerly refresh balance + media spend whenever a Kolbo MCP tool call
+  // completes (image / video / audio generation, edits, DNA creation,
+  // uploads — anything that touches credits). The 12s media-spend poll +
+  // mount-only balance fetch leaves the bottom-bar stale by up to 12s
+  // after each generation, which feels broken when the user is iterating.
+  // We track the count of completed Kolbo tool parts across all messages
+  // in the current session; createEffect re-runs when the count changes,
+  // which is exactly the "a generation just finished" signal.
+  // Only the most recent assistant message can gain new completions
+  // during normal streaming (older messages' tool parts are already
+  // terminal). Scan its parts only — O(P) per tick instead of O(M*P)
+  // across the whole session. Skip the scan entirely when there's no
+  // assistant message yet.
+  const completedKolboToolCount = createMemo(() => {
+    const id = params.id
+    if (!id) return 0
+    const messages = (sync.data.message[id] ?? []) as Array<{ id: string; role?: string }>
+    const lastAssistant = (() => {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i]?.role === "assistant") return messages[i]
+      }
+      return undefined
+    })()
+    if (!lastAssistant) return 0
+    const parts = sync.data.part[lastAssistant.id]
+    if (!parts) return 0
+    let n = 0
+    for (const p of parts) {
+      if (p.type !== "tool") continue
+      const tool = (p as { tool?: string }).tool ?? ""
+      if (!tool.startsWith("kolbo_") && !tool.startsWith("mcp__kolbo__")) continue
+      const state = (p as { state?: { status?: string } }).state
+      if (state?.status === "completed") n++
+    }
+    return n
+  })
+  createEffect((prev: number | undefined) => {
+    const current = completedKolboToolCount()
+    if (prev !== undefined && current > prev) {
+      // A new Kolbo tool just completed — fetch fresh totals.
+      refreshKolboBalance()
+      refreshMediaSpend()
+    }
+    return current
   })
 
   const sessionMessages = createMemo(() => {
@@ -1476,17 +1579,79 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 inactive={!working() && blank() && !isUploadingAttachment()}
                 value={isUploadingAttachment() ? language.t("prompt.action.uploading") : tip()}
               >
-                <IconButton
-                  data-action="prompt-submit"
-                  type="submit"
-                  disabled={store.mode !== "normal" || (!working() && blank()) || isUploadingAttachment()}
-                  tabIndex={store.mode === "normal" ? undefined : -1}
-                  icon={stopping() ? "stop" : "arrow-up"}
-                  variant="primary"
-                  class="size-8"
-                  style={buttons()}
-                  aria-label={stopping() ? language.t("prompt.action.stop") : language.t("prompt.action.send")}
-                />
+                {(() => {
+                  const sendDisabled = createMemo(
+                    () => store.mode !== "normal" || (!working() && blank()) || isUploadingAttachment(),
+                  )
+                  // Theme-aware fill: blue accent in dark mode, near-black
+                  // in light mode. Each tuple is [base, hover].
+                  const palette = createMemo(() =>
+                    isDark()
+                      ? {
+                          base: "rgb(56,139,253)", // bright blue
+                          hover: "rgb(28,116,232)",
+                          shadow:
+                            "0 1px 2px rgba(0,0,0,0.10), 0 6px 16px rgba(56,139,253,0.40)",
+                          shadowHover:
+                            "0 1px 2px rgba(0,0,0,0.12), 0 8px 20px rgba(56,139,253,0.55)",
+                        }
+                      : {
+                          base: "rgb(20,20,22)",
+                          hover: "rgb(0,0,0)",
+                          shadow: "0 1px 2px rgba(0,0,0,0.06), 0 6px 14px rgba(0,0,0,0.22)",
+                          shadowHover:
+                            "0 1px 2px rgba(0,0,0,0.08), 0 8px 18px rgba(0,0,0,0.30)",
+                        },
+                  )
+                  return (
+                    <button
+                      data-action="prompt-submit"
+                      type="submit"
+                      disabled={sendDisabled()}
+                      tabIndex={store.mode === "normal" ? undefined : -1}
+                      aria-label={
+                        stopping() ? language.t("prompt.action.stop") : language.t("prompt.action.send")
+                      }
+                      class="group/sendbtn flex items-center justify-center size-9 rounded-full disabled:cursor-not-allowed enabled:hover:scale-[1.06] enabled:active:scale-95"
+                      style={{
+                        ...buttons(),
+                        opacity: buttonsSpring() * (sendDisabled() ? 0.35 : 1),
+                        background: palette().base,
+                        color: "#fff",
+                        "box-shadow": palette().shadow,
+                        transition: "transform 0.15s ease, opacity 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease",
+                      }}
+                      onMouseOver={(e) => {
+                        if (sendDisabled()) return
+                        e.currentTarget.style.background = palette().hover
+                        e.currentTarget.style.boxShadow = palette().shadowHover
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = palette().base
+                        e.currentTarget.style.boxShadow = palette().shadow
+                      }}
+                    >
+                      <Show
+                        when={stopping()}
+                        fallback={
+                          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                            <path
+                              d="M10 16V4M4.5 9.5L10 4l5.5 5.5"
+                              stroke="currentColor"
+                              stroke-width="2.4"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                          </svg>
+                        }
+                      >
+                        <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+                          <rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor" />
+                        </svg>
+                      </Show>
+                    </button>
+                  )
+                })()}
               </Tooltip>
             </div>
           </div>
@@ -1544,20 +1709,47 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     title={language.t("command.agent.cycle")}
                     keybind={command.keybind("agent.cycle")}
                   >
-                    <Select
-                      size="normal"
-                      options={agentNames()}
-                      current={local.agent.current()?.name ?? ""}
-                      onSelect={(value) => {
-                        local.agent.set(value)
-                        restoreFocus()
-                      }}
-                      class="capitalize max-w-[160px] text-text-base"
-                      valueClass="truncate text-13-regular text-text-base"
-                      triggerStyle={control()}
-                      triggerProps={{ "data-action": "prompt-agent" }}
-                      variant="ghost"
-                    />
+                    <DropdownMenu gutter={4} placement="top-start">
+                      <DropdownMenu.Trigger
+                        as={Button}
+                        variant="ghost"
+                        size="normal"
+                        class="capitalize max-w-[160px] text-text-base text-13-regular"
+                        style={control()}
+                        data-action="prompt-agent"
+                      >
+                        <Icon
+                          name={agentIcon(local.agent.current()?.name)}
+                          size="small"
+                          class="shrink-0"
+                        />
+                        <span class="truncate">{local.agent.current()?.name ?? ""}</span>
+                        <Icon name="chevron-down" size="small" class="shrink-0" />
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Portal>
+                        <DropdownMenu.Content class="min-w-[200px]">
+                          <DropdownMenu.RadioGroup
+                            value={local.agent.current()?.name ?? ""}
+                            onChange={(value) => {
+                              if (typeof value === "string") local.agent.set(value)
+                              restoreFocus()
+                            }}
+                          >
+                            <For each={agentNames()}>
+                              {(name) => (
+                                <DropdownMenu.RadioItem value={name} onSelect={restoreFocus}>
+                                  <Icon name={agentIcon(name)} size="small" class="shrink-0 text-text-weak" />
+                                  <DropdownMenu.ItemLabel class="capitalize">{name}</DropdownMenu.ItemLabel>
+                                  <DropdownMenu.ItemIndicator>
+                                    <Icon name="check-small" size="small" class="text-icon-weak" />
+                                  </DropdownMenu.ItemIndicator>
+                                </DropdownMenu.RadioItem>
+                              )}
+                            </For>
+                          </DropdownMenu.RadioGroup>
+                        </DropdownMenu.Content>
+                      </DropdownMenu.Portal>
+                    </DropdownMenu>
                   </TooltipKeybind>
                 </div>
                 <Show when={store.mode !== "shell"}>
@@ -1625,18 +1817,35 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                           onClose={restoreFocus}
                         >
                           <Show when={local.model.current()?.provider?.id}>
-                            <ProviderIcon
-                              id={local.model.current()?.provider?.id ?? ""}
-                              class="size-4 shrink-0 transition-opacity duration-150"
-                              classList={{
-                                "opacity-40 group-hover:opacity-100": local.model.current()?.provider?.id !== "kolbo",
-                              }}
-                              style={{
-                                color: local.model.current()?.provider?.id === "kolbo" ? "#60a5fa" : undefined,
-                                "will-change": "opacity",
-                                transform: "translateZ(0)",
-                              }}
-                            />
+                            <Show
+                              when={local.model.current()?.avatar}
+                              fallback={
+                                <ProviderIcon
+                                  id={local.model.current()?.provider?.id ?? ""}
+                                  class="size-4 shrink-0 transition-opacity duration-150"
+                                  classList={{
+                                    "opacity-40 group-hover:opacity-100":
+                                      local.model.current()?.provider?.id !== "kolbo",
+                                  }}
+                                  style={{
+                                    color: local.model.current()?.provider?.id === "kolbo" ? "#60a5fa" : undefined,
+                                    "will-change": "opacity",
+                                    transform: "translateZ(0)",
+                                  }}
+                                />
+                              }
+                            >
+                              {(avatar) => (
+                                <img
+                                  src={avatar()}
+                                  alt=""
+                                  class="size-4 shrink-0 rounded-sm object-cover"
+                                  onError={(e) => {
+                                    ;(e.currentTarget as HTMLImageElement).style.display = "none"
+                                  }}
+                                />
+                              )}
+                            </Show>
                           </Show>
                           <span class="truncate">
                             {local.model.current()?.name ?? language.t("dialog.model.select.title")}
@@ -1657,6 +1866,21 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   <span class="text-border-base">|</span>
                 </Show>
                 <span class="text-text-weaker">{sessionCreditsUsed().toLocaleString(language.intl())} used</span>
+                <Show when={(mediaSpend()?.total ?? 0) > 0}>
+                  <span class="text-border-base">|</span>
+                  <span
+                    class="text-text-weaker"
+                    title={
+                      mediaSpend()
+                        ? mediaSpend()!.byTool
+                            .map((g) => `${g.generation_type ?? "other"}: ${g.amount} (${g.count})`)
+                            .join("\n")
+                        : ""
+                    }
+                  >
+                    {language.t("ui.kolbo.usedMedia", { n: mediaSpend()!.total.toLocaleString(language.intl()) })}
+                  </span>
+                </Show>
               </div>
             </Show>
           </div>

@@ -172,6 +172,12 @@ export namespace Permission {
         for (const pattern of request.patterns) {
           const rule = evaluate(request.permission, pattern, ruleset, approved)
           log.info("evaluated", { permission: request.permission, pattern, action: rule })
+          try {
+            require("fs").appendFileSync(
+              "/tmp/kolbo-permission-debug.log",
+              `${new Date().toISOString()} permission=${request.permission} pattern=${pattern} action=${rule.action} matched_pattern=${rule.pattern}\n`,
+            )
+          } catch {}
           if (rule.action === "deny") {
             return yield* new DeniedError({
               ruleset: ruleset.filter((rule) => Wildcard.match(request.permission, rule.permission)),

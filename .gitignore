@@ -31,3 +31,12 @@ logs/
 tsconfig.tsbuildinfo
 temp_auto_push.bat
 temp_interactive_push.bat
+
+# Local AI assistant context — not for the repo or any deployed bundle
+CLAUDE.md
+**/CLAUDE.md
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# Vite per-package caches — regenerated on every dev start
+**/.vite

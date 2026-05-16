@@ -8,6 +8,7 @@
       "creditsLeft": "Осталось {{n}} кредитов",
       "creditsLoading": "загрузка кредитов...",
       "creditsUsed": "Использовано {{n}} кредитов",
+      "creditsMedia": "{{n}} медиа-кредитов",
       "creditsCompact": "{{n}} кредитов",
       "spent": "Потрачено {{amount}}"
     },

@@ -8,6 +8,7 @@
       "creditsLeft": "剩余 {{n}} 个 credits",
       "creditsLoading": "正在加载 credits...",
       "creditsUsed": "已使用 {{n}} 个 credits",
+      "creditsMedia": "{{n}} 个媒体 credits",
       "creditsCompact": "{{n}} credits",
       "spent": "已花费 {{amount}}"
     },

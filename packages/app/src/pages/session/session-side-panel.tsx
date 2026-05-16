@@ -3,7 +3,7 @@ import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
 import { Tabs } from "@opencode-ai/ui/tabs"
 import { IconButton } from "@opencode-ai/ui/icon-button"
-import { TooltipKeybind } from "@opencode-ai/ui/tooltip"
+import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
 import { Mark } from "@opencode-ai/ui/logo"
 import { DragDropProvider, DragDropSensors, DragOverlay, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd"
@@ -20,11 +20,14 @@ import { useCommand } from "@/context/command"
 import { useFile, type SelectedLineRange } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
+import { useSync } from "@/context/sync"
 import { createFileTabListSync } from "@/pages/session/file-tab-scroll"
 import { FileTabContent } from "@/pages/session/file-tabs"
 import { createOpenSessionFileTab, createSessionTabs, getTabReorderIndex, type Sizing } from "@/pages/session/helpers"
 import { setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionLayout } from "@/pages/session/session-layout"
+import { SessionCanvas, hasKolboMediaInSession } from "@/pages/session/session-canvas"
+import type { Part } from "@opencode-ai/sdk/v2"
 
 export function SessionSidePanel(props: {
   canReview: () => boolean
@@ -42,6 +45,10 @@ export function SessionSidePanel(props: {
   artifactsTabActive: () => boolean
   onArtifactsTabDeactivate: () => void
   onArtifactClose: () => void
+  canvasTabActive: () => boolean
+  onCanvasTabActivate: () => void
+  onCanvasTabDeactivate: () => void
+  onCanvasClose: () => void
 }) {
   const layout = useLayout()
   const file = useFile()
@@ -49,7 +56,21 @@ export function SessionSidePanel(props: {
   const isRTL = createMemo(() => language.locale() === "ar" || language.locale() === "he")
   const command = useCommand()
   const dialog = useDialog()
-  const { sessionKey, tabs, view } = useSessionLayout()
+  const sync = useSync()
+  const { params, sessionKey, tabs, view } = useSessionLayout()
+
+  const currentSessionID = createMemo(() => params.id as string | undefined)
+  const sessionMessages = createMemo(() => {
+    const id = currentSessionID()
+    if (!id) return []
+    return sync.data.message[id] ?? []
+  })
+  const hasMedia = createMemo(() => {
+    const msgs = sessionMessages()
+    if (msgs.length === 0) return false
+    const lists = msgs.map((m) => (sync.data.part[m.id] ?? []) as Part[])
+    return hasKolboMediaInSession(lists)
+  })
 
   const isDesktop = createMediaQuery("(min-width: 768px)")
 
@@ -136,10 +157,12 @@ export function SessionSidePanel(props: {
   const activeTab = tabState.activeTab
   const activeFileTab = tabState.activeFileTab
 
-  // Override active tab when artifacts tab is requested
-  const effectiveActiveTab = createMemo(() =>
-    props.artifactsTabActive() && props.artifact() ? "artifacts" : activeTab(),
-  )
+  // Override active tab when artifacts or canvas tab is requested
+  const effectiveActiveTab = createMemo(() => {
+    if (props.artifactsTabActive() && props.artifact()) return "artifacts"
+    if (props.canvasTabActive() && hasMedia()) return "canvas"
+    return activeTab()
+  })
 
   const fileTreeTab = () => layout.fileTree.tab()
 
@@ -234,7 +257,13 @@ export function SessionSidePanel(props: {
                 <Tabs
                   value={effectiveActiveTab()}
                   onChange={(tab) => {
-                    props.onArtifactsTabDeactivate()
+                    if (tab !== "artifacts") props.onArtifactsTabDeactivate()
+                    if (tab === "canvas") props.onCanvasTabActivate()
+                    else props.onCanvasTabDeactivate()
+                    // canvas/artifacts are virtual side-panel views, NOT file
+                    // tabs — don't push them into the openedTabs list (would
+                    // cause FileTabContent to render an empty panel for them).
+                    if (tab === "canvas" || tab === "artifacts") return
                     openTab(tab)
                   }}
                 >
@@ -245,7 +274,7 @@ export function SessionSidePanel(props: {
                         onCleanup(stop)
                       }}
                     >
-                      <Show when={reviewTab() && props.canReview()}>
+                      <Show when={reviewTab() && props.canReview() && props.hasReview()}>
                         <Tabs.Trigger
                           value="review"
                           closeButton={
@@ -257,7 +286,6 @@ export function SessionSidePanel(props: {
                               aria-label={language.t("common.closeTab")}
                             />
                           }
-                          hideCloseButton
                         >
                           <div class="flex items-center gap-1.5">
                             <div>{language.t("session.tab.review")}</div>
@@ -286,7 +314,6 @@ export function SessionSidePanel(props: {
                               />
                             </TooltipKeybind>
                           }
-                          hideCloseButton
                           onMiddleClick={() => tabs().close("context")}
                         >
                           <div class="flex items-center gap-2">
@@ -295,26 +322,42 @@ export function SessionSidePanel(props: {
                           </div>
                         </Tabs.Trigger>
                       </Show>
-                      <Tabs.Trigger
-                        value="artifacts"
-                        style={{ display: props.artifact() ? undefined : "none" }}
-                        closeButton={
-                          <IconButton
-                            icon="close-small"
-                            variant="ghost"
-                            class="h-5 w-5"
-                            onClick={() => props.onArtifactClose()}
-                            aria-label={language.t("common.closeTab")}
-                          />
-                        }
-                        hideCloseButton
-                      >
-                        {language.t("session.tab.artifacts")}
-                      </Tabs.Trigger>
+                      <Show when={props.artifact()}>
+                        <Tabs.Trigger
+                          value="artifacts"
+                          closeButton={
+                            <IconButton
+                              icon="close-small"
+                              variant="ghost"
+                              class="h-5 w-5"
+                              onClick={() => props.onArtifactClose()}
+                              aria-label={language.t("common.closeTab")}
+                            />
+                          }
+                        >
+                          {language.t("session.tab.artifacts")}
+                        </Tabs.Trigger>
+                      </Show>
+                      <Show when={hasMedia()}>
+                        <Tabs.Trigger
+                          value="canvas"
+                          closeButton={
+                            <IconButton
+                              icon="close-small"
+                              variant="ghost"
+                              class="h-5 w-5"
+                              onClick={() => props.onCanvasClose()}
+                              aria-label={language.t("common.closeTab")}
+                            />
+                          }
+                        >
+                          {language.t("session.tab.canvas")}
+                        </Tabs.Trigger>
+                      </Show>
                       <SortableProvider ids={openedTabs()}>
                         <For each={openedTabs()}>{(tab) => <SortableTab tab={tab} onTabClose={tabs().close} />}</For>
                       </SortableProvider>
-                      <div class="bg-background-stronger h-full shrink-0 sticky right-0 z-10 flex items-center justify-center pr-3">
+                      <div class="bg-background-stronger h-full shrink-0 sticky right-0 z-10 flex items-center justify-center gap-0.5 pr-2">
                         <TooltipKeybind
                           title={language.t("command.file.open")}
                           keybind={command.keybind("file.open")}
@@ -333,6 +376,19 @@ export function SessionSidePanel(props: {
                             aria-label={language.t("command.file.open")}
                           />
                         </TooltipKeybind>
+                        {/* Panel-level close — always available so users have a
+                            way to dismiss the whole side panel regardless of
+                            which (or whether any) tabs are visible. */}
+                        <Tooltip placement="bottom" value={language.t("session.panel.close")}>
+                          <IconButton
+                            icon="close-small"
+                            variant="ghost"
+                            iconSize="large"
+                            class="!rounded-md"
+                            onClick={() => view().reviewPanel.close()}
+                            aria-label={language.t("session.panel.close")}
+                          />
+                        </Tooltip>
                       </div>
                     </Tabs.List>
                   </div>
@@ -369,6 +425,12 @@ export function SessionSidePanel(props: {
                   <Tabs.Content value="artifacts" class="flex flex-col h-full overflow-hidden">
                     <Show when={props.artifact()} keyed>
                       {(art) => <ArtifactPreviewTab artifact={art} />}
+                    </Show>
+                  </Tabs.Content>
+
+                  <Tabs.Content value="canvas" class="flex flex-col h-full overflow-hidden contain-strict">
+                    <Show when={effectiveActiveTab() === "canvas" && hasMedia()}>
+                      <SessionCanvas sessionID={currentSessionID} />
                     </Show>
                   </Tabs.Content>
 

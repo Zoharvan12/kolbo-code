@@ -58,20 +58,16 @@ jobs:
             bundle: nsis
             artifact-suffix: windows-x64
           - platform: macos-14
-            rust-target: aarch64-apple-darwin
+            rust-target: universal-apple-darwin
             bundle: dmg
-            artifact-suffix: darwin-aarch64
-          # - platform: macos-13
-          #   rust-target: x86_64-apple-darwin
-          #   bundle: dmg
-          #   artifact-suffix: darwin-x64
+            artifact-suffix: darwin-universal
           # - platform: ubuntu-22.04
           #   rust-target: x86_64-unknown-linux-gnu
           #   bundle: deb
           #   artifact-suffix: linux-x64
 
     runs-on: ${{ matrix.platform }}
-    timeout-minutes: 180
+    timeout-minutes: 300
     if: endsWith(github.repository, '/kolbo-code')
 
     steps:
@@ -93,7 +89,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.rust-target }}
+          # universal-apple-darwin isn't a real rustup target — install both arch slices
+          # so Tauri can lipo them into a universal binary.
+          targets: ${{ matrix.rust-target == 'universal-apple-darwin' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.rust-target }}
 
       - name: Rust cache restore
         id: rust-cache
@@ -105,6 +103,9 @@ jobs:
             packages/desktop/src-tauri/target/aarch64-apple-darwin/release/deps
             packages/desktop/src-tauri/target/aarch64-apple-darwin/release/.fingerprint
             packages/desktop/src-tauri/target/aarch64-apple-darwin/release/build
+            packages/desktop/src-tauri/target/x86_64-apple-darwin/release/deps
+            packages/desktop/src-tauri/target/x86_64-apple-darwin/release/.fingerprint
+            packages/desktop/src-tauri/target/x86_64-apple-darwin/release/build
             packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/deps
             packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/.fingerprint
             packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/build
@@ -166,33 +167,54 @@ jobs:
             KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe"
             [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-windows-x64/bin/kolbo.exe"
             DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}.exe"
+            if [ -f "$KOLBO_BIN" ]; then
+              cp "$KOLBO_BIN" "$DEST"
+              echo "✓ CLI sidecar copied from $KOLBO_BIN"
+              SKILLS_SRC="$(dirname "$(dirname "$KOLBO_BIN")")/skills"
+            fi
           elif [ "$PLATFORM" == "macos-14" ]; then
-            KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
-            [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
+            # Universal sidecar: lipo arm64 + x64 kolbo binaries together so the
+            # universal .app can spawn the CLI on both Apple Silicon and Intel Macs.
+            ARM_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
+            [ -f "$ARM_BIN" ] || ARM_BIN="$BASE/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
+            X64_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
+            [ -f "$X64_BIN" ] || X64_BIN="$BASE/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
             DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}"
+            if [ -f "$ARM_BIN" ] && [ -f "$X64_BIN" ]; then
+              lipo -create "$ARM_BIN" "$X64_BIN" -output "$DEST"
+              chmod +x "$DEST"
+              echo "✓ Universal CLI sidecar created via lipo:"
+              lipo -info "$DEST"
+              SKILLS_SRC="$(dirname "$(dirname "$ARM_BIN")")/skills"
+              KOLBO_BIN="$DEST"
+            else
+              echo "⚠ Need both arm64 + x64 kolbo CLI binaries to build universal sidecar"
+              echo "  arm64: $([ -f "$ARM_BIN" ] && echo found || echo MISSING)"
+              echo "  x64:   $([ -f "$X64_BIN" ] && echo found || echo MISSING)"
+              ls "$BASE/@kolbo/" 2>/dev/null || true
+              KOLBO_BIN=""
+            fi
           else
             KOLBO_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
             [ -f "$KOLBO_BIN" ] || KOLBO_BIN="$BASE/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
             DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}"
+            if [ -f "$KOLBO_BIN" ]; then
+              cp "$KOLBO_BIN" "$DEST"
+              echo "✓ CLI sidecar copied from $KOLBO_BIN"
+              SKILLS_SRC="$(dirname "$(dirname "$KOLBO_BIN")")/skills"
+            fi
           fi
-          if [ -f "$KOLBO_BIN" ]; then
-            cp "$KOLBO_BIN" "$DEST"
-            echo "✓ CLI sidecar copied from $KOLBO_BIN"
-
-            # Copy bundled skills alongside the sidecar so the CLI can find them
-            SKILLS_SRC="$(dirname "$(dirname "$KOLBO_BIN")")/skills"
+          if [ -n "$KOLBO_BIN" ] && [ -f "$DEST" ]; then
             SKILLS_DEST="packages/desktop/src-tauri/skills"
             if [ -d "$SKILLS_SRC" ]; then
               cp -r "$SKILLS_SRC" "$SKILLS_DEST"
               echo "✓ Skills copied ($(ls "$SKILLS_DEST" | wc -l) skills)"
             else
-              # Fallback: copy from monorepo
               cp -r packages/opencode/skills "$SKILLS_DEST"
               echo "✓ Skills copied from monorepo fallback"
             fi
           else
-            echo "⚠ Binary not found, listing @kolbo packages:"
-            ls "$BASE/@kolbo/" 2>/dev/null || echo "None found"
+            echo "⚠ Sidecar not in place — build will likely fail"
           fi
 
       - name: Build Tauri app
@@ -240,6 +262,9 @@ jobs:
             packages/desktop/src-tauri/target/aarch64-apple-darwin/release/deps
             packages/desktop/src-tauri/target/aarch64-apple-darwin/release/.fingerprint
             packages/desktop/src-tauri/target/aarch64-apple-darwin/release/build
+            packages/desktop/src-tauri/target/x86_64-apple-darwin/release/deps
+            packages/desktop/src-tauri/target/x86_64-apple-darwin/release/.fingerprint
+            packages/desktop/src-tauri/target/x86_64-apple-darwin/release/build
             packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/deps
             packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/.fingerprint
             packages/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/build
@@ -276,7 +301,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          DMG_DIR="packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
+          DMG_DIR="packages/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg"
           DMG=$(find "${DMG_DIR}" -maxdepth 1 -name "*.dmg" | head -1)
           if [ -z "${DMG}" ]; then echo "⚠ No DMG found to notarize"; exit 1; fi
           echo "Notarizing: $(basename ${DMG})"
@@ -340,7 +365,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: |
           TAG="desktop-v${{ env.KOLBO_VERSION }}"
-          DMG_DIR="packages/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
+          DMG_DIR="packages/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg"
           DMG=$(find "${DMG_DIR}" -maxdepth 1 -name "*.dmg" | head -1)
           if [ -z "${DMG}" ]; then echo "⚠ No .dmg found"; ls "${DMG_DIR}"; exit 1; fi
           echo "Found DMG: $(basename ${DMG})"
@@ -446,6 +471,10 @@ jobs:
                 "url": "${WIN_URL}"
               },
               "darwin-aarch64": {
+                "signature": "${MAC_SIG}",
+                "url": "${MAC_URL}"
+              },
+              "darwin-x86_64": {
                 "signature": "${MAC_SIG}",
                 "url": "${MAC_URL}"
               }

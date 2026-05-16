@@ -435,6 +435,7 @@ export default function Page() {
 
   const [artifact, setArtifact] = createSignal<ArtifactData | null>(null)
   const [artifactsTabActive, setArtifactsTabActive] = createSignal(false)
+  const [canvasTabActive, setCanvasTabActive] = createSignal(false)
 
   onMount(() => {
     const handler = (e: Event) => {
@@ -447,6 +448,55 @@ export default function Page() {
     }
     document.addEventListener("kolbo:artifact", handler)
     onCleanup(() => document.removeEventListener("kolbo:artifact", handler))
+
+    const openCanvas = () => {
+      // Explicit user request — override the "dismissed" flag for this session.
+      view().canvas.setDismissed(false)
+      setCanvasTabActive(true)
+      if (!view().reviewPanel.opened()) view().reviewPanel.open()
+    }
+    document.addEventListener("kolbo:open-canvas", openCanvas)
+    onCleanup(() => document.removeEventListener("kolbo:open-canvas", openCanvas))
+  })
+
+  // Auto-open the Canvas tab whenever the agent kicks off a new media
+  // generation — track the count of Kolbo generation tool parts and pop the
+  // panel any time the count grows. Initial render of a session that already
+  // has media also opens it. Dismissing just hides it until the next new
+  // generation; we intentionally do NOT permanently gate on a dismissed flag.
+  const mediaPartCount = createMemo(() => {
+    const id = params.id
+    if (!id) return 0
+    const msgs = sync.data.message[id] ?? []
+    let total = 0
+    for (const message of msgs) {
+      const parts = sync.data.part[message.id] ?? []
+      for (const part of parts) {
+        if (part.type !== "tool") continue
+        const tool = (part as { tool?: string }).tool
+        if (typeof tool !== "string") continue
+        if (tool.startsWith("kolbo_") || tool.startsWith("mcp__kolbo__")) total++
+      }
+    }
+    return total
+  })
+  let lastMediaPartCount = -1
+  let lastSessionForMedia: string | undefined
+  createEffect(() => {
+    const id = params.id
+    if (id !== lastSessionForMedia) {
+      lastSessionForMedia = id
+      lastMediaPartCount = -1
+    }
+    const c = mediaPartCount()
+    const prev = lastMediaPartCount
+    lastMediaPartCount = c
+    // First observation per session is a baseline — opening the panel on
+    // every session load (just because it already has media) is what we're
+    // avoiding here.
+    if (prev < 0 || c <= prev) return
+    setCanvasTabActive(true)
+    if (!view().reviewPanel.opened()) view().reviewPanel.open()
   })
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
@@ -510,11 +560,56 @@ export default function Page() {
   })
 
   let handledAuthErrorId: string | undefined
+  // Detects "the Kolbo session is dead" from two distinct sources:
+  //  1. ProviderAuthError on the assistant message itself (kolbo provider
+  //     OAuth failing during model inference — the original reason this
+  //     effect existed).
+  //  2. [KOLBO_AUTH_EXPIRED] / [KOLBO_AUTH_MISSING] tag inside a kolbo_* MCP
+  //     tool result. The MCP server stamps this when kolbo-api returns 401,
+  //     so the agent doesn't have to read auth error strings and parrot
+  //     "open a terminal" at desktop / web users who don't have one.
+  // Both surface the same dialog — the user clicks Reconnect, OAuth fires,
+  // fresh key is written to ~/.kolbo/auth.json, MCP picks it up on the next
+  // request via its existing _tryRefreshKey() path.
+  // Matches both:
+  //   - v1.12+ structured marker:  [KOLBO_AUTH_EXPIRED] / [KOLBO_AUTH_MISSING]
+  //   - legacy v1.6–v1.11 strings: "API key is invalid or expired" / "kolbo
+  //     auth login" / "Kolbo API key not found"
+  // Necessary because the kolbo MCP runs via `npx -y @kolbo/mcp@latest` so
+  // users keep getting whatever's published on npm — until the v1.12 publish
+  // lands, the legacy fallback is what actually triggers the reconnect dialog.
+  const KOLBO_AUTH_PATTERN =
+    /\[KOLBO_AUTH_(EXPIRED|MISSING)\]|API key is invalid or expired|kolbo auth login|Kolbo API key not found/i
+  const hasKolboMcpAuthFailure = (msg: unknown): boolean => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parts = (msg as any)?.parts
+    if (!Array.isArray(parts)) return false
+    for (const raw of parts) {
+      const part = raw as {
+        type?: string
+        tool?: string
+        state?: { status?: string; output?: unknown; error?: unknown }
+      }
+      if (!part?.type?.startsWith?.("tool")) continue
+      const tool = part.tool ?? ""
+      if (!tool.startsWith("kolbo_") && !tool.startsWith("mcp__kolbo__")) continue
+      // Legacy v1.6.x MCP returns the auth error as a "completed" tool result
+      // (the old client.js doesn't throw on 401), so we have to scan ALL tool
+      // states, not just status === "error". The pattern is specific enough
+      // that false positives are negligible.
+      const blob = JSON.stringify(part.state ?? {})
+      if (KOLBO_AUTH_PATTERN.test(blob)) return true
+    }
+    return false
+  }
+
   createEffect(() => {
     const last = lastAssistantMessage()
     if (!last) return
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((last as any).error?.name !== "ProviderAuthError") return
+    const providerAuth = (last as any).error?.name === "ProviderAuthError"
+    const mcpAuth = hasKolboMcpAuthFailure(last)
+    if (!providerAuth && !mcpAuth) return
     if (last.id === handledAuthErrorId) return
     if (dialog.active) return
     handledAuthErrorId = last.id
@@ -2070,8 +2165,8 @@ export default function Page() {
                 direction="horizontal"
                 edge={isRTL() ? "start" : "end"}
                 size={layout.session.width()}
-                min={450}
-                max={typeof window === "undefined" ? 1000 : window.innerWidth * 0.45}
+                min={520}
+                max={typeof window === "undefined" ? 1600 : Math.max(520, window.innerWidth - 450)}
                 onResize={(width) => {
                   size.touch()
                   layout.session.resize(width)
@@ -2097,6 +2192,17 @@ export default function Page() {
           artifactsTabActive={artifactsTabActive}
           onArtifactsTabDeactivate={() => setArtifactsTabActive(false)}
           onArtifactClose={() => { setArtifact(null); setArtifactsTabActive(false) }}
+          canvasTabActive={canvasTabActive}
+          onCanvasTabActivate={() => setCanvasTabActive(true)}
+          onCanvasTabDeactivate={() => setCanvasTabActive(false)}
+          onCanvasClose={() => {
+            view().canvas.setDismissed(true)
+            setCanvasTabActive(false)
+            // Close the whole side panel — Canvas is a top-level destination,
+            // not a sub-tab of Review. Pressing X should mean "go back to my
+            // chat", not "switch to a different tab inside this panel".
+            view().reviewPanel.close()
+          }}
         />
       </div>
 

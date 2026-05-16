@@ -2,6 +2,9 @@ import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useServer } from "@/context/server"
+import { Dialog as KobalteDialog } from "@kobalte/core/dialog"
+import { Dialog } from "@opencode-ai/ui/dialog"
+import { Button } from "@opencode-ai/ui/button"
 
 export type ArtifactData = {
   content: string
@@ -130,6 +133,72 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
   // True while we're waiting for the sidecar to respond
   const isLoadingPreview = createMemo(() => props.artifact.lang === "html" && !htmlPreviewUrl() && !htmlPreviewFailed())
 
+  // ── Publish flow ─────────────────────────────────────────────────────────
+  // POSTs the current artifact to the opencode server's /global/kolbo-artifact-publish
+  // proxy, which forwards to kolbo-api's /artifact/quick-share with the user's
+  // stored Bearer auth and returns a public sites.kolbo.ai URL.
+  const [publishOpen, setPublishOpen] = createSignal(false)
+  const [publishUrl, setPublishUrl] = createSignal<string | null>(null)
+  const [publishError, setPublishError] = createSignal<string | null>(null)
+  const [publishLoading, setPublishLoading] = createSignal(false)
+  const [copied, setCopied] = createSignal(false)
+
+  async function publish() {
+    if (publishLoading()) return
+    const base = server.current?.http.url
+    if (!base) {
+      setPublishError("Server not reachable")
+      setPublishOpen(true)
+      return
+    }
+    setPublishLoading(true)
+    setPublishError(null)
+    setPublishUrl(null)
+    setPublishOpen(true)
+    try {
+      const res = await fetch(`${base}/global/kolbo-artifact-publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: language.t("artifact.publish.defaultTitle"),
+          content: props.artifact.content,
+          type: props.artifact.lang,
+        }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { data?: { publicUrl?: string; shareableSlug?: string; siteUrl?: string; shareToken?: string }; error?: { message?: string } }
+      if (!res.ok) {
+        setPublishError(data?.error?.message || `HTTP ${res.status}`)
+        return
+      }
+      // Server returns publicUrl already env-aware (local API for dev, sites.kolbo.ai for prod).
+      const url =
+        data?.data?.publicUrl ||
+        data?.data?.siteUrl ||
+        (data?.data?.shareableSlug ? `https://sites.kolbo.ai/${data.data.shareableSlug}` : null)
+      if (!url) {
+        setPublishError("Server returned no URL")
+        return
+      }
+      setPublishUrl(url)
+    } catch (e) {
+      setPublishError((e as Error).message)
+    } finally {
+      setPublishLoading(false)
+    }
+  }
+
+  async function copyUrl() {
+    const url = publishUrl()
+    if (!url) return
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Clipboard API blocked — leave the URL visible so user can manually copy.
+    }
+  }
+
   return (
     <div class="flex flex-col h-full overflow-hidden">
       {/* Toolbar */}
@@ -162,6 +231,22 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
         </div>
 
         <div class="flex-1" />
+
+        <Show when={props.artifact.lang === "html" || props.artifact.lang === "svg" || props.artifact.lang === "mermaid"}>
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded text-12-medium border border-border-weak-base text-text-base hover:bg-surface-base-hover hover:text-text-strong transition-colors duration-100 disabled:opacity-50 disabled:cursor-wait"
+            disabled={publishLoading()}
+            aria-label={language.t("artifact.publish")}
+            title={language.t("artifact.publish")}
+            onClick={publish}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 1.5v6m0-6L3.5 4M6 1.5L8.5 4M1.5 8.5v1A1 1 0 0 0 2.5 10.5h7a1 1 0 0 0 1-1v-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            {language.t("artifact.publish")}
+          </button>
+        </Show>
 
         <Show when={props.artifact.lang === "html"}>
           {(() => {
@@ -255,6 +340,64 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
           </div>
         </Show>
       </div>
+
+      {/* Publish dialog */}
+      <KobalteDialog open={publishOpen()} onOpenChange={setPublishOpen} modal>
+        <KobalteDialog.Portal>
+          <KobalteDialog.Overlay class="fixed inset-0 z-50 bg-background-base/60 backdrop-blur-sm" />
+          <div class="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div class="pointer-events-auto">
+              <Dialog title={language.t("artifact.publish.title")} class="w-full max-w-[480px] mx-auto">
+                <div class="flex flex-col gap-4 p-6 pt-2">
+                  <Show when={publishLoading()}>
+                    <div class="flex items-center justify-center py-6 gap-3 text-text-weak text-12-regular">
+                      <div class="size-4 border-2 border-neutral-300 border-t-neutral-600 rounded-full animate-spin" />
+                      {language.t("artifact.publish.loading")}
+                    </div>
+                  </Show>
+                  <Show when={publishError()}>
+                    <div class="text-text-danger text-12-regular px-3 py-2 rounded bg-surface-danger-base/40">
+                      {publishError()}
+                    </div>
+                  </Show>
+                  <Show when={publishUrl()}>
+                    <div class="flex flex-col gap-2">
+                      <label class="text-12-medium text-text-weak">{language.t("artifact.publish.urlLabel")}</label>
+                      <div class="flex items-center gap-2">
+                        <input
+                          readonly
+                          value={publishUrl() ?? ""}
+                          class="flex-1 text-12-regular px-3 py-2 rounded border border-border-weak-base bg-surface-base-active text-text-base outline-none"
+                          onFocus={(e) => (e.currentTarget as HTMLInputElement).select()}
+                        />
+                        <Button type="button" onClick={copyUrl}>
+                          {copied() ? language.t("artifact.publish.copied") : language.t("artifact.publish.copy")}
+                        </Button>
+                      </div>
+                      <a
+                        href={publishUrl() ?? "#"}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        class="text-12-medium text-text-interactive-base hover:underline self-start"
+                        onClick={(e) => {
+                          const url = publishUrl()
+                          if (!url) { e.preventDefault(); return }
+                          if (platform.openLink) {
+                            e.preventDefault()
+                            platform.openLink(url)
+                          }
+                        }}
+                      >
+                        {language.t("artifact.publish.open")} →
+                      </a>
+                    </div>
+                  </Show>
+                </div>
+              </Dialog>
+            </div>
+          </div>
+        </KobalteDialog.Portal>
+      </KobalteDialog>
     </div>
   )
 }

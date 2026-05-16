@@ -157,4 +157,9 @@ export const dict = {
   "ui.download.openInFolder": "Åbn i mappe",
   "ui.download.changeFolder": "Skift mappe",
   "ui.download.openingInBrowser": "Åbner i browser",
+  "ui.kolbo.generatedImage": "Genereret billede",
+  "ui.kolbo.generatingImage": "Genererer billede…",
+  "ui.kolbo.generatingVideo": "Genererer video…",
+  "ui.kolbo.generatingAudio": "Genererer lyd…",
+  "ui.kolbo.usedMedia": "{n} medier",
 }

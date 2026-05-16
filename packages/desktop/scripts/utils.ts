@@ -12,6 +12,13 @@ export const SIDECAR_BINARIES: Array<{ rustTarget: string; ocBinary: string; ass
     assetExt: "zip",
   },
   {
+    // Universal Mac sidecar — CI builds this by lipo-merging arm64 + x64.
+    // For local dev / one-off use, fall back to arm64 (host arch on M-series).
+    rustTarget: "universal-apple-darwin",
+    ocBinary: "@kolbo/kolbo-code-darwin-arm64",
+    assetExt: "zip",
+  },
+  {
     rustTarget: "aarch64-pc-windows-msvc",
     ocBinary: "@kolbo/kolbo-code-windows-arm64",
     assetExt: "zip",
@@ -50,6 +57,12 @@ export async function copyBinaryToSidecarFolder(source: string, target = RUST_TA
   await $`cp ${source} ${dest}`
   if (process.platform === "win32" && process.env.GITHUB_ACTIONS === "true") {
     await $`pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File ../../script/sign-windows.ps1 ${dest}`
+  }
+  // macOS kills unsigned Mach-O binaries on launch (SIGKILL). Ad-hoc sign for local dev so
+  // the sidecar passes Gatekeeper. CI replaces this with a real Developer ID signature.
+  if (process.platform === "darwin" && process.env.GITHUB_ACTIONS !== "true") {
+    await $`codesign --remove-signature ${dest}`.nothrow().quiet()
+    await $`codesign --force --deep -s - ${dest}`
   }
 
   console.log(`Copied ${source} to ${dest}`)

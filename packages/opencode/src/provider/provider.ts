@@ -878,6 +878,12 @@ export namespace Provider {
       headers: z.record(z.string(), z.string()),
       release_date: z.string(),
       variants: z.record(z.string(), z.record(z.string(), z.any())).optional(),
+      // Set by the Kolbo provider (refreshKolboLimits) — surfaced to the
+      // desktop picker so the canonical default model can be pinned to the
+      // top of its group and so we can render the per-model avatar that the
+      // backend ships in /kolbo/v1/models.
+      default: z.boolean().optional(),
+      avatar: z.string().optional(),
     })
     .meta({
       ref: "Model",
@@ -987,6 +993,9 @@ export namespace Provider {
       },
       release_date: model.release_date,
       variants: {},
+      // Optional Kolbo-provider fields — Mongo-backed catalog ships these.
+      default: model.default || undefined,
+      avatar: model.avatar,
     }
 
     m.variants = mapValues(ProviderTransform.variants(m), (v) => v)

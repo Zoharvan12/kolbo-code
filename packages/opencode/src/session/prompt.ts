@@ -1499,11 +1499,20 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               continue
             }
 
-            const agent = yield* agents.get(lastUser.agent)
+            // Re-read session on each loop step so the user can flip the
+            // active agent mid-turn (composer dock / TUI keybind sets
+            // session.runtimeAgent via /session/:id/runtime-agent). When
+            // runtimeAgent is set, it overrides the agent name embedded in
+            // the original user message — so permission changes (plan ↔
+            // build ↔ auto-approve) take effect on the next step instead of
+            // forcing the user to send a new message.
+            const sessionLive = yield* sessions.get(sessionID)
+            const effectiveAgentName = sessionLive?.runtimeAgent || lastUser.agent
+            const agent = yield* agents.get(effectiveAgentName)
             if (!agent) {
               const available = (yield* agents.list()).filter((a) => !a.hidden).map((a) => a.name)
               const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
-              const error = new NamedError.Unknown({ message: `Agent not found: "${lastUser.agent}".${hint}` })
+              const error = new NamedError.Unknown({ message: `Agent not found: "${effectiveAgentName}".${hint}` })
               yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
               throw error
             }
@@ -1596,7 +1605,10 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               const result = yield* handle.process({
                 user: lastUser,
                 agent,
-                permission: session.permission,
+                // Use the freshly-fetched session so mid-turn updates to
+                // session.permission (and the runtimeAgent that drove
+                // `agent` above) propagate on the next step.
+                permission: sessionLive?.permission ?? session.permission,
                 sessionID,
                 parentSessionID: session.parentID,
                 system,

@@ -161,10 +161,19 @@ export function Titlebar() {
     void win.toggleMaximize().catch(() => undefined)
   }
 
+  // On macOS the native traffic-light buttons (close/min/max) are overlaid by
+  // the OS at physical top-left of the window — independent of writing
+  // direction. Reserve 72px of *physical* left padding so the toolbar never
+  // collides with them, in both LTR and RTL modes. (In RTL, the previous
+  // in-flow spacer landed on the visual-right since flex children swap; that
+  // left the actual traffic-light area uncovered. `padding-left` is physical
+  // and immune to direction.)
+  const macTrafficLightPadding = createMemo(() => (mac() ? `${72 / zoom()}px` : "0"))
+
   return (
     <header
       class="h-10 shrink-0 bg-background-base relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center"
-      style={{ "min-height": minHeight() }}
+      style={{ "min-height": minHeight(), "padding-left": macTrafficLightPadding() }}
       data-tauri-drag-region
       onMouseDown={drag}
       onDblClick={maximize}
@@ -176,7 +185,6 @@ export function Titlebar() {
         }}
       >
         <Show when={mac()}>
-          <div class="h-full shrink-0" style={{ width: `${72 / zoom()}px` }} />
           <div class="xl:hidden w-10 shrink-0 flex items-center justify-center">
             <IconButton
               icon="menu"

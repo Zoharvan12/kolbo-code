@@ -7,6 +7,37 @@ import { getCursorPosition } from "./editor-dom"
 import { attachmentMime, mimeFromUrl, MAX_MEDIA_BYTES } from "./files"
 import { normalizePaste, pasteMode } from "./paste"
 
+// Client-side upload dedup cache (SHA-256 → CDN URL) and the in-flight upload
+// tracker the submit-side awaits before reading prompt parts. Mirrors the TUI's
+// `kolboUploadCache` + `inFlightAttachments` in
+// packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx.
+const UPLOAD_CACHE_MAX = 200
+const uploadCache = new Map<string, string>()
+export const inFlightAttachments = new Set<Promise<void>>()
+
+async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
+  const hash = await crypto.subtle.digest("SHA-256", bytes)
+  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("")
+}
+
+function cachePut(hash: string, url: string) {
+  if (uploadCache.size >= UPLOAD_CACHE_MAX) {
+    const oldest = uploadCache.keys().next().value
+    if (oldest) uploadCache.delete(oldest)
+  }
+  uploadCache.set(hash, url)
+}
+
+// Runs `fn` and keeps a handle in inFlightAttachments until it settles. Submit
+// drains the set before reading prompt parts — bypass this and a fast Enter
+// after attach will ship a base64 dataUrl instead of a CDN URL.
+function trackInFlight(fn: () => Promise<void>): Promise<void> {
+  const work = fn()
+  inFlightAttachments.add(work)
+  void work.finally(() => inFlightAttachments.delete(work))
+  return work
+}
+
 function dataUrl(file: File, mime: string) {
   return new Promise<string>((resolve) => {
     const reader = new FileReader()
@@ -62,8 +93,10 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
   async function uploadAttachment(id: string, blob: Blob, mime: string, filename: string) {
     const serverUrl = input.serverUrl?.()
     if (!serverUrl) {
-      // No server URL — leave as base64 (graceful fallback)
-      prompt.updateImageAttachment(id, { uploading: false })
+      prompt.updateImageAttachment(id, {
+        uploading: false,
+        uploadError: "Upload server unavailable",
+      })
       return
     }
 
@@ -73,36 +106,50 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     const controller = new AbortController()
     uploadAborts.set(id, controller)
 
-    const form = new FormData()
-    form.append("file", blob, filename)
+    return trackInFlight(async () => {
+      try {
+        // SHA-256 dedup — re-attaching the same image hits the cache and
+        // skips the network roundtrip. Keeps a stable URL across turns.
+        const bytes = await blob.arrayBuffer()
+        const hash = await sha256Hex(bytes)
+        const cached = uploadCache.get(hash)
+        if (cached) {
+          uploadAborts.delete(id)
+          prompt.updateImageAttachment(id, { uploading: false, publicUrl: cached })
+          return
+        }
 
-    try {
-      const res = await fetch(`${serverUrl}/global/kolbo-files-upload`, {
-        method: "POST",
-        body: form,
-        signal: controller.signal,
-      })
-      uploadAborts.delete(id)
+        const form = new FormData()
+        form.append("file", blob, filename)
 
-      if (!res.ok) {
-        const isTooBig = res.status === 413
-        throw new Error(isTooBig ? "File too large for server" : `Upload failed (HTTP ${res.status})`)
+        const res = await fetch(`${serverUrl}/global/kolbo-files-upload`, {
+          method: "POST",
+          body: form,
+          signal: controller.signal,
+        })
+        uploadAborts.delete(id)
+
+        if (!res.ok) {
+          const isTooBig = res.status === 413
+          throw new Error(isTooBig ? "File too large for server" : `Upload failed (HTTP ${res.status})`)
+        }
+
+        const data = (await res.json()) as { url?: string; error?: { message: string } }
+        if (data.url) {
+          cachePut(hash, data.url)
+          prompt.updateImageAttachment(id, { uploading: false, publicUrl: data.url })
+        } else {
+          throw new Error(data.error?.message ?? "No URL in upload response")
+        }
+      } catch (e) {
+        uploadAborts.delete(id)
+        if ((e as Error).name === "AbortError") return
+        prompt.updateImageAttachment(id, {
+          uploading: false,
+          uploadError: (e as Error).message,
+        })
       }
-
-      const data = (await res.json()) as { url?: string; error?: { message: string } }
-      if (data.url) {
-        prompt.updateImageAttachment(id, { uploading: false, publicUrl: data.url })
-      } else {
-        throw new Error(data.error?.message ?? "No URL in upload response")
-      }
-    } catch (e) {
-      uploadAborts.delete(id)
-      if ((e as Error).name === "AbortError") return // cancelled by user removing attachment
-      prompt.updateImageAttachment(id, {
-        uploading: false,
-        uploadError: (e as Error).message,
-      })
-    }
+    })
   }
 
   const retryAttachment = (id: string) => {
@@ -194,7 +241,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       const controller = new AbortController()
       uploadAborts.set(id, controller)
 
-      void (async () => {
+      void trackInFlight(async () => {
         try {
           const res = await fetch(`${serverUrl}/global/kolbo-files-upload-from-path`, {
             method: "POST",
@@ -215,7 +262,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
           if ((e as Error).name === "AbortError") return
           prompt.updateImageAttachment(id, { uploading: false, uploadError: (e as Error).message })
         }
-      })()
+      })
     }
 
     return true

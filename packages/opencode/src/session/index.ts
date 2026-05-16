@@ -75,6 +75,7 @@ export namespace Session {
       share,
       revert,
       permission: row.permission ?? undefined,
+      runtimeAgent: row.runtime_agent ?? undefined,
       time: {
         created: row.time_created,
         updated: row.time_updated,
@@ -101,6 +102,7 @@ export namespace Session {
       summary_diffs: info.summary?.diffs,
       revert: info.revert ?? null,
       permission: info.permission,
+      runtime_agent: info.runtimeAgent ?? null,
       time_created: info.time.created,
       time_updated: info.time.updated,
       time_compacting: info.time.compacting,
@@ -148,6 +150,13 @@ export namespace Session {
         archived: z.number().optional(),
       }),
       permission: Permission.Ruleset.optional(),
+      // Mid-turn agent override. When set, the running session loop uses this
+      // agent name instead of the agent embedded in the last user message,
+      // so changing agent (plan ↔ build ↔ auto-approve) from the composer
+      // dock / TUI keybind takes effect on the next loop step rather than
+      // forcing the user to send a new message. Cleared automatically when a
+      // new user message arrives (since that message carries its own agent).
+      runtimeAgent: z.string().optional(),
       revert: z
         .object({
           messageID: MessageID.zod,
@@ -321,6 +330,7 @@ export namespace Session {
     readonly setTitle: (input: { sessionID: SessionID; title: string }) => Effect.Effect<void>
     readonly setArchived: (input: { sessionID: SessionID; time?: number }) => Effect.Effect<void>
     readonly setPermission: (input: { sessionID: SessionID; permission: Permission.Ruleset }) => Effect.Effect<void>
+    readonly setRuntimeAgent: (input: { sessionID: SessionID; agent: string | undefined }) => Effect.Effect<void>
     readonly setRevert: (input: {
       sessionID: SessionID
       revert: Info["revert"]
@@ -556,6 +566,18 @@ export namespace Session {
         yield* patch(input.sessionID, { permission: input.permission, time: { updated: Date.now() } })
       })
 
+      const setRuntimeAgent = Effect.fn("Session.setRuntimeAgent")(function* (input: {
+        sessionID: SessionID
+        agent: string | undefined
+      }) {
+        // Pass null (not undefined) so the patch actually clears the column;
+        // undefined would be a no-op partial.
+        yield* patch(input.sessionID, {
+          runtimeAgent: (input.agent ?? null) as unknown as Info["runtimeAgent"],
+          time: { updated: Date.now() },
+        })
+      })
+
       const setRevert = Effect.fn("Session.setRevert")(function* (input: {
         sessionID: SessionID
         revert: Info["revert"]
@@ -634,6 +656,7 @@ export namespace Session {
         setTitle,
         setArchived,
         setPermission,
+        setRuntimeAgent,
         setRevert,
         clearRevert,
         setSummary,

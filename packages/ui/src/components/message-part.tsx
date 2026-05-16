@@ -37,6 +37,7 @@ import { useDialog } from "../context/dialog"
 import { type UiI18n, useI18n } from "../context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
 import { setupPathLinks } from "./markdown"
+import { extractKolboUrls as extractKolboUrlsShared, isVideoUrl as isVideoUrlShared } from "./kolbo-media"
 import { usePlatformOps } from "../context/platform-ops"
 import { Accordion } from "./accordion"
 import { StickyAccordionHeader } from "./sticky-accordion-header"
@@ -49,6 +50,7 @@ import { Checkbox } from "./checkbox"
 import { DiffChanges } from "./diff-changes"
 import { Markdown } from "./markdown"
 import { ImagePreview } from "./image-preview"
+import { Mark } from "./logo"
 import { getDirectory as _getDirectory, getFilename } from "@opencode-ai/util/path"
 import { checksum } from "@opencode-ai/util/encode"
 import { Tooltip } from "./tooltip"
@@ -1113,16 +1115,27 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
                       <img data-slot="user-message-attachment-image" src={file.url} alt={name} />
                     </Match>
                     <Match when={type === "video"}>
+                      {/* Seek to 0.05s + autoplay+muted forces the decoder
+                          to actually render a frame so the user sees the
+                          first frame instead of a black tile. onLoadedData
+                          pauses to freeze on that frame; the native play
+                          control resumes from there. */}
                       <video
                         data-slot="user-message-attachment-video"
-                        src={file.url}
-                        autoplay={false}
+                        src={file.url.includes("#") ? file.url : `${file.url}#t=0.05`}
                         loop
                         muted
                         playsinline
-                        preload="metadata"
-                        style="max-width:100%;max-height:200px;border-radius:8px;display:block"
+                        autoplay
+                        preload="auto"
                         controls
+                        onLoadedData={(e) => {
+                          // Just pause — see KolboVideoChipThumb for why
+                          // we don't change preload after pause (WebKit
+                          // evicts the decoded frame).
+                          try { e.currentTarget.pause() } catch {}
+                        }}
+                        style="max-width:100%;max-height:200px;border-radius:8px;display:block"
                       />
                     </Match>
                     <Match when={type === "audio"}>
@@ -1149,16 +1162,22 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
               <div data-slot="user-message-attachment" data-type={media.kind}>
                 <Switch>
                   <Match when={media.kind === "video"}>
+                    {/* Same first-frame poster strategy as above —
+                        seek-to-0.05 + autoplay forces frame decode,
+                        onLoadedData pauses + suspends buffering. */}
                     <video
                       data-slot="user-message-attachment-video"
-                      src={media.url}
-                      autoplay={false}
+                      src={media.url.includes("#") ? media.url : `${media.url}#t=0.05`}
                       loop
                       muted
                       playsinline
-                      preload="metadata"
-                      style="max-width:100%;max-height:200px;border-radius:8px;display:block"
+                      autoplay
+                      preload="auto"
                       controls
+                      onLoadedData={(e) => {
+                        try { e.currentTarget.pause() } catch {}
+                      }}
+                      style="max-width:100%;max-height:200px;border-radius:8px;display:block"
                     />
                   </Match>
                   <Match when={media.kind === "audio"}>
@@ -1557,12 +1576,21 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
     )
   })
 
+  // We used to strip kolbo media URLs from the agent's text to avoid
+  // duplicating the canvas gallery. That created orphan labels (e.g. a
+  // Hebrew "תמונה:" with nothing after it), broke RTL alignment via
+  // multi-step regex cleanup, and left no path for inline thumbs in
+  // catalog-style replies. Trust the agent's text + the markdown renderer
+  // (which already handles `![](url)`, auto-previews `[label](url.png)`,
+  // and applies RTL `dir`). Cleaner, fewer hard-coded special cases.
+  const displayText = createMemo(() => text())
+
   return (
-    <Show when={text()}>
+    <Show when={displayText()}>
       <div data-component="text-part">
         <div data-slot="text-part-body">
-          <Show when={streaming()} fallback={<Markdown text={text()} cacheKey={part().id} streaming={false} />}>
-            <PacedMarkdown text={text()} cacheKey={part().id} streaming={streaming()} />
+          <Show when={streaming()} fallback={<Markdown text={displayText()} cacheKey={part().id} streaming={false} />}>
+            <PacedMarkdown text={displayText()} cacheKey={part().id} streaming={streaming()} />
           </Show>
           <LinkPreviews urls={linkUrls()} />
         </div>
@@ -2522,16 +2550,8 @@ ToolRegistry.register({
 
 // ─── Kolbo MCP media tools ────────────────────────────────────────────────────
 
-function extractUrls(text: string | undefined): string[] {
-  if (!text) return []
-  const all: string[] = []
-  const mdRe = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g
-  let m: RegExpExecArray | null
-  while ((m = mdRe.exec(text)) !== null) all.push(m[2].trim())
-  const bareRe = /(?<!\()(https?:\/\/[^\s"'<>)]+)/g
-  while ((m = bareRe.exec(text)) !== null) all.push(m[1].trim())
-  return [...new Set(all)]
-}
+const extractUrls = extractKolboUrlsShared
+
 
 const downloadIconSvg =
   '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13.9583 10.6257L10 14.584L6.04167 10.6257M10 2.08398V13.959M16.25 17.9173H3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>'
@@ -2570,136 +2590,353 @@ function useMediaSetup(getRef: () => HTMLDivElement | undefined) {
   })
 }
 
-function KolboImageTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
+// Multi-item media layout: single item keeps natural aspect + bounded height; 2+ items
+// switch to a responsive auto-fit grid so director/multi-output tool results read as a
+// row of stills instead of a tall vertical stack. Images preserve their aspect ratio
+// (no cropping) — each cell letterboxes a portrait or pillar-boxes a landscape inside
+// a shared row height. Click opens the lightbox for the full frame.
+function mediaLayout(count: number, kind: "image" | "video") {
+  const maxHeightPx = kind === "video" ? 400 : 320
+  if (count <= 1) {
+    return {
+      container: "flex flex-col gap-2 px-3 pb-3",
+      containerStyle: "",
+      itemStyle: `position:relative;display:block;max-width:100%`,
+      mediaStyle: `display:block;max-width:100%;max-height:${maxHeightPx}px;object-fit:contain;border-radius:8px;border:1px solid var(--border-weaker-base)`,
+    }
+  }
+  // Responsive auto-fit grid with a CAPPED MAX cell size. minmax(min, MAX) instead
+  // of minmax(min, 1fr) means cells never stretch past `MAX` even at wide chat
+  // widths — so a 4-scene director result reads as a tidy row of large tiles, not
+  // a horizon of tiny thumbnails. `justify-content: center` keeps short rows
+  // visually balanced when the cells don't fill the container.
+  //
+  // Tailwind JIT note: arbitrary class values built from template literals are
+  // silently dropped (the scanner can't see `${minPx}`), so we apply the grid
+  // template via inline style instead.
+  const minPx = kind === "video" ? 240 : 220
+  const maxPx = kind === "video" ? 360 : 280
+  const rowHeightPx = kind === "video" ? 240 : 240
+  return {
+    container: "grid gap-2 px-3 pb-3",
+    containerStyle: `grid-template-columns:repeat(auto-fit,minmax(${minPx}px,${maxPx}px));justify-content:center`,
+    itemStyle: `position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:${rowHeightPx}px;background:var(--surface-recess-base);border-radius:8px;overflow:hidden`,
+    mediaStyle: `display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;border-radius:6px`,
+  }
+}
+
+// Progress card for an in-flight Kolbo media generation. Renders a tile the
+// same size as the eventual media so the layout doesn't jump when the
+// generation finishes — the user sees a placeholder "slot" with a spinner
+// + the model name + a prompt preview, which then smoothly swaps in the
+// real image / video / audio when ready.
+//
+// Replaces the previous wall of "tool_called(model=…, num_images=…,
+// aspect_ratio=…)" headers that dominated the chat when the agent fired
+// 5-10 calls in parallel.
+function pendingCount(tool: string, input?: Record<string, unknown>): number {
+  const pick = (key: string) => {
+    const v = input?.[key]
+    if (typeof v === "number" && v > 0) return Math.floor(v)
+    if (typeof v === "string" && /^\d+$/.test(v)) return parseInt(v, 10)
+    return undefined
+  }
+  // Tool-specific count keys, in priority order.
+  const fromKey =
+    pick("num_images") ??
+    pick("scene_count") ??
+    pick("num_outputs") ??
+    pick("count") ??
+    pick("n")
+  if (fromKey) return Math.min(fromKey, 8)
+  // generate_elements / first_last_frame accept arrays of scenes/files.
+  const arr = input?.["scenes"] ?? input?.["elements"] ?? input?.["files"]
+  if (Array.isArray(arr) && arr.length > 0) return Math.min(arr.length, 8)
+  return 1
+}
+
+function KolboMediaPending(props: {
+  kind: "image" | "video" | "audio"
+  tool: string
+  input?: Record<string, unknown>
+}) {
+  const count = createMemo(() => pendingCount(props.tool, props.input))
+  const layout = createMemo(() =>
+    props.kind === "audio" ? undefined : mediaLayout(count(), props.kind),
+  )
+  const whitelabelLogo = import.meta.env.VITE_WHITELABEL_LOGO as string | undefined
+  // Audio doesn't need the tile — render compact row.
+  return (
+    <Show
+      when={props.kind !== "audio"}
+      fallback={
+        <div class="flex items-center gap-2 px-3 py-2">
+          <span
+            style="display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid color-mix(in srgb, var(--text-base) 18%, transparent);border-top-color:var(--text-base);animation:kolbo-spin 0.9s linear infinite"
+            aria-hidden="true"
+          />
+        </div>
+      }
+    >
+      <div class={layout()!.container} style={layout()!.containerStyle}>
+        <For each={Array.from({ length: count() })}>
+          {() => (
+            <div
+              style={`${count() > 1 ? layout()!.itemStyle + ";" : ""}position:relative;display:flex;align-items:center;justify-content:center;${count() > 1 ? "" : "width:100%;max-width:280px;height:240px;"}background:var(--surface-recess-base);border-radius:8px;border:1px solid var(--border-weak-base);overflow:hidden`}
+            >
+              <div style="position:relative;width:56px;height:56px;display:flex;align-items:center;justify-content:center">
+                <span
+                  style="position:absolute;inset:0;border-radius:50%;border:2px solid color-mix(in srgb, var(--text-base) 14%, transparent);border-top-color:var(--text-base);animation:kolbo-spin 0.9s linear infinite"
+                  aria-hidden="true"
+                />
+                {whitelabelLogo ? (
+                  <img src={whitelabelLogo} alt="" style="width:24px;height:24px;object-fit:contain;opacity:0.85" />
+                ) : (
+                  <Mark class="w-6 h-6 opacity-80" />
+                )}
+              </div>
+            </div>
+          )}
+        </For>
+      </div>
+    </Show>
+  )
+}
+
+// ─── Compact chip ─────────────────────────────────────────────────────────
+// In the message timeline we no longer render big media tiles for Kolbo
+// generation tool calls — they all live in the Canvas side panel now. The
+// inline footprint is a single one-line chip: tool icon + status text +
+// "View in Canvas →" button. While the generation is in flight the chip
+// shows a spinner; when complete it shows a small thumbnail (for images)
+// or a kind icon and a media count, and clicking it pops Canvas open.
+
+type KolboChipKind = "image" | "video" | "audio" | "music" | "speech" | "sound" | "model3d" | "asset"
+
+function kolboChipKindFor(tool: string): KolboChipKind {
+  const base = tool.startsWith("kolbo_")
+    ? tool.slice("kolbo_".length)
+    : tool.startsWith("mcp__kolbo__")
+      ? tool.slice("mcp__kolbo__".length)
+      : tool
+  if (base === "generate_music") return "music"
+  if (base === "generate_speech") return "speech"
+  if (base === "generate_sound") return "sound"
+  if (base === "generate_3d") return "model3d"
+  if (base === "generate_creative_director") return "asset"
+  if (base === "create_visual_dna") return "asset"
+  if (base === "upload_media") return "asset"
+  if (
+    base.includes("video") ||
+    base === "generate_lipsync" ||
+    base === "generate_elements" ||
+    base === "generate_first_last_frame" ||
+    base === "edit_video"
+  )
+    return "video"
+  return "image"
+}
+
+function kolboChipLabelKey(kind: KolboChipKind, count: number): string {
+  if (kind === "image") return count === 1 ? "ui.kolbo.chip.label.image" : "ui.kolbo.chip.label.images"
+  if (kind === "video") return count === 1 ? "ui.kolbo.chip.label.video" : "ui.kolbo.chip.label.videos"
+  if (kind === "audio") return "ui.kolbo.chip.label.audio"
+  if (kind === "music") return "ui.kolbo.chip.label.music"
+  if (kind === "speech") return "ui.kolbo.chip.label.speech"
+  if (kind === "sound") return "ui.kolbo.chip.label.sound"
+  if (kind === "model3d") return "ui.kolbo.chip.label.model3d"
+  return count === 1 ? "ui.kolbo.chip.label.asset" : "ui.kolbo.chip.label.assets"
+}
+
+function KolboChipIcon(props: { kind: KolboChipKind }) {
+  return (
+    <Show when={props.kind} keyed>
+      {(kind) => {
+        if (kind === "image" || kind === "asset")
+          return (
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+              <rect x="2.5" y="3.5" width="15" height="13" rx="2" stroke="currentColor" stroke-width="1.5" />
+              <circle cx="7" cy="8" r="1.25" fill="currentColor" />
+              <path d="m3 14 4-4 3 3 3-3 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          )
+        if (kind === "video")
+          return (
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+              <rect x="2.5" y="4.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.5" />
+              <path d="m13.5 9 4-2v6l-4-2v-2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+            </svg>
+          )
+        if (kind === "model3d")
+          return (
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+              <path d="M10 2.5 3 6v8l7 3.5L17 14V6l-7-3.5Zm0 0v15M3 6l7 4 7-4" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+            </svg>
+          )
+        // audio / music / speech / sound
+        return (
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+            <path d="M10 3v12M6 6v6M14 6v6M3 9v2M17 9v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+        )
+      }}
+    </Show>
+  )
+}
+
+function openCanvas() {
+  if (typeof document === "undefined") return
+  document.dispatchEvent(new CustomEvent("kolbo:open-canvas"))
+}
+
+function KolboVideoChipThumb(props: { url: string }) {
+  // Tiny first-frame preview. URL fragment `#t=0.05` positions playback
+  // at 0.05s, autoplay+muted forces frame decode, onLoadedData pauses
+  // so the element freezes on that frame. Do NOT switch preload to
+  // "none" after pause — WebKit drops the decoded frame buffer when
+  // preload changes, sending the thumb back to black.
+  return (
+    <video
+      src={props.url.includes("#") ? props.url : `${props.url}#t=0.05`}
+      preload="auto"
+      muted
+      playsinline
+      autoplay
+      onLoadedData={(e) => {
+        try { e.currentTarget.pause() } catch {}
+      }}
+      style="width:20px;height:20px;border-radius:4px;object-fit:cover;border:1px solid var(--border-weaker-base);background:#0b0b0c;pointer-events:none"
+    />
+  )
+}
+
+function KolboCompactChip(props: {
+  tool: string
+  status?: string
+  input?: Record<string, unknown>
+  output?: string
+}) {
   const i18n = useI18n()
-  const urls = createMemo(() => {
-    if (props.status !== "completed") return []
-    return extractUrls(props.output)
+  const kind = createMemo(() => kolboChipKindFor(props.tool))
+  const urls = createMemo(() => (props.status === "completed" ? extractUrls(props.output) : []))
+  const inFlight = createMemo(() => props.status !== "completed" && props.status !== "error")
+  const isError = createMemo(() => props.status === "error")
+  const pendN = createMemo(() => pendingCount(props.tool, props.input))
+  const doneN = createMemo(() => urls().length)
+  const count = createMemo(() => (inFlight() ? pendN() : doneN()))
+  const labelKey = createMemo(() => kolboChipLabelKey(kind(), count()))
+  const text = createMemo(() => {
+    const label = i18n.t(labelKey())
+    if (inFlight()) {
+      return count() > 1
+        ? i18n.t("ui.kolbo.chip.generatingCount", { count: count(), label })
+        : i18n.t("ui.kolbo.chip.generating", { label })
+    }
+    return count() > 1
+      ? i18n.t("ui.kolbo.chip.readyCount", { count: count(), label })
+      : i18n.t("ui.kolbo.chip.ready", { label })
   })
-  let containerRef: HTMLDivElement | undefined
-  useMediaSetup(() => containerRef)
+
+  // Show up to MAX_CHIP_THUMBS mini-thumbnails in the chip so chat and
+  // canvas stay visually in sync — a 4-image generation now reads "4
+  // images ready" with FOUR thumbs (was: one thumb + "4 ready" text),
+  // matching the canvas tiles 1:1.
+  const MAX_CHIP_THUMBS = 4
+  const thumbs = createMemo<string[]>(() => {
+    if (inFlight() || isError()) return []
+    if (kind() !== "image" && kind() !== "asset" && kind() !== "video") return []
+    return urls().slice(0, MAX_CHIP_THUMBS)
+  })
+  const overflowN = createMemo(() => {
+    const total = urls().length
+    return total > MAX_CHIP_THUMBS ? total - MAX_CHIP_THUMBS : 0
+  })
+  const isVideoUrl = isVideoUrlShared
 
   return (
-    <div ref={containerRef}>
-      <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
-      <Show when={urls().length > 0}>
-        <div class="flex flex-wrap gap-2 px-3 pb-3">
-          <For each={urls()}>
-            {(url) => (
-              <div
-                data-media-wrapper={url}
-                data-lightbox-src={url}
-                style="position:relative;display:inline-block;max-width:100%"
+    <div class="px-3 pb-2">
+      <Show when={isError()} fallback={
+        <button
+          type="button"
+          onClick={openCanvas}
+          disabled={inFlight() && doneN() === 0}
+          class="group inline-flex items-center gap-2 max-w-full pl-2 pr-2.5 py-1 rounded-full border border-border-weaker-base bg-background-stronger hover:bg-surface-recess-base hover:border-border-weak-base text-text-base transition-colors disabled:cursor-default"
+          style="font-size:12px"
+        >
+          <Show
+            when={inFlight()}
+            fallback={
+              <Show
+                when={thumbs().length > 0}
+                fallback={
+                  <span class="flex items-center justify-center size-5 rounded-md bg-surface-info-base text-text-strong">
+                    <KolboChipIcon kind={kind()} />
+                  </span>
+                }
               >
-                <img
-                  src={url}
-                  alt={i18n.t("ui.kolbo.generatedImage")}
-                  style="display:block;max-width:100%;max-height:320px;object-fit:contain;border-radius:8px;border:1px solid var(--border-weaker-base);cursor:zoom-in"
-                  loading="lazy"
-                />
-                <div
-                  data-media-overlay=""
-                  style="position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity 0.15s;pointer-events:none;transform:translateY(2px)"
-                >
-                  <button
-                    type="button"
-                    data-md-download={url}
-                    style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);color:white;cursor:pointer;pointer-events:auto"
-                    // eslint-disable-next-line solid/no-innerhtml
-                    innerHTML={downloadIconSvg}
-                  />
-                </div>
-              </div>
-            )}
-          </For>
-        </div>
+                <span class="flex items-center gap-0.5">
+                  <For each={thumbs()}>
+                    {(src) => (
+                      <Show
+                        when={isVideoUrl(src)}
+                        fallback={
+                          <img
+                            src={src}
+                            alt=""
+                            loading="lazy"
+                            style="width:20px;height:20px;border-radius:4px;object-fit:cover;border:1px solid var(--border-weaker-base);background:#0b0b0c"
+                          />
+                        }
+                      >
+                        <KolboVideoChipThumb url={src} />
+                      </Show>
+                    )}
+                  </For>
+                  <Show when={overflowN() > 0}>
+                    <span
+                      class="flex items-center justify-center text-text-weak"
+                      style="width:20px;height:20px;border-radius:4px;border:1px solid var(--border-weaker-base);background:var(--background-stronger);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums"
+                      aria-label={`${overflowN()} more`}
+                    >
+                      +{overflowN()}
+                    </span>
+                  </Show>
+                </span>
+              </Show>
+            }
+          >
+            <span
+              aria-hidden="true"
+              style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid color-mix(in srgb, var(--text-base) 18%, transparent);border-top-color:var(--text-base);animation:kolbo-spin 0.9s linear infinite"
+            />
+          </Show>
+          <span class="truncate text-text-base">{text()}</span>
+          <Show when={!inFlight() && doneN() > 0}>
+            <span class="text-text-weak group-hover:text-text-base transition-colors inline-flex items-center gap-0.5 pl-1 border-l border-border-weaker-base ml-0.5">
+              {i18n.t("ui.kolbo.chip.viewInCanvas")}
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
+                <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+          </Show>
+        </button>
+      }>
+        <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails />
       </Show>
     </div>
   )
+}
+
+function KolboImageTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
+  return <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />
 }
 
 function KolboVideoTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
-  const urls = createMemo(() => {
-    if (props.status !== "completed") return []
-    return extractUrls(props.output)
-  })
-  let containerRef: HTMLDivElement | undefined
-  useMediaSetup(() => containerRef)
-
-  return (
-    <div ref={containerRef}>
-      <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
-      <Show when={urls().length > 0}>
-        <div class="flex flex-col gap-2 px-3 pb-3">
-          <For each={urls()}>
-            {(url) => (
-              <div
-                data-media-wrapper={url}
-                data-video-wrapper={url}
-                style="position:relative;display:block;max-width:100%"
-              >
-                <video
-                  src={url}
-                  controls
-                  preload="metadata"
-                  style="display:block;max-width:100%;max-height:400px;border-radius:8px;border:1px solid var(--border-weak-base);background:#000"
-                />
-                <div
-                  data-media-overlay=""
-                  style="position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity 0.15s;pointer-events:none;transform:translateY(2px)"
-                >
-                  <button
-                    type="button"
-                    data-md-download={url}
-                    style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);color:white;cursor:pointer;pointer-events:auto"
-                    // eslint-disable-next-line solid/no-innerhtml
-                    innerHTML={downloadIconSvg}
-                  />
-                </div>
-              </div>
-            )}
-          </For>
-        </div>
-      </Show>
-    </div>
-  )
+  return <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />
 }
 
 function KolboAudioTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
-  const urls = createMemo(() => {
-    if (props.status !== "completed") return []
-    return extractUrls(props.output)
-  })
-  let containerRef: HTMLDivElement | undefined
-  useMediaSetup(() => containerRef)
-
-  return (
-    <div ref={containerRef}>
-      <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
-      <Show when={urls().length > 0}>
-        <div class="flex flex-col gap-2 px-3 pb-3">
-          <For each={urls()}>
-            {(url) => (
-              <div
-                data-media-wrapper={url}
-                data-audio-wrapper={url}
-                style="display:flex;align-items:center;gap:8px;max-width:100%"
-              >
-                <audio src={url} controls style="flex:1;min-width:0;display:block;border-radius:8px" />
-                <button
-                  type="button"
-                  data-md-download={url}
-                  style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:6px;border:1px solid var(--border-weak-base);background:var(--background-stronger);color:var(--text-strong);cursor:pointer"
-                  // eslint-disable-next-line solid/no-innerhtml
-                  innerHTML={downloadIconSvg}
-                />
-              </div>
-            )}
-          </For>
-        </div>
-      </Show>
-    </div>
-  )
+  return <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />
 }
 
 const KOLBO_IMAGE_TOOLS = ["kolbo_generate_image", "kolbo_generate_image_edit", "kolbo_edit_image"]
@@ -2724,66 +2961,12 @@ for (const name of KOLBO_AUDIO_TOOLS) {
   ToolRegistry.register({ name, render: (props) => <KolboAudioTool {...props} tool={props.tool} /> })
 }
 
-// Creative Director can return images or videos — detect by URL extension
 ToolRegistry.register({
   name: "kolbo_generate_creative_director",
-  render: (props) => {
-    const urls = createMemo(() => {
-      if (props.status !== "completed") return []
-      return extractUrls(props.output)
-    })
-    const isVideo = (url: string) => /\.(mp4|webm|mov|avi|m4v)(\?|$)/i.test(url)
-    const videoUrls = createMemo(() => urls().filter(isVideo))
-    const imageUrls = createMemo(() => urls().filter((u) => !isVideo(u)))
-    return (
-      <div>
-        <Show when={videoUrls().length > 0}>
-          <KolboVideoTool {...props} tool={props.tool} output={videoUrls().join("\n")} />
-        </Show>
-        <Show when={imageUrls().length > 0}>
-          <KolboImageTool {...props} tool={props.tool} output={imageUrls().join("\n")} />
-        </Show>
-        <Show when={urls().length === 0}>
-          <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
-        </Show>
-      </div>
-    )
-  },
+  render: (props) => <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />,
 })
 
-// 3D tool returns GLB/FBX/OBJ/USDZ download links
 ToolRegistry.register({
   name: "kolbo_generate_3d",
-  render: (props) => {
-    const urls = createMemo(() => {
-      if (props.status !== "completed") return []
-      return extractUrls(props.output)
-    })
-    return (
-      <div>
-        <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
-        <Show when={urls().length > 0}>
-          <div class="flex flex-wrap gap-2 px-3 pb-3">
-            <For each={urls()}>
-              {(url) => {
-                const ext = url.split(".").pop()?.split("?")[0]?.toUpperCase() ?? "FILE"
-                return (
-                  <a
-                    href={url}
-                    download={ext.toLowerCase()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;border:1px solid var(--border-weak-base);background:var(--background-stronger);color:var(--text-base);text-decoration:none;font-size:13px"
-                  >
-                    {downloadIconSvg && <span innerHTML={downloadIconSvg} style="display:flex" />}
-                    {ext}
-                  </a>
-                )
-              }}
-            </For>
-          </div>
-        </Show>
-      </div>
-    )
-  },
+  render: (props) => <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />,
 })

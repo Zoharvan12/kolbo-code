@@ -95,6 +95,9 @@ export namespace ModelsDev {
       .optional(),
     status: z.enum(["alpha", "beta", "deprecated"]).optional(),
     provider: z.object({ npm: z.string().optional(), api: z.string().optional() }).optional(),
+    // Kolbo-provider extras tacked on at runtime by refreshKolboLimits().
+    default: z.boolean().optional(),
+    avatar: z.string().optional(),
   })
   export type Model = z.infer<typeof Model>
 
@@ -172,10 +175,14 @@ export namespace ModelsDev {
   }
 
   /**
-   * Fetch context/output limits from the Kolbo API's /models endpoint and
-   * patch them into the KOLBO_PROVIDER models in-place.  Called once at
-   * startup (fire-and-forget); failures are silently swallowed so the
-   * hardcoded 196_608 fallback stays in effect when offline.
+   * Fetch the catalog from the Kolbo API's /models endpoint and rebuild
+   * KOLBO_PROVIDER.models from it. Called once at startup + hourly
+   * (fire-and-forget); failures are silently swallowed so the hardcoded
+   * `kolbo-default` fallback stays in effect when offline.
+   *
+   * The full rebuild lets the backend expose new code models (just by adding
+   * Mongo docs) without a CLI release. The local hardcoded entry above is
+   * the offline-only fallback.
    */
   export async function refreshKolboLimits() {
     try {
@@ -184,14 +191,66 @@ export namespace ModelsDev {
         signal: AbortSignal.timeout(8000),
       })
       if (!res.ok) return
-      const json = (await res.json()) as { data?: Array<{ id: string; context_length?: number; output_length?: number }> }
-      for (const m of json.data ?? []) {
-        const entry = KOLBO_PROVIDER.models[m.id as keyof typeof KOLBO_PROVIDER.models] as any
-        if (!entry) continue
-        if (typeof m.context_length === "number" && m.context_length > 0) entry.limit.context = m.context_length
-        if (typeof m.output_length === "number" && m.output_length > 0) entry.limit.output = m.output_length
+      const json = (await res.json()) as {
+        data?: Array<{
+          id: string
+          name?: string
+          description?: string
+          default?: boolean
+          avatar?: string | null
+          release_date?: string
+          modalities?: { input?: string[]; output?: string[] }
+          cost?: { input?: number; output?: number }
+          reasoning?: boolean
+          context_length?: number
+          output_length?: number
+        }>
       }
-      Data.reset() // invalidate cached provider data so next get() picks up new limits
+      if (!Array.isArray(json.data) || json.data.length === 0) return // keep fallback
+
+      // kolbo-api absolutizes + percent-encodes avatar URLs server-side
+      // (controller.js → resolveAvatar). We just keep absolute URLs and drop
+      // anything else — relative paths arriving here would 404 in the browser
+      // anyway, so undefined → fallback initial tile is the safer outcome.
+      const passAvatar = (a: string | null | undefined): string | undefined =>
+        typeof a === "string" && /^https?:\/\//i.test(a) ? a : undefined
+
+      const next: Record<string, any> = {}
+      for (const m of json.data) {
+        if (!m?.id) continue
+        const inputModalities = m.modalities?.input ?? ["text"]
+        next[m.id] = {
+          id: m.id,
+          name: m.name ?? m.id,
+          family: "kolbo",
+          attachment: inputModalities.length > 1,
+          reasoning: m.reasoning ?? false,
+          tool_call: true,
+          structured_output: true,
+          temperature: true,
+          release_date: m.release_date ?? "2026-04-10",
+          last_updated: m.release_date ?? "2026-04-10",
+          modalities: {
+            input: inputModalities,
+            output: m.modalities?.output ?? ["text"],
+          },
+          open_weights: false,
+          cost: {
+            input: m.cost?.input ?? 0,
+            output: m.cost?.output ?? 0,
+          },
+          limit: {
+            context: m.context_length ?? 196_608,
+            output: m.output_length ?? 32_768,
+          },
+          // Picker pins default to top of Kolbo group + renders avatar.
+          default: m.default === true,
+          avatar: passAvatar(m.avatar),
+        }
+      }
+      // Atomic swap so the TUI never observes a half-empty map
+      ;(KOLBO_PROVIDER as any).models = next
+      Data.reset() // invalidate cached provider data so next get() picks up the new catalog
     } catch {
       // offline or API down — hardcoded fallback stays in effect
     }

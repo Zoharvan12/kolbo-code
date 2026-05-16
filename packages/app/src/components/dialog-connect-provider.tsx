@@ -532,6 +532,28 @@ export function DialogConnectProvider(props: { provider: string }) {
     })
 
     onMount(() => {
+      // Auto-open the verification URL in the user's default browser the
+      // moment the dialog mounts. The URL kolbo-api hands back is the
+      // verification_uri_complete form — user_code is already in the URL
+      // and the user only has to click "Approve" on the landing page
+      // (they already have a session at app.kolbo.ai from being logged
+      // into the main Kolbo product). Saves a click, a copy/paste, and
+      // the situation we just hit where the user couldn't even see the
+      // code.
+      const verificationUrl = store.authorization?.url
+      if (verificationUrl) {
+        try {
+          // window.open works in both browser (web) and Tauri / Electron
+          // wrappers — Tauri auto-routes _blank to the system browser via
+          // tauri-plugin-shell when configured, Electron routes via the
+          // BrowserWindow.webContents.setWindowOpenHandler hook in
+          // packages/desktop-electron. In dev (Vite) it pops a new tab.
+          window.open(verificationUrl, "_blank", "noopener,noreferrer")
+        } catch {
+          // Non-fatal: the user can still click the link in the dialog.
+        }
+      }
+
       void (async () => {
         const result = await globalSDK.client.provider.oauth
           .callback({

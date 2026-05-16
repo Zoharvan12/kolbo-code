@@ -1549,6 +1549,10 @@ export type Model = {
     };
     name: string;
     family?: string;
+    /** Marks the canonical default model for its provider (pinned to the top of the picker). */
+    default?: boolean;
+    /** Optional URL or CDN path for the model's icon, surfaced by Kolbo provider. */
+    avatar?: string;
     capabilities: {
         temperature: boolean;
         reasoning: boolean;

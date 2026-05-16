@@ -33,6 +33,12 @@
   }
 }
 
+@keyframes kolbo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes fadeUp {
   from {
     opacity: 0;

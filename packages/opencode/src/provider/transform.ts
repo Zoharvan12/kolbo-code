@@ -326,6 +326,45 @@ export namespace ProviderTransform {
     return msgs
   }
 
+  // Phase 1: stamp cache_control on the LAST tool so providers cache the entire
+  // tools array (Anthropic caches every prior tool definition once the breakpoint
+  // is set on the last one). Combined with system caching in applyCaching above,
+  // this gives 2 cache breakpoints (system + tools); user message caching adds 1-2
+  // more, still within Anthropic's 4-breakpoint limit.
+  export function tools<T extends Record<string, any>>(tools: T, model: Provider.Model): T {
+    if (!Flag.KOLBO_CACHE_TOOLS) return tools
+    const isCacheAware =
+      model.providerID === "anthropic" ||
+      model.providerID === "google-vertex-anthropic" ||
+      model.providerID.includes("bedrock") ||
+      model.api.id.includes("anthropic") ||
+      model.api.id.includes("claude") ||
+      model.id.includes("anthropic") ||
+      model.id.includes("claude") ||
+      model.api.npm === "@ai-sdk/anthropic" ||
+      model.api.npm === "@ai-sdk/google-vertex/anthropic" ||
+      model.api.npm === "@ai-sdk/amazon-bedrock" ||
+      model.api.npm === "@openrouter/ai-sdk-provider"
+    if (!isCacheAware) return tools
+    if (model.api.npm === "@ai-sdk/gateway") return tools
+
+    const keys = Object.keys(tools).filter((k) => k !== "invalid")
+    const last = keys[keys.length - 1]
+    if (!last) return tools
+
+    const tool = tools[last] as any
+    if (!tool || typeof tool !== "object") return tools
+
+    const providerOptions = {
+      anthropic: { cacheControl: { type: "ephemeral" } },
+      openrouter: { cacheControl: { type: "ephemeral" } },
+      bedrock: { cachePoint: { type: "default" } },
+      openaiCompatible: { cache_control: { type: "ephemeral" } },
+    }
+    tool.providerOptions = mergeDeep(tool.providerOptions ?? {}, providerOptions)
+    return tools
+  }
+
   export function temperature(model: Provider.Model) {
     const id = model.id.toLowerCase()
     if (id.includes("qwen")) return 0.55

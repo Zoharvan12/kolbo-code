@@ -66,6 +66,9 @@ function prepareServerEnv(password: string) {
     KODU_EXPERIMENTAL_ICON_DISCOVERY: "true",
     KODU_EXPERIMENTAL_FILEWATCHER: "true",
     KODU_CLIENT: "desktop",
+    // Runtime reads KOLBO_CLIENT; KODU_CLIENT is a stale upstream var that
+    // nothing reads anymore. Both are set during the deprecation window.
+    KOLBO_CLIENT: "desktop",
     KODU_SERVER_USERNAME: "kodu",
     KODU_SERVER_PASSWORD: password,
     XDG_STATE_HOME: app.getPath("userData"),
