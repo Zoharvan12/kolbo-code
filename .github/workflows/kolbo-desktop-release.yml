@@ -159,6 +159,13 @@ jobs:
           mkdir -p /tmp/kolbo-cli-install
           cd /tmp/kolbo-cli-install
           npm install @kolbo/kolbo-code@latest 2>&1 || true
+          # On macOS we lipo arm64 + x64 into a universal sidecar — but
+          # `npm install` only resolves the OPTIONAL dependency that matches
+          # the host CPU, leaving the other one missing. Force-install both
+          # platform binaries explicitly so the universal build can run.
+          if [ "${{ matrix.platform }}" == "macos-14" ]; then
+            npm install @kolbo/kolbo-code-darwin-arm64@latest @kolbo/kolbo-code-darwin-x64@latest --force --no-save 2>&1 || true
+          fi
           cd "$GITHUB_WORKSPACE"
           BASE="/tmp/kolbo-cli-install/node_modules"
           PLATFORM="${{ matrix.platform }}"
