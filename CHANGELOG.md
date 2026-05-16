@@ -4,7 +4,7 @@ All notable changes to Kolbo Code. Coordinates with the kolbo-api and
 kolbo-mcp companion repos — entries note the cross-repo touchpoints
 where relevant.
 
-## Unreleased (post-2.1.21)
+## 2.1.22 — 2026-05-16
 
 ### Visual DNA + image-gen routing
 - **Smart Select bias for DNA**: when `visual_dna_ids` is present in the
