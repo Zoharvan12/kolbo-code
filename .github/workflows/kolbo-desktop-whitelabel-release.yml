@@ -218,6 +218,9 @@ jobs:
           mkdir -p /tmp/kolbo-cli-install
           cd /tmp/kolbo-cli-install
           npm install @kolbo/kolbo-code@latest 2>&1 || true
+          if [ "${{ matrix.platform }}" == "macos-14" ]; then
+            npm install @kolbo/kolbo-code-darwin-arm64@latest @kolbo/kolbo-code-darwin-x64@latest --force --no-save 2>&1 || true
+          fi
           cd "$GITHUB_WORKSPACE"
           BASE="/tmp/kolbo-cli-install/node_modules"
           PLATFORM="${{ matrix.platform }}"
@@ -232,18 +235,26 @@ jobs:
               SKILLS_SRC="$(dirname "$(dirname "$KOLBO_BIN")")/skills"
             fi
           elif [ "$PLATFORM" == "macos-14" ]; then
+            # Tauri universal build needs all three sidecars: per-arch
+            # (aarch64, x86_64) for the per-arch build step + the
+            # universal-named lipo'd file for the final bundle step.
             ARM_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
             [ -f "$ARM_BIN" ] || ARM_BIN="$BASE/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
             X64_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
             [ -f "$X64_BIN" ] || X64_BIN="$BASE/@kolbo/kolbo-code-darwin-x64/bin/kolbo"
-            DEST="packages/desktop/src-tauri/sidecars/opencode-cli-${RUST_TARGET}"
+            ARM_DEST="packages/desktop/src-tauri/sidecars/opencode-cli-aarch64-apple-darwin"
+            X64_DEST="packages/desktop/src-tauri/sidecars/opencode-cli-x86_64-apple-darwin"
+            UNI_DEST="packages/desktop/src-tauri/sidecars/opencode-cli-universal-apple-darwin"
             if [ -f "$ARM_BIN" ] && [ -f "$X64_BIN" ]; then
-              lipo -create "$ARM_BIN" "$X64_BIN" -output "$DEST"
-              chmod +x "$DEST"
-              echo "✓ Universal CLI sidecar created via lipo:"
-              lipo -info "$DEST"
+              cp "$ARM_BIN" "$ARM_DEST"
+              cp "$X64_BIN" "$X64_DEST"
+              lipo -create "$ARM_BIN" "$X64_BIN" -output "$UNI_DEST"
+              chmod +x "$ARM_DEST" "$X64_DEST" "$UNI_DEST"
+              echo "✓ All three CLI sidecars staged for universal build:"
+              ls -la "$ARM_DEST" "$X64_DEST" "$UNI_DEST"
               SKILLS_SRC="$(dirname "$(dirname "$ARM_BIN")")/skills"
-              KOLBO_BIN="$DEST"
+              KOLBO_BIN="$ARM_BIN"
+              DEST="$UNI_DEST"
             else
               echo "⚠ Need both arm64 + x64 kolbo CLI binaries to build universal sidecar"
               ls "$BASE/@kolbo/" 2>/dev/null || true
