@@ -296,7 +296,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          DMG_DIR="packages/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg"
+          DMG_DIR="packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/dmg"
           DMG=$(find "${DMG_DIR}" -maxdepth 1 -name "*.dmg" | head -1)
           if [ -z "${DMG}" ]; then echo "⚠ No DMG found to notarize"; exit 1; fi
           echo "Notarizing: $(basename ${DMG})"
@@ -360,7 +360,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: |
           TAG="desktop-v${{ env.KOLBO_VERSION }}"
-          DMG_DIR="packages/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg"
+          DMG_DIR="packages/desktop/src-tauri/target/${{ matrix.rust-target }}/release/bundle/dmg"
           DMG=$(find "${DMG_DIR}" -maxdepth 1 -name "*.dmg" | head -1)
           if [ -z "${DMG}" ]; then echo "⚠ No .dmg found"; ls "${DMG_DIR}"; exit 1; fi
           echo "Found DMG: $(basename ${DMG})"
