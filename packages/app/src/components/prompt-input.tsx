@@ -215,21 +215,31 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   // We track the count of completed Kolbo tool parts across all messages
   // in the current session; createEffect re-runs when the count changes,
   // which is exactly the "a generation just finished" signal.
+  // Only the most recent assistant message can gain new completions
+  // during normal streaming (older messages' tool parts are already
+  // terminal). Scan its parts only — O(P) per tick instead of O(M*P)
+  // across the whole session. Skip the scan entirely when there's no
+  // assistant message yet.
   const completedKolboToolCount = createMemo(() => {
     const id = params.id
     if (!id) return 0
-    const messages = (sync.data.message[id] ?? []) as Array<{ id: string }>
-    let n = 0
-    for (const m of messages) {
-      const parts = sync.data.part[m.id]
-      if (!parts) continue
-      for (const p of parts) {
-        if (p.type !== "tool") continue
-        const tool = (p as { tool?: string }).tool ?? ""
-        if (!tool.startsWith("kolbo_") && !tool.startsWith("mcp__kolbo__")) continue
-        const state = (p as { state?: { status?: string } }).state
-        if (state?.status === "completed") n++
+    const messages = (sync.data.message[id] ?? []) as Array<{ id: string; role?: string }>
+    const lastAssistant = (() => {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i]?.role === "assistant") return messages[i]
       }
+      return undefined
+    })()
+    if (!lastAssistant) return 0
+    const parts = sync.data.part[lastAssistant.id]
+    if (!parts) return 0
+    let n = 0
+    for (const p of parts) {
+      if (p.type !== "tool") continue
+      const tool = (p as { tool?: string }).tool ?? ""
+      if (!tool.startsWith("kolbo_") && !tool.startsWith("mcp__kolbo__")) continue
+      const state = (p as { state?: { status?: string } }).state
+      if (state?.status === "completed") n++
     }
     return n
   })

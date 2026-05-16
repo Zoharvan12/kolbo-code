@@ -239,16 +239,74 @@ Creative generations bill against the user's Kolbo credit balance. **Billing uni
 4. After all complete, present results together.
 5. On 429: wait 60s, retry only the failed items (max 2 retries).
 
-**Multi-image decision:**
-- User gives a **general brief** ("make 4 product shots", "create a storyboard", "show the character in 4 different settings") → use `generate_creative_director` with `scene_count`. Pass `visual_dna_ids` to keep a character consistent across all scenes.
-- User gives **explicit separate prompts** ("Image 1: X, Image 2: Y, Image 3: Z") → fire all as **parallel `generate_image` calls** in one response
-- Never call `generate_image` sequentially in a loop — either use `generate_creative_director` or fire all calls in one parallel batch
+### ⚠️ Multi-output? Default to `generate_creative_director` (CRITICAL)
+
+`generate_creative_director` is not a niche tool — **it IS an agent**. It plans the prompt for each scene internally, locks style + character consistency across the whole set, and runs every scene in parallel. For anything that produces **2 or more related outputs**, it is almost always the right call.
+
+**Default rule:** if the user asks for multiple related outputs (variations, scenes, angles, poses, settings, moods, ad shots, product shots, storyboards, character sheets, key frames for a video) — **use `generate_creative_director`**. Reach for parallel `generate_image` calls only when the rule below explicitly says to.
+
+**Decision matrix:**
+
+| User intent | Tool | Why |
+|---|---|---|
+| "make 4 / 6 / 8 [shots, scenes, variations, angles, poses, outfits, moods, settings, frames]" | **`generate_creative_director`** with `scene_count` | One brief → N distinct, coherent outputs. Director handles per-scene prompting. |
+| "show the character in N different ___" | **`generate_creative_director`** with `scene_count` + `visual_dna_ids` | Character consistency is its specialty. |
+| "create a storyboard / ad campaign / product set" | **`generate_creative_director`** | The model itself was built for this case. |
+| "key frames for a video / shots for the ad" | **`generate_creative_director`** (then `generate_video_from_image` per frame) | See "Character-driven video — frames first" below. |
+| "give me 4 variations of THIS exact image" (same prompt, random seed only) | `generate_image` with `num_images=4` | No new direction needed — seeds, not scenes. |
+| User dictates **explicit separate prompts** word-for-word: "Image 1: X. Image 2: Y. Image 3: Z." | Parallel `generate_image` calls (one per prompt) | The user already wrote the per-scene prompts; the director's planning step would be wasted. |
+| Single image, single prompt | `generate_image` | Nothing to coordinate. |
+
+**Tie-breaker:** if you're about to fire ≥2 `generate_image` calls and the user did NOT dictate per-image prompts word-for-word, stop and use `generate_creative_director` instead. The director is cheaper in tokens (one call, one plan) and the results stay coherent.
+
+**Never call `generate_image` sequentially in a loop.** Either use `generate_creative_director` (preferred for any related set) or fire all calls in a single parallel batch.
+
+### 🛑 Runaway-loop guard — ONE generation per requested item (CRITICAL)
+
+When the user asks for **one specific change** to a specific media item ("change the 2nd video to anime", "make this image brighter", "regenerate scene 3"), the answer is **a single tool call** with a single output. After that tool returns URLs, **stop**. Surface the result to the user and wait for their next message.
+
+You are NOT allowed to:
+
+- Fire the same tool 3+ times in a single turn unless the user explicitly asked for "N variations" / "make X versions".
+- Re-fire a tool because you think the previous result might not be exactly what the user wanted — let the user judge; if they don't like it, they'll say so.
+- Auto-retry on success ("the first one wasn't perfect, let me try again"). If the tool returned URLs successfully, the work is done.
+- Fire 5+ parallel `generate_video*` calls speculatively. Video is expensive — every extra call burns credits the user didn't ask to spend.
+
+**Rule of thumb**: if you've fired the same tool 3+ times in one turn and the user asked for ONE thing, stop. You're in a loop. Surface what you have, ask the user which one they want to keep, and wait.
+
+Only re-fire when:
+1. The user explicitly asked for variations (with a count).
+2. The previous call returned `failure.retryable === true` AND it was a transient error — then ONE retry, max.
+3. The previous call returned `completed` but with `urls.length === 0` — then ONE retry on the same payload.
+
+### ⚠️ Editing an existing video → ONE call, not frames-first (CRITICAL)
+
+If the user references an **existing video** and asks to modify it ("change this video to anime style", "make it cinematic", "video-to-video edit", "the 2nd video looks too cheesy, fix it"), that is a **single `generate_video_from_video` call** — pass the source video URL + the edit prompt and you're done. **One call. One output. Done.**
+
+**Use a TRUE video-to-video model.** Image-to-video models (anything whose identifier ends in `image-to-video` / `i2v` / contains `image2video`) will NOT work — they require an image input, not a video, and the server rejects the call with `WRONG_MODEL_TYPE`. Examples of valid v2v models you can pick:
+
+- `wan/2-7-videoedit` — Wan 2.7 video edit (re-style / re-prompt)
+- `happyhorse/video-edit` — HappyHorse video edit
+- `kling-video/o3-video-to-video` — Kling O3 V2V
+- Any model whose DB `type` array contains `video_to_video` (use `list_models` with `type: "video_to_video"` to see the current set)
+
+If you're unsure which model to use, call `list_models({ type: "video_to_video" })` first — do NOT guess based on the name.
+
+**Do NOT:**
+- Decompose into frames (frames-first applies only when *creating new character video from scratch*, NOT for editing an existing video).
+- Re-fire the same tool repeatedly if the first call returned URLs — even if you're not 100% sure the result matches; surface the result to the user and let them iterate.
+- Generate multiple variations unless the user explicitly asks for "options" / "variations" / "X different versions".
+- Use an image-to-video model just because it shows up in `list_models` — check that its `type` array includes `video_to_video`.
+
+**If the first call legitimately fails** (content policy, transient error, model refused), surface the failure to the user via the `failure` envelope — do not blindly retry. See "Reading failure envelopes" above.
+
+This rule overrides the "frames first" guidance below for any video-EDITING request. The "frames first" rule is only for **generating new character-driven video from scratch**, not for re-styling / modifying an existing clip.
 
 ### ⚠️ Character-driven video — frames first, then animate (CRITICAL)
 
-For any ad / story / scene-based video featuring a Visual DNA character, do **NOT** jump straight from DNA to `generate_elements` / `generate_video` per shot. The right flow is:
+For any ad / story / scene-based video **created from scratch** featuring a Visual DNA character (NOT video-to-video edits — see the rule above for those), do **NOT** jump straight from DNA to `generate_elements` / `generate_video` per shot. The right flow is:
 
-1. **Generate the shot frames first** as still images — one image per shot — via `generate_creative_director` (or parallel `generate_image` calls) with `visual_dna_ids`. The DNA is at its strongest in image generation: the character lands consistently, you can preview cheaply, and the user can approve/revise the frames before any expensive video runs.
+1. **Generate the shot frames first** as still images — one image per shot — via `generate_creative_director` with `scene_count` + `visual_dna_ids`. (Use the director, NOT parallel `generate_image` calls — multiple shots = a coherent set, that's exactly what the director is for.) The DNA is at its strongest in image generation: the character lands consistently, you can preview cheaply, and the user can approve/revise the frames before any expensive video runs.
 2. **Confirm the frames with the user** if there are more than ~3 shots, or if the user hasn't explicitly said "go straight to video."
 3. **Animate each frame to video** with `generate_video_from_image`, passing each approved frame as `image_url`. This is cheaper and more predictable than direct DNA→video, and identity is locked because the model is animating an existing pixel-perfect frame instead of re-inferring the character.
 

@@ -8,10 +8,19 @@ import { Mark } from "@opencode-ai/ui/logo"
 import { showToast } from "@opencode-ai/ui/toast"
 import { useTheme } from "@opencode-ai/ui/theme/context"
 import type { Part, ToolPart, ToolStateCompleted, ToolStateRunning } from "@opencode-ai/sdk/v2"
+import {
+  extractKolboUrls as extractUrls,
+  isVideoUrl,
+  openKolboLightbox,
+} from "@opencode-ai/ui/kolbo-media"
 
-// Kolbo MCP generation tool basenames (same set as
-// packages/opencode/src/session/message-v2.ts:36-59). Duplicated here because
-// the desktop app cannot import from packages/opencode directly. Keep in sync.
+// Kolbo MCP generation tool basenames that the canvas tracks. ONLY tools
+// that produce NEWLY-GENERATED media belong here. `upload_media` and
+// `create_visual_dna` operate on user-supplied source material, not new
+// generations — their URLs are the user's own uploads echoed back, and
+// surfacing them in the canvas falsely advertises them as Kolbo outputs
+// (and clutters the gallery with input frames the user is just trying to
+// process).
 const KOLBO_GENERATION_TOOL_NAMES = new Set([
   "generate_image",
   "generate_image_edit",
@@ -28,8 +37,6 @@ const KOLBO_GENERATION_TOOL_NAMES = new Set([
   "generate_speech",
   "generate_3d",
   "generate_creative_director",
-  "create_visual_dna",
-  "upload_media",
 ])
 
 function isKolboGenerationTool(tool: string): boolean {
@@ -38,67 +45,11 @@ function isKolboGenerationTool(tool: string): boolean {
   return false
 }
 
-// Output fields that contain the actual generated media (as opposed to
-// echoed input URLs, thumbnails, hint text, etc.). Listed in order of
-// preference — first match wins so a tool with `urls` doesn't also fold
-// in its `image_url` echo. Plural fields take arrays of URLs; singular
-// fields take a single URL string.
-const PRIMARY_OUTPUT_FIELDS = [
-  "urls",
-  "image_urls",
-  "video_urls",
-  "audio_urls",
-  "model_urls",
-  "video_url",
-  "audio_url",
-  "model_url",
-  "downloadUrl",
-] as const
-
-function extractUrls(output: string | undefined): string[] {
-  if (!output) return []
-  // Preferred path: parse the tool result as JSON and read ONLY the
-  // designated output field(s). This avoids regex-scanning everything,
-  // which previously pulled in:
-  //   - the `image_url` input the agent passed to a video tool (echoed
-  //     back in the response), which then appeared in the canvas as a
-  //     duplicate of the original image
-  //   - thumbnail/poster URLs that ship alongside the real video URL
-  //   - URLs mentioned in `_followup_hint` / `prompt_used` strings
-  try {
-    const obj = JSON.parse(output)
-    if (obj && typeof obj === "object") {
-      for (const field of PRIMARY_OUTPUT_FIELDS) {
-        const value = (obj as Record<string, unknown>)[field]
-        if (Array.isArray(value)) {
-          const urls = value.filter((v): v is string => typeof v === "string" && /^https?:\/\//.test(v))
-          if (urls.length > 0) return [...new Set(urls)]
-        } else if (typeof value === "string" && /^https?:\/\//.test(value)) {
-          return [value]
-        }
-      }
-    }
-  } catch {
-    // Output isn't JSON (some tools return plain text / markdown) —
-    // fall through to the legacy regex scan below.
-  }
-  // Fallback: scan the whole text for URLs. Used for tool results that
-  // aren't JSON-shaped. Still better than nothing; the duplicates the
-  // user saw came from JSON outputs, which now take the fast path above.
-  const all: string[] = []
-  const mdRe = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g
-  let m: RegExpExecArray | null
-  while ((m = mdRe.exec(output)) !== null) all.push(m[2].trim())
-  const bareRe = /(?<!\()(https?:\/\/[^\s"'<>)]+)/g
-  while ((m = bareRe.exec(output)) !== null) all.push(m[1].trim())
-  return [...new Set(all)]
-}
-
 type MediaKind = "image" | "video" | "audio" | "model"
 
 function classifyUrl(url: string): MediaKind {
+  if (isVideoUrl(url)) return "video"
   const lower = url.split("?")[0].toLowerCase()
-  if (/\.(mp4|webm|mov|m4v|avi|mkv)$/i.test(lower)) return "video"
   if (/\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(lower)) return "audio"
   if (/\.(glb|gltf|fbx|obj|usdz|stl|ply)$/i.test(lower)) return "model"
   return "image"
@@ -235,47 +186,10 @@ function collectCanvasCells(
   return { cells, pending }
 }
 
-// Lightweight fullscreen image preview — replicates the lightbox used by
-// markdown.tsx so a click on a canvas image opens an in-app overlay instead
-// of a new browser tab.
-function openLightbox(src: string): void {
-  if (typeof document === "undefined") return
-  const backdrop = document.createElement("div")
-  backdrop.style.cssText =
-    "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;" +
-    "background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);" +
-    "cursor:zoom-out;animation:kolbo-canvas-lb-in 0.15s ease"
-
-  if (!document.getElementById("kolbo-canvas-lb-style")) {
-    const s = document.createElement("style")
-    s.id = "kolbo-canvas-lb-style"
-    s.textContent =
-      "@keyframes kolbo-canvas-lb-in{from{opacity:0}to{opacity:1}}" +
-      "@keyframes kolbo-canvas-lb-img{from{opacity:0;transform:scale(0.94)}to{opacity:1;transform:scale(1)}}"
-    document.head.appendChild(s)
-  }
-
-  const img = document.createElement("img")
-  img.src = src
-  img.style.cssText =
-    "max-width:92vw;max-height:92vh;object-fit:contain;border-radius:10px;" +
-    "box-shadow:0 24px 64px rgba(0,0,0,0.7);cursor:default;" +
-    "animation:kolbo-canvas-lb-img 0.18s ease"
-  img.addEventListener("click", (e) => e.stopPropagation())
-
-  backdrop.appendChild(img)
-  document.body.appendChild(backdrop)
-
-  const close = () => {
-    backdrop.remove()
-    document.removeEventListener("keydown", onKey)
-  }
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape") close()
-  }
-  backdrop.addEventListener("click", close)
-  document.addEventListener("keydown", onKey)
-}
+// Canvas reuses the shared lightbox (imported as openKolboLightbox above)
+// — it's video-aware, so video cells get a proper player overlay instead
+// of opening in a new tab.
+const openLightbox = openKolboLightbox
 
 function filenameForMedia(media: CanvasMedia, tool: string, partID: string): string {
   const tail = media.url.split("?")[0].split("/").pop()
@@ -342,6 +256,18 @@ function CanvasCellView(props: { cell: CanvasCell }) {
   // so scrolling back doesn't re-fetch.
   const [aspect, setAspect] = createSignal<number | null>(null)
   const [revealed, setRevealed] = createSignal(false)
+  // Loaded = first frame / image decode has actually landed. While
+  // false (and revealed), the cell shows a spinner overlay so the user
+  // sees feedback instead of a stalled-looking black tile + play
+  // button. Reset to false whenever the source URL changes so the
+  // spinner reappears for the new media.
+  const [mediaLoaded, setMediaLoaded] = createSignal(false)
+  createEffect(() => {
+    // Track URL changes — accessing props.cell.media[0]?.url makes this
+    // memo reactive, so a swapped URL re-shows the spinner.
+    void props.cell.media[0]?.url
+    setMediaLoaded(false)
+  })
   const isDark = useIsDarkTheme()
   let cellRoot: HTMLDivElement | undefined
 
@@ -448,6 +374,22 @@ function CanvasCellView(props: { cell: CanvasCell }) {
       class="group relative rounded-xl overflow-hidden bg-background-base transition-all duration-200 ease-out kolbo-canvas-cell"
       classList={{ "kolbo-canvas-cell-selected": isSelected() }}
       style={{ "aspect-ratio": currentAspect().toString() }}
+      // Drag-to-prompt: the cell's URL is already a public Kolbo CDN
+      // link, so dropping it on the prompt input attaches it BY
+      // REFERENCE — no re-upload of bytes. Existing drop handler in
+      // packages/app/src/components/prompt-input/attachments.ts reads
+      // text/uri-list and short-circuits the upload path when the URL
+      // is http(s). This means the agent can pipe canvas outputs
+      // directly into the next generation (image → video, etc.)
+      // without round-tripping through file bytes.
+      draggable={true}
+      onDragStart={(e) => {
+        const url = current()?.url
+        if (!url || !e.dataTransfer) return
+        e.dataTransfer.setData("text/uri-list", url)
+        e.dataTransfer.setData("text/plain", url)
+        e.dataTransfer.effectAllowed = "copy"
+      }}
     >
       <Show when={revealed() && current()} keyed>
         {(m) => (
@@ -476,6 +418,7 @@ function CanvasCellView(props: { cell: CanvasCell }) {
                       if (img.naturalWidth > 0 && img.naturalHeight > 0) {
                         setAspectFor(img.naturalWidth / img.naturalHeight)
                       }
+                      setMediaLoaded(true)
                     }}
                     style={{
                       display: "block",
@@ -483,7 +426,8 @@ function CanvasCellView(props: { cell: CanvasCell }) {
                       height: "100%",
                       "object-fit": "cover",
                       background: "var(--surface-recess-base)",
-                      transition: "transform 0.4s cubic-bezier(0.22,1,0.36,1)",
+                      transition: "transform 0.4s cubic-bezier(0.22,1,0.36,1), opacity 0.2s ease",
+                      opacity: mediaLoaded() ? 1 : 0,
                     }}
                     class="group-hover:scale-[1.03]"
                   />

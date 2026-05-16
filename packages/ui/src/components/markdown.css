@@ -240,7 +240,7 @@
     /* Minimal borders for structure, matching TUI "lines" roughly but keeping it web-clean */
     border-bottom: 1px solid var(--border-weaker-base);
     padding: 0.75rem 0.5rem;
-    text-align: left;
+    text-align: start;
     vertical-align: top;
   }
 
@@ -265,48 +265,49 @@
   text-underline-offset: 2px;
 }
 
-/* RTL language support */
-[data-component="markdown"][dir="rtl"] {
-  text-align: right;
+/* Direction-aware layout. Use logical CSS properties so each block
+   honors its own `dir` attribute (set per-block via applyBlockAutoDirection
+   in markdown.tsx) instead of being forced to the root's direction.
+   text-align:start = left in LTR, right in RTL. Same for padding/border
+   inline-start/end. Without this, a mixed-language message with root
+   dir="rtl" would force English paragraphs to be right-aligned. */
+[data-component="markdown"] p,
+[data-component="markdown"] li,
+[data-component="markdown"] h1,
+[data-component="markdown"] h2,
+[data-component="markdown"] h3,
+[data-component="markdown"] h4,
+[data-component="markdown"] h5,
+[data-component="markdown"] h6 {
+  text-align: start;
 }
 
-[data-component="markdown"][dir="rtl"] p,
-[data-component="markdown"][dir="rtl"] li,
-[data-component="markdown"][dir="rtl"] h1,
-[data-component="markdown"][dir="rtl"] h2,
-[data-component="markdown"][dir="rtl"] h3,
-[data-component="markdown"][dir="rtl"] h4,
-[data-component="markdown"][dir="rtl"] h5,
-[data-component="markdown"][dir="rtl"] h6 {
-  text-align: right;
+[data-component="markdown"] ul,
+[data-component="markdown"] ol {
+  padding-inline-start: 1.5rem;
+  padding-inline-end: 0;
 }
 
-[data-component="markdown"][dir="rtl"] ul,
-[data-component="markdown"][dir="rtl"] ol {
-  padding-left: 0;
-  padding-right: 1.5rem;
+[data-component="markdown"] ol {
+  padding-inline-start: 2.25rem;
 }
 
-[data-component="markdown"][dir="rtl"] ol {
-  padding-right: 2.25rem;
+[data-component="markdown"] li > ul,
+[data-component="markdown"] li > ol {
+  padding-inline-start: 1rem;
+  padding-inline-end: 0;
 }
 
-[data-component="markdown"][dir="rtl"] li > ul,
-[data-component="markdown"][dir="rtl"] li > ol {
-  padding-left: 0;
-  padding-right: 1rem;
+[data-component="markdown"] li > ol {
+  padding-inline-start: 1.75rem;
 }
 
-[data-component="markdown"][dir="rtl"] li > ol {
-  padding-right: 1.75rem;
-}
-
-[data-component="markdown"][dir="rtl"] blockquote {
-  border-left: none;
-  border-right: 2px solid var(--border-weak-base);
-  padding-left: 0;
-  padding-right: 0.5rem;
-  text-align: right;
+[data-component="markdown"] blockquote {
+  border-inline-start: 2px solid var(--border-weak-base);
+  border-inline-end: none;
+  padding-inline-start: 0.5rem;
+  padding-inline-end: 0;
+  text-align: start;
 }
 
 /* Inline image previews + image-link previews flow with the document
@@ -328,4 +329,196 @@
     right: auto;
     left: 8px;
   }
+}
+
+/* Media chip group — a small inline cluster of three siblings:
+   thumbnail chip + copy-link button + download button. Replaces the old
+   full-width inline media preview when the agent quotes generated URLs.
+   Chat shows scannable pointers; the canvas side panel is the real
+   gallery. The chip itself has NO hover overlay because users typically
+   click it to open the full-size lightbox preview — anything overlaid
+   on the thumb would block what they're trying to see. The action
+   buttons sit OUTSIDE the chip so they don't interfere. */
+[data-component="markdown"] .kolbo-media-chip-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+  margin: 0 2px;
+}
+
+[data-component="markdown"] .kolbo-media-chip {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border-weak-base);
+  background: var(--background-stronger);
+  vertical-align: middle;
+  overflow: hidden;
+  cursor: zoom-in;
+  transition: border-color 140ms ease,
+              box-shadow 140ms ease;
+  flex-shrink: 0;
+}
+[data-component="markdown"] .kolbo-media-chip:hover {
+  border-color: var(--border-base);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text-base) 14%, transparent);
+}
+[data-component="markdown"] .kolbo-media-chip--video {
+  cursor: pointer;
+}
+
+/* Override the generic markdown img rule (margin:1.5rem 0; height:auto;
+   border-radius:4px) that was inherited and pushing the thumb to the
+   bottom of the chip + letterboxing it to its natural aspect ratio. */
+[data-component="markdown"] .kolbo-media-chip-thumb,
+[data-component="markdown"] img.kolbo-media-chip-thumb {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  object-fit: cover;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--text-base) 6%, transparent);
+}
+/* Video thumbs render an actual <video> element so the chip shows the
+   first frame as a poster. Same absolute-fill rules as the <img> path
+   apply (the shared selector covers both). The chip also gets a tiny
+   centered play badge overlay so it still reads as "video". */
+[data-component="markdown"] video.kolbo-media-chip-thumb {
+  background: #0b0b0c;
+}
+
+/* Suppress the WebKit native overlays (PiP, audio, start-playback)
+   that would otherwise pop onto a chip-sized <video> on hover. The
+   chip is meant to read as a poster, not a player. */
+[data-component="markdown"] video.kolbo-media-chip-thumb::-webkit-media-controls,
+[data-component="markdown"] video.kolbo-media-chip-thumb::-webkit-media-controls-panel,
+[data-component="markdown"] video.kolbo-media-chip-thumb::-webkit-media-controls-enclosure,
+[data-component="markdown"] video.kolbo-media-chip-thumb::-webkit-media-controls-start-playback-button,
+[data-component="markdown"] video.kolbo-media-chip-thumb::-webkit-media-controls-overlay-play-button,
+[data-component="markdown"] video.kolbo-media-chip-thumb::-internal-media-controls-overflow-button,
+[data-component="markdown"] video.kolbo-media-chip-thumb::-webkit-media-controls-fullscreen-button,
+[data-component="markdown"] video.kolbo-media-chip-thumb::-webkit-media-controls-picture-in-picture-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+}
+
+/* Centered play-icon badge over the video poster. */
+[data-component="markdown"] .kolbo-media-chip-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #000 55%, transparent);
+  color: #fff;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+[data-component="markdown"] .kolbo-media-chip-play > svg {
+  width: 9px;
+  height: 9px;
+  margin-left: 1px; /* optical center the play triangle */
+}
+/* Fade the badge slightly on hover so the user can preview the first
+   frame more clearly. */
+[data-component="markdown"] .kolbo-media-chip:hover .kolbo-media-chip-play {
+  opacity: 0.35;
+}
+
+/* Action buttons next to the chip — copy-link + download. Subtle by
+   default; the chip is the main focal point. Always visible (no hover
+   reveal) so the user can grab the link/file without first hovering
+   the thumb — which they typically click to open the lightbox. */
+[data-component="markdown"] .kolbo-media-chip-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--border-weaker-base);
+  padding: 0;
+  background: var(--background-stronger);
+  color: var(--text-weak);
+  cursor: pointer;
+  vertical-align: middle;
+  flex-shrink: 0;
+  transition: background 120ms ease,
+              border-color 120ms ease,
+              color 120ms ease,
+              transform 120ms ease;
+}
+[data-component="markdown"] .kolbo-media-chip-iconbtn:hover {
+  background: var(--surface-recess-base);
+  border-color: var(--border-base);
+  color: var(--text-strong);
+}
+[data-component="markdown"] .kolbo-media-chip-iconbtn:active {
+  transform: scale(0.94);
+}
+[data-component="markdown"] .kolbo-media-chip-iconbtn svg {
+  display: block;
+}
+/* "Just copied" / success state used by the copy-link button. */
+[data-component="markdown"] .kolbo-media-chip-iconbtn--ok {
+  background: color-mix(in srgb, var(--surface-success-base, #2c9b6a) 22%, var(--background-stronger));
+  border-color: color-mix(in srgb, var(--surface-success-base, #2c9b6a) 50%, var(--border-weak-base));
+  color: var(--text-on-success-base, #2c9b6a);
+}
+
+/* Tooltip — shared across the chip + its action buttons. Read from
+   [data-tooltip] attribute via ::after pseudo-element. Pure CSS, no
+   JS, no Solid components — matches the existing markdown-copy-button
+   tooltip pattern (see markdown-copy-button rules above) so behavior
+   is consistent across the message UI. */
+[data-component="markdown"] .kolbo-media-chip[data-tooltip],
+[data-component="markdown"] .kolbo-media-chip-iconbtn[data-tooltip] {
+  position: relative;
+}
+[data-component="markdown"] .kolbo-media-chip[data-tooltip]::after,
+[data-component="markdown"] .kolbo-media-chip-iconbtn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%) translateY(2px);
+  z-index: 1000;
+  max-width: 320px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface-float-base, #1a1a1c);
+  color: var(--text-invert-strong, #fff);
+  padding: 3px 8px;
+  border: 1px solid var(--border-weak-base, rgba(0, 0, 0, 0.07));
+  box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.18));
+  pointer-events: none;
+  white-space: nowrap;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-small, 11px);
+  font-weight: var(--font-weight-medium, 500);
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+[data-component="markdown"] .kolbo-media-chip[data-tooltip]:hover::after,
+[data-component="markdown"] .kolbo-media-chip[data-tooltip]:focus-visible::after,
+[data-component="markdown"] .kolbo-media-chip-iconbtn[data-tooltip]:hover::after,
+[data-component="markdown"] .kolbo-media-chip-iconbtn[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }

@@ -37,6 +37,7 @@ import { useDialog } from "../context/dialog"
 import { type UiI18n, useI18n } from "../context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
 import { setupPathLinks } from "./markdown"
+import { extractKolboUrls as extractKolboUrlsShared, isVideoUrl as isVideoUrlShared } from "./kolbo-media"
 import { usePlatformOps } from "../context/platform-ops"
 import { Accordion } from "./accordion"
 import { StickyAccordionHeader } from "./sticky-accordion-header"
@@ -2549,16 +2550,7 @@ ToolRegistry.register({
 
 // ─── Kolbo MCP media tools ────────────────────────────────────────────────────
 
-function extractUrls(text: string | undefined): string[] {
-  if (!text) return []
-  const all: string[] = []
-  const mdRe = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g
-  let m: RegExpExecArray | null
-  while ((m = mdRe.exec(text)) !== null) all.push(m[2].trim())
-  const bareRe = /(?<!\()(https?:\/\/[^\s"'<>)]+)/g
-  while ((m = bareRe.exec(text)) !== null) all.push(m[1].trim())
-  return [...new Set(all)]
-}
+const extractUrls = extractKolboUrlsShared
 
 
 const downloadIconSvg =
@@ -2845,20 +2837,21 @@ function KolboCompactChip(props: {
       : i18n.t("ui.kolbo.chip.ready", { label })
   })
 
-  const thumb = createMemo(() => {
-    if (inFlight() || isError()) return undefined
-    if (kind() !== "image" && kind() !== "asset" && kind() !== "video") return undefined
-    return urls()[0]
+  // Show up to MAX_CHIP_THUMBS mini-thumbnails in the chip so chat and
+  // canvas stay visually in sync — a 4-image generation now reads "4
+  // images ready" with FOUR thumbs (was: one thumb + "4 ready" text),
+  // matching the canvas tiles 1:1.
+  const MAX_CHIP_THUMBS = 4
+  const thumbs = createMemo<string[]>(() => {
+    if (inFlight() || isError()) return []
+    if (kind() !== "image" && kind() !== "asset" && kind() !== "video") return []
+    return urls().slice(0, MAX_CHIP_THUMBS)
   })
-  // Distinguish video URLs from image URLs so the thumb can render the
-  // right element (an <img> won't load a .mp4). Falls back to image
-  // rendering for unknown extensions; if the URL has no extension or
-  // points to an image, isVideoThumb() is false.
-  const isVideoThumb = createMemo(() => {
-    const u = thumb()
-    if (!u) return false
-    return /\.(mp4|webm|mov|m4v|mkv|avi|ogv)(?=$|[?#])/i.test(u)
+  const overflowN = createMemo(() => {
+    const total = urls().length
+    return total > MAX_CHIP_THUMBS ? total - MAX_CHIP_THUMBS : 0
   })
+  const isVideoUrl = isVideoUrlShared
 
   return (
     <div class="px-3 pb-2">
@@ -2874,29 +2867,41 @@ function KolboCompactChip(props: {
             when={inFlight()}
             fallback={
               <Show
-                when={thumb()}
+                when={thumbs().length > 0}
                 fallback={
                   <span class="flex items-center justify-center size-5 rounded-md bg-surface-info-base text-text-strong">
                     <KolboChipIcon kind={kind()} />
                   </span>
                 }
-                keyed
               >
-                {(src) => (
-                  <Show
-                    when={isVideoThumb()}
-                    fallback={
-                      <img
-                        src={src}
-                        alt=""
-                        loading="lazy"
-                        style="width:20px;height:20px;border-radius:4px;object-fit:cover;border:1px solid var(--border-weaker-base);background:#0b0b0c"
-                      />
-                    }
-                  >
-                    <KolboVideoChipThumb url={src} />
+                <span class="flex items-center gap-0.5">
+                  <For each={thumbs()}>
+                    {(src) => (
+                      <Show
+                        when={isVideoUrl(src)}
+                        fallback={
+                          <img
+                            src={src}
+                            alt=""
+                            loading="lazy"
+                            style="width:20px;height:20px;border-radius:4px;object-fit:cover;border:1px solid var(--border-weaker-base);background:#0b0b0c"
+                          />
+                        }
+                      >
+                        <KolboVideoChipThumb url={src} />
+                      </Show>
+                    )}
+                  </For>
+                  <Show when={overflowN() > 0}>
+                    <span
+                      class="flex items-center justify-center text-text-weak"
+                      style="width:20px;height:20px;border-radius:4px;border:1px solid var(--border-weaker-base);background:var(--background-stronger);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums"
+                      aria-label={`${overflowN()} more`}
+                    >
+                      +{overflowN()}
+                    </span>
                   </Show>
-                )}
+                </span>
               </Show>
             }
           >

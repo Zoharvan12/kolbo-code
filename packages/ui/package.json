@@ -5,6 +5,7 @@
   "license": "MIT",
   "exports": {
     "./package.json": "./package.json",
+    "./kolbo-media": "./src/components/kolbo-media.ts",
     "./*": "./src/components/*.tsx",
     "./i18n/*": "./src/i18n/*.ts",
     "./pierre": "./src/pierre/index.ts",

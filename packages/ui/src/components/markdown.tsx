@@ -8,6 +8,7 @@ import { checksum } from "@opencode-ai/util/encode"
 import { ComponentProps, createEffect, createMemo, createResource, createSignal, on, onCleanup, splitProps } from "solid-js"
 import { isServer } from "solid-js/web"
 import { stream } from "./markdown-stream"
+import { openKolboLightbox as openLightbox, isVideoUrl as isKolboVideoUrl, firstFramePosterSrc, pauseOnFirstFrame } from "./kolbo-media"
 
 /**
  * Download a media URL. For data: URIs the browser Save-As works natively.
@@ -592,9 +593,188 @@ function wrapMarkdownAudio(root: HTMLDivElement, dlLabels: DownloadLabels): void
   }
 }
 
+// Compact "media chip" used in place of full-width inline previews when
+// the agent quotes generated URLs in its response. The canvas side panel
+// is the real gallery — chat used to render every quoted URL as a 400px-
+// tall image in its own row, which dominated the conversation. A chip
+// (28px thumb + filename + download icon) keeps the chat scannable while
+// still giving the user a click-to-open affordance.
+//
+// Click on the chip → lightbox (image) or open in canvas / new tab
+// (video). Both use the existing data-lightbox-src convention so the
+// event delegation in setupPathLinks keeps working.
+const playIconSvg =
+  '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M4 3l9 5-9 5V3Z"/></svg>'
+// Two linked rings for "copy link" + a check used as the just-copied
+// confirmation flash on the same button.
+const copyLinkIconSvg =
+  '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9.5a2.5 2.5 0 0 0 3.5 0l2-2a2.5 2.5 0 0 0-3.5-3.5l-1 1"/><path d="M9 6.5a2.5 2.5 0 0 0-3.5 0l-2 2a2.5 2.5 0 0 0 3.5 3.5l1-1"/></svg>'
+const checkIconSvg =
+  '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5 6.5 11.5 12.5 5.5"/></svg>'
+
+function buildMediaChip(opts: {
+  url: string
+  isVideo: boolean
+  dlLabels: DownloadLabels
+}): HTMLSpanElement {
+  const { url, isVideo, dlLabels } = opts
+
+  // Two siblings wrapped in a tiny inline-flex group:
+  //   1) the chip itself — a pure thumbnail. Click it → lightbox/preview.
+  //      Nothing overlays the thumb on hover (users click to preview;
+  //      a hover overlay just hides the image they're trying to see).
+  //   2) a separate download button to the right of the chip.
+  //      Always visible (subtle), independent click target.
+  //
+  // The group is what carries `data-media-wrapper` so groupConsecutive-
+  // Media can still collect runs of these inline.
+  const group = document.createElement("span")
+  group.className = "kolbo-media-chip-group"
+  group.setAttribute("data-media-wrapper", url)
+
+  // Chip = pure thumbnail.
+  const chip = document.createElement("span")
+  chip.className = `kolbo-media-chip${isVideo ? " kolbo-media-chip--video" : ""}`
+  chip.setAttribute("data-tooltip", isVideo ? "Open video" : "Open preview")
+  // Both image and video chips open the in-app lightbox (the lightbox
+  // is now video-aware — see openLightbox). Tagging with
+  // data-lightbox-src lets the existing document-level delegation in
+  // setupPathLinks handle the click uniformly.
+  chip.setAttribute("data-lightbox-src", url)
+
+  if (isVideo) {
+    // Render an actual <video> so the chip shows the first frame —
+    // same #t=0.05 + autoplay+muted+playsinline + loadeddata-pause
+    // trick the canvas uses to freeze video tiles on first-decoded-frame.
+    //
+    // LAZY: don't set the real src until the chip enters the viewport.
+    // A message with 6+ video chips otherwise fires 6 simultaneous
+    // video downloads (~MB each) the moment the message renders, which
+    // is why posters took ages to appear. With the IntersectionObserver
+    // gate, off-screen chips stay empty until the user scrolls them
+    // into view.
+    const video = document.createElement("video")
+    video.className = "kolbo-media-chip-thumb kolbo-media-chip-thumb--video"
+    video.preload = "auto"
+    video.muted = true
+    video.playsInline = true
+    ;(video as HTMLVideoElement & { disablePictureInPicture: boolean }).disablePictureInPicture = true
+    video.setAttribute("controlslist", "nodownload nofullscreen noremoteplayback noplaybackrate")
+    video.setAttribute("aria-hidden", "true")
+    pauseOnFirstFrame(video)
+    chip.appendChild(video)
+
+    const badge = document.createElement("span")
+    badge.className = "kolbo-media-chip-play"
+    badge.innerHTML = playIconSvg
+    badge.setAttribute("aria-hidden", "true")
+    chip.appendChild(badge)
+
+    // Defer src+autoplay until near the viewport so a message with N
+    // video chips doesn't trigger N simultaneous MB downloads on render.
+    const armVideo = () => {
+      if (video.src) return
+      video.src = firstFramePosterSrc(url)
+      video.autoplay = true
+    }
+    if (typeof IntersectionObserver !== "undefined") {
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting) {
+              armVideo()
+              io.disconnect()
+              break
+            }
+          }
+        },
+        { rootMargin: "400px 0px", threshold: 0 },
+      )
+      io.observe(chip)
+    } else {
+      // No IO support → eager load.
+      armVideo()
+    }
+  } else {
+    const thumb = document.createElement("img")
+    thumb.className = "kolbo-media-chip-thumb"
+    thumb.src = url
+    thumb.alt = ""
+    thumb.loading = "lazy"
+    chip.appendChild(thumb)
+  }
+
+  group.appendChild(chip)
+
+  // Sibling copy-link button — copies the public URL to the clipboard
+  // with a checkmark flash as feedback. Useful when users want to paste
+  // a generated asset into another tool / message without downloading.
+  const copyBtn = document.createElement("button")
+  copyBtn.type = "button"
+  copyBtn.className = "kolbo-media-chip-iconbtn"
+  copyBtn.setAttribute("aria-label", "Copy link")
+  copyBtn.setAttribute("data-tooltip", "Copy link")
+  copyBtn.innerHTML = copyLinkIconSvg
+  const flashCopied = () => {
+    const prevIcon = copyBtn.innerHTML
+    const prevTip = copyBtn.getAttribute("data-tooltip")
+    copyBtn.innerHTML = checkIconSvg
+    copyBtn.setAttribute("data-tooltip", "Link copied")
+    copyBtn.classList.add("kolbo-media-chip-iconbtn--ok")
+    setTimeout(() => {
+      copyBtn.innerHTML = prevIcon
+      if (prevTip) copyBtn.setAttribute("data-tooltip", prevTip)
+      copyBtn.classList.remove("kolbo-media-chip-iconbtn--ok")
+    }, 1400)
+  }
+  copyBtn.addEventListener("click", async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(url)
+      flashCopied()
+    } catch {
+      // Clipboard write can fail in unsecure contexts — fall back to a
+      // hidden textarea + execCommand("copy") so the user still gets
+      // their link out one way or another.
+      try {
+        const ta = document.createElement("textarea")
+        ta.value = url
+        ta.style.position = "fixed"
+        ta.style.opacity = "0"
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand("copy")
+        document.body.removeChild(ta)
+        flashCopied()
+      } catch {
+        /* swallow — nothing more we can do */
+      }
+    }
+  })
+  group.appendChild(copyBtn)
+
+  // Sibling download button — always visible, subtle. Document-level
+  // delegation (setupPathLinks) handles the actual download via
+  // data-md-download — do NOT install a click listener here that
+  // stops propagation.
+  const dlBtn = document.createElement("button")
+  dlBtn.type = "button"
+  dlBtn.className = "kolbo-media-chip-iconbtn kolbo-media-chip-download"
+  dlBtn.setAttribute("data-md-download", url)
+  dlBtn.setAttribute("aria-label", dlLabels.download)
+  dlBtn.setAttribute("data-tooltip", dlLabels.download)
+  dlBtn.innerHTML = downloadIconSvg
+  group.appendChild(dlBtn)
+
+  makeDraggable(group, url)
+  return group
+}
+
 /**
- * Wraps each standalone <img> inside markdown in a hover container that shows
- * a download button. Skips images that are already wrapped.
+ * Convert each standalone markdown <img> into a compact chip. The original
+ * <img> element is removed; the chip carries the same data-media-wrapper
+ * attribute so groupConsecutiveMedia + the lightbox delegation still apply.
  */
 function wrapMarkdownImages(root: HTMLDivElement, dlLabels: DownloadLabels): void {
   const images = Array.from(root.querySelectorAll("img"))
@@ -602,51 +782,15 @@ function wrapMarkdownImages(root: HTMLDivElement, dlLabels: DownloadLabels): voi
     if (!(img instanceof HTMLImageElement)) continue
     if (img.closest("[data-media-wrapper]")) continue
     if (!img.src) continue
-
-    // Create wrapper
-    const wrapper = document.createElement("div")
-    wrapper.setAttribute("data-media-wrapper", img.src)
-    wrapper.style.cssText =
-      "position:relative;display:inline-block;max-width:100%"
-
-    // Overlay (hidden by default, shown on hover via JS delegation)
-    const overlay = document.createElement("div")
-    overlay.setAttribute("data-media-overlay", "")
-    overlay.style.cssText =
-      "position:absolute;top:7px;right:7px;display:flex;gap:5px;" +
-      "opacity:0;transform:translateY(3px);" +
-      "transition:opacity 0.18s ease,transform 0.18s ease;pointer-events:none"
-
-    const btn = document.createElement("button")
-    btn.type = "button"
-    btn.title = dlLabels.download
-    btn.setAttribute("data-md-download", img.src)
-    btn.style.cssText =
-      "display:flex;align-items:center;justify-content:center;" +
-      "width:30px;height:30px;border-radius:6px;" +
-      "border:1px solid rgba(255,255,255,0.15);" +
-      "background:rgba(0,0,0,0.58);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);" +
-      "color:rgba(255,255,255,0.88);cursor:pointer;pointer-events:auto;" +
-      "box-shadow:0 2px 8px rgba(0,0,0,0.45);" +
-      "transition:background 150ms ease,border-color 150ms ease,color 150ms ease"
-    btn.innerHTML = downloadIconSvg
-
-    overlay.appendChild(btn)
-
-    img.style.cursor = "zoom-in"
-    wrapper.setAttribute("data-lightbox-src", img.src)
-
-    makeDraggable(wrapper, img.src)
-
-    img.parentNode?.replaceChild(wrapper, img)
-    wrapper.appendChild(img)
-    wrapper.appendChild(overlay)
+    const chip = buildMediaChip({ url: img.src, isVideo: false, dlLabels })
+    img.parentNode?.replaceChild(chip, img)
   }
 }
 
 /**
- * Finds <a> tags linking to image URLs and inserts an <img> preview below them,
- * using the same data-media-wrapper/lightbox conventions as wrapMarkdownImages.
+ * Convert markdown <a href=".jpg"> anchors into the same chip style.
+ * Replaces the anchor (instead of appending a preview underneath) so the
+ * chat stays compact.
  */
 function wrapMarkdownImageLinks(root: HTMLDivElement, dlLabels: DownloadLabels): void {
   const anchors = Array.from(root.querySelectorAll("a[href]"))
@@ -654,90 +798,12 @@ function wrapMarkdownImageLinks(root: HTMLDivElement, dlLabels: DownloadLabels):
     if (!(anchor instanceof HTMLAnchorElement)) continue
     const href = anchor.getAttribute("href") ?? ""
     if (!imageExtPattern.test(href)) continue
-    if (anchor.closest("[data-image-link-wrapper]")) continue
-
-    const wrapper = document.createElement("div")
-    wrapper.setAttribute("data-image-link-wrapper", href)
-    wrapper.setAttribute("data-media-wrapper", href)
-    wrapper.setAttribute("data-lightbox-src", href)
-    wrapper.style.cssText = "position:relative;display:block;max-width:100%;margin-top:8px"
-
-    const img = document.createElement("img")
-    img.src = href
-    img.alt = anchor.textContent ?? ""
-    img.style.cssText =
-      "display:block;max-width:100%;max-height:400px;border-radius:8px;" +
-      "border:1px solid var(--border-weak-base);cursor:zoom-in"
-
-    const overlay = document.createElement("div")
-    overlay.setAttribute("data-media-overlay", "")
-    overlay.style.cssText =
-      "position:absolute;top:8px;right:8px;display:flex;gap:4px;" +
-      "opacity:0;transition:opacity 0.15s;pointer-events:none;transform:translateY(2px)"
-
-    const btn = document.createElement("button")
-    btn.type = "button"
-    btn.title = dlLabels.download
-    btn.setAttribute("data-md-download", href)
-    btn.style.cssText =
-      "display:flex;align-items:center;justify-content:center;" +
-      "width:28px;height:28px;border-radius:4px;" +
-      "border:1px solid rgba(255,255,255,0.2);" +
-      "background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);color:white;" +
-      "cursor:pointer;pointer-events:auto"
-    btn.innerHTML = downloadIconSvg
-
-    overlay.appendChild(btn)
-    makeDraggable(wrapper, href)
-    wrapper.appendChild(img)
-    wrapper.appendChild(overlay)
-    anchor.insertAdjacentElement("afterend", wrapper)
+    if (anchor.closest("[data-media-wrapper]")) continue
+    const chip = buildMediaChip({ url: href, isVideo: false, dlLabels })
+    anchor.parentNode?.replaceChild(chip, anchor)
   }
 }
 
-/**
- * Opens a full-screen lightbox overlay for the given image src.
- * Clicking the backdrop or pressing Escape closes it.
- */
-function openLightbox(src: string): void {
-  const backdrop = document.createElement("div")
-  backdrop.style.cssText =
-    "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;" +
-    "background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);" +
-    "cursor:zoom-out;animation:_lb-fade-in 0.15s ease"
-
-  // Inject keyframe once
-  if (!document.getElementById("_lb-style")) {
-    const s = document.createElement("style")
-    s.id = "_lb-style"
-    s.textContent =
-      "@keyframes _lb-fade-in{from{opacity:0}to{opacity:1}}" +
-      "@keyframes _lb-img-in{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}"
-    document.head.appendChild(s)
-  }
-
-  const img = document.createElement("img")
-  img.src = src
-  img.style.cssText =
-    "max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;" +
-    "box-shadow:0 24px 64px rgba(0,0,0,0.7);cursor:default;" +
-    "animation:_lb-img-in 0.18s ease"
-
-  // Stop click on the image itself from closing
-  img.addEventListener("click", (e) => e.stopPropagation())
-
-  backdrop.appendChild(img)
-  document.body.appendChild(backdrop)
-
-  const close = () => {
-    backdrop.remove()
-    document.removeEventListener("keydown", onKey)
-  }
-  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close() }
-
-  backdrop.addEventListener("click", close)
-  document.addEventListener("keydown", onKey)
-}
 
 /**
  * Handles inline <code> elements whose full text content is a local file path.
@@ -814,76 +880,50 @@ function decorate(root: HTMLDivElement, labels: CopyLabels, dlLabels: DownloadLa
   // After all media wrapping, fold runs of consecutive media-only blocks
   // into a single grid so 6 images don't take 6 full-width rows.
   groupConsecutiveMedia(root)
+  // Per-block bidi auto: in mixed-language messages the root-level dir
+  // forces every paragraph to one direction, which mangles Hebrew lines
+  // that follow English ones (and vice-versa). dir="auto" on each block
+  // lets the browser's UAX#9 algorithm pick the right direction per
+  // paragraph from its first strong character.
+  applyBlockAutoDirection(root)
 }
 
 /**
- * Inline-embed videos linked via `<a href="…mp4">` etc. Mirrors
- * wrapMarkdownImageLinks shape so groupConsecutiveMedia treats both the
- * same (looks for `[data-media-wrapper]`).
+ * Tag block-level prose with `dir="auto"` so each paragraph, list item,
+ * heading, blockquote, and table cell flows in its own detected
+ * direction. Pure DOM tweak — costs ~ms per message, applied once.
+ */
+function applyBlockAutoDirection(root: HTMLDivElement): void {
+  const blocks = root.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, dd, dt")
+  for (const el of Array.from(blocks)) {
+    if (!(el instanceof HTMLElement)) continue
+    if (el.hasAttribute("dir")) continue
+    el.setAttribute("dir", "auto")
+  }
+}
+
+/**
+ * Convert `<a href="…mp4">` anchors into compact video chips. Click opens
+ * the file in a new tab (no inline player; the canvas is the gallery).
  */
 function wrapMarkdownVideoLinks(root: HTMLDivElement, dlLabels: DownloadLabels): void {
-  const videoExtRe = /\.(mp4|webm|mov|m4v|mkv|avi|ogv)(\?.*)?$/i
   const anchors = Array.from(root.querySelectorAll("a[href]"))
   for (const anchor of anchors) {
     if (!(anchor instanceof HTMLAnchorElement)) continue
     const href = anchor.getAttribute("href") ?? ""
-    if (!videoExtRe.test(href)) continue
+    if (!isKolboVideoUrl(href)) continue
     if (anchor.closest("[data-media-wrapper]")) continue
-
-    const wrapper = document.createElement("div")
-    wrapper.setAttribute("data-media-wrapper", href)
-    wrapper.setAttribute("data-lightbox-src", href)
-    wrapper.style.cssText = "position:relative;display:block;max-width:100%;margin-top:8px"
-
-    const video = document.createElement("video")
-    video.src = href.includes("#") ? href : `${href}#t=0.05`
-    video.preload = "auto"
-    video.muted = true
-    video.autoplay = true
-    video.playsInline = true
-    ;(video as HTMLVideoElement & { disablePictureInPicture: boolean }).disablePictureInPicture = true
-    video.setAttribute("controlslist", "nodownload nofullscreen noremoteplayback noplaybackrate")
-    video.style.cssText =
-      "display:block;max-width:100%;max-height:400px;border-radius:8px;" +
-      "border:1px solid var(--border-weak-base);cursor:pointer;background:#0b0b0c"
-    video.addEventListener("loadeddata", () => { try { video.pause() } catch {} }, { once: true })
-    video.addEventListener("click", () => {
-      try {
-        if (video.paused) { video.muted = false; void video.play() } else { video.pause() }
-      } catch {}
-    })
-
-    const overlay = document.createElement("div")
-    overlay.setAttribute("data-media-overlay", "")
-    overlay.style.cssText =
-      "position:absolute;top:8px;right:8px;display:flex;gap:4px;" +
-      "opacity:0;transition:opacity 0.15s;pointer-events:none;transform:translateY(2px)"
-
-    const btn = document.createElement("button")
-    btn.type = "button"
-    btn.title = dlLabels.download
-    btn.setAttribute("data-md-download", href)
-    btn.style.cssText =
-      "display:flex;align-items:center;justify-content:center;" +
-      "width:28px;height:28px;border-radius:4px;" +
-      "border:1px solid rgba(255,255,255,0.2);" +
-      "background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);color:white;" +
-      "cursor:pointer;pointer-events:auto"
-    btn.innerHTML = downloadIconSvg
-
-    overlay.appendChild(btn)
-    makeDraggable(wrapper, href)
-    wrapper.appendChild(video)
-    wrapper.appendChild(overlay)
-    anchor.insertAdjacentElement("afterend", wrapper)
+    const chip = buildMediaChip({ url: href, isVideo: true, dlLabels })
+    anchor.parentNode?.replaceChild(chip, anchor)
   }
 }
 
 /**
  * Folds runs of sibling block-level elements that contain a single
- * `[data-media-wrapper]` into a single grid container. Without this, a
- * response with 6 generated images becomes 6 full-width rows; with it,
- * they tile responsively.
+ * `[data-media-wrapper]` (now always a `.kolbo-media-chip`) into a
+ * single flex-wrap row. Without this, a response with 6 quoted URLs
+ * becomes 6 full-width paragraphs with a chip alone in each; folded,
+ * the chips flow inline as a tidy strip.
  *
  * A block "qualifies" if its only meaningful content is a media wrapper
  * (ignoring whitespace text nodes and the original `<a>` anchor that
@@ -948,26 +988,19 @@ function groupConsecutiveMedia(root: HTMLDivElement): void {
           j++
         }
         if (run.length >= 2) {
-          const grid = document.createElement("div")
-          grid.className = "kolbo-media-grid"
-          grid.style.cssText =
-            "display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));" +
-            "gap:8px;margin-top:8px;align-items:start"
-          container.insertBefore(grid, start)
+          // Now that media renders as compact chips, a flex-wrap row is
+          // the right container — chips flow inline and wrap naturally
+          // at the message column width instead of locking into a fixed
+          // grid of large tiles.
+          const strip = document.createElement("div")
+          strip.className = "kolbo-media-grid"
+          strip.style.cssText =
+            "display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center"
+          container.insertBefore(strip, start)
           for (const block of run) {
-            // Extract the wrapper and let the grid handle layout. The
-            // surrounding <p>/<div> wrapper is now empty.
             const wrappers = block.querySelectorAll("[data-media-wrapper]")
             wrappers.forEach((w) => {
-              const el = w as HTMLElement
-              // Strip per-tile margin-top so the grid gap handles spacing.
-              el.style.marginTop = "0"
-              // Make tiles cap to cell height, not their own max.
-              const img = el.querySelector("img") as HTMLImageElement | null
-              const video = el.querySelector("video") as HTMLVideoElement | null
-              if (img) { img.style.maxHeight = ""; img.style.height = "auto"; img.style.width = "100%"; img.style.objectFit = "cover" }
-              if (video) { video.style.maxHeight = ""; video.style.height = "auto"; video.style.width = "100%"; video.style.objectFit = "cover" }
-              grid.appendChild(el)
+              strip.appendChild(w)
             })
             block.remove()
           }
@@ -1362,7 +1395,7 @@ export function Markdown(
         ...(local.classList ?? {}),
         [local.class ?? ""]: !!local.class,
       }}
-      style={{ "text-align": textDir() === "rtl" ? "right" : "left", "unicode-bidi": "embed" }}
+      style={{ "text-align": "start", "unicode-bidi": "isolate" }}
       ref={setRoot}
       {...others}
     />
