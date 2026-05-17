@@ -57,7 +57,7 @@ jobs:
             rust-target: x86_64-pc-windows-msvc
             bundle: nsis
             artifact-suffix: windows-x64
-          - platform: macos-14
+          - platform: macos-14-xlarge
             rust-target: aarch64-apple-darwin
             bundle: dmg
             artifact-suffix: darwin-arm64
@@ -136,7 +136,7 @@ jobs:
         run: node scripts/apply-branding.cjs
 
       - name: Import Apple signing certificate
-        if: matrix.platform == 'macos-14'
+        if: matrix.platform == 'macos-14-xlarge'
         env:
           APPLE_CERT_DATA: ${{ secrets.DEVELOPER_ID_APPLICATION_CERT }}
           APPLE_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_CERT_PASSWORD }}
@@ -172,7 +172,7 @@ jobs:
               echo "✓ CLI sidecar copied from $KOLBO_BIN"
               SKILLS_SRC="$(dirname "$(dirname "$KOLBO_BIN")")/skills"
             fi
-          elif [ "$PLATFORM" == "macos-14" ]; then
+          elif [ "$PLATFORM" == "macos-14-xlarge" ]; then
             # Apple Silicon only (arm64). Tauri looks up the sidecar by
             # the per-arch triple aarch64-apple-darwin.
             ARM_BIN="$BASE/@kolbo/kolbo-code/node_modules/@kolbo/kolbo-code-darwin-arm64/bin/kolbo"
@@ -288,7 +288,7 @@ jobs:
           override: "true"
 
       - name: Notarize macOS DMG
-        if: matrix.platform == 'macos-14'
+        if: matrix.platform == 'macos-14-xlarge'
         shell: bash
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -352,7 +352,7 @@ jobs:
           Write-Host "✓ Uploaded update bundle"
 
       - name: Upload update bundles to release (macOS)
-        if: matrix.platform == 'macos-14'
+        if: matrix.platform == 'macos-14-xlarge'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
