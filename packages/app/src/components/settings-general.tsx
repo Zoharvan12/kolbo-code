@@ -7,8 +7,9 @@ import { Switch } from "@opencode-ai/ui/switch"
 import { TextField } from "@opencode-ai/ui/text-field"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme/context"
+import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { showToast, toaster, Toast } from "@opencode-ai/ui/toast"
-import { useParams } from "@solidjs/router"
+import { useNavigate, useParams } from "@solidjs/router"
 import { useLanguage, FLAG_MAP } from "@/context/language"
 import { usePermission } from "@/context/permission"
 import { usePlatform } from "@/context/platform"
@@ -72,6 +73,8 @@ export const SettingsGeneral: Component = () => {
   const permission = usePermission()
   const platform = usePlatform()
   const params = useParams()
+  const navigate = useNavigate()
+  const dialog = useDialog()
   const settings = useSettings()
   const globalSync = useGlobalSync()
   const globalSDK = useGlobalSDK()
@@ -87,6 +90,11 @@ export const SettingsGeneral: Component = () => {
     try {
       await globalSDK.client.auth.remove({ providerID: "kolbo" }).catch(() => undefined)
       await globalSDK.client.global.dispose().catch(() => undefined)
+      // Tear down the current view: close the settings dialog and bounce to
+      // root so the stale chat/session can't linger behind the auth wall. The
+      // home route auto-shows the login dialog when no Kolbo auth is found.
+      dialog.close()
+      navigate("/", { replace: true })
       showToast({
         variant: "success",
         icon: "circle-check",

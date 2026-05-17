@@ -44,14 +44,19 @@ export function DialogLogin(props: Props) {
       if (cancelled) return
 
       const authorization = authRes.data
-      if (authorization?.url) setLoginUrl(authorization.url)
+      if (authorization?.url) {
+        setLoginUrl(authorization.url)
+        // The CLI runs as a headless sidecar inside Tauri — it can't open the
+        // user's browser itself. Do it from the desktop app instead.
+        try { await platform.openLink(authorization.url) } catch {}
+      }
 
       // Extract confirmation code from "Enter code: XXXX"
       const instructions = authorization?.instructions ?? ""
       const codeMatch = instructions.includes(":") ? instructions.split(":")[1]?.trim() : instructions
       if (codeMatch) setCode(codeMatch)
 
-      // CLI already opened the browser — now poll until user authenticates
+      // Browser is open — poll until user authenticates
       const callbackResult = await globalSDK.client.provider.oauth
         .callback({ providerID: "kolbo", method: 0 })
         .then((value) => (value.error ? { ok: false as const, error: value.error } : { ok: true as const }))
@@ -187,10 +192,10 @@ export function DialogLogin(props: Props) {
               {/* Spinner + reopen */}
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2 text-12-regular text-text-weaker">
-                  <svg class="w-3.5 h-3.5 animate-spin shrink-0 text-primary" viewBox="0 0 24 24" fill="none">
-                    <circle class="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"/>
-                    <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
+                  <span
+                    class="shrink-0"
+                    style="display:inline-block;width:14px;height:14px;border-radius:50%;border:1.5px solid color-mix(in srgb, currentColor 22%, transparent);border-top-color:currentColor;animation:kolbo-spin 0.9s linear infinite"
+                  />
                   Waiting for sign-in…
                 </div>
                 <Show when={loginUrl()}>
