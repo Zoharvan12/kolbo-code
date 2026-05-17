@@ -40,11 +40,19 @@ export function DialogConnectProvider(props: { provider: string }) {
     timer.current = undefined
   })
 
-  const provider = createMemo(
-    () =>
-      providers.all().find((x) => x.id === props.provider) ??
-      globalSync.data.provider.all.find((x) => x.id === props.provider)!,
-  )
+  // Falls back to a stub `{id, name}` when the provider isn't found in
+  // either source. The non-null assertion was crashing fresh installs
+  // with "undefined is not an object (evaluating 'z().name')" because
+  // both providers.all() and globalSync.data.provider.all can be empty
+  // on first-launch / pre-login. Render-safe stub keeps the dialog
+  // usable instead of bricking the app.
+  const provider = createMemo(() => {
+    const id = props.provider
+    return (
+      providers.all().find((x) => x.id === id) ??
+      globalSync.data.provider.all.find((x) => x.id === id) ?? { id, name: id }
+    )
+  })
   const fallback = createMemo<ProviderAuthMethod[]>(() => [
     {
       type: "api" as const,

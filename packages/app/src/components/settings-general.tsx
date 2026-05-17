@@ -13,6 +13,7 @@ import { useLanguage, FLAG_MAP } from "@/context/language"
 import { usePermission } from "@/context/permission"
 import { usePlatform } from "@/context/platform"
 import { useGlobalSync } from "@/context/global-sync"
+import { useGlobalSDK } from "@/context/global-sdk"
 import {
   monoDefault,
   monoFontFamily,
@@ -73,6 +74,32 @@ export const SettingsGeneral: Component = () => {
   const params = useParams()
   const settings = useSettings()
   const globalSync = useGlobalSync()
+  const globalSDK = useGlobalSDK()
+
+  // Sign-out / disconnect helper. Mirrors settings-providers.tsx disconnect()
+  // but unconditionally targets the Kolbo provider so users have a single
+  // obvious button to recover from auth-stuck states (the most common
+  // "I'm stuck and can't debug" issue).
+  const [signingOut, setSigningOut] = createSignal(false)
+  const signOutKolbo = async () => {
+    if (signingOut()) return
+    setSigningOut(true)
+    try {
+      await globalSDK.client.auth.remove({ providerID: "kolbo" }).catch(() => undefined)
+      await globalSDK.client.global.dispose().catch(() => undefined)
+      showToast({
+        variant: "success",
+        icon: "circle-check",
+        title: language.t("provider.disconnect.toast.disconnected.title", { provider: "Kolbo" }),
+        description: language.t("provider.disconnect.toast.disconnected.description", { provider: "Kolbo" }),
+      })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      showToast({ title: language.t("common.requestFailed"), description: message })
+    } finally {
+      setSigningOut(false)
+    }
+  }
 
   onMount(() => {
     void theme.loadThemes()
@@ -710,6 +737,28 @@ export const SettingsGeneral: Component = () => {
             )
           }}
         </Show>
+
+        {/* Account — sign out of Kolbo. Always visible so users can
+            recover from a stuck/broken auth state without having to
+            hunt through individual provider rows in Providers. */}
+        <div class="flex flex-col gap-1">
+          <h3 class="text-14-medium text-text-strong pb-2">Account</h3>
+          <SettingsList>
+            <SettingsRow
+              title="Sign out of Kolbo"
+              description="Disconnect the Kolbo account and clear the cached API key. Useful when you're stuck on an auth error."
+            >
+              <Button
+                variant="secondary"
+                onClick={() => { void signOutKolbo() }}
+                disabled={signingOut()}
+                data-action="settings-signout-kolbo"
+              >
+                {signingOut() ? "Signing out…" : "Sign out"}
+              </Button>
+            </SettingsRow>
+          </SettingsList>
+        </div>
       </div>
     </div>
   )
