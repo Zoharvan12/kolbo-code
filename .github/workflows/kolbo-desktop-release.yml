@@ -17,9 +17,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release (e.g. 1.0.0)"
+        # No default — a missing version would silently build & publish
+        # 1.0.0 artifacts that overwrite the "latest" entry on kolbo-releases
+        # (happened May 2026 → bogus desktop-v1.0.0 release). Force the
+        # caller to be explicit. For full releases prefer kolbo-release-all.yml
+        # which threads one version through both this workflow and the
+        # whitelabel one.
+        description: "Version to release (e.g. 2.1.25)"
         required: true
-        default: "1.0.0"
       draft:
         description: "Create as draft release"
         required: false

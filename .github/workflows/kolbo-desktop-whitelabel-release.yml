@@ -24,9 +24,10 @@ on:
         required: true
         default: "sapir"
       version:
-        description: "Version to release (e.g. 1.0.0)"
+        # No default — see comment in kolbo-desktop-release.yml. A missing
+        # version would silently publish 1.0.0 artifacts as the new "latest".
+        description: "Version to release (e.g. 2.1.25)"
         required: true
-        default: "1.0.0"
       draft:
         description: "Create as draft release"
         required: false

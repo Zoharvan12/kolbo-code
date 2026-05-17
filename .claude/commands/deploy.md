@@ -143,25 +143,42 @@ Goal: pull in upstream bug-fixes and improvements that do NOT touch Kolbo brandi
 
 ---
 
-## Phase 5 — Trigger npm publish
+## Phase 5 — Trigger publish (CLI + whitelabels + desktop)
 
-Trigger both workflows in parallel:
+Trigger all three workflows in parallel. The desktop release is the long pole (~20 min for Rust compile + sign + notarize on Mac and Windows). Both whitelabel CLIs (Sapir, NakedJim) ride along inside kolbo-whitelabels.yml; both whitelabel desktop apps ride along inside kolbo-release-all.yml.
+
 ```bash
+# Main CLI to npm
 gh workflow run kolbo-release.yml \
   --repo Zoharvan12/kolbo-code \
   --ref dev \
   --field tag=latest \
   --field version=<new_version>
 
+# Whitelabel CLIs to npm (Sapir, NakedJim, …)
 gh workflow run kolbo-whitelabels.yml \
   --repo Zoharvan12/kolbo-code \
   --ref dev
+
+# Desktop apps (Kolbo Code + Sapir desktop, mac arm64 + win x64).
+# REQUIRED for any release the user described as "desktop app" or
+# "for whitelabels and desktop". MUST pass --field version=… — the
+# child workflows used to default to 1.0.0 which silently overwrote
+# kolbo-releases "latest" with bogus artifacts (May 2026 incident).
+gh workflow run kolbo-release-all.yml \
+  --repo Zoharvan12/kolbo-code \
+  --ref dev \
+  --field version=<new_version> \
+  --field sign=true \
+  --field draft=false
 ```
 
-Wait ~5 seconds then confirm both are queued:
+Wait ~5 seconds then confirm all three are queued:
 ```bash
 gh run list --repo Zoharvan12/kolbo-code --limit 5
 ```
+
+The two CLI workflows finish in 1–5 min. `kolbo-release-all` takes ~20 min — its `publish-updater` job is what writes `latest.json` and `sapir-latest.json` on `Zoharvan12/kolbo-releases/releases/download/updater/`. Phase 6 below must run AFTER that job succeeds (or it will sync stale manifests).
 
 ---
 
