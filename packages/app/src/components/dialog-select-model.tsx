@@ -242,6 +242,10 @@ const ModelList: Component<{
                   src={avatar}
                   alt=""
                   class="size-full object-cover"
+                  // Cloudflare hotlink protection on api.kolbo.ai rejects PNG/JPG
+                  // when the Referer header isn't a kolbo.ai origin. The Tauri
+                  // webview sends Referer: tauri://localhost/..., so suppress it.
+                  referrerpolicy="no-referrer"
                   onError={(e) => {
                     ;(e.currentTarget as HTMLImageElement).style.display = "none"
                   }}
