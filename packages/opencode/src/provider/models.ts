@@ -209,11 +209,16 @@ export namespace ModelsDev {
       if (!Array.isArray(json.data) || json.data.length === 0) return // keep fallback
 
       // kolbo-api absolutizes + percent-encodes avatar URLs server-side
-      // (controller.js → resolveAvatar). We just keep absolute URLs and drop
-      // anything else — relative paths arriving here would 404 in the browser
-      // anyway, so undefined → fallback initial tile is the safer outcome.
-      const passAvatar = (a: string | null | undefined): string | undefined =>
-        typeof a === "string" && /^https?:\/\//i.test(a) ? a : undefined
+      // (controller.js → resolveAvatar) but currently emits http:// for prod
+      // assets (the server 301-redirects to https). The desktop Tauri webview
+      // refuses to load <img src="http://..."> as mixed content even though
+      // the host serves https, so we upgrade the scheme here. Drop anything
+      // that still isn't an http(s) URL — relative paths would 404 anyway.
+      const passAvatar = (a: string | null | undefined): string | undefined => {
+        if (typeof a !== "string") return undefined
+        if (a.startsWith("http://")) return "https://" + a.slice("http://".length)
+        return /^https:\/\//i.test(a) ? a : undefined
+      }
 
       const next: Record<string, any> = {}
       for (const m of json.data) {
