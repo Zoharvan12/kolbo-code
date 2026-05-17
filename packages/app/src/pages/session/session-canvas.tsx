@@ -2,6 +2,7 @@ import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup, on
 import { useSync } from "@/context/sync"
 import { useLanguage } from "@/context/language"
 import { useSessionLayout } from "@/pages/session/session-layout"
+import { AudioWavePlayer } from "@/pages/session/audio-wave-player"
 import { MediaCard } from "@opencode-ai/ui/media-card"
 import { usePlatformOps } from "@opencode-ai/ui/context/platform-ops"
 import { Mark } from "@opencode-ai/ui/logo"
@@ -275,7 +276,7 @@ function CanvasCellView(props: { cell: CanvasCell }) {
   const currentAspect = createMemo(() => {
     const m = current()
     if (!m) return 1
-    if (m.kind === "audio") return 16 / 5
+    if (m.kind === "audio") return 16 / 2.5
     if (m.kind === "model") return 1
     return aspect() ?? 1
   })
@@ -373,7 +374,15 @@ function CanvasCellView(props: { cell: CanvasCell }) {
       ref={cellRoot}
       class="group relative rounded-xl overflow-hidden bg-background-base transition-all duration-200 ease-out kolbo-canvas-cell"
       classList={{ "kolbo-canvas-cell-selected": isSelected() }}
-      style={{ "aspect-ratio": currentAspect().toString() }}
+      style={
+        current()?.kind === "audio"
+          // Audio cells use a fixed height instead of an aspect-ratio so
+          // they don't grow tall (and empty) at wide column counts or crop
+          // the controls at narrow ones. The player has a known intrinsic
+          // height; just match it.
+          ? { height: "72px" }
+          : { "aspect-ratio": currentAspect().toString() }
+      }
       // Drag-to-prompt: the cell's URL is already a public Kolbo CDN
       // link, so dropping it on the prompt input attaches it BY
       // REFERENCE — no re-upload of bytes. Existing drop handler in
@@ -393,7 +402,17 @@ function CanvasCellView(props: { cell: CanvasCell }) {
     >
       <Show when={revealed() && current()} keyed>
         {(m) => (
-          <MediaCard src={m.url} path={m.url} filename={filenameForMedia(m, props.cell.tool, props.cell.partID)}>
+          <MediaCard
+            src={m.url}
+            path={m.url}
+            filename={filenameForMedia(m, props.cell.tool, props.cell.partID)}
+            // Audio cells are short and own their full horizontal layout
+            // (play / time / waveform / integrated download). The hover-
+            // revealed corner buttons collide with player content at narrow
+            // column counts, so we suppress them and let the player provide
+            // its own download control.
+            hideHoverButtons={m.kind === "audio"}
+          >
             <div class="relative size-full">
               <Show when={m.kind === "image"}>
                 <button
@@ -446,7 +465,16 @@ function CanvasCellView(props: { cell: CanvasCell }) {
                   const [playing, setPlaying] = createSignal(false)
                   let videoRef: HTMLVideoElement | undefined
                   return (
-                    <div class="relative size-full">
+                    <div
+                      class="relative size-full"
+                      classList={{ "cursor-zoom-in": !playing() && !batchMode(), "cursor-pointer": !playing() && batchMode() }}
+                      onClick={(e) => {
+                        if (playing()) return
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handlePrimaryClick(m.url)
+                      }}
+                    >
                       <video
                         ref={videoRef}
                         // URL fragment `#t=0.05` positions playback at
@@ -546,19 +574,23 @@ function CanvasCellView(props: { cell: CanvasCell }) {
                 })()}
               </Show>
               <Show when={m.kind === "audio"}>
-                <div
-                  class="size-full flex items-center gap-3 p-4"
-                  style="background:linear-gradient(135deg, color-mix(in srgb, var(--surface-info-base) 35%, var(--background-stronger)) 0%, var(--background-stronger) 100%)"
-                >
-                  <div
-                    style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb, var(--surface-info-base) 75%, transparent);color:var(--text-on-info-base, #fff);flex-shrink:0;box-shadow:0 4px 14px color-mix(in srgb, var(--surface-info-base) 30%, transparent)"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <path d="M10 2v16M5 6v8M15 6v8M2 9v2M18 9v2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-                    </svg>
-                  </div>
-                  <audio src={m.url} controls style="flex:1;min-width:0;width:100%" />
-                </div>
+                <AudioWavePlayer
+                  src={m.url}
+                  onDownload={() => {
+                    // Anchor-tag download — handles data: and same-origin
+                    // URLs natively; for cross-origin without a CORS header
+                    // the browser opens the URL in a new tab, which is the
+                    // expected fallback for our CDN-hosted assets.
+                    const a = document.createElement("a")
+                    a.href = m.url
+                    a.download = filenameForMedia(m, props.cell.tool, props.cell.partID)
+                    a.rel = "noopener noreferrer"
+                    a.target = "_blank"
+                    document.body.appendChild(a)
+                    a.click()
+                    document.body.removeChild(a)
+                  }}
+                />
               </Show>
               <Show when={m.kind === "model"}>
                 <a
@@ -587,7 +619,10 @@ function CanvasCellView(props: { cell: CanvasCell }) {
 
       {/* Selection checkbox — rounded square, high-contrast white-on-image
           with shadow ring so it pops on any photo. Always visible in batch
-          mode, fades in on cell hover otherwise. */}
+          mode, fades in on cell hover otherwise. For audio cells (short and
+          dominated by the player) we suppress the hover-only appearance so
+          the checkbox doesn't strobe over the play button — it only shows
+          when actually in batch mode or already selected. */}
       <Show when={current()} keyed>
         {(m) => (
           <button
@@ -600,8 +635,13 @@ function CanvasCellView(props: { cell: CanvasCell }) {
             }}
             aria-label={isSelected() ? "Deselect" : "Select"}
             aria-pressed={isSelected()}
-            class="absolute top-2 left-2 z-20 flex items-center justify-center transition-all duration-150"
+            class="absolute z-20 flex items-center justify-center transition-all duration-150"
             classList={{
+              // Image/video: top-left corner. Audio: vertically centered on
+              // the left so it sits inline with the play button instead of
+              // colliding with it (the cell is only 72px tall).
+              "top-2 left-2": m.kind !== "audio",
+              "top-1/2 -translate-y-1/2 left-1.5": m.kind === "audio",
               "opacity-100": batchMode() || isSelected(),
               "opacity-0 group-hover:opacity-100": !batchMode() && !isSelected(),
             }}
@@ -628,7 +668,7 @@ function PendingCellView(props: { cell: PendingCell }) {
   // so they reserve realistic space (videos tend wider, images squarer).
   const fallbackAspect = createMemo(() => {
     if (props.cell.kind === "video") return 16 / 9
-    if (props.cell.kind === "audio") return 16 / 5
+    if (props.cell.kind === "audio") return 16 / 2.5
     return 1
   })
   const whitelabelLogo =
@@ -638,11 +678,19 @@ function PendingCellView(props: { cell: PendingCell }) {
   return (
     <div
       class="relative rounded-xl overflow-hidden flex items-center justify-center kolbo-canvas-cell"
-      style={{
-        "aspect-ratio": fallbackAspect().toString(),
-        background:
-          "linear-gradient(135deg, var(--background-stronger) 0%, var(--surface-recess-base) 100%)",
-      }}
+      style={
+        props.cell.kind === "audio"
+          ? {
+              height: "72px",
+              background:
+                "linear-gradient(135deg, var(--background-stronger) 0%, var(--surface-recess-base) 100%)",
+            }
+          : {
+              "aspect-ratio": fallbackAspect().toString(),
+              background:
+                "linear-gradient(135deg, var(--background-stronger) 0%, var(--surface-recess-base) 100%)",
+            }
+      }
       title={props.cell.tool}
     >
       <div class="relative" style="width:64px;height:64px;display:flex;align-items:center;justify-content:center">

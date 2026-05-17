@@ -447,6 +447,15 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     event.stopPropagation()
     input.setDraggingType(null)
 
+    // Only attach when the drop actually landed on the prompt input.
+    // The document-level listener exists so we can preventDefault() and
+    // stop the browser from navigating to a dropped URL anywhere on the
+    // page — it must NOT silently attach files when the user dropped on
+    // the canvas, sidebar, or any other surface. The form is tagged with
+    // `data-prompt-drop-target` so we can detect this with one closest().
+    const target = event.target as HTMLElement | null
+    if (!target?.closest("[data-prompt-drop-target]")) return
+
     // 1. Local file path reference (e.g. dragged from file tree)
     const plainText = event.dataTransfer?.getData("text/plain") ?? ""
     if (plainText.startsWith("file:")) {

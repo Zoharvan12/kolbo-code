@@ -39,6 +39,7 @@ import { BasicTool, GenericTool } from "./basic-tool"
 import { setupPathLinks } from "./markdown"
 import { extractKolboUrls as extractKolboUrlsShared, isVideoUrl as isVideoUrlShared } from "./kolbo-media"
 import { usePlatformOps } from "../context/platform-ops"
+import { useKolboModels } from "../context/kolbo-models"
 import { Accordion } from "./accordion"
 import { StickyAccordionHeader } from "./sticky-accordion-header"
 import { Card } from "./card"
@@ -2836,6 +2837,47 @@ function KolboCompactChip(props: {
       ? i18n.t("ui.kolbo.chip.readyCount", { count: count(), label })
       : i18n.t("ui.kolbo.chip.ready", { label })
   })
+  // Surface the model used for this generation so the user can tell which
+  // backend produced the result. The friendly chip otherwise hides all
+  // args; this reveals the one users care about.
+  //
+  // Resolution order: live metadata from kolbo-api (via KolboModelsBridge
+  // in app.tsx) → client-side prettifier ("veo-3" → "Veo 3"). The metadata
+  // pass also yields the model avatar, rendered as a small circle next to
+  // the chip label.
+  const kolboModels = useKolboModels()
+  const prettifyModelId = (id: string): string => {
+    const overrides: Record<string, string> = {
+      ai: "AI", sd: "SD", sdxl: "SDXL", xl: "XL", hd: "HD",
+      pro: "Pro", tts: "TTS", "3d": "3D", v2: "v2", v3: "v3",
+    }
+    return id
+      .split(/[-_\s]+/)
+      .filter(Boolean)
+      .map((tok) => {
+        const lower = tok.toLowerCase()
+        if (overrides[lower]) return overrides[lower]
+        if (/^\d+(\.\d+)*$/.test(tok)) return tok
+        return lower.charAt(0).toUpperCase() + lower.slice(1)
+      })
+      .join(" ")
+  }
+  const modelId = createMemo<string>(() => {
+    const raw = props.input?.model
+    return typeof raw === "string" ? raw.trim() : ""
+  })
+  const modelName = createMemo<string>(() => {
+    const id = modelId()
+    if (!id) return ""
+    const fromApi = kolboModels.lookup(id).name
+    if (fromApi && fromApi.trim()) return fromApi.trim()
+    return prettifyModelId(id)
+  })
+  const modelAvatar = createMemo<string | undefined>(() => {
+    const id = modelId()
+    if (!id) return undefined
+    return kolboModels.lookup(id).avatar ?? undefined
+  })
 
   // Show up to MAX_CHIP_THUMBS mini-thumbnails in the chip so chat and
   // canvas stay visually in sync — a 4-image generation now reads "4
@@ -2911,6 +2953,30 @@ function KolboCompactChip(props: {
             />
           </Show>
           <span class="truncate text-text-base">{text()}</span>
+          <Show when={modelName()}>
+            <span class="inline-flex items-center gap-1 shrink-0 text-text-weak" title={modelName()}>
+              <span class="opacity-60">·</span>
+              <Show when={modelAvatar()}>
+                <img
+                  src={modelAvatar()}
+                  alt=""
+                  loading="lazy"
+                  width={14}
+                  height={14}
+                  // Cloudflare hotlink protection on api.kolbo.ai rejects
+                  // image fetches whose Referer isn't a kolbo.ai origin.
+                  // The Tauri webview sends tauri://localhost as Referer,
+                  // so suppress it (same trick used by dialog-select-model).
+                  referrerpolicy="no-referrer"
+                  style="width:14px;height:14px;border-radius:3px;object-fit:cover;background:var(--background-stronger);display:inline-block"
+                  onError={(e) => {
+                    ;(e.currentTarget as HTMLImageElement).style.display = "none"
+                  }}
+                />
+              </Show>
+              <span style="font-variant-numeric:tabular-nums">{modelName()}</span>
+            </span>
+          </Show>
           <Show when={!inFlight() && doneN() > 0}>
             <span class="text-text-weak group-hover:text-text-base transition-colors inline-flex items-center gap-0.5 pl-1 border-l border-border-weaker-base ml-0.5">
               {i18n.t("ui.kolbo.chip.viewInCanvas")}

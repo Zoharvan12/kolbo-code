@@ -30,6 +30,7 @@ const _htmlPreviewStore = new Map<string, string>()
 type KolboModelMetadata = {
   pricing: Record<string, { input: number; output: number }>
   avatars: Record<string, string | null>
+  names: Record<string, string>
 }
 const KOLBO_MODELS_TTL_MS = 5 * 60 * 1000
 let kolboModelCache: { at: number; data: KolboModelMetadata } | null = null
@@ -37,13 +38,16 @@ let kolboModelInflight: Promise<KolboModelMetadata> | null = null
 
 async function fetchKolboModelMetadata(): Promise<KolboModelMetadata> {
   const base = Partner.apiBase
-  const empty: KolboModelMetadata = { pricing: {}, avatars: {} }
+  const empty: KolboModelMetadata = { pricing: {}, avatars: {}, names: {} }
   try {
     const res = await fetch(`${base}/kolbo/v1/models`)
     if (!res.ok) return empty
     const data = (await res.json()) as {
       data?: Array<{
         id: string
+        name?: string | null
+        display_name?: string | null
+        label?: string | null
         avatar?: string | null
         pricing?: {
           input_credits_per_million?: number
@@ -51,7 +55,7 @@ async function fetchKolboModelMetadata(): Promise<KolboModelMetadata> {
         }
       }>
     }
-    const out: KolboModelMetadata = { pricing: {}, avatars: {} }
+    const out: KolboModelMetadata = { pricing: {}, avatars: {}, names: {} }
     for (const m of data.data ?? []) {
       const inRate = m.pricing?.input_credits_per_million
       const outRate = m.pricing?.output_credits_per_million
@@ -63,6 +67,15 @@ async function fetchKolboModelMetadata(): Promise<KolboModelMetadata> {
       } else {
         out.avatars[m.id] = null
       }
+      // Prefer display_name / label / name in that order — kolbo-api has
+      // varied across versions which key it uses for the human-friendly
+      // label, so check all the common ones before falling back to the id.
+      const friendly =
+        (typeof m.display_name === "string" && m.display_name.trim()) ||
+        (typeof m.label === "string" && m.label.trim()) ||
+        (typeof m.name === "string" && m.name.trim()) ||
+        ""
+      if (friendly) out.names[m.id] = friendly
     }
     return out
   } catch {
@@ -550,6 +563,7 @@ export const GlobalRoutes = lazy(() =>
                       z.object({ input: z.number(), output: z.number() }),
                     ),
                     avatars: z.record(z.string(), z.string().nullable()),
+                    names: z.record(z.string(), z.string()),
                   }),
                 ),
               },

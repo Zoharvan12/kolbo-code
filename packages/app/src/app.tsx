@@ -1,6 +1,6 @@
 import "@/index.css"
 import "flag-icons/css/flag-icons.min.css"
-import { I18nProvider } from "@opencode-ai/ui/context"
+import { I18nProvider, KolboModelsProvider, type KolboModelsFetcher } from "@opencode-ai/ui/context"
 import { DialogProvider } from "@opencode-ai/ui/context/dialog"
 import { FileComponentProvider } from "@opencode-ai/ui/context/file"
 import { MarkedProvider } from "@opencode-ai/ui/context/marked"
@@ -30,7 +30,7 @@ import { Dynamic } from "solid-js/web"
 import { CommandProvider } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
 import { FileProvider } from "@/context/file"
-import { GlobalSDKProvider } from "@/context/global-sdk"
+import { GlobalSDKProvider, useGlobalSDK } from "@/context/global-sdk"
 import { GlobalSyncProvider } from "@/context/global-sync"
 import { HighlightsProvider } from "@/context/highlights"
 import { LanguageProvider, type Locale, useLanguage } from "@/context/language"
@@ -67,6 +67,32 @@ const SessionIndexRoute = () => <Navigate href="session" />
 function UiI18nBridge(props: ParentProps) {
   const language = useLanguage()
   return <I18nProvider value={{ locale: language.intl, t: language.t }}>{props.children}</I18nProvider>
+}
+
+// Wires the UI-side Kolbo model resolver up to the app's globalSDK. The
+// resolver lives in packages/ui so message-part.tsx can render avatars +
+// friendly names on generation chips; the actual fetch must go through
+// globalSDK (which knows the configured server URL), and globalSDK is an
+// app-package concern. This bridge is the only seam between them.
+function KolboModelsBridge(props: ParentProps) {
+  const sdk = useGlobalSDK()
+  const fetcher: KolboModelsFetcher = async () => {
+    // /global/kolbo-model-metadata isn't typed in the generated SDK yet,
+    // so call it via plain fetch() against the same origin globalSDK uses.
+    // This keeps the integration shippable without an SDK regen.
+    const base = sdk.url.replace(/\/+$/, "")
+    const res = await fetch(`${base}/global/kolbo-model-metadata`)
+    if (!res.ok) return { names: {}, avatars: {} }
+    const data = (await res.json()) as {
+      names?: Record<string, string>
+      avatars?: Record<string, string | null>
+    }
+    return {
+      names: data?.names ?? {},
+      avatars: data?.avatars ?? {},
+    }
+  }
+  return <KolboModelsProvider fetcher={fetcher}>{props.children}</KolboModelsProvider>
 }
 
 declare global {
@@ -298,6 +324,7 @@ export function AppInterface(props: {
         <ServerKey>
           <GlobalSDKProvider>
             <GlobalSyncProvider>
+              <KolboModelsBridge>
               <Dynamic
                 component={props.router ?? Router}
                 root={(routerProps) => <RouterRoot appChildren={props.children}>{routerProps.children}</RouterRoot>}
@@ -308,6 +335,7 @@ export function AppInterface(props: {
                   <Route path="/session/:id?" component={SessionRoute} />
                 </Route>
               </Dynamic>
+              </KolboModelsBridge>
             </GlobalSyncProvider>
           </GlobalSDKProvider>
         </ServerKey>

@@ -1458,6 +1458,11 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        // Marker for the document-level drop handler: only drops whose
+        // target lives inside this form should actually attach files to
+        // the prompt. Drops anywhere else on the page get swallowed (to
+        // prevent the browser navigating) but do not produce attachments.
+        data-prompt-drop-target=""
         classList={{
           "group/prompt-input": true,
           "focus-within:shadow-xs-border": true,

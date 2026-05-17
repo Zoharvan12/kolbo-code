@@ -13,6 +13,13 @@ export type MediaCardProps = {
   path?: string
   /** Suggested filename for downloads */
   filename?: string
+  /**
+   * Skip rendering the hover-revealed download / open-folder buttons.
+   * Use for cells (e.g., audio) that own their full visible layout and
+   * provide their own integrated controls — the floating corner buttons
+   * would otherwise overlap the cell content at narrow column counts.
+   */
+  hideHoverButtons?: boolean
 }
 
 function extractFilename(path?: string, fallback = "download"): string {
@@ -138,9 +145,9 @@ export function MediaCard(props: MediaCardProps) {
     "box-shadow:0 1px 2px rgba(0,0,0,0.06), 0 6px 16px color-mix(in srgb, var(--surface-success-base) 35%, transparent);"
 
   return (
-    <div class="group relative">
+    <div class="group relative h-full">
       {props.children}
-      <Show when={showDownload() || showOpenFolder()}>
+      <Show when={!props.hideHoverButtons && (showDownload() || showOpenFolder())}>
         <div class="absolute top-2 right-2 z-10 flex gap-1.5 opacity-0 translate-y-0.5 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:translate-y-0">
           <Show when={showDownload()}>
             <button
