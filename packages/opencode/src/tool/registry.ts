@@ -24,6 +24,7 @@ import { Log } from "@/util/log"
 import { LspTool } from "./lsp"
 import { Truncate } from "./truncate"
 import { ApplyPatchTool } from "./apply_patch"
+import { McpAddTool } from "./mcp-add"
 import { Glob } from "../util/glob"
 import path from "path"
 import { pathToFileURL } from "url"
@@ -166,6 +167,7 @@ export namespace ToolRegistry {
             question: Tool.init(question),
             lsp: Tool.init(LspTool),
             plan: Tool.init(PlanExitTool),
+            mcpAdd: Tool.init(McpAddTool),
           })
 
           return {
@@ -186,6 +188,7 @@ export namespace ToolRegistry {
               tool.code,
               tool.skill,
               tool.patch,
+              tool.mcpAdd,
               ...(Flag.KOLBO_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),
               ...(Flag.KOLBO_EXPERIMENTAL_PLAN_MODE && Flag.KOLBO_CLIENT === "cli" ? [tool.plan] : []),
             ],

@@ -49,6 +49,7 @@ export namespace Flag {
   export const KOLBO_SERVER_PASSWORD = process.env["KOLBO_SERVER_PASSWORD"]
   export const KOLBO_SERVER_USERNAME = process.env["KOLBO_SERVER_USERNAME"]
   export const KOLBO_ENABLE_QUESTION_TOOL = truthy("KOLBO_ENABLE_QUESTION_TOOL")
+  export const KOLBO_ALLOW_AGENT_ADD_STDIO_MCP = truthy("KOLBO_ALLOW_AGENT_ADD_STDIO_MCP")
 
   // Experimental
   export const KOLBO_EXPERIMENTAL = truthy("KOLBO_EXPERIMENTAL")

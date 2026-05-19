@@ -1,0 +1,19 @@
+Adds a new MCP (Model Context Protocol) server to the user's kolbo configuration.
+
+Use this tool when the user asks you to add, install, register, or connect a new MCP server (e.g. "add the Stripe MCP", "connect to https://mcp.sentry.dev", "install the GitHub MCP").
+
+Two transports are supported:
+  - "remote": HTTP or SSE endpoint (https URL). Preferred whenever possible.
+  - "local": runs a local command via stdio. Allows arbitrary process execution and is gated behind a flag — only use if the user explicitly asked for a local/stdio server AND the flag is enabled.
+
+The tool requires a user permission prompt before persisting. After approval it:
+  1. Writes the server entry to kolbo.json under the chosen scope.
+  2. Persists with `enabled: false` so the server does NOT auto-start on next kolbo launch. The user must enable it explicitly.
+  3. Connects the server for the CURRENT session only, so its tools become available immediately.
+
+For OAuth-protected remote servers, set `oauth: true`. The user still needs to run `kolbo mcp auth <name>` separately to complete the OAuth flow.
+
+Notes for the agent:
+  - If the user describes a server in natural language ("add stripe"), pick a short kebab-case name like "stripe" unless the user specified one.
+  - Prefer scope "project" when working inside a git repo; use "global" only if the user explicitly says "globally" or "for all projects".
+  - Never invent URLs or commands. Ask the user if details are missing.
