@@ -136,18 +136,27 @@ export namespace Instruction {
 
           // The first project-level match wins so we don't stack AGENTS.md/CLAUDE.md from every ancestor.
           if (!Flag.KOLBO_DISABLE_PROJECT_CONFIG) {
-            let foundProjectFile = false
             for (const file of FILES) {
               const matches = yield* fs.findUp(file, Instance.directory, Instance.worktree)
               if (matches.length > 0) {
                 matches.forEach((item) => paths.add(path.resolve(item)))
-                foundProjectFile = true
                 break
               }
             }
 
-            // No instruction file found — create a starter KOLBO.md in the project root
-            if (!foundProjectFile) {
+            // Decide whether to create a starter KOLBO.md based on the project root ONLY,
+            // ignoring ancestor matches. Otherwise a CLAUDE.md/AGENTS.md anywhere up the
+            // tree (e.g. a parent workspace) suppresses KOLBO.md creation in every nested folder.
+            let hasRootInstructionFile = false
+            for (const file of FILES) {
+              if (yield* fs.existsSafe(path.join(Instance.directory, file))) {
+                hasRootInstructionFile = true
+                break
+              }
+            }
+
+            // No instruction file in the project root — create a starter KOLBO.md
+            if (!hasRootInstructionFile) {
               const kolboMd = path.join(Instance.directory, "KOLBO.md")
               const starter = [
                 "# Project Instructions",
