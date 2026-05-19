@@ -1,0 +1,24 @@
+KOLBO MCP DIAGNOSTIC — send this whole file to the user.
+
+Instructions:
+1. Press the Windows key, type "PowerShell", press Enter (a blue terminal opens).
+2. Copy the entire command block below (the line starting with $out = @(); ...).
+3. Right-click inside the PowerShell window to paste, then press Enter.
+4. Wait until you see a green ">>> Output also copied to clipboard <<<" line.
+5. Paste the result back to us (Ctrl+V in chat).
+
+That's it. The script is read-only — it doesn't change anything on your computer.
+
+=====================================================================
+COMMAND (paste this line into PowerShell exactly as-is):
+=====================================================================
+
+$out = @(); $out += "=== NODE/NPX ==="; $out += "node: $((Get-Command node -EA SilentlyContinue).Source)"; $out += "npx:  $((Get-Command npx -EA SilentlyContinue).Source)"; $out += try { "node --version: $(node --version 2>&1)" } catch { "node fail: $_" }; $out += try { "npx --version:  $(npx --version 2>&1)" } catch { "npx fail: $_" }; $out += ""; $out += "=== KOLBO MCP via npx (30s timeout) ==="; $job = Start-Job { npx -y "@kolbo/mcp@latest" --help 2>&1 }; if (Wait-Job $job -Timeout 30) { $out += (Receive-Job $job) | Out-String } else { Stop-Job $job; $out += "TIMEOUT after 30s" }; Remove-Job $job -Force; $out += ""; $out += "=== kolbo.json ==="; $cfg = "$env:APPDATA\kolbo\kolbo.json"; if (Test-Path $cfg) { $out += "exists: $cfg"; $j = Get-Content $cfg -Raw | ConvertFrom-Json; $kolboMcp = $j.mcp.kolbo; if ($kolboMcp) { $masked = $kolboMcp | ConvertTo-Json -Depth 10; $masked = $masked -replace '("KOLBO_API_KEY"\s*:\s*")[^"]+', '$1<REDACTED>'; $out += $masked } else { $out += "NO kolbo MCP entry in config" } } else { $out += "MISSING: $cfg" }; $out += ""; $out += "=== Latest log lines containing 'mcp' ==="; $log = Get-ChildItem "$env:APPDATA\kolbo\log\*.log" -EA SilentlyContinue | Sort-Object LastWriteTime -Desc | Select-Object -First 1; if ($log) { $out += "file: $($log.FullName)"; $out += (Select-String -Path $log.FullName -Pattern 'mcp|clientName=kolbo|ENOENT|failed' -SimpleMatch:$false | Select-Object -Last 30 | ForEach-Object { $_.Line }) } else { $out += "no log files found" }; $out -join "`r`n" | Set-Clipboard; $out | Out-Host; Write-Host "`n>>> Output also copied to clipboard <<<" -ForegroundColor Green
+
+=====================================================================
+
+What it checks (so you know nothing scary is happening):
+- Whether Node.js / npx are installed and on PATH
+- Whether the Kolbo MCP package can be fetched from the npm registry (with a 30s timeout)
+- Whether your Kolbo Code config has the kolbo MCP entry (your API key is hidden in the output)
+- The last 30 MCP-related lines from the Kolbo Code log

@@ -1,0 +1,44 @@
+FIX NODE.JS PATH — send this whole file to the user.
+
+Use this when: winget / installer says Node.js is already installed,
+but `node --version` in PowerShell still fails with "not recognized".
+Means Node IS on the computer, but Windows can't find it.
+
+Instructions:
+1. Press the Windows key, type "PowerShell".
+2. RIGHT-CLICK "Windows PowerShell" and choose "Run as administrator".
+   (Important — without admin, the fix can't update system PATH.)
+3. Click "Yes" on the UAC prompt.
+4. Copy the entire command block below.
+5. Right-click inside the PowerShell window to paste, then press Enter.
+6. Wait until it finishes. It will tell you whether it found Node and
+   whether it added it to PATH.
+7. CLOSE that PowerShell window completely and open a NEW one.
+8. In the new window, type:    node --version
+   - If it prints a version (e.g. v20.x.x) → Node is now on PATH.
+   - Now reopen Kolbo Code and sign in.
+
+If the script says "node.exe not found anywhere on C:\" — Node isn't
+really installed. Download the LTS installer (.msi) from
+https://nodejs.org and run it (use all defaults). Then restart and
+verify with `node --version`.
+
+The script is read-only except for one PATH addition — it doesn't
+install or remove anything.
+
+=====================================================================
+COMMAND (paste this whole block into ADMIN PowerShell exactly as-is):
+=====================================================================
+
+$candidates = @("$env:ProgramFiles\nodejs", "${env:ProgramFiles(x86)}\nodejs", "$env:LOCALAPPDATA\Programs\nodejs", "$env:APPDATA\npm", "$env:LOCALAPPDATA\fnm_multishells\*", "$env:USERPROFILE\.nvm\versions\node\*", "$env:USERPROFILE\scoop\apps\nodejs\current"); $found = $candidates | ForEach-Object { Get-ChildItem $_ -Filter "node.exe" -EA SilentlyContinue } | Select-Object -First 1; if (-not $found) { Write-Host "Searching whole C:\ for node.exe (this can take a minute)..." -ForegroundColor Yellow; $found = Get-ChildItem C:\ -Filter "node.exe" -Recurse -EA SilentlyContinue | Select-Object -First 1 }; if ($found) { $nodeDir = $found.Directory.FullName; Write-Host "Found node at: $($found.FullName)" -ForegroundColor Green; $machinePath = [Environment]::GetEnvironmentVariable("Path","Machine"); if ($machinePath -notlike "*$nodeDir*") { [Environment]::SetEnvironmentVariable("Path", "$machinePath;$nodeDir", "Machine"); Write-Host "Added $nodeDir to Machine PATH." -ForegroundColor Green } else { Write-Host "$nodeDir already in Machine PATH." -ForegroundColor Cyan }; Write-Host "`nNow CLOSE this PowerShell window, open a NEW one, and run: node --version" -ForegroundColor Magenta } else { Write-Host "node.exe not found anywhere on C:\ -- Node isn't actually installed. Reinstall the LTS .msi from https://nodejs.org" -ForegroundColor Red }
+
+=====================================================================
+
+What it does (so you know nothing scary is happening):
+- Looks for node.exe in the standard install locations (Program Files,
+  AppData, NVM, fnm, Scoop).
+- If not found there, scans the whole C:\ drive once.
+- If found and not already on the system PATH, adds the parent folder
+  to the Machine PATH so all future programs can find it.
+- Tells you to open a fresh PowerShell window — PATH only refreshes
+  for new processes.
