@@ -8,6 +8,7 @@ import { basicAuth } from "hono/basic-auth"
 import type { UpgradeWebSocket } from "hono/ws"
 import z from "zod"
 import { Auth } from "../auth"
+import { Partner } from "../brand/partner"
 import { Flag } from "../flag/flag"
 import { ProviderID } from "../provider/schema"
 import { WorkspaceRouterMiddleware } from "./router"
@@ -132,7 +133,7 @@ export namespace Server {
           // Same reason as in routes/provider.ts oauth callback: dialog calls
           // global.dispose() right after this returns, and MCP lazy-respawns the
           // @kolbo/mcp child process. kolbo.json must hold the fresh key first.
-          if (providerID === "kolbo") {
+          if (providerID === Partner.authProviderID || providerID === Partner.authProviderIDLegacy) {
             await ensureKolboMcpWired().catch(() => {})
           }
           return c.json(true)

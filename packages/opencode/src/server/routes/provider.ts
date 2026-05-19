@@ -7,6 +7,7 @@ import { ModelsDev } from "../../provider/models"
 import { ProviderAuth } from "../../provider/auth"
 import { ProviderID } from "../../provider/schema"
 import { ensureKolboMcpWired } from "../../mcp/wire"
+import { Partner } from "../../brand/partner"
 import { mapValues } from "remeda"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
@@ -170,7 +171,7 @@ export const ProviderRoutes = lazy(() =>
         // Must await: dispose() below this in the dialog tears down MCP state, and the
         // next request lazy-spawns the @kolbo/mcp child process from kolbo.json. If the
         // file hasn't been updated yet, the child boots with the stale KOLBO_API_KEY.
-        if (providerID === "kolbo") {
+        if (providerID === Partner.authProviderID || providerID === Partner.authProviderIDLegacy) {
           await ensureKolboMcpWired().catch(() => {})
         }
         return c.json(true)
