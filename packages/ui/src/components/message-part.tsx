@@ -1008,9 +1008,11 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
   const [state, setState] = createStore({
     copied: false,
     busy: false,
+    expanded: false,
   })
   const copied = () => state.copied
   const busy = () => state.busy
+  const expanded = () => state.expanded
 
   const textPart = createMemo(
     () => props.parts?.find((p) => p.type === "text" && !(p as TextPart).synthetic) as TextPart | undefined,
@@ -1034,6 +1036,17 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
 
   // Visible text: strip embedded media notes so they don't clutter the bubble
   const text = createMemo(() => rawText().replace(MEDIA_NOTE_RE, "").trim())
+
+  const COLLAPSE_CHAR_THRESHOLD = 520
+  const COLLAPSE_LINE_THRESHOLD = 7
+  const isLong = createMemo(() => {
+    const t = text()
+    if (!t) return false
+    if (t.length > COLLAPSE_CHAR_THRESHOLD) return true
+    const lines = t.split("\n").length
+    return lines > COLLAPSE_LINE_THRESHOLD
+  })
+  const collapsed = createMemo(() => isLong() && !expanded())
 
   const files = createMemo(() => (props.parts?.filter((p) => p.type === "file") as FilePart[]) ?? [])
 
@@ -1198,9 +1211,25 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
       <Show when={text()}>
         <>
           <div data-slot="user-message-body">
-            <div data-slot="user-message-text">
+            <div
+              data-slot="user-message-text"
+              data-collapsed={collapsed() ? "true" : undefined}
+            >
               <HighlightedText text={text()} references={inlineFiles()} agents={agents()} />
             </div>
+            <Show when={isLong()}>
+              <button
+                type="button"
+                data-slot="user-message-toggle"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setState("expanded", !expanded())
+                }}
+              >
+                {expanded() ? i18n.t("ui.message.collapse") : i18n.t("ui.message.expand")}
+              </button>
+            </Show>
           </div>
           <div data-slot="user-message-copy-wrapper">
             <Show when={metaHead() || metaTail()}>
@@ -2108,14 +2137,15 @@ ToolRegistry.register({
       )
     }
 
-    // Update artifact content when HTML file write completes (panel opens only on explicit click)
+    // Update artifact content when HTML file write completes — auto-open the preview panel
+    // so the user always sees the rendered HTML inline (e.g. presentations) without an extra click.
     createEffect(
       on(
         () => props.status,
         (status, prev) => {
           if (prev !== "running" || status !== "completed") return
           if (!isHtmlFile()) return
-          dispatchArtifact(false)
+          dispatchArtifact(true)
         },
         { defer: true },
       ),
