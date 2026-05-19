@@ -1203,9 +1203,20 @@ This composes with `@image1` / `@image2` positional tags for plain
 reference/source images — see "Tagging references inside the prompt" above
 for the full system.
 
-**Naming hint for `create_visual_dna`:** pick a short, lowercase, no-space
-Latin string for `name` (`esther_model`, `dana`, `tokyo_neon`) so it's
-trivially typable inside any prompt regardless of the user's language.
+**⚠️ Naming rule for `create_visual_dna` — NO SPACES (MANDATORY).** The
+`name` you set MUST be a **single token, lowercase, no spaces, ASCII-safe**
+— `esther_model`, `dana`, `tokyo_neon`, `brand_red`. Never `Sarah Johnson`,
+never `the red dress`. Reason: the prompt parser stops the `@<token>`
+match at the first space (and at `.,!?` punctuation). So `@Sarah Johnson`
+matches *only* `Sarah` — if no DNA named `Sarah` exists, the mention is
+silently dropped and the DNA never binds. A single-token name is the only
+way to guarantee inline `@name` works in any sentence, in any language,
+without forcing the user to write awkward punctuation around it. Use
+underscores for multi-word concepts (`old_town`, not `Old Town`). When
+the user proposes a name with spaces, accept the intent but collapse it
+into a single token before storing (`"Sarah Johnson"` → `sarah_johnson`)
+and tell them once how you'll refer to it. Source of truth:
+[kolbo-docs / Visual DNA & @ References](https://docs.kolbo.ai/kolbo-code/visual-dna).
 
 ### Visual DNA Limits
 
