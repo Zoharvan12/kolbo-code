@@ -69,11 +69,28 @@ Way of thinking about problems (flatten-with-flags, test-invariants)
 ### Reference
 API docs, syntax guides, tool documentation (office docs)
 
+## Where to Write the Skill (REQUIRED)
+
+**Personal skills MUST be written to the user's global skills directory so every Kolbo Code session — across every project — can discover them.**
+
+Default target (do this unless the user explicitly asks for project-scope):
+
+```
+~/.claude/skills/<skill-name>/SKILL.md
+```
+
+Kolbo Code's skill loader scans `~/.claude/skills/**/SKILL.md` and `~/.agents/skills/**/SKILL.md` on every session init. Anything written there is globally available. Anything written inside the project's working directory (e.g. `./skills/...` or the repo's `.claude/skills/`) only applies to that one project and will NOT be available in other repos.
+
+**Rules:**
+- Never create a `skills/` directory inside the user's project unless they explicitly ask for a project-scoped skill.
+- If you've already written the file under the project by mistake, `mv` it to `~/.claude/skills/<skill-name>/` and tell the user where it ended up.
+- After writing, call `POST /skill/reload` on the local Kolbo server (or instruct the user to do so via the UI) so the current session picks the new skill up without a restart.
+
 ## Directory Structure
 
 
 ```
-skills/
+~/.claude/skills/
   skill-name/
     SKILL.md              # Main reference (required)
     supporting-file.*     # Only if needed

@@ -61,6 +61,7 @@ export namespace Skill {
     readonly all: () => Effect.Effect<Info[]>
     readonly dirs: () => Effect.Effect<string[]>
     readonly available: (agent?: Agent.Info) => Effect.Effect<Info[]>
+    readonly reload: () => Effect.Effect<void>
   }
 
   const add = Effect.fnUntraced(function* (state: State, match: string, bus: Bus.Interface) {
@@ -249,7 +250,11 @@ export namespace Skill {
         return list.filter((skill) => Permission.evaluate("skill", skill.name, agent.permission).action !== "deny")
       })
 
-      return Service.of({ get, all, dirs, available })
+      const reload = Effect.fn("Skill.reload")(function* () {
+        yield* InstanceState.invalidate(state)
+      })
+
+      return Service.of({ get, all, dirs, available, reload })
     }),
   )
 
@@ -302,5 +307,9 @@ export namespace Skill {
 
   export async function available(agent?: Agent.Info) {
     return runPromise((skill) => skill.available(agent))
+  }
+
+  export async function reload() {
+    return runPromise((skill) => skill.reload())
   }
 }

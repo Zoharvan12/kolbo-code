@@ -241,6 +241,30 @@ export const InstanceRoutes = (upgrade: UpgradeWebSocket, app: Hono = new Hono()
         return c.json(skills)
       },
     )
+    .post(
+      "/skill/reload",
+      describeRoute({
+        summary: "Reload skills",
+        description:
+          "Invalidate the cached skill index so the next list/lookup re-scans built-in, global (~/.claude/skills, ~/.agents/skills), project, and configured skill directories. Use after writing a new SKILL.md.",
+        operationId: "app.skills.reload",
+        responses: {
+          200: {
+            description: "Reloaded skill index, returns the fresh list",
+            content: {
+              "application/json": {
+                schema: resolver(Skill.Info.array()),
+              },
+            },
+          },
+        },
+      }),
+      async (c) => {
+        await Skill.reload()
+        const skills = await Skill.all()
+        return c.json(skills)
+      },
+    )
     .get(
       "/lsp",
       describeRoute({
