@@ -233,6 +233,13 @@ export function createSessionComposerState(options?: { closeMs?: number | (() =>
     cancelAnimationFrame(raf)
   })
 
+  const dismiss = () => {
+    if (timer) window.clearTimeout(timer)
+    timer = undefined
+    clear()
+    setStore({ dock: false, closing: false, opening: false })
+  }
+
   return {
     blocked,
     questionRequest,
@@ -243,6 +250,7 @@ export function createSessionComposerState(options?: { closeMs?: number | (() =>
     dock: () => store.dock,
     closing: () => store.closing,
     opening: () => store.opening,
+    dismiss,
   }
 }
 

@@ -209,6 +209,8 @@ export function SessionComposerRegion(props: {
                     todos={props.state.todos()}
                     collapseLabel={language.t("session.todo.collapse")}
                     expandLabel={language.t("session.todo.expand")}
+                    dismissLabel={language.t("session.todo.dismiss")}
+                    onDismiss={props.state.dismiss}
                     dockProgress={value()}
                   />
                 </div>
