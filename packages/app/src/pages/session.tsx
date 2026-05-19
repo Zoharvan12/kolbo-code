@@ -56,6 +56,7 @@ import { MessageTimeline } from "@/pages/session/message-timeline"
 import { type DiffStyle, SessionReviewTab, type SessionReviewTabProps } from "@/pages/session/review-tab"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { syncSessionModel } from "@/pages/session/session-model-helpers"
+import { isKolboGenerationTool } from "@/pages/session/session-canvas"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { TerminalPanel } from "@/pages/session/terminal-panel"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
@@ -475,7 +476,7 @@ export default function Page() {
         if (part.type !== "tool") continue
         const tool = (part as { tool?: string }).tool
         if (typeof tool !== "string") continue
-        if (tool.startsWith("kolbo_") || tool.startsWith("mcp__kolbo__")) total++
+        if (isKolboGenerationTool(tool)) total++
       }
     }
     return total

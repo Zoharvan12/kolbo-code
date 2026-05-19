@@ -40,7 +40,7 @@ const KOLBO_GENERATION_TOOL_NAMES = new Set([
   "generate_creative_director",
 ])
 
-function isKolboGenerationTool(tool: string): boolean {
+export function isKolboGenerationTool(tool: string): boolean {
   if (tool.startsWith("kolbo_")) return KOLBO_GENERATION_TOOL_NAMES.has(tool.slice("kolbo_".length))
   if (tool.startsWith("mcp__kolbo__")) return KOLBO_GENERATION_TOOL_NAMES.has(tool.slice("mcp__kolbo__".length))
   return false
