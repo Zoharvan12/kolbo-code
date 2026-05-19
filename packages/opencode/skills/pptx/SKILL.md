@@ -1,9 +1,29 @@
 ---
 name: pptx
-description: "Presentation creation, editing, and analysis. When Claude needs to work with presentations (.pptx files) for: (1) Creating new presentations, (2) Modifying or editing content, (3) Working with layouts, (4) Adding comments or speaker notes, or any other presentation tasks"
+description: "Presentation creation, editing, and analysis. Use whenever the user asks for a presentation, slides, slide deck, pitch deck, or .pptx file — covers (1) creating new presentations, (2) editing/modifying content, (3) layouts, (4) comments/speaker notes, and analysis."
 ---
 
-# PPTX creation, editing, and analysis
+# Presentation creation, editing, and analysis
+
+## Output format decision — read first
+
+**Default to a single self-contained HTML file** for any "make a presentation / slides / deck" request. The chat view renders `.html` files inline as an interactive artifact, so the user sees the result immediately without downloading anything.
+
+Use the html2pptx → `.pptx` workflow **only when one of these is true**:
+- The user explicitly asks for a `.pptx`, PowerPoint, or Keynote file.
+- The user asks to edit, analyze, or convert an existing `.pptx`.
+- The user asks for a deliverable they'll open in PowerPoint/Keynote/Google Slides.
+
+When in doubt, produce HTML. Do **not** paste slide markup as a code block in chat — always write to an `.html` file with the `write` tool so the inline preview triggers.
+
+### HTML presentation workflow (default)
+
+1. Create one `.html` file (e.g. `presentation.html`) containing all slides as full-viewport sections (`100vw × 100vh`) stacked vertically, with a 16:9 aspect intent.
+2. Include inline `<style>` (web-safe fonts only — Arial, Helvetica, Georgia, Inter via system fallback) and basic keyboard navigation (`ArrowDown`/`ArrowRight` → next slide, `ArrowUp`/`ArrowLeft` → previous, `Space` → next) using a tiny inline `<script>`.
+3. Apply the design principles from the [PPTX workflow section](#creating-a-new-powerpoint-presentation-without-a-template) below — palette, typography, layout, contrast — they apply identically to HTML.
+4. Write the file with the `write` tool. The chat view will open the preview automatically.
+
+Only continue to the PPTX-specific instructions below when the decision rule above says to.
 
 ## Overview
 
