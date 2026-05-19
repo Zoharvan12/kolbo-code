@@ -25,7 +25,7 @@ import { BusEvent } from "../bus/bus-event"
 import { Bus } from "@/bus"
 import { TuiEvent } from "@/cli/cmd/tui/event"
 import open from "open"
-import { Effect, Exit, Layer, Option, ServiceMap, Stream } from "effect"
+import { Duration, Effect, Exit, Layer, Option, Schedule, ServiceMap, Stream } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { makeRuntime } from "@/effect/run-service"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
@@ -434,6 +434,17 @@ export namespace MCP {
         ]
         const scrubbedParentEnv: Record<string, string | undefined> = { ...process.env }
         for (const k of DANGEROUS_ENV) delete scrubbedParentEnv[k]
+        // Detect the bundled Kolbo CLI by its basename. Absolute paths
+        // (e.g. C:\Users\...\kolbo.exe — the form wire.ts writes now that it
+        // points at the bundled binary) and a bare "kolbo" both count.
+        const cmdBase = cmd.split(/[\\/]/).pop()?.toLowerCase() ?? ""
+        const isKolboBinary = cmdBase === "kolbo" || cmdBase === "kolbo.exe"
+        // BUN_BE_BUN=1 makes the Bun-compiled binary behave as a Bun runtime
+        // (script loader) instead of executing its compiled entrypoint. That's
+        // wrong for `kolbo mcp serve` — we WANT the compiled entrypoint to
+        // route into the McpServeCommand. Only set BUN_BE_BUN for the legacy
+        // case where the args are a JS file path (no yargs subcommand).
+        const isCompiledSubcommand = isKolboBinary && args.length > 0 && /^[a-z][a-z0-9-]*$/i.test(args[0] ?? "")
         const transport = new StdioClientTransport({
           stderr: "pipe",
           command: cmd,
@@ -441,7 +452,7 @@ export namespace MCP {
           cwd,
           env: {
             ...scrubbedParentEnv,
-            ...(cmd === "kolbo" ? { BUN_BE_BUN: "1" } : {}),
+            ...(isKolboBinary && !isCompiledSubcommand ? { BUN_BE_BUN: "1" } : {}),
             ...mcp.environment,
           },
         })
@@ -589,6 +600,41 @@ export namespace MCP {
               )
               pendingOAuthTransports.clear()
             }),
+          )
+
+          // Self-heal: periodically retry MCP servers stuck in "failed". We deliberately
+          // skip "needs_auth"/"needs_client_registration"/"disabled" — those require user
+          // action and silent retries would just create log noise.
+          const HEAL_INITIAL_DELAY_MS = 30_000
+          const HEAL_INTERVAL_MS = 60_000
+          yield* Effect.gen(function* () {
+            const cfgNow = yield* cfgSvc.get()
+            const cfgMcp = cfgNow.mcp ?? {}
+            for (const [key, status] of Object.entries(s.status)) {
+              if (status.status !== "failed") continue
+              const mcp = cfgMcp[key]
+              if (!mcp || !isMcpConfigured(mcp) || mcp.enabled === false) continue
+              log.info("retrying failed mcp server", { key })
+              const result = yield* create(key, mcp).pipe(Effect.catch(() => Effect.void))
+              if (!result) continue
+              if (s.status[key]?.status === "connected") {
+                // Another path connected this server while we were trying — drop our attempt.
+                continue
+              }
+              s.status[key] = result.status
+              if (result.mcpClient) {
+                yield* closeClient(s, key)
+                s.clients[key] = result.mcpClient
+                s.defs[key] = result.defs!
+                watch(s, key, result.mcpClient, mcp.timeout)
+                log.info("recovered failed mcp server", { key })
+              }
+            }
+          }).pipe(
+            Effect.catchCause(() => Effect.void),
+            Effect.repeat(Schedule.spaced(Duration.millis(HEAL_INTERVAL_MS))),
+            Effect.delay(Duration.millis(HEAL_INITIAL_DELAY_MS)),
+            Effect.forkScoped,
           )
 
           return s

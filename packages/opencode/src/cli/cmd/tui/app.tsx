@@ -331,6 +331,33 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
   })
 
   const args = useArgs()
+
+  // Surface MCP startup failures so users notice them in the TUI instead of
+  // only seeing them in the footer indicator. We watch `sync.data.mcp` and
+  // show one toast per server that lands in a non-OK state. Each server
+  // toasts at most once per TUI session.
+  const announcedMcpFailures = new Set<string>()
+  createEffect(() => {
+    const statuses = sync.data.mcp ?? {}
+    for (const [name, info] of Object.entries(statuses)) {
+      if (!info || info.status === "connected" || info.status === "disabled") continue
+      if (announcedMcpFailures.has(name)) continue
+      announcedMcpFailures.add(name)
+      const detail =
+        info.status === "needs_auth"
+          ? `Run: kolbo mcp auth ${name}`
+          : info.status === "needs_client_registration"
+            ? info.error ?? "Server requires a pre-registered client ID."
+            : info.error ?? "Server did not connect."
+      toast.show({
+        title: `MCP "${name}" not connected (${info.status})`,
+        variant: info.status === "failed" ? "error" : "warning",
+        message: `${detail}\nRun \`kolbo mcp doctor\` for diagnostics.`,
+        duration: 10000,
+      })
+    }
+  })
+
   onMount(() => {
     if (process.env.TERM_PROGRAM === "Apple_Terminal") {
       toast.show({

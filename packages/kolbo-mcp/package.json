@@ -1,0 +1,55 @@
+{
+  "name": "@kolbo/mcp",
+  "version": "1.12.1",
+  "description": "Kolbo AI MCP Server - Generate images, videos, music, speech, and sound effects from Claude Code",
+  "main": "src/index.js",
+  "bin": {
+    "kolbo-mcp": "./bin/kolbo-mcp.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "smoke": "node scripts/smoke.js",
+    "check-parity": "node scripts/check-parity.js",
+    "prepublishOnly": "node scripts/smoke.js && node scripts/check-parity.js"
+  },
+  "keywords": [
+    "kolbo",
+    "mcp",
+    "ai",
+    "image-generation",
+    "video-generation",
+    "music-generation",
+    "text-to-speech",
+    "claude-code",
+    "claude-desktop",
+    "model-context-protocol"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Zoharvan12/kolbo-mcp"
+  },
+  "homepage": "https://docs.kolbo.ai/developer-api/claude-code-skill",
+  "author": "Kolbo AI <support@kolbo.ai>",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    "README.md"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "form-data": "^4.0.5",
+    "zod": "^3.25.0"
+  },
+  "overrides": {
+    "hono": "^4.12.12",
+    "@hono/node-server": "^1.19.13",
+    "path-to-regexp": "^8.4.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -55,6 +55,8 @@ export const McpCommand = cmd({
   describe: "manage MCP (Model Context Protocol) servers",
   builder: (yargs) =>
     yargs
+      .command(McpServeCommand)
+      .command(McpDoctorCommand)
       .command(McpAddCommand)
       .command(McpListCommand)
       .command(McpAuthCommand)
@@ -62,6 +64,139 @@ export const McpCommand = cmd({
       .command(McpDebugCommand)
       .demandCommand(),
   async handler() {},
+})
+
+export const McpServeCommand = cmd({
+  command: "serve",
+  describe: "run the bundled Kolbo MCP stdio server (used by the desktop app)",
+  async handler() {
+    try {
+      // @ts-ignore — JS module ships no type declarations
+      const mod: any = await import("@kolbo/mcp")
+      const candidate = mod.main ?? mod.default?.main ?? mod.default
+      if (typeof candidate !== "function") {
+        console.error(
+          "[kolbo mcp serve] could not resolve @kolbo/mcp main export — module keys:",
+          Object.keys(mod),
+          "default keys:",
+          Object.keys(mod?.default ?? {}),
+        )
+        process.exit(1)
+      }
+      await candidate()
+      // @kolbo/mcp's `main()` returns once StdioServerTransport.connect() has
+      // attached its stdin readline listener — under Node that's enough to keep
+      // the event loop alive, but Bun's compiled binary lets the process exit
+      // the moment main() resolves. Keep the process pinned to stdin: explicitly
+      // resume it (refs the loop) and await `close`. Without this every spawn
+      // dies with "MCP error -32000: Connection closed" before responding to
+      // initialize.
+      process.stdin.resume()
+      await new Promise<void>((resolve) => {
+        process.stdin.once("close", () => resolve())
+        process.stdin.once("end", () => resolve())
+      })
+    } catch (err) {
+      console.error("[kolbo mcp serve] fatal:", err)
+      process.exit(1)
+    }
+  },
+})
+
+export const McpDoctorCommand = cmd({
+  command: "doctor",
+  describe: "diagnose MCP setup — checks config, statuses, and known failure modes",
+  async handler() {
+    await Instance.provide({
+      directory: process.cwd(),
+      async fn() {
+        UI.empty()
+        prompts.intro("MCP doctor")
+
+        prompts.log.info(`${UI.Style.TEXT_DIM}CLI binary: ${process.execPath}`)
+        prompts.log.info(`${UI.Style.TEXT_DIM}Config dir: ${Global.Path.config}`)
+
+        const configFile = path.join(Global.Path.config, "kolbo.json")
+        const configExists = await Filesystem.exists(configFile)
+        if (!configExists) {
+          prompts.log.error(`Config file missing: ${configFile}`)
+          prompts.log.info("Run Kolbo Code at least once and sign in to create it.")
+          prompts.outro("Done")
+          return
+        }
+
+        const config = await Config.get()
+        const mcpServers = config.mcp ?? {}
+        const servers = Object.entries(mcpServers).filter((e): e is [string, McpConfigured] => isMcpConfigured(e[1]))
+
+        if (servers.length === 0) {
+          prompts.log.warn("No MCP servers configured.")
+          prompts.outro("Done")
+          return
+        }
+
+        const statuses = await MCP.status()
+        let problems = 0
+
+        for (const [name, serverConfig] of servers) {
+          const status = statuses[name]
+          if (!status || status.status === "connected" || status.status === "disabled") {
+            const ok = status?.status === "connected" ? "✓ connected" : status?.status ?? "not initialized"
+            prompts.log.info(`${name}: ${ok}`)
+            continue
+          }
+
+          problems++
+          const lines: string[] = [`${name}: ${UI.Style.TEXT_DIM}${status.status}`]
+
+          if (status.status === "needs_auth") {
+            lines.push(`  hint: kolbo mcp auth ${name}`)
+          } else if (status.status === "needs_client_registration") {
+            lines.push(`  error: ${status.error}`)
+            lines.push(`  hint: add "oauth": { "clientId": "..." } to mcp.${name} in ${configFile}`)
+          } else if (status.status === "failed") {
+            const err = status.error ?? "(no error message)"
+            lines.push(`  error: ${err}`)
+
+            // Local stdio MCPs are the most failure-prone — recognise common
+            // patterns and tell the user exactly what to fix.
+            if (serverConfig.type === "local") {
+              const [bin] = serverConfig.command
+              const looksLikeMissing =
+                /ENOENT|not recognized|not found|spawn .* ENOENT/i.test(err) || /cannot find/i.test(err)
+              if (looksLikeMissing) {
+                lines.push(`  hint: command "${bin}" was not found on PATH.`)
+                if (bin === "npx" || bin === "node") {
+                  lines.push(`        install Node.js (https://nodejs.org) OR rewrite the config to use a bundled binary.`)
+                } else {
+                  lines.push(`        check the spelling / install the program, then run: kolbo mcp connect ${name}`)
+                }
+              }
+
+              if (bin === "npx" || bin === "node") {
+                lines.push(`  note: the built-in "kolbo" MCP no longer needs npx — if this is the kolbo server,`)
+                lines.push(`        sign out + sign back in to rewrite the config to the bundled binary.`)
+              }
+            } else if (serverConfig.type === "remote") {
+              if (/fetch failed|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(err)) {
+                lines.push(`  hint: the remote URL is unreachable — check VPN, firewall, or proxy settings.`)
+              } else if (/certificate|self.signed|TLS|SSL/i.test(err)) {
+                lines.push(`  hint: TLS / certificate problem — corporate MITM proxy?`)
+              }
+            }
+          }
+
+          prompts.log.error(lines.join("\n"))
+        }
+
+        if (problems === 0) {
+          prompts.outro("All MCP servers connected.")
+        } else {
+          prompts.outro(`${problems} MCP server(s) need attention.`)
+        }
+      },
+    })
+  },
 })
 
 export const McpListCommand = cmd({

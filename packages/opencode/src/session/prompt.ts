@@ -447,6 +447,30 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           })
         }
 
+        // Pre-turn self-heal: before we materialise the MCP tools the model
+        // gets to see, try to reconnect anything stuck in `failed`. This is
+        // what stops the "Run kolbo auth login" loop for desktop/web users —
+        // when the kolbo MCP came up dead earlier in the sidecar lifetime,
+        // we silently reconnect it instead of stranding the user with a
+        // missing-tools error. The reconnect is bounded (3s) so we never
+        // block a turn on a remote MCP that's genuinely down.
+        const statuses = yield* Effect.promise(() => MCP.status())
+        const stale = Object.entries(statuses).filter(
+          ([, s]) =>
+            s.status !== "connected" &&
+            s.status !== "disabled" &&
+            s.status !== "needs_auth" &&
+            s.status !== "needs_client_registration",
+        )
+        if (stale.length > 0) {
+          yield* Effect.promise(() =>
+            Promise.race([
+              Promise.all(stale.map(([name]) => MCP.connect(name).catch(() => undefined))),
+              new Promise((r) => setTimeout(r, 3000)),
+            ]),
+          )
+        }
+
         for (const [key, item] of Object.entries(yield* mcp.tools())) {
           const execute = item.execute
           if (!execute) continue

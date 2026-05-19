@@ -93,11 +93,15 @@ export async function ensureKolboMcpWired(): Promise<void> {
     const existingCallerSessionId = existing.mcp?.kolbo?.environment?.KOLBO_CALLER_SESSION_ID
     const callerSessionId = existingCallerSessionId || `kolbo-code:${crypto.randomUUID()}`
     mcpEnv.KOLBO_CALLER_SESSION_ID = callerSessionId
-    // Pin @latest so npx re-resolves against the npm registry on every
-    // launch instead of reusing its cache. This gives Kolbo MCP users
-    // auto-updates without us running any upgrade machinery ourselves.
-    // Offline? npx silently falls back to the cached version.
-    const expectedCommand = ["npx", "-y", "@kolbo/mcp@latest"]
+    // Run the MCP via the bundled Kolbo CLI binary instead of `npx -y @kolbo/mcp@latest`.
+    // The CLI ships a `kolbo mcp serve` subcommand that hosts the same MCP server
+    // inline, so users no longer need Node.js / npx on their machine and we no
+    // longer fight npm registry availability, corporate proxies, or PATH issues.
+    // `process.execPath` is the absolute path of the currently-running Kolbo CLI
+    // executable — same binary the desktop app spawns as the sidecar, the same
+    // binary a global `kolbo` install puts on PATH. Auto-updates ride along with
+    // CLI updates instead of npx cache invalidation.
+    const expectedCommand = [process.execPath, "mcp", "serve"]
     const currentKey = existing.mcp?.kolbo?.environment?.KOLBO_API_KEY
     const currentUrl = existing.mcp?.kolbo?.environment?.KOLBO_API_URL
     const currentCallerSession = existing.mcp?.kolbo?.environment?.KOLBO_CALLER_SESSION_ID
