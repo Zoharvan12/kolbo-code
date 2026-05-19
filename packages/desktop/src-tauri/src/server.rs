@@ -1,6 +1,7 @@
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use tauri_plugin_store::StoreExt;
 use tokio::task::JoinHandle;
 
@@ -89,41 +90,85 @@ pub fn spawn_local_server(
     hostname: String,
     port: u32,
     password: String,
-) -> (CommandChild, HealthCheck) {
+) -> (Arc<Mutex<Option<CommandChild>>>, HealthCheck) {
     let (child, exit) = cli::serve(&app, &hostname, port, &password);
+    let child_arc: Arc<Mutex<Option<CommandChild>>> = Arc::new(Mutex::new(Some(child)));
 
-    let health_check = HealthCheck(tokio::spawn(async move {
-        let url = format!("http://{hostname}:{port}");
-        let timestamp = Instant::now();
+    let url = format!("http://{hostname}:{port}");
 
-        let ready = async {
+    // Initial readiness probe — same semantics as before.
+    let health_check = HealthCheck(tokio::spawn({
+        let url = url.clone();
+        let password = password.clone();
+        async move {
+            let timestamp = Instant::now();
             loop {
                 tokio::time::sleep(Duration::from_millis(100)).await;
-
                 if check_health(&url, Some(&password)).await {
                     tracing::info!(elapsed = ?timestamp.elapsed(), "Server ready");
-                    return Ok(());
+                    return Ok::<(), String>(());
                 }
             }
-        };
-
-        let terminated = async {
-            match exit.await {
-                Ok(payload) => Err(format!(
-                    "Sidecar terminated before becoming healthy (code={:?} signal={:?})",
-                    payload.code, payload.signal
-                )),
-                Err(_) => Err("Sidecar terminated before becoming healthy".to_string()),
-            }
-        };
-
-        tokio::select! {
-            res = ready => res,
-            res = terminated => res,
         }
     }));
 
-    (child, health_check)
+    // Watchdog: respawns the sidecar if it crashes after becoming healthy.
+    // `kill_sidecar` takes the child out of the Arc to indicate intentional shutdown;
+    // if we see the Arc empty after a termination, we leave well enough alone.
+    tokio::spawn({
+        let app = app.clone();
+        let child_arc = child_arc.clone();
+        async move {
+            let mut exit_rx = exit;
+            loop {
+                let payload = exit_rx.await;
+                {
+                    let guard = child_arc.lock().expect("child mutex poisoned");
+                    if guard.is_none() {
+                        tracing::info!("Sidecar shutdown was intentional; watchdog exiting");
+                        return;
+                    }
+                }
+                tracing::warn!(
+                    payload = ?payload,
+                    "Sidecar exited unexpectedly; respawning"
+                );
+                let _ = app.emit("sidecar:down", ());
+
+                // Brief pause so we don't busy-loop if the sidecar crashes immediately.
+                tokio::time::sleep(Duration::from_millis(500)).await;
+
+                let (new_child, new_exit) = cli::serve(&app, &hostname, port, &password);
+                {
+                    let mut guard = child_arc.lock().expect("child mutex poisoned");
+                    *guard = Some(new_child);
+                }
+                exit_rx = new_exit;
+
+                // Wait up to 30s for the respawn to become healthy.
+                let healthy = {
+                    let timestamp = Instant::now();
+                    loop {
+                        if timestamp.elapsed() > Duration::from_secs(30) {
+                            break false;
+                        }
+                        tokio::time::sleep(Duration::from_millis(200)).await;
+                        if check_health(&url, Some(&password)).await {
+                            break true;
+                        }
+                    }
+                };
+                if healthy {
+                    tracing::info!("Sidecar respawned and healthy");
+                    let _ = app.emit("sidecar:up", ());
+                } else {
+                    tracing::error!("Sidecar respawn did not become healthy within 30s");
+                }
+            }
+        }
+    });
+
+    (child_arc, health_check)
 }
 
 pub struct HealthCheck(pub JoinHandle<Result<(), String>>);

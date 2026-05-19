@@ -638,9 +638,7 @@ async fn initialize(app: AppHandle) {
         password: Some(password),
     });
     app.manage(SidecarReady(ready_rx.shared()));
-    app.manage(ServerState {
-        child: Arc::new(Mutex::new(Some(child))),
-    });
+    app.manage(ServerState { child });
 
     let loading_window_complete = event_once_fut::<LoadingWindowComplete>(&app);
 
