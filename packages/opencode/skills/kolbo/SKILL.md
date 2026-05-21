@@ -1335,6 +1335,28 @@ Sync audio to a face — works for **both image-lipsync and video-lipsync**, the
 ### Reference inputs combine freely
 `visual_dna_ids` + `reference_images` + (where supported) `reference_videos` + `audio_url` are **additive** across all video tools that accept them. The same matrix from "Mixing References, Visual DNAs, and Moodboards" applies: DNA owns identity, reference_images own composition/style, audio_url drives sync, video references provide motion or scene context.
 
+### ⚠️ Sound on/off — `sound_enabled` (MANDATORY when the user mentions audio)
+
+All six video tools — `generate_video`, `generate_video_from_image`, `generate_elements`, `generate_first_last_frame`, `generate_video_from_video`, `generate_creative_director` (with `workflow_type: "video"`) — accept an optional **`sound_enabled: boolean`** parameter that controls whether the model produces AI-generated synced audio (ambient/foley/dialogue) on the output video.
+
+**When to pass it:**
+
+| User phrasing | Pass |
+|---|---|
+| "no sound", "silent", "mute", "without audio", "אל תוסיף סאונד", "בלי קול" | `sound_enabled: false` |
+| "with sound", "add audio", "include the sound", "עם סאונד" | `sound_enabled: true` |
+| Did not mention sound at all | **OMIT the field** — the model's `sound_enabled_by_default` applies |
+
+**Before passing**, check the model's capability via `list_models`:
+- `sound_generation_type: "native"` → flag is honored (Veo 3.1, Kling V3/2.6/O3, PixVerse V6).
+- `sound_generation_type: "none"` → flag is silently ignored (Sora 2, Hailuo, Seedance, Grok Imagine, Wan, Hedra, Runway). If the user asked for sound on a model that can't produce it, tell them and offer to switch models (e.g. "Sora 2 doesn't emit audio — want me to use Veo 3.1 instead?").
+- `sound_enabled_by_default: true` means sound is ON unless you explicitly pass `false`. **This is why the user complaints exist** — Veo 3.1 defaults to sound-on. If the user said "no sound", you MUST pass `sound_enabled: false`; omitting it is NOT the same as disabling it.
+- `sound_credit_multiplier > 1` means enabling sound costs more credits per output. Mention the extra cost when quoting (per the "Quote real cost" rule).
+
+**Production-log entries** must record the sound state (`sound-on` / `sound-off`) alongside resolution + duration — see "Always log the resolution / duration / sound choices".
+
+**Do NOT** try to "remove" sound after the fact with `edit_video` if you can prevent it at generation time — passing `sound_enabled: false` upfront is the only correct path.
+
 ### UGC / Short-Form Vertical Video — Defaults
 
 When the user asks for **UGC ads, TikTok content, Reels, Shorts, or any "creator-style" video**, snap to these defaults unless they explicitly override:
