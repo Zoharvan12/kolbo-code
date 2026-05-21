@@ -13,6 +13,11 @@ import { normalizePaste, pasteMode } from "./paste"
 // packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx.
 const UPLOAD_CACHE_MAX = 200
 const uploadCache = new Map<string, string>()
+// Path-based cache for /global/kolbo-files-upload-from-path. The WebView never
+// sees the bytes (the sidecar reads the file), so content-hash isn't available;
+// the path itself is the strongest stable key we have. Re-attaching the same
+// local file skips the network roundtrip and reuses the CDN URL.
+const pathUploadCache = new Map<string, string>()
 export const inFlightAttachments = new Set<Promise<void>>()
 
 async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
@@ -26,6 +31,14 @@ function cachePut(hash: string, url: string) {
     if (oldest) uploadCache.delete(oldest)
   }
   uploadCache.set(hash, url)
+}
+
+function pathCachePut(path: string, url: string) {
+  if (pathUploadCache.size >= UPLOAD_CACHE_MAX) {
+    const oldest = pathUploadCache.keys().next().value
+    if (oldest) pathUploadCache.delete(oldest)
+  }
+  pathUploadCache.set(path, url)
 }
 
 // Runs `fn` and keeps a handle in inFlightAttachments until it settles. Submit
@@ -55,6 +68,59 @@ function dataUrl(file: File, mime: string) {
   })
 }
 
+function shouldRetryAsImage(result: { url?: string; status: number }, mime: string) {
+  if (result.url) return false
+  if (!mime.startsWith("image/")) return false
+  if (result.status < 400 || result.status >= 500) return false
+  return result.status !== 401 && result.status !== 413 && result.status !== 429
+}
+
+// Re-encode through a Canvas as a last-ditch fallback when the server rejects
+// the original image. Emits PNG if alpha < 255 anywhere, JPEG otherwise.
+async function reencodeImageViaCanvas(blob: Blob, filename: string): Promise<{ blob: Blob; mime: string; filename: string } | undefined> {
+  if (typeof document === "undefined" || typeof Image === "undefined") return undefined
+  const objectUrl = URL.createObjectURL(blob)
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image()
+      el.addEventListener("load", () => resolve(el))
+      el.addEventListener("error", () => reject(new Error("decode failed")))
+      el.src = objectUrl
+    })
+    const canvas = document.createElement("canvas")
+    canvas.width = img.naturalWidth || img.width
+    canvas.height = img.naturalHeight || img.height
+    if (canvas.width === 0 || canvas.height === 0) return undefined
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return undefined
+    ctx.drawImage(img, 0, 0)
+    let hasAlpha = false
+    try {
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+      for (let i = 3; i < data.length; i += 4) {
+        if (data[i] < 255) {
+          hasAlpha = true
+          break
+        }
+      }
+    } catch {
+      // CORS-tainted canvas — assume no alpha and continue.
+    }
+    const outMime = hasAlpha ? "image/png" : "image/jpeg"
+    const ext = hasAlpha ? "png" : "jpg"
+    const outBlob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, outMime, hasAlpha ? undefined : 0.92),
+    )
+    if (!outBlob) return undefined
+    const base = filename.replace(/\.[^.]+$/, "") || "image"
+    return { blob: outBlob, mime: outMime, filename: `${base}.${ext}` }
+  } catch {
+    return undefined
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
 type PromptAttachmentsInput = {
   editor: () => HTMLDivElement | undefined
   isDialogActive: () => boolean
@@ -75,6 +141,16 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
   const uploadAborts = new Map<string, AbortController>()
   // Store file/blob references for retry
   const uploadFiles = new Map<string, { blob: Blob; mime: string; filename: string }>()
+  // Blob URLs created for chip previews — revoked on remove or when the public
+  // CDN URL arrives, otherwise the bytes pin in memory until the page reloads.
+  const previewUrls = new Map<string, string>()
+  const releasePreview = (id: string) => {
+    const url = previewUrls.get(id)
+    if (url) {
+      URL.revokeObjectURL(url)
+      previewUrls.delete(id)
+    }
+  }
 
   const warn = () => {
     showToast({
@@ -88,6 +164,31 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       title: language.t("prompt.toast.fileTooLarge.title"),
       description: language.t("prompt.toast.fileTooLarge.description"),
     })
+  }
+
+  async function postUpload(
+    serverUrl: string,
+    blob: Blob,
+    filename: string,
+    signal: AbortSignal,
+  ): Promise<{ url?: string; status: number; errorMessage?: string }> {
+    const form = new FormData()
+    form.append("file", blob, filename)
+    const res = await fetch(`${serverUrl}/global/kolbo-files-upload`, {
+      method: "POST",
+      body: form,
+      signal,
+    })
+    if (!res.ok) {
+      let errorMessage: string | undefined
+      try {
+        const body = (await res.json()) as { error?: { message?: string } }
+        errorMessage = body?.error?.message
+      } catch {}
+      return { status: res.status, errorMessage }
+    }
+    const data = (await res.json()) as { url?: string; error?: { message: string } }
+    return { url: data.url, status: res.status, errorMessage: data.error?.message }
   }
 
   async function uploadAttachment(id: string, blob: Blob, mime: string, filename: string) {
@@ -116,31 +217,46 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
         if (cached) {
           uploadAborts.delete(id)
           prompt.updateImageAttachment(id, { uploading: false, publicUrl: cached })
+          if (mime.startsWith("video/") || mime.startsWith("audio/")) releasePreview(id)
           return
         }
 
-        const form = new FormData()
-        form.append("file", blob, filename)
+        let result = await postUpload(serverUrl, blob, filename, controller.signal)
 
-        const res = await fetch(`${serverUrl}/global/kolbo-files-upload`, {
-          method: "POST",
-          body: form,
-          signal: controller.signal,
-        })
+        // Server rejected an image with a non-auth/size/rate 4xx? Re-encode via
+        // Canvas (handles weird formats / decodable-but-corrupt files) and retry.
+        if (shouldRetryAsImage(result, mime)) {
+          const converted = await reencodeImageViaCanvas(blob, filename)
+          if (converted) {
+            result = await postUpload(serverUrl, converted.blob, converted.filename, controller.signal)
+            if (result.url) {
+              cachePut(hash, result.url)
+              uploadAborts.delete(id)
+              prompt.updateImageAttachment(id, {
+                uploading: false,
+                publicUrl: result.url,
+                mime: converted.mime,
+                filename: converted.filename,
+              })
+              if (mime.startsWith("video/") || mime.startsWith("audio/")) releasePreview(id)
+              return
+            }
+          }
+        }
+
         uploadAborts.delete(id)
 
-        if (!res.ok) {
-          const isTooBig = res.status === 413
-          throw new Error(isTooBig ? "File too large for server" : `Upload failed (HTTP ${res.status})`)
+        if (!result.url) {
+          const isTooBig = result.status === 413
+          const message =
+            result.errorMessage ??
+            (isTooBig ? "File too large for server" : `Upload failed (HTTP ${result.status})`)
+          throw new Error(message)
         }
 
-        const data = (await res.json()) as { url?: string; error?: { message: string } }
-        if (data.url) {
-          cachePut(hash, data.url)
-          prompt.updateImageAttachment(id, { uploading: false, publicUrl: data.url })
-        } else {
-          throw new Error(data.error?.message ?? "No URL in upload response")
-        }
+        cachePut(hash, result.url)
+        prompt.updateImageAttachment(id, { uploading: false, publicUrl: result.url })
+        if (mime.startsWith("video/") || mime.startsWith("audio/")) releasePreview(id)
       } catch (e) {
         uploadAborts.delete(id)
         if ((e as Error).name === "AbortError") return
@@ -159,48 +275,57 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     void uploadAttachment(id, stored.blob, stored.mime, stored.filename)
   }
 
-  const add = async (file: File, toast = true) => {
+  type Prepared = { attachment: ImageAttachmentPart; afterInsert: () => void }
+
+  const prepareFileAttachment = async (file: File, toast: boolean): Promise<Prepared | undefined> => {
     const mime = await attachmentMime(file)
     if (!mime) {
       if (toast) warn()
-      return false
+      return undefined
     }
-
-    // Size guard (200 MB for all media)
     if (file.size > MAX_MEDIA_BYTES) {
       if (toast) warnTooLarge()
-      return false
+      return undefined
     }
 
-    const editor = input.editor()
-    if (!editor) return false
-
-    const url = await dataUrl(file, mime)
-    if (!url) return false
-
-    // Extract local path if the platform exposes it (Electron/Tauri)
+    const previewUrl = URL.createObjectURL(file)
     const localPath = (file as File & { path?: string }).path ?? undefined
-
     const id = uuid()
     const isMedia = mime.startsWith("image/") || mime.startsWith("audio/") || mime.startsWith("video/")
+    previewUrls.set(id, previewUrl)
 
     const attachment: ImageAttachmentPart = {
       type: "image",
       id,
       filename: file.name,
       mime,
-      dataUrl: url,
+      dataUrl: previewUrl,
       localPath,
-      uploading: isMedia,  // only media gets uploaded; text/pdf stays as base64
+      uploading: isMedia,
     }
+
+    return {
+      attachment,
+      afterInsert: () => {
+        if (isMedia) void uploadAttachment(id, file, mime, file.name)
+      },
+    }
+  }
+
+  const insertPrepared = (items: Prepared[]) => {
+    if (items.length === 0) return false
+    const editor = input.editor()
+    if (!editor) return false
     const cursor = prompt.cursor() ?? getCursorPosition(editor)
-    prompt.set([...prompt.current(), attachment], cursor)
-
-    if (isMedia) {
-      void uploadAttachment(id, file, mime, file.name)
-    }
-
+    prompt.set([...prompt.current(), ...items.map((p) => p.attachment)], cursor)
+    for (const p of items) p.afterInsert()
     return true
+  }
+
+  const add = async (file: File, toast = true) => {
+    const prepared = await prepareFileAttachment(file, toast)
+    if (!prepared) return false
+    return insertPrepared([prepared])
   }
 
   const addAttachment = (file: File) => add(file)
@@ -237,6 +362,11 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
         prompt.updateImageAttachment(id, { uploading: false })
         return true
       }
+      const cached = pathUploadCache.get(filePath)
+      if (cached) {
+        prompt.updateImageAttachment(id, { uploading: false, publicUrl: cached })
+        return true
+      }
       uploadFiles.set(id, { blob: new Blob(), mime, filename }) // store for retry
       const controller = new AbortController()
       uploadAborts.set(id, controller)
@@ -253,6 +383,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
           if (!res.ok) throw new Error(`Upload failed (HTTP ${res.status})`)
           const data = (await res.json()) as { url?: string; error?: { message: string } }
           if (data.url) {
+            pathCachePut(filePath, data.url)
             prompt.updateImageAttachment(id, { uploading: false, publicUrl: data.url })
           } else {
             throw new Error(data.error?.message ?? "No URL in upload response")
@@ -269,22 +400,22 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
   }
 
   const addAttachments = async (files: File[], toast = true) => {
-    let found = false
-
-    for (const file of files) {
-      const ok = await add(file, false)
-      if (ok) found = true
-    }
-
-    if (!found && files.length > 0 && toast) warn()
-    return found
+    if (files.length === 0) return false
+    // attachmentMime runs in parallel; chips get inserted in one prompt.set
+    // (instead of N) so a 100-file drop doesn't trigger 100 re-renders.
+    const prepared = (await Promise.all(files.map((f) => prepareFileAttachment(f, false)))).filter(
+      (p): p is Prepared => !!p,
+    )
+    const inserted = insertPrepared(prepared)
+    if (!inserted && files.length > 0 && toast) warn()
+    return inserted
   }
 
   const removeAttachment = (id: string) => {
-    // Cancel in-flight upload
     uploadAborts.get(id)?.abort()
     uploadAborts.delete(id)
     uploadFiles.delete(id)
+    releasePreview(id)
 
     const current = prompt.current()
     const next = current.filter((part) => part.type !== "image" || part.id !== id)
@@ -367,11 +498,9 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     }
   }
 
-  // Attaches a URL (http/https, data:, or file://) directly without uploading the bytes.
-  // - http(s): already public → set as publicUrl
-  // - file://: local path reference → keep as-is (AI uses local tools: ffmpeg, Remotion, etc.)
-  // - data:: in-memory blob → upload to get a public URL
-  const attachFromUrl = (url: string): boolean => {
+  // http/https → already public, no upload. file:// → local-path ref. data: →
+  // upload to get a CDN URL.
+  const prepareUrlAttachment = (url: string): Prepared | undefined => {
     let mime: string | undefined
     let filename: string
     if (url.startsWith("data:")) {
@@ -381,64 +510,57 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       mime = mimeFromUrl(url)
       filename = url.split("/").pop()?.split("?")[0] || "media"
     }
-    if (!mime) return false
+    if (!mime) return undefined
 
     const id = uuid()
 
     if (url.startsWith("http://") || url.startsWith("https://")) {
-      // Already a public URL — use directly, no upload needed
-      const attachment: ImageAttachmentPart = {
-        type: "image",
-        id,
-        filename,
-        mime,
-        dataUrl: url,
-        publicUrl: url,
-        uploading: false,
+      return {
+        attachment: { type: "image", id, filename, mime, dataUrl: url, publicUrl: url, uploading: false },
+        afterInsert: () => {},
       }
-      prompt.set([...prompt.current(), attachment], prompt.cursor())
-      return true
     }
 
     if (url.startsWith("file://")) {
-      // Local file tree reference — keep path as-is for local tool use
-      const localPath = url.slice("file://".length)
-      const attachment: ImageAttachmentPart = {
-        type: "image",
-        id,
-        filename,
-        mime,
-        dataUrl: url,
-        localPath,
-        uploading: false,
+      return {
+        attachment: {
+          type: "image",
+          id,
+          filename,
+          mime,
+          dataUrl: url,
+          localPath: url.slice("file://".length),
+          uploading: false,
+        },
+        afterInsert: () => {},
       }
-      prompt.set([...prompt.current(), attachment], prompt.cursor())
-      return true
     }
 
-    // data: URL — upload to get a public URL
-    const attachment: ImageAttachmentPart = {
-      type: "image",
-      id,
-      filename,
-      mime,
-      dataUrl: url,
-      uploading: true,
+    const finalMime = mime
+    return {
+      attachment: { type: "image", id, filename, mime: finalMime, dataUrl: url, uploading: true },
+      afterInsert: () => {
+        void (async () => {
+          try {
+            const res = await fetch(url)
+            const blob = await res.blob()
+            await uploadAttachment(id, blob, finalMime, filename)
+          } catch {
+            prompt.updateImageAttachment(id, { uploading: false, uploadError: "Failed to read data URL" })
+          }
+        })()
+      },
     }
-    prompt.set([...prompt.current(), attachment], prompt.cursor())
+  }
 
-    // Convert data URL to Blob and upload
-    void (async () => {
-      try {
-        const res = await fetch(url)
-        const blob = await res.blob()
-        await uploadAttachment(id, blob, mime!, filename)
-      } catch {
-        prompt.updateImageAttachment(id, { uploading: false, uploadError: "Failed to read data URL" })
-      }
-    })()
+  const attachFromUrl = (url: string): boolean => {
+    const prepared = prepareUrlAttachment(url)
+    return prepared ? insertPrepared([prepared]) : false
+  }
 
-    return true
+  const attachFromUrls = (urls: string[]): boolean => {
+    const prepared = urls.map(prepareUrlAttachment).filter((p): p is Prepared => !!p)
+    return insertPrepared(prepared)
   }
 
   const handleDrop = async (event: DragEvent) => {
@@ -472,40 +594,47 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       return
     }
 
-    // 2. Filesystem file objects (drag from OS file manager)
+    // 2. Filesystem file objects (drag from OS file manager) — batched.
     const dropped = event.dataTransfer?.files
     if (dropped && dropped.length > 0) {
       const files = Array.from(dropped)
-      let anyHandled = false
-      for (const file of files) {
-        const ok = await add(file, false)
-        if (ok) {
-          anyHandled = true
-          continue
-        }
-        // Unrecognized type (e.g. .zip, folder) — if the platform exposes a local
-        // path (Tauri/Electron), add it as a file-reference @mention so the agent
-        // can still use it. Falls back to a toast if no path is available.
-        const localPath = (file as File & { path?: string }).path
-        if (localPath) {
-          input.focusEditor()
-          input.addPart({ type: "file", path: localPath, content: "@" + localPath, start: 0, end: 0 })
-          anyHandled = true
+      const prepared = (await Promise.all(files.map((f) => prepareFileAttachment(f, false)))).filter(
+        (p): p is Prepared => !!p,
+      )
+      // Files prepareFileAttachment rejected (.zip, folders, unknown types) get
+      // added as @mention path refs when the platform exposes a local path.
+      const fallbacks = files.filter(
+        (_, i) => !prepared.some((p) => p.attachment.filename === files[i].name),
+      )
+      let anyHandled = insertPrepared(prepared)
+      if (fallbacks.length > 0) {
+        for (const file of fallbacks) {
+          const localPath = (file as File & { path?: string }).path
+          if (localPath) {
+            input.focusEditor()
+            input.addPart({ type: "file", path: localPath, content: "@" + localPath, start: 0, end: 0 })
+            anyHandled = true
+          }
         }
       }
       if (!anyHandled && files.length > 0) warn()
       return
     }
 
-    // 3. In-app media drag: image/video/audio rendered in the chat
-    //    URI list takes priority; fall back to plain text if it looks like a URL
+    // 3. In-app media drag: image/video/audio rendered in the chat. Multi-URL
+    //    URI lists (e.g. multi-select from a gallery) are attached as a batch.
     const uriList = event.dataTransfer?.getData("text/uri-list") ?? ""
-    const mediaUrl =
-      uriList.split(/\r?\n/).find((line) => line.trim() && !line.startsWith("#"))?.trim() ||
-      (plainText.startsWith("http") && inAppMediaPattern.test(plainText) ? plainText : "")
-
-    if (mediaUrl && (mediaUrl.startsWith("data:") || inAppMediaPattern.test(mediaUrl))) {
-      attachFromUrl(mediaUrl)
+    const urlsFromList = uriList
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"))
+    const mediaUrls = urlsFromList.filter((u) => u.startsWith("data:") || inAppMediaPattern.test(u))
+    if (mediaUrls.length > 0) {
+      attachFromUrls(mediaUrls)
+      return
+    }
+    if (plainText.startsWith("http") && inAppMediaPattern.test(plainText)) {
+      attachFromUrl(plainText)
     }
   }
 

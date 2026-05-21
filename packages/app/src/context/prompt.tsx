@@ -92,7 +92,9 @@ function cloneSelection(selection?: FileSelection) {
 
 function clonePart(part: ContentPart): ContentPart {
   if (part.type === "text") return { ...part }
-  if (part.type === "image") return { ...part }
+  // Shared by ref so Solid <For> doesn't remount <img>/<video> on every
+  // keystroke. Mutations flow through updateImageAttachment + produce().
+  if (part.type === "image") return part
   if (part.type === "agent") return { ...part }
   return {
     ...part,

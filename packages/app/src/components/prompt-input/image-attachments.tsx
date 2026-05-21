@@ -43,7 +43,7 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
                     >
                       {/* Video — first-frame poster (no live decode). */}
                       <video
-                        src={firstFramePosterSrc(attachment.dataUrl)}
+                        src={firstFramePosterSrc(attachment.publicUrl ?? attachment.dataUrl)}
                         ref={pauseOnFirstFrame}
                         autoplay
                         muted
@@ -58,7 +58,7 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
                   }
                 >
                   <img
-                    src={attachment.dataUrl}
+                    src={attachment.publicUrl ?? attachment.dataUrl}
                     alt={attachment.filename}
                     class={imageClass}
                     onClick={() => props.onOpen(attachment)}
@@ -68,7 +68,10 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
                 {/* Upload in-progress overlay */}
                 <Show when={attachment.uploading}>
                   <div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md pointer-events-none">
-                    <div class="size-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div
+                      class="size-5 border-2 border-white border-t-transparent rounded-full"
+                      style="animation:kolbo-spin 0.9s linear infinite"
+                    />
                   </div>
                 </Show>
 

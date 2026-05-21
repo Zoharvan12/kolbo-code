@@ -147,6 +147,10 @@ export namespace MessageV2 {
     )
   }
 
+  export function isImageOrPdf(mime: string) {
+    return mime.startsWith("image/") || mime === "application/pdf"
+  }
+
   export const OutputLengthError = NamedError.create("MessageOutputLengthError", z.object({}))
   export const AbortedError = NamedError.create("MessageAbortedError", z.object({ message: z.string() }))
   export const StructuredOutputError = NamedError.create(
@@ -701,8 +705,24 @@ export namespace MessageV2 {
   export const toModelMessagesEffect = Effect.fnUntraced(function* (
     input: WithParts[],
     model: Provider.Model,
-    options?: { stripMedia?: boolean },
+    options?: { stripMedia?: boolean; stripMediaExceptLastTurn?: boolean },
   ) {
+    // Keep media on the last N user turns so the model can re-examine
+    // recently-uploaded images; older turns get text-stubbed to free context.
+    const KEEP_MEDIA_USER_TURNS = 3
+    const stripAll = options?.stripMedia === true
+    const stripBeforeIdx = options?.stripMediaExceptLastTurn
+      ? (() => {
+          let seen = 0
+          for (let i = input.length - 1; i >= 0; i--) {
+            if (input[i]?.info.role === "user") {
+              seen++
+              if (seen === KEEP_MEDIA_USER_TURNS) return i
+            }
+          }
+          return -1
+        })()
+      : -1
     const result: UIMessage[] = []
     const toolNames = new Set<string>()
     // Track media from tool results that need to be injected as user messages
@@ -760,8 +780,10 @@ export namespace MessageV2 {
       return { type: "json", value: output as never }
     }
 
-    for (const msg of input) {
+    for (let msgIdx = 0; msgIdx < input.length; msgIdx++) {
+      const msg = input[msgIdx]!
       if (msg.parts.length === 0) continue
+      const stripMediaForMsg = stripAll || msgIdx < stripBeforeIdx
 
       if (msg.info.role === "user") {
         const userMessage: UIMessage = {
@@ -778,7 +800,7 @@ export namespace MessageV2 {
             })
           // text/plain and directory files are converted into text parts, ignore them
           if (part.type === "file" && part.mime !== "text/plain" && part.mime !== "application/x-directory") {
-            if (options?.stripMedia && isMedia(part.mime)) {
+            if (stripMediaForMsg && isMedia(part.mime)) {
               userMessage.parts.push({
                 type: "text",
                 text: `[Attached ${part.mime}: ${part.filename ?? "file"}]`,
@@ -858,7 +880,7 @@ export namespace MessageV2 {
                 : isKolboAuthExpired
                 ? KOLBO_AUTH_SANITIZED_MESSAGE
                 : part.state.output + productionLogNudge
-              const attachments = part.state.time.compacted || options?.stripMedia ? [] : (part.state.attachments ?? [])
+              const attachments = part.state.time.compacted || stripMediaForMsg ? [] : (part.state.attachments ?? [])
 
               // For providers that don't support media in tool results, extract media files
               // (images, PDFs) to be sent as a separate user message
@@ -990,7 +1012,7 @@ export namespace MessageV2 {
   export function toModelMessages(
     input: WithParts[],
     model: Provider.Model,
-    options?: { stripMedia?: boolean },
+    options?: { stripMedia?: boolean; stripMediaExceptLastTurn?: boolean },
   ): Promise<ModelMessage[]> {
     return Effect.runPromise(toModelMessagesEffect(input, model, options))
   }

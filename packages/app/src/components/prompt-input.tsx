@@ -181,9 +181,11 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   // cheap.
   const [mediaSpend, setMediaSpend] = createSignal<{ total: number; byTool: Array<{ generation_type: string | null; amount: number; count: number }> } | null>(null)
   const refreshMediaSpend = () => {
-    // Route lives under the /global router mount — without the prefix the SPA
-    // fallback returns index.html, JSON parse fails, the field stays hidden.
-    fetch("/global/kolbo-session-usage", { headers: { Accept: "application/json" } })
+    // Use the opencode sidecar's absolute URL — a relative fetch in dev hits
+    // the Vite server (1420) which has no /global routes and 404s.
+    const base = server.current?.http.url
+    if (!base) return
+    fetch(`${base}/global/kolbo-session-usage`, { headers: { Accept: "application/json" } })
       .then((r) => r.ok ? r.json() : null)
       .then((data: { total?: number; by_tool?: Array<{ generation_type: string | null; amount: number; count: number }> } | null) => {
         if (data && typeof data.total === "number") {

@@ -1,9 +1,11 @@
 import type { Config } from "@/config/config"
 import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
+import { Log } from "../util/log"
 import type { MessageV2 } from "./message-v2"
 
 const COMPACTION_BUFFER = 20_000
+const log = Log.create({ service: "session.overflow" })
 
 export function isOverflow(input: { cfg: Config.Info; tokens: MessageV2.Assistant["tokens"]; model: Provider.Model }) {
   if (input.cfg.compaction?.auto === false) return false
@@ -18,5 +20,19 @@ export function isOverflow(input: { cfg: Config.Info; tokens: MessageV2.Assistan
   const usable = input.model.limit.input
     ? input.model.limit.input - reserved
     : context - ProviderTransform.maxOutputTokens(input.model)
-  return count >= usable
+  const overflowing = count >= usable
+  if (overflowing) {
+    log.info("overflow triggered", {
+      modelID: input.model.id,
+      providerID: input.model.providerID,
+      count,
+      usable,
+      context,
+      limitInput: input.model.limit.input,
+      maxOutput: ProviderTransform.maxOutputTokens(input.model),
+      reserved,
+      tokens: input.tokens,
+    })
+  }
+  return overflowing
 }

@@ -1470,6 +1470,32 @@ export namespace Provider {
               name: model.providerID,
               ...options,
             })
+            // The openai-compatible factory doesn't expose supportedUrls in its
+            // language-model config, so the AI SDK's default `{}` kicks in and
+            // it auto-downloads every image URL on the way out — re-embedding
+            // multi-MB base64 in the request body and tripping kolbo-api's 413
+            // limit. Declare URL support after the fact via a getter override
+            // so the SDK ships URLs untouched.
+            if (model.api.npm === "@ai-sdk/openai-compatible") {
+              const wrapLanguageModel = (lm: any) => {
+                if (!lm || typeof lm !== "object") return lm
+                try {
+                  Object.defineProperty(lm, "supportedUrls", {
+                    get: () => ({
+                      "image/*": [/^https?:\/\/.*$/],
+                      "application/pdf": [/^https?:\/\/.*$/],
+                    }),
+                    configurable: true,
+                  })
+                } catch {}
+                return lm
+              }
+              const anyLoaded = loaded as any
+              const originalLanguageModel = anyLoaded.languageModel?.bind(loaded)
+              const originalChatModel = anyLoaded.chatModel?.bind(loaded)
+              if (originalLanguageModel) anyLoaded.languageModel = (id: string) => wrapLanguageModel(originalLanguageModel(id))
+              if (originalChatModel) anyLoaded.chatModel = (id: string) => wrapLanguageModel(originalChatModel(id))
+            }
             s.sdk.set(key, loaded)
             return loaded as SDK
           }

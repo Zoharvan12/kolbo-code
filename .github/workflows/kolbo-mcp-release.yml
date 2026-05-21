@@ -1,0 +1,73 @@
+name: kolbo-mcp-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "npm dist-tag (latest | beta | next)"
+        required: false
+        default: "latest"
+      version:
+        description: "Explicit version to publish (e.g. 1.13.0) — must match packages/kolbo-mcp/package.json"
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: endsWith(github.repository, '/kolbo-code')
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Verify version matches package.json
+        run: |
+          PKG_VERSION=$(node -p "require('./packages/kolbo-mcp/package.json').version")
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+          if [ "$PKG_VERSION" != "$INPUT_VERSION" ]; then
+            echo "::error::Input version ($INPUT_VERSION) does not match packages/kolbo-mcp/package.json ($PKG_VERSION). Bump the file first."
+            exit 1
+          fi
+          echo "Version verified: $PKG_VERSION"
+
+      - name: Install dependencies
+        working-directory: packages/kolbo-mcp
+        run: npm ci || npm install
+
+      - name: Run smoke + parity checks
+        working-directory: packages/kolbo-mcp
+        # Mirrors the prepublishOnly hook documented in packages/kolbo-mcp/CLAUDE.md.
+        # Hard-fail if either fails — backward-compat audit + load-time smoke
+        # are the only guards a published MCP package has against silently
+        # breaking cached npx consumers.
+        run: |
+          node scripts/smoke.js
+          node scripts/check-parity.js
+
+      - name: Publish to npm
+        working-directory: packages/kolbo-mcp
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm publish --access public --provenance --tag ${{ github.event.inputs.tag || 'latest' }}
+
+      - name: Summary
+        run: |
+          echo "### @kolbo/mcp published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`bash" >> "$GITHUB_STEP_SUMMARY"
+          echo "npx -y @kolbo/mcp@${{ github.event.inputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"

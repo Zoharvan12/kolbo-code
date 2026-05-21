@@ -66,6 +66,16 @@ import { animate } from "motion"
 import { useLocation } from "@solidjs/router"
 import { attached, inline, kind } from "./message-file"
 
+// Per-bubble direction: English content inside an RTL UI (and vice-versa)
+// should align based on its own characters, not the document direction.
+const RTL_RE = /[֑-߿יִ-﷽ﹰ-ﻼ]/g
+const LTR_RE = /[A-Za-zÀ-ɏ]/g
+function detectBubbleDirection(text: string): "rtl" | "ltr" {
+  const rtl = (text.match(RTL_RE) || []).length
+  const ltr = (text.match(LTR_RE) || []).length
+  return rtl > ltr ? "rtl" : "ltr"
+}
+
 function ShellSubmessage(props: { text: string; animate?: boolean }) {
   let widthRef: HTMLSpanElement | undefined
   let valueRef: HTMLSpanElement | undefined
@@ -1214,6 +1224,8 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
             <div
               data-slot="user-message-text"
               data-collapsed={collapsed() ? "true" : undefined}
+              dir={detectBubbleDirection(text())}
+              style="text-align:start"
             >
               <HighlightedText text={text()} references={inlineFiles()} agents={agents()} />
             </div>

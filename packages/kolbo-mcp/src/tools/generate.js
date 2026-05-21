@@ -5,7 +5,7 @@
 
 const { z } = require('zod');
 const FormData = require('form-data');
-const { pollUntilDone } = require('../polling');
+const { pollUntilDone, PollingTimeoutError } = require('../polling');
 const { resolveToBuffer, creditFields } = require('./_shared');
 
 function registerGenerateTools(server, client) {
@@ -383,13 +383,38 @@ function registerGenerateTools(server, client) {
   // ─── get_generation_status ─────────────────────────────────
   server.tool(
     'get_generation_status',
-    'Check the status of a generation. Use this as a FALLBACK when a generation tool returned a timeout error — the generation is probably still running on the server. Pass the generation_id from the timeout error (or from any prior generation response).',
+    'Resume polling a generation after a timeout. Pass the generation_id from a prior generation tool that timed out. This call BLOCKS server-side, polling internally — you do NOT need to call it again in a loop. Defaults to a 10-minute internal poll which covers most image edits and short videos; pass `wait_seconds` up to 1700 (~28 min) for long video / 3D / batch generations. If it returns with `still_pending: true`, the generation is genuinely slow — STOP calling this tool, tell the user the generation is still running, and resume on the next user turn. Never call this tool more than ONCE per generation_id consecutively.',
     {
-      generation_id: z.string().describe('The generation ID to check')
+      generation_id: z.string().describe('The generation ID to check'),
+      wait_seconds: z.number().int().min(10).max(1700).optional().describe('How long to block-poll internally before giving up (10–1700 seconds, default 600). Use higher values for video / 3D / large batches that can legitimately take 15+ minutes.'),
     },
-    async ({ generation_id }) => {
-      const result = await client.get(`/v1/generate/${encodeURIComponent(generation_id)}/status`);
-
+    async ({ generation_id, wait_seconds }) => {
+      const timeoutMs = (wait_seconds ?? 600) * 1000;
+      let result;
+      try {
+        result = await pollUntilDone(client, generation_id, {
+          interval: 5000,
+          timeout: timeoutMs,
+        });
+      } catch (err) {
+        if (err instanceof PollingTimeoutError) {
+          const current = await client.get(`/v1/generate/${encodeURIComponent(generation_id)}/status`).catch(() => null);
+          const minutes = Math.round(timeoutMs / 60000);
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                generation_id,
+                state: current?.state ?? 'unknown',
+                still_pending: true,
+                waited_seconds: Math.round(timeoutMs / 1000),
+                _note: `Polled for ${minutes} minute(s) — generation is taking longer than usual. STOP calling get_generation_status now. Tell the user the generation is still running and ask them to prompt you to check again later. Do NOT loop.`,
+              }, null, 2),
+            }],
+          };
+        }
+        throw err;
+      }
       return {
         content: [{
           type: 'text',

@@ -1056,28 +1056,77 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             const url = new URL(part.url)
             switch (url.protocol) {
               case "https:":
-              case "http:":
-                // For media (images, etc.): fetch bytes and embed as base64 so the model
-                // can see the content inline — AI providers can't fetch auth-gated CDN URLs.
+              case "http:": {
+                // The kolbo CDN bucket is public — vision providers fetch the URL
+                // directly. Embedding base64 here previously blew past kolbo-api's
+                // request-body limit (413 Payload Too Large) for any non-trivial image.
+                // For auth-gated/non-kolbo URLs we still fall back to base64.
+                const label = part.filename ? `'${part.filename}'` : "the attached file"
+                const mcpUrlReminder =
+                  `[User-attached ${part.mime} ${label} is hosted at: ${part.url}\n` +
+                  `Pass this exact URL to the appropriate Kolbo MCP tool arg. ` +
+                  `Image-edit args take ARRAYS — when the user attaches multiple images and asks to edit ` +
+                  `using all of them, collect every attached URL into the array, do NOT just pass one.\n` +
+                  `  • generate_image_edit.source_images (array — multi-image composite/edit)\n` +
+                  `  • generate_elements.reference_images (array)\n` +
+                  `  • generate_3d.reference_images (array)\n` +
+                  `  • generate_video.reference_images (array)\n` +
+                  `  • generate_video_from_image.image_url (single)\n` +
+                  `  • generate_video_from_video.source_video (single)\n` +
+                  `  • edit_image.image_url (single — targeted ops: upscale/reframe/etc.)\n` +
+                  `  • edit_video.video_url (single, or image_url for face_swap)\n` +
+                  `  • transcribe_audio.source (single)\n` +
+                  `Do NOT re-upload — it's already on the Kolbo CDN.]`
+                const isKolboPublicCdn = /(^|\.)(kolboai-production|digitaloceanspaces)\.com$/.test(url.hostname)
                 if (MessageV2.isMedia(part.mime)) {
-                  const fetchExit = yield* Effect.tryPromise(async () => {
-                    const res = await fetch(part.url)
-                    if (!res.ok) throw new Error(`CDN fetch failed: ${res.status}`)
-                    return res.arrayBuffer()
-                  }).pipe(Effect.exit)
-                  if (Exit.isSuccess(fetchExit)) {
-                    return [
-                      {
-                        ...part,
-                        url: `data:${part.mime};base64,${Buffer.from(fetchExit.value).toString("base64")}`,
-                        messageID: info.id,
-                        sessionID: input.sessionID,
-                      },
-                    ]
+                  if (MessageV2.isImageOrPdf(part.mime)) {
+                    if (isKolboPublicCdn) {
+                      return [
+                        { ...part, messageID: info.id, sessionID: input.sessionID },
+                        {
+                          messageID: info.id,
+                          sessionID: input.sessionID,
+                          type: "text" as const,
+                          synthetic: true,
+                          text: mcpUrlReminder,
+                        },
+                      ]
+                    }
+                    const fetchExit = yield* Effect.tryPromise(async () => {
+                      const res = await fetch(part.url)
+                      if (!res.ok) throw new Error(`CDN fetch failed: ${res.status}`)
+                      return res.arrayBuffer()
+                    }).pipe(Effect.exit)
+                    if (Exit.isSuccess(fetchExit)) {
+                      return [
+                        {
+                          ...part,
+                          url: `data:${part.mime};base64,${Buffer.from(fetchExit.value).toString("base64")}`,
+                          messageID: info.id,
+                          sessionID: input.sessionID,
+                        },
+                        {
+                          messageID: info.id,
+                          sessionID: input.sessionID,
+                          type: "text" as const,
+                          synthetic: true,
+                          text: mcpUrlReminder,
+                        },
+                      ]
+                    }
                   }
+                  return [
+                    {
+                      messageID: info.id,
+                      sessionID: input.sessionID,
+                      type: "text" as const,
+                      synthetic: true,
+                      text: mcpUrlReminder,
+                    },
+                  ]
                 }
-                // Non-media or fetch failed — pass the URL through unchanged.
                 return [{ ...part, messageID: info.id, sessionID: input.sessionID }]
+              }
               case "data:":
                 if (part.mime === "text/plain") {
                   return [
@@ -1619,7 +1668,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               }
               const [instructions, modelMsgs] = yield* Effect.all([
                 instruction.system().pipe(Effect.orDie),
-                MessageV2.toModelMessagesEffect(msgs, model),
+                MessageV2.toModelMessagesEffect(msgs, model, { stripMediaExceptLastTurn: true }),
               ])
               const skills = cachedSkills
               const env = cachedEnv!
