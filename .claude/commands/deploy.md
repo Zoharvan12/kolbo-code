@@ -1,13 +1,22 @@
 ---
-description: "Commit local changes, sync safe upstream updates, bump version, tag, push, and trigger npm publish."
-argument-hint: "[patch|minor|major] [--skip-upstream]"
+description: "Commit local changes, sync safe upstream updates, bump versions for kolbo-code (CLI+desktop) and @kolbo/mcp, tag, push, and trigger all release workflows."
+argument-hint: "[patch|minor|major] [--skip-upstream] [--skip-mcp] [--skip-desktop]"
 ---
 
-You are running the Kolbo CLI deploy pipeline. Follow each phase in order. Stop and report to the user if any phase fails — never skip a failure silently.
+You are running the Kolbo release pipeline. Follow each phase in order. Stop and report to the user if any phase fails — never skip a failure silently.
 
 The arguments provided (if any) are: $ARGUMENTS
 Default bump level is `patch` unless the user specified `minor` or `major`.
-If `--skip-upstream` is in the arguments, skip Phase 2.
+- `--skip-upstream` → skip Phase 2
+- `--skip-mcp` → don't bump/publish `@kolbo/mcp`
+- `--skip-desktop` → don't trigger desktop installer build
+
+**Three independently-versioned npm packages are released by this pipeline:**
+- `@kolbo/kolbo-code` — CLI (versioned in `packages/opencode/package.json`)
+- desktop installer — versioned in `packages/desktop/package.json`; **must stay in sync with CLI**
+- `@kolbo/mcp` — MCP server (versioned in `packages/kolbo-mcp/package.json`, **independent track**)
+
+**Hard rule:** never try to publish a version that is `<=` the current npm `latest`. npm rejects with a misleading `404`. ALWAYS query the registry in Phase 3 to find the floor.
 
 ---
 
@@ -109,19 +118,36 @@ Goal: pull in upstream bug-fixes and improvements that do NOT touch Kolbo brandi
 
 ---
 
-## Phase 3 — Bump version
+## Phase 3 — Bump versions
 
-1. Read current version from `packages/opencode/package.json`.
-2. Apply the bump level (patch / minor / major) using semver rules.
-3. Edit `packages/opencode/package.json` — update only the `"version"` field.
-4. Commit:
-   ```bash
-   git add packages/opencode/package.json
-   git commit -m "release: v<new_version>
+Bump TWO version tracks together. Always pick the next semver based on `max(local file version, npm latest)` so we never try to publish below what's already on npm (which returns a confusing 404).
 
-   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
-   ```
-5. Report: "Phase 3 done — version bumped to v`<new_version>`"
+### 3a — CLI + desktop (synced)
+
+1. Read local: `node -p "require('./packages/opencode/package.json').version"`
+2. Read npm: `curl -s https://registry.npmjs.org/@kolbo%2fkolbo-code | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d)['dist-tags'].latest))"`
+3. Pick the higher of the two as the floor, then apply the bump level → `<new_cli_version>`.
+4. Edit `packages/opencode/package.json` and `packages/desktop/package.json` — update only the `"version"` field to `<new_cli_version>`. Both MUST match.
+
+### 3b — @kolbo/mcp (independent track)
+
+Skip this whole section if `--skip-mcp` is in arguments.
+
+1. Read local: `node -p "require('./packages/kolbo-mcp/package.json').version"`
+2. Read npm: `curl -s https://registry.npmjs.org/@kolbo%2fmcp | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d)['dist-tags'].latest))"`
+3. Pick the higher of the two, then bump (default `patch` for bug fixes / additive arg; `minor` for new tools per `packages/kolbo-mcp/CLAUDE.md`; never `major` without explicit user confirmation) → `<new_mcp_version>`.
+4. Edit `packages/kolbo-mcp/package.json` — update `"version"` to `<new_mcp_version>`.
+
+### 3c — Commit both bumps in one commit
+
+```bash
+git add packages/opencode/package.json packages/desktop/package.json packages/kolbo-mcp/package.json
+git commit -m "release: kolbo-code v<new_cli_version> + @kolbo/mcp v<new_mcp_version>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+```
+
+Report: "Phase 3 done — CLI+desktop → v`<new_cli_version>`, @kolbo/mcp → v`<new_mcp_version>`"
 
 ---
 
@@ -143,42 +169,57 @@ Goal: pull in upstream bug-fixes and improvements that do NOT touch Kolbo brandi
 
 ---
 
-## Phase 5 — Trigger publish (CLI + whitelabels + desktop)
+## Phase 5 — Trigger publish workflows
 
-Trigger all three workflows in parallel. The desktop release is the long pole (~20 min for Rust compile + sign + notarize on Mac and Windows). Both whitelabel CLIs (Sapir, NakedJim) ride along inside kolbo-whitelabels.yml; both whitelabel desktop apps ride along inside kolbo-release-all.yml.
+Trigger all four workflows in parallel. The desktop release is the long pole (~20 min). The two CLI workflows + kolbo-mcp finish in 1–5 min.
+
+Substitute `<new_cli_version>` and `<new_mcp_version>` from Phase 3.
 
 ```bash
-# Main CLI to npm
+# 1. Main CLI to npm — publishes @kolbo/kolbo-code + per-platform binary packages
 gh workflow run kolbo-release.yml \
   --repo Zoharvan12/kolbo-code \
   --ref dev \
   --field tag=latest \
-  --field version=<new_version>
+  --field version=<new_cli_version>
 
-# Whitelabel CLIs to npm (Sapir, NakedJim, …)
+# 2. Whitelabel CLIs to npm (Sapir, NakedJim, …)
 gh workflow run kolbo-whitelabels.yml \
   --repo Zoharvan12/kolbo-code \
   --ref dev
 
-# Desktop apps (Kolbo Code + Sapir desktop, mac arm64 + win x64).
+# 3. Desktop apps (Kolbo Code + Sapir desktop, mac arm64 + win x64).
 # REQUIRED for any release the user described as "desktop app" or
 # "for whitelabels and desktop". MUST pass --field version=… — the
 # child workflows used to default to 1.0.0 which silently overwrote
 # kolbo-releases "latest" with bogus artifacts (May 2026 incident).
+# Skip this step entirely if --skip-desktop is in arguments.
 gh workflow run kolbo-release-all.yml \
   --repo Zoharvan12/kolbo-code \
   --ref dev \
-  --field version=<new_version> \
+  --field version=<new_cli_version> \
   --field sign=true \
   --field draft=false
+
+# 4. @kolbo/mcp to npm — publishes the MCP server.
+# Skip this step entirely if --skip-mcp is in arguments OR Phase 3b was skipped.
+gh workflow run kolbo-mcp-release.yml \
+  --repo Zoharvan12/kolbo-code \
+  --ref dev \
+  --field tag=latest \
+  --field version=<new_mcp_version>
 ```
 
-Wait ~5 seconds then confirm all three are queued:
+Wait ~5 seconds then confirm all are queued:
 ```bash
-gh run list --repo Zoharvan12/kolbo-code --limit 5
+gh run list --repo Zoharvan12/kolbo-code --limit 6
 ```
 
-The two CLI workflows finish in 1–5 min. `kolbo-release-all` takes ~20 min — its `publish-updater` job is what writes `latest.json` and `sapir-latest.json` on `Zoharvan12/kolbo-releases/releases/download/updater/`. Phase 6 below must run AFTER that job succeeds (or it will sync stale manifests).
+**Common failure mode** — npm returns `404 Not Found - PUT https://registry.npmjs.org/@kolbo%2f...` on publish. Two real causes (npm hides both behind 404):
+- The version being published is `<=` the current `dist-tags.latest` → Phase 3 should have prevented this. If it slipped through, re-bump and retry.
+- The `NPM_TOKEN` secret has expired or lost scope access → cannot self-fix here, ask the user to refresh the token in repo secrets.
+
+`kolbo-release-all` takes ~20 min — its `publish-updater` job is what writes `latest.json` and `sapir-latest.json` on `Zoharvan12/kolbo-releases/releases/download/updater/`. Phase 6 below must run AFTER that job succeeds (or it will sync stale manifests).
 
 ---
 
@@ -207,16 +248,22 @@ Report: "Phase 6 done — legacy updater endpoint synced"
 
 ## Final summary
 
-Print a clean summary:
+Print a clean summary, substituting the actual versions and listing every workflow you triggered:
 ```
 ✓ Phase 1 — Local changes committed
-✓ Phase 2 — Upstream synced (N commits merged, M skipped)
-✓ Phase 3 — Version bumped to vX.Y.Z
+✓ Phase 2 — Upstream synced (N merged, M skipped)
+✓ Phase 3 — CLI+desktop → vX.Y.Z   @kolbo/mcp → vA.B.C
 ✓ Phase 4 — Pushed to origin/dev + tagged vX.Y.Z
-✓ Phase 5 — Publish workflows queued (main CLI + whitelabels)
+✓ Phase 5 — Workflows queued: kolbo-release, kolbo-whitelabels, kolbo-release-all, kolbo-mcp-release
+✓ Phase 6 — (post-desktop) legacy updater endpoint synced
 
 Install when CI completes:
-  npm i -g @kolbo/kolbo-code     # main CLI
-  npm i -g @kolbo/sapir          # Sapir whitelabel
-  npm i -g @kolbo/nakedjim       # NakedJim whitelabel
+  npm i -g @kolbo/kolbo-code         # main CLI
+  npm i -g @kolbo/sapir              # Sapir whitelabel
+  npx -y @kolbo/mcp@latest           # MCP server (no global install needed)
+```
+
+Tail the runs:
+```bash
+gh run list --repo Zoharvan12/kolbo-code --limit 6
 ```
