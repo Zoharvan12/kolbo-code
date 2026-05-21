@@ -27,7 +27,8 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Zoharvan12/kolbo-mcp"
+    "url": "https://github.com/Zoharvan12/kolbo-code",
+    "directory": "packages/kolbo-mcp"
   },
   "homepage": "https://docs.kolbo.ai/developer-api/claude-code-skill",
   "author": "Kolbo AI <support@kolbo.ai>",
