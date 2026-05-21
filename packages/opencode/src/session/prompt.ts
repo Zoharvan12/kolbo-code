@@ -1093,8 +1093,20 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                       ]
                     }
                     const fetchExit = yield* Effect.tryPromise(async () => {
-                      const res = await fetch(part.url)
+                      const res = await fetch(part.url, {
+                        headers: { Accept: `${part.mime},${part.mime.split("/")[0]}/*;q=0.9,*/*;q=0.5` },
+                      })
                       if (!res.ok) throw new Error(`CDN fetch failed: ${res.status}`)
+                      // The URL's file extension lied — server returned HTML
+                      // (paywall, login page, anti-bot, 200-OK error). Encoding
+                      // those bytes as data:image/jpeg;base64,… ships HTML text
+                      // to the vision model, which reconstructs nonsense. Bail
+                      // out and let the caller emit the text-only mcpUrlReminder.
+                      const resType = (res.headers.get("content-type") || "").toLowerCase().split(";")[0].trim()
+                      const expectedFamily = part.mime.split("/")[0]
+                      if (resType && !resType.startsWith(expectedFamily + "/") && resType !== part.mime) {
+                        throw new Error(`URL returned ${resType}, expected ${part.mime}`)
+                      }
                       return res.arrayBuffer()
                     }).pipe(Effect.exit)
                     if (Exit.isSuccess(fetchExit)) {
