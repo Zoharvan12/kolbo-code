@@ -28,6 +28,8 @@ jobs:
         with:
           fetch-depth: 1
 
+      - uses: ./.github/actions/setup-bun
+
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
@@ -43,9 +45,11 @@ jobs:
           fi
           echo "Version verified: $PKG_VERSION"
 
-      - name: Install dependencies
-        working-directory: packages/kolbo-mcp
-        run: npm ci || npm install
+      # The repo is a bun workspace; bun.lock uses the catalog: protocol
+      # which npm can't parse. Install at the workspace root with bun, then
+      # publish from the kolbo-mcp package via npm.
+      - name: Install dependencies (bun workspace)
+        run: bun install
 
       - name: Run smoke + parity checks
         working-directory: packages/kolbo-mcp
