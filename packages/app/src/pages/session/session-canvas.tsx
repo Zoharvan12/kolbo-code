@@ -1222,12 +1222,6 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
                     </button>
                   ))}
                 </div>
-                <span
-                  class="text-text-weak"
-                  style="font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase"
-                >
-                  {lang.t("canvas.density")}
-                </span>
               </div>
 
               <div class="flex items-center gap-2.5 min-w-0">

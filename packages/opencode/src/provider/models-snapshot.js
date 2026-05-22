@@ -48885,6 +48885,77 @@ export const snapshot = {
           "cache_write": 6.25
         }
       },
+      "google/gemini-3-pro": {
+        "id": "google/gemini-3-pro",
+        "name": "Gemini 3 Pro Preview",
+        "family": "gemini-pro",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2025-11-18",
+        "last_updated": "2025-11-18",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "audio",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1048576,
+          "output": 65536
+        },
+        "cost": {
+          "input": 1.25,
+          "output": 15,
+          "cache_read": 0
+        }
+      },
+      "google/gemini-3.5-flash": {
+        "id": "google/gemini-3.5-flash",
+        "name": "Gemini 3.5 Flash",
+        "family": "gemini-flash",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2026-05-19",
+        "last_updated": "2026-05-19",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "audio",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1048576,
+          "output": 65536
+        },
+        "cost": {
+          "input": 1.5,
+          "output": 9,
+          "cache_read": 0.15,
+          "input_audio": 1.5
+        }
+      },
       "google/gemini-3.1-flash-lite": {
         "id": "google/gemini-3.1-flash-lite",
         "name": "Gemini 3.1 Flash Lite",
@@ -49008,6 +49079,36 @@ export const snapshot = {
           "input_audio": 0.3
         }
       },
+      "google/gemma-4-31B-it": {
+        "id": "google/gemma-4-31B-it",
+        "name": "Gemma 4 31B IT",
+        "family": "gemma",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-04-02",
+        "last_updated": "2026-04-02",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 262144,
+          "output": 32768
+        },
+        "cost": {
+          "input": 0.13,
+          "output": 0.4,
+          "cache_read": 0.026
+        }
+      },
       "google/gemini-2.5-flash": {
         "id": "google/gemini-2.5-flash",
         "name": "Gemini 2.5 Flash",
@@ -49042,6 +49143,36 @@ export const snapshot = {
           "output": 2.5,
           "cache_read": 0.03,
           "input_audio": 1
+        }
+      },
+      "Qwen/Qwen3.6-35B-A3B-FP8": {
+        "id": "Qwen/Qwen3.6-35B-A3B-FP8",
+        "name": "Qwen 3.6 35B A3B FP8",
+        "family": "qwen",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-04-17",
+        "last_updated": "2026-04-17",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 262144,
+          "output": 32768
+        },
+        "cost": {
+          "input": 0.17,
+          "output": 1.1,
+          "cache_read": 0.056
         }
       },
       "Qwen/Qwen3.5-122B-A10B": {
@@ -57401,8 +57532,8 @@ export const snapshot = {
           "output": 131056
         },
         "cost": {
-          "input": 0.05,
-          "output": 0.1
+          "input": 0.29,
+          "output": 1.15
         }
       },
       "kimi-k2.5-fast": {
@@ -57676,8 +57807,8 @@ export const snapshot = {
           "output": 131056
         },
         "cost": {
-          "input": 0.05,
-          "output": 0.1
+          "input": 0.29,
+          "output": 1.15
         }
       }
     }
@@ -67276,11 +67407,11 @@ export const snapshot = {
         },
         "open_weights": true,
         "limit": {
-          "context": 262140,
-          "output": 262140
+          "context": 262144,
+          "output": 262144
         },
         "cost": {
-          "input": 0.317,
+          "input": 0.3,
           "output": 3.2
         }
       },
@@ -67464,7 +67595,7 @@ export const snapshot = {
         "open_weights": true,
         "limit": {
           "context": 262144,
-          "output": 65536
+          "output": 262144
         },
         "cost": {
           "input": 0.26,
@@ -68169,13 +68300,12 @@ export const snapshot = {
         },
         "open_weights": true,
         "limit": {
-          "context": 262144,
-          "output": 262144
+          "context": 262140,
+          "output": 262140
         },
         "cost": {
           "input": 0.15,
-          "output": 1,
-          "cache_read": 0.05
+          "output": 1
         }
       },
       "qwen/qwen-plus-2025-07-28": {
@@ -72976,23 +73106,7 @@ export const snapshot = {
         "cost": {
           "input": 1,
           "output": 2,
-          "cache_read": 0.2,
-          "context_over_200k": {
-            "input": 2,
-            "output": 4,
-            "cache_read": 0.4
-          },
-          "tiers": [
-            {
-              "input": 2,
-              "output": 4,
-              "cache_read": 0.4,
-              "tier": {
-                "type": "context",
-                "size": 200000
-              }
-            }
-          ]
+          "cache_read": 0.2
         }
       },
       "x-ai/grok-4.3": {
@@ -91803,6 +91917,42 @@ export const snapshot = {
           "cache_write": 18.75
         }
       },
+      "gemini-3.5-flash": {
+        "id": "gemini-3.5-flash",
+        "name": "Gemini 3.5 Flash",
+        "family": "gemini-flash",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2026-05-19",
+        "last_updated": "2026-05-19",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "audio",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1048576,
+          "output": 65536
+        },
+        "cost": {
+          "input": 1.5,
+          "output": 9,
+          "cache_read": 0.15,
+          "input_audio": 1.5
+        }
+      },
       "gemini-3.1-flash-lite": {
         "id": "gemini-3.1-flash-lite",
         "name": "Gemini 3.1 Flash Lite",
@@ -109828,92 +109978,6 @@ export const snapshot = {
     "name": "Scaleway",
     "doc": "https://www.scaleway.com/en/docs/generative-apis/",
     "models": {
-      "pixtral-12b-2409": {
-        "id": "pixtral-12b-2409",
-        "name": "Pixtral 12B 2409",
-        "family": "pixtral",
-        "attachment": true,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "release_date": "2024-09-25",
-        "last_updated": "2026-03-17",
-        "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "limit": {
-          "context": 128000,
-          "output": 4096
-        },
-        "cost": {
-          "input": 0.2,
-          "output": 0.2
-        }
-      },
-      "mistral-small-3.2-24b-instruct-2506": {
-        "id": "mistral-small-3.2-24b-instruct-2506",
-        "name": "Mistral Small 3.2 24B Instruct (2506)",
-        "family": "mistral-small",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "release_date": "2025-06-20",
-        "last_updated": "2026-03-17",
-        "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "limit": {
-          "context": 128000,
-          "output": 32768
-        },
-        "cost": {
-          "input": 0.15,
-          "output": 0.35
-        }
-      },
-      "mistral-nemo-instruct-2407": {
-        "id": "mistral-nemo-instruct-2407",
-        "name": "Mistral Nemo Instruct 2407",
-        "family": "mistral-nemo",
-        "attachment": true,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "release_date": "2024-07-25",
-        "last_updated": "2026-03-17",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "limit": {
-          "context": 128000,
-          "output": 8192
-        },
-        "cost": {
-          "input": 0.2,
-          "output": 0.2
-        }
-      },
       "gemma-3-27b-it": {
         "id": "gemma-3-27b-it",
         "name": "Gemma-3-27B-IT",
@@ -109970,37 +110034,6 @@ export const snapshot = {
         "cost": {
           "input": 0.1,
           "output": 0
-        }
-      },
-      "qwen3.5-397b-a17b": {
-        "id": "qwen3.5-397b-a17b",
-        "name": "Qwen3.5 397B A17B",
-        "family": "qwen",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2025-04",
-        "release_date": "2026-03-17",
-        "last_updated": "2026-03-17",
-        "modalities": {
-          "input": [
-            "text",
-            "image",
-            "video"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "limit": {
-          "context": 256000,
-          "output": 16384
-        },
-        "cost": {
-          "input": 0.6,
-          "output": 3.6
         }
       },
       "voxtral-small-24b-2507": {
@@ -110089,92 +110122,6 @@ export const snapshot = {
           "output": 0
         }
       },
-      "deepseek-r1-distill-llama-70b": {
-        "id": "deepseek-r1-distill-llama-70b",
-        "name": "DeepSeek R1 Distill Llama 70B",
-        "family": "deepseek-thinking",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2024-07",
-        "release_date": "2025-01-20",
-        "last_updated": "2026-03-17",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "limit": {
-          "context": 32000,
-          "output": 8196
-        },
-        "cost": {
-          "input": 0.9,
-          "output": 0.9
-        }
-      },
-      "qwen3-235b-a22b-instruct-2507": {
-        "id": "qwen3-235b-a22b-instruct-2507",
-        "name": "Qwen3 235B A22B Instruct 2507",
-        "family": "qwen",
-        "attachment": true,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "release_date": "2025-07-01",
-        "last_updated": "2026-03-17",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "limit": {
-          "context": 260000,
-          "output": 16384
-        },
-        "cost": {
-          "input": 0.75,
-          "output": 2.25
-        }
-      },
-      "qwen3-coder-30b-a3b-instruct": {
-        "id": "qwen3-coder-30b-a3b-instruct",
-        "name": "Qwen3-Coder 30B-A3B Instruct",
-        "family": "qwen",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2025-04",
-        "release_date": "2025-04",
-        "last_updated": "2026-03-17",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "limit": {
-          "context": 128000,
-          "output": 32768
-        },
-        "cost": {
-          "input": 0.2,
-          "output": 0.8
-        }
-      },
       "llama-3.3-70b-instruct": {
         "id": "llama-3.3-70b-instruct",
         "name": "Llama-3.3-70B-Instruct",
@@ -110232,19 +110179,115 @@ export const snapshot = {
           "output": 0.6
         }
       },
-      "devstral-2-123b-instruct-2512": {
-        "id": "devstral-2-123b-instruct-2512",
-        "name": "Devstral 2 123B Instruct (2512)",
-        "family": "devstral",
+      "gemma-4-26b-a4b-it": {
+        "id": "gemma-4-26b-a4b-it",
+        "name": "Gemma 4 26B A4B IT",
+        "family": "gemma",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-04",
+        "release_date": "2026-04-01",
+        "last_updated": "2026-05-22",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 256000,
+          "output": 16384
+        },
+        "status": "beta",
+        "cost": {
+          "input": 0.25,
+          "output": 0.5
+        }
+      },
+      "pixtral-12b-2409": {
+        "id": "pixtral-12b-2409",
+        "name": "Pixtral 12B 2409",
+        "family": "pixtral",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2024-09",
+        "release_date": "2024-09-25",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 128000,
+          "output": 4096
+        },
+        "cost": {
+          "input": 0.2,
+          "output": 0.2
+        }
+      },
+      "mistral-small-3.2-24b-instruct-2506": {
+        "id": "mistral-small-3.2-24b-instruct-2506",
+        "name": "Mistral Small 3.2 24B Instruct (2506)",
+        "family": "mistral-small",
         "attachment": false,
         "reasoning": false,
         "tool_call": true,
         "temperature": true,
-        "release_date": "2026-01-07",
+        "knowledge": "2025-03",
+        "release_date": "2025-06-20",
         "last_updated": "2026-03-17",
         "modalities": {
           "input": [
+            "text",
+            "image"
+          ],
+          "output": [
             "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 128000,
+          "output": 32768
+        },
+        "cost": {
+          "input": 0.15,
+          "output": 0.35
+        }
+      },
+      "qwen3.5-397b-a17b": {
+        "id": "qwen3.5-397b-a17b",
+        "name": "Qwen3.5 397B A17B",
+        "family": "qwen",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-04",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
           ],
           "output": [
             "text"
@@ -110256,37 +110299,8 @@ export const snapshot = {
           "output": 16384
         },
         "cost": {
-          "input": 0.4,
-          "output": 2
-        }
-      },
-      "llama-3.1-8b-instruct": {
-        "id": "llama-3.1-8b-instruct",
-        "name": "Llama 3.1 8B Instruct",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2023-12",
-        "release_date": "2025-01-01",
-        "last_updated": "2026-03-17",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "limit": {
-          "context": 128000,
-          "output": 16384
-        },
-        "cost": {
-          "input": 0.2,
-          "output": 0.2
+          "input": 0.6,
+          "output": 3.6
         }
       },
       "mistral-medium-3.5-128b": {
@@ -110317,6 +110331,126 @@ export const snapshot = {
         "cost": {
           "input": 1.5,
           "output": 7.5
+        }
+      },
+      "qwen3-235b-a22b-instruct-2507": {
+        "id": "qwen3-235b-a22b-instruct-2507",
+        "name": "Qwen3 235B A22B Instruct 2507",
+        "family": "qwen",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-04",
+        "release_date": "2025-07-01",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 260000,
+          "output": 16384
+        },
+        "cost": {
+          "input": 0.75,
+          "output": 2.25,
+          "reasoning": 8.4
+        }
+      },
+      "qwen3.6-35b-a3b": {
+        "id": "qwen3.6-35b-a3b",
+        "name": "Qwen3.6 35B A3B",
+        "family": "qwen",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-04",
+        "release_date": "2026-05-01",
+        "last_updated": "2026-05-22",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 128000,
+          "output": 16384
+        },
+        "status": "beta",
+        "cost": {
+          "input": 0.25,
+          "output": 1.5
+        }
+      },
+      "qwen3-coder-30b-a3b-instruct": {
+        "id": "qwen3-coder-30b-a3b-instruct",
+        "name": "Qwen3-Coder 30B-A3B Instruct",
+        "family": "qwen",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-04",
+        "release_date": "2025-04",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 128000,
+          "output": 32768
+        },
+        "cost": {
+          "input": 0.2,
+          "output": 0.8
+        }
+      },
+      "devstral-2-123b-instruct-2512": {
+        "id": "devstral-2-123b-instruct-2512",
+        "name": "Devstral 2 123B Instruct (2512)",
+        "family": "devstral",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-12",
+        "release_date": "2026-01-07",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 256000,
+          "output": 16384
+        },
+        "cost": {
+          "input": 0.4,
+          "output": 2
         }
       }
     }
@@ -131707,6 +131841,36 @@ export const snapshot = {
           "cache_read": 0.16
         }
       },
+      "qwen-3-7-max": {
+        "id": "qwen-3-7-max",
+        "name": "Qwen 3.7 Max",
+        "family": "qwen",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-05-22",
+        "last_updated": "2026-05-22",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 65536
+        },
+        "cost": {
+          "input": 3.125,
+          "output": 9.375,
+          "cache_read": 0.3125,
+          "cache_write": 3.90625
+        }
+      },
       "mistral-small-2603": {
         "id": "mistral-small-2603",
         "name": "Mistral Small 4",
@@ -133319,7 +133483,7 @@ export const snapshot = {
         "structured_output": true,
         "temperature": true,
         "release_date": "2026-05-21",
-        "last_updated": "2026-05-21",
+        "last_updated": "2026-05-22",
         "modalities": {
           "input": [
             "text",
@@ -133335,14 +133499,14 @@ export const snapshot = {
           "output": 65536
         },
         "cost": {
-          "input": 0.95,
-          "output": 1.95,
-          "cache_read": 0.19,
+          "input": 1,
+          "output": 2,
+          "cache_read": 0.2,
           "tiers": [
             {
-              "input": 1.9,
-              "output": 3.9,
-              "cache_read": 0.38,
+              "input": 2,
+              "output": 4,
+              "cache_read": 0.4,
               "tier": {
                 "type": "context",
                 "size": 200000
@@ -133350,9 +133514,9 @@ export const snapshot = {
             }
           ],
           "context_over_200k": {
-            "input": 1.9,
-            "output": 3.9,
-            "cache_read": 0.38
+            "input": 2,
+            "output": 4,
+            "cache_read": 0.4
           }
         }
       },
@@ -133597,6 +133761,40 @@ export const snapshot = {
         "cost": {
           "input": 0.175,
           "output": 0.5
+        }
+      },
+      "gemini-3-5-flash": {
+        "id": "gemini-3-5-flash",
+        "name": "Gemini 3.5 Flash",
+        "family": "gemini-flash",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-05-22",
+        "last_updated": "2026-05-22",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 65536
+        },
+        "cost": {
+          "input": 1.8,
+          "output": 11,
+          "cache_read": 0.18,
+          "cache_write": 0.1
         }
       }
     }
@@ -145780,6 +145978,40 @@ export const snapshot = {
           "context": 200000,
           "input": 128000,
           "output": 32000
+        },
+        "cost": {
+          "input": 0,
+          "output": 0
+        }
+      },
+      "gemini-3.5-flash": {
+        "id": "gemini-3.5-flash",
+        "name": "Gemini 3.5 Flash",
+        "family": "gemini-flash",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2026-05-19",
+        "last_updated": "2026-05-19",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 128000,
+          "input": 128000,
+          "output": 64000
         },
         "cost": {
           "input": 0,

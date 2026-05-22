@@ -520,7 +520,21 @@ export function SessionHeader() {
                     <Button
                       variant="ghost"
                       class="group/review-toggle titlebar-icon h-6 px-1.5 box-border flex items-center gap-1"
-                      onClick={() => view().reviewPanel.toggle()}
+                      onClick={() => {
+                        const wasOpen = view().reviewPanel.opened()
+                        if (wasOpen) {
+                          // Panel was already open — the click should refocus
+                          // the Review tab (it might currently be showing
+                          // canvas/artifacts). The side-panel listens for this.
+                          if (typeof document !== "undefined") {
+                            document.dispatchEvent(new CustomEvent("kolbo:focus-review"))
+                          }
+                        } else {
+                          // Panel was closed — open it; the side-panel's
+                          // closed→open effect will set the active tab to review.
+                          view().reviewPanel.open()
+                        }
+                      }}
                       aria-label={language.t("command.review.toggle")}
                       aria-expanded={view().reviewPanel.opened()}
                       aria-controls="review-panel"

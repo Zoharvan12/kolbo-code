@@ -482,27 +482,14 @@ export default function Page() {
     }
     return total
   })
-  let lastMediaPartCount = -1
-  let lastSessionForMedia: string | undefined
-  createEffect(() => {
-    const id = params.id
-    if (id !== lastSessionForMedia) {
-      lastSessionForMedia = id
-      lastMediaPartCount = -1
-    }
-    const c = mediaPartCount()
-    const prev = lastMediaPartCount
-    lastMediaPartCount = c
-    if (prev < 0 || c <= prev) return
-    if (view().canvas.dismissed()) {
-      // User explicitly closed Canvas — don't fight them. Still flip the tab
-      // indicator so the next time they open the panel they land on Canvas.
-      if (view().reviewPanel.opened()) setCanvasTabActive(true)
-      return
-    }
-    setCanvasTabActive(true)
-    if (!view().reviewPanel.opened()) view().reviewPanel.open()
-  })
+  // No auto-switching on new media generations. The agent producing an image
+  // mid-message used to force the review panel open AND override the user's
+  // active tab to canvas, making it feel like file tabs / the panel close
+  // button were broken (the next generation would re-open everything). The
+  // explicit Canvas button in the header is the only way to open canvas now.
+  // (mediaPartCount is still referenced — kept memoized for any future
+  // consumer; computing it is cheap.)
+  void mediaPartCount
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
   const isChildSession = createMemo(() => !!info()?.parentID)

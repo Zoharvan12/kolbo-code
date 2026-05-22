@@ -1,4 +1,4 @@
-import { For, Match, Show, Switch, createEffect, createMemo, createSignal, onCleanup, type JSX } from "solid-js"
+import { For, Match, Show, Switch, createEffect, createMemo, createSignal, onCleanup, onMount, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
 import { Tabs } from "@opencode-ai/ui/tabs"
@@ -166,6 +166,32 @@ export function SessionSidePanel(props: {
     if (effectiveActiveTab() === "canvas") setCanvasSeen(true)
   })
 
+  // Focus the Review tab — used by both (a) the closed→open transition of
+  // reviewPanel.opened (header Review button when panel was closed) and
+  // (b) the `kolbo:focus-review` custom event (header Review button when
+  // panel was already open and was showing canvas/artifacts/a-file).
+  const focusReviewTab = () => {
+    if (!(reviewTab() && props.canReview())) return
+    // Clear virtual-tab overrides so effectiveActiveTab can resolve to review.
+    props.onCanvasTabDeactivate()
+    props.onArtifactsTabDeactivate()
+    tabs().setActive("review")
+  }
+
+  let prevReviewOpened = view().reviewPanel.opened()
+  createEffect(() => {
+    const isOpen = view().reviewPanel.opened()
+    const justOpened = !prevReviewOpened && isOpen
+    prevReviewOpened = isOpen
+    if (justOpened) focusReviewTab()
+  })
+
+  onMount(() => {
+    const handler = () => focusReviewTab()
+    document.addEventListener("kolbo:focus-review", handler)
+    onCleanup(() => document.removeEventListener("kolbo:focus-review", handler))
+  })
+
   const fileTreeTab = () => layout.fileTree.tab()
 
   const setFileTreeTabValue = (value: string) => {
@@ -269,14 +295,14 @@ export function SessionSidePanel(props: {
                     openTab(tab)
                   }}
                 >
-                  <div class="sticky top-0 shrink-0 flex">
+                  <div class="sticky top-0 shrink-0 flex ps-4 pe-6">
                     <Tabs.List
                       ref={(el: HTMLDivElement) => {
                         const stop = createFileTabListSync({ el, contextOpen })
                         onCleanup(stop)
                       }}
                     >
-                      <Show when={reviewTab() && props.canReview() && props.hasReview()}>
+                      <Show when={reviewTab() && props.canReview()}>
                         <Tabs.Trigger
                           value="review"
                           closeButton={
@@ -360,24 +386,6 @@ export function SessionSidePanel(props: {
                         <For each={openedTabs()}>{(tab) => <SortableTab tab={tab} onTabClose={tabs().close} />}</For>
                       </SortableProvider>
                       <div class="bg-background-stronger h-full shrink-0 sticky right-0 z-10 flex items-center justify-center gap-0.5 pr-2">
-                        <TooltipKeybind
-                          title={language.t("command.file.open")}
-                          keybind={command.keybind("file.open")}
-                          class="flex items-center"
-                        >
-                          <IconButton
-                            icon="plus-small"
-                            variant="ghost"
-                            iconSize="large"
-                            class="!rounded-md"
-                            onClick={() => {
-                              void import("@/components/dialog-select-file").then((x) => {
-                                dialog.show(() => <x.DialogSelectFile mode="files" onOpenFile={showAllFiles} />)
-                              })
-                            }}
-                            aria-label={language.t("command.file.open")}
-                          />
-                        </TooltipKeybind>
                         {/* Panel-level close — always available so users have a
                             way to dismiss the whole side panel regardless of
                             which (or whether any) tabs are visible. */}
@@ -395,32 +403,33 @@ export function SessionSidePanel(props: {
                     </Tabs.List>
                   </div>
 
+                  {/* No inner `<Show when={effectiveActiveTab()===X}>` wrappers
+                      below — Kobalte's Tabs.Content already CSS-hides inactive
+                      tabs. The inner Show was unmounting+remounting children
+                      on every tab switch, which made the whole panel briefly
+                      disappear and "flash" back ("hide all + reappear"). */}
                   <Show when={reviewTab() && props.canReview()}>
                     <Tabs.Content value="review" class="flex flex-col h-full overflow-hidden contain-strict">
-                      <Show when={effectiveActiveTab() === "review"}>{props.reviewPanel()}</Show>
+                      {props.reviewPanel()}
                     </Tabs.Content>
                   </Show>
 
                   <Tabs.Content value="empty" class="flex flex-col h-full overflow-hidden contain-strict">
-                    <Show when={effectiveActiveTab() === "empty"}>
-                      <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
-                        <div class="h-full px-6 pb-42 -mt-4 flex flex-col items-center justify-center text-center gap-6">
-                          <Mark class="w-14 opacity-10" />
-                          <div class="text-14-regular text-text-weak max-w-56">
-                            {language.t("session.files.selectToOpen")}
-                          </div>
+                    <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
+                      <div class="h-full px-6 pb-42 -mt-4 flex flex-col items-center justify-center text-center gap-6">
+                        <Mark class="w-14 opacity-10" />
+                        <div class="text-14-regular text-text-weak max-w-56">
+                          {language.t("session.files.selectToOpen")}
                         </div>
                       </div>
-                    </Show>
+                    </div>
                   </Tabs.Content>
 
                   <Show when={contextOpen()}>
                     <Tabs.Content value="context" class="flex flex-col h-full overflow-hidden contain-strict">
-                      <Show when={effectiveActiveTab() === "context"}>
-                        <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
-                          <SessionContextTab />
-                        </div>
-                      </Show>
+                      <div class="relative pt-2 flex-1 min-h-0 overflow-hidden">
+                        <SessionContextTab />
+                      </div>
                     </Tabs.Content>
                   </Show>
 
@@ -436,9 +445,20 @@ export function SessionSidePanel(props: {
                     </Show>
                   </Tabs.Content>
 
-                  <Show when={activeFileTab()} keyed>
-                    {(tab) => <FileTabContent tab={tab} />}
-                  </Show>
+                  {/* Render a Tabs.Content per opened file tab so Kobalte
+                      CSS-hides the inactive ones. Previously a single
+                      <Show when={activeFileTab()} keyed> unmount/remounted
+                      the file viewer on every file-tab switch, causing the
+                      whole panel to flash. Keying via the tab string keeps
+                      each file's viewer state (scroll, search, etc.) intact
+                      across switches. */}
+                  <For each={openedTabs()}>
+                    {(tab) => (
+                      <Tabs.Content value={tab} class="flex flex-col h-full overflow-hidden contain-strict">
+                        <FileTabContent tab={tab} />
+                      </Tabs.Content>
+                    )}
+                  </For>
                 </Tabs>
                 <DragOverlay>
                   <Show when={store.activeDraggable} keyed>
