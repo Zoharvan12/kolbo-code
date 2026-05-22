@@ -524,7 +524,6 @@ export const dict = {
   "session.revertDock.collapse": "Zwiń cofnięte wiadomości",
   "session.revertDock.expand": "Rozwiń cofnięte wiadomości",
   "session.revertDock.restore": "Przywróć wiadomość",
-  "session.new.title": "Zbuduj cokolwiek",
   "session.new.worktree.main": "Główna gałąź",
   "session.new.worktree.mainWithBranch": "Główna gałąź ({{branch}})",
   "session.new.worktree.create": "Utwórz nowe drzewo robocze",

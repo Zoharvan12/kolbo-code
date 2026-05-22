@@ -22,6 +22,16 @@ export type PlatformOps = {
    * (blob: and srcdoc both fail for GPU/external-resource content in Tauri WebView2).
    */
   htmlPreviewUrl?: (content: string) => Promise<string | null>
+  /**
+   * Rewrite a remote image URL so it routes through the local sidecar proxy
+   * instead of being fetched directly by WebView2. Used for model/provider
+   * avatars hosted on api.kolbo.ai — WebView2 can't complete the TLS
+   * handshake on those, but the sidecar's native Bun fetch can.
+   *
+   * Returns immediately (just a URL string — the sidecar fetches on demand).
+   * Returns the original URL on web/no-sidecar builds.
+   */
+  imageProxyUrl?: (remoteUrl: string) => string
 }
 
 const PlatformOpsCtx = createContext<PlatformOps>({})
@@ -59,6 +69,9 @@ export function PlatformOpsProvider(props: ParentProps<PlatformOps>) {
     },
     get htmlPreviewUrl() {
       return props.htmlPreviewUrl ?? parent.htmlPreviewUrl
+    },
+    get imageProxyUrl() {
+      return props.imageProxyUrl ?? parent.imageProxyUrl
     },
   }
   return <PlatformOpsCtx.Provider value={value}>{props.children}</PlatformOpsCtx.Provider>

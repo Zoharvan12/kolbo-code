@@ -122,8 +122,8 @@ export const dict: Record<string, string> = {
   "ui.tool.skill": "Skill",
 
   "ui.basicTool.called": "Called `{{tool}}`",
-  "ui.toolErrorCard.failed": "Failed",
-  "ui.toolErrorCard.copyError": "Copy error",
+  "ui.toolErrorCard.failed": "Didn't work — moved on",
+  "ui.toolErrorCard.copyError": "Copy details",
 
   "ui.common.file.one": "file",
   "ui.common.file.other": "files",
@@ -161,7 +161,7 @@ export const dict: Record<string, string> = {
   "ui.kolbo.generatingImage": "Generating image…",
   "ui.kolbo.generatingVideo": "Generating video…",
   "ui.kolbo.generatingAudio": "Generating audio…",
-  "ui.kolbo.usedMedia": "{n} media",
+  "ui.kolbo.usedMedia": "{{n}} media",
   "ui.kolbo.chip.viewInCanvas": "View in Canvas",
   "ui.kolbo.chip.generating": "Generating {{label}}…",
   "ui.kolbo.chip.generatingCount": "Generating {{count}} {{label}}…",

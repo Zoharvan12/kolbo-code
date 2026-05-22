@@ -1,8 +1,9 @@
-import { Show, createMemo } from "solid-js"
+import { For, Show, createMemo } from "solid-js"
 import { DateTime } from "luxon"
 import { useSync } from "@/context/sync"
 import { useSDK } from "@/context/sdk"
 import { useLanguage } from "@/context/language"
+import { usePrompt } from "@/context/prompt"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Mark } from "@opencode-ai/ui/logo"
 import { getDirectory, getFilename } from "@opencode-ai/util/path"
@@ -15,10 +16,23 @@ interface NewSessionViewProps {
   worktree: string
 }
 
+type Starter = {
+  key: "landing" | "images" | "video" | "music"
+  icon: "app-window" | "photo" | "video" | "music"
+}
+
+const STARTERS: Starter[] = [
+  { key: "landing", icon: "app-window" },
+  { key: "images", icon: "photo" },
+  { key: "video", icon: "video" },
+  { key: "music", icon: "music" },
+]
+
 export function NewSessionView(props: NewSessionViewProps) {
   const sync = useSync()
   const sdk = useSDK()
   const language = useLanguage()
+  const prompt = usePrompt()
 
   const sandboxes = createMemo(() => sync.project?.sandboxes ?? [])
   const options = createMemo(() => [MAIN_WORKTREE, ...sandboxes(), CREATE_WORKTREE])
@@ -41,51 +55,94 @@ export function NewSessionView(props: NewSessionViewProps) {
       if (branch) return language.t("session.new.worktree.mainWithBranch", { branch })
       return language.t("session.new.worktree.main")
     }
-
     if (value === CREATE_WORKTREE) return language.t("session.new.worktree.create")
-
     return getFilename(value)
   }
 
+  const seed = (starter: Starter) => {
+    const text = language.t(`session.new.starter.${starter.key}.prompt`)
+    prompt.set([{ type: "text", content: text, start: 0, end: text.length }], text.length)
+    const editor = document.querySelector<HTMLElement>('[data-component="prompt-input"]')
+    editor?.focus()
+  }
+
   return (
-    <div class={ROOT_CLASS}>
+    <div class={ROOT_CLASS} data-component="session-new-view">
       <div class="h-12 shrink-0" aria-hidden />
-      <div class="flex-1 px-6 pb-30 flex items-center justify-center text-center">
-        <div class="w-full max-w-200 flex flex-col items-center text-center gap-4">
-          <div class="flex flex-col items-center gap-6">
-            {import.meta.env.VITE_WHITELABEL_LOGO
-              ? <img src={import.meta.env.VITE_WHITELABEL_LOGO} class="w-10" alt="Logo" />
-              : <Mark class="w-10" />
-            }
-            <div class="text-20-medium text-text-strong">{language.t("session.new.title")}</div>
+      <div class="flex-1 px-6 pb-30 flex items-start justify-center">
+        <div class="w-full max-w-200 flex flex-col items-center text-center gap-8 pt-12">
+          <div class="flex flex-col items-center gap-5" data-slot="new-session-hero">
+            <div data-slot="new-session-mark">
+              {import.meta.env.VITE_WHITELABEL_LOGO ? (
+                <img src={import.meta.env.VITE_WHITELABEL_LOGO} class="w-10" alt="" />
+              ) : (
+                <Mark class="w-10" />
+              )}
+              <span data-slot="new-session-pulse" aria-hidden="true" />
+            </div>
+            <div class="flex flex-col items-center gap-1.5">
+              <h1 data-slot="new-session-title">{language.t("session.new.title")}</h1>
+              <p data-slot="new-session-subtitle">{language.t("session.new.subtitle")}</p>
+            </div>
           </div>
-          <div class="w-full flex flex-col gap-4 items-center">
-            <div class="flex items-start justify-center gap-3 min-h-5">
-              <div class="text-12-medium text-text-weak select-text leading-5 min-w-0 max-w-160 break-words text-center">
-                {getDirectory(projectRoot())}
-                <span class="text-text-strong">{getFilename(projectRoot())}</span>
-              </div>
-            </div>
-            <div class="flex items-start justify-center gap-1.5 min-h-5">
-              <Icon name="branch" size="small" class="mt-0.5 shrink-0" />
-              <div class="text-12-medium text-text-weak select-text leading-5 min-w-0 max-w-160 break-words text-center">
-                {label(current())}
-              </div>
-            </div>
+
+          <div data-slot="new-session-meta">
+            <span class="select-text">
+              {getDirectory(projectRoot())}
+              <span data-slot="new-session-meta-strong">{getFilename(projectRoot())}</span>
+            </span>
+            <span data-slot="new-session-meta-divider" aria-hidden="true">
+              ·
+            </span>
+            <span class="inline-flex items-center gap-1">
+              <Icon name="branch" size="small" />
+              {label(current())}
+            </span>
             <Show when={sync.project}>
               {(project) => (
-                <div class="flex items-start justify-center gap-3 min-h-5">
-                  <div class="text-12-medium text-text-weak leading-5 min-w-0 max-w-160 break-words text-center">
-                    {language.t("session.new.lastModified")}&nbsp;
-                    <span class="text-text-strong">
+                <>
+                  <span data-slot="new-session-meta-divider" aria-hidden="true">
+                    ·
+                  </span>
+                  <span>
+                    {language.t("session.new.lastModified")}{" "}
+                    <span data-slot="new-session-meta-strong">
                       {DateTime.fromMillis(project().time.updated ?? project().time.created)
                         .setLocale(language.intl())
                         .toRelative()}
                     </span>
-                  </div>
-                </div>
+                  </span>
+                </>
               )}
             </Show>
+          </div>
+
+          <div data-slot="new-session-starters">
+            <For each={STARTERS}>
+              {(starter, i) => (
+                <button
+                  type="button"
+                  data-slot="new-session-starter"
+                  style={{ "--starter-delay": `${i() * 80}ms` }}
+                  onClick={() => seed(starter)}
+                >
+                  <span data-slot="new-session-starter-icon">
+                    <Icon name={starter.icon} size="small" />
+                  </span>
+                  <span data-slot="new-session-starter-text">
+                    <span data-slot="new-session-starter-title">
+                      {language.t(`session.new.starter.${starter.key}.title`)}
+                    </span>
+                    <span data-slot="new-session-starter-body">
+                      {language.t(`session.new.starter.${starter.key}.body`)}
+                    </span>
+                  </span>
+                  <span data-slot="new-session-starter-arrow" aria-hidden="true">
+                    <Icon name="chevron-right" size="small" />
+                  </span>
+                </button>
+              )}
+            </For>
           </div>
         </div>
       </div>

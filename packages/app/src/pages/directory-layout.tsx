@@ -78,6 +78,14 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
         if (!url) return Promise.resolve(null)
         return storeHtmlPreview(url, content)
       }}
+      imageProxyUrl={(remote) => {
+        const url = server.current?.http.url
+        // No sidecar available (web build) — caller will fetch directly.
+        if (!url || !remote) return remote
+        // Only proxy real http(s) URLs; pass blob:, data:, file: through.
+        if (!/^https?:\/\//i.test(remote)) return remote
+        return `${url}/global/proxy-image?url=${encodeURIComponent(remote)}`
+      }}
     >
       <DataProvider
         data={sync.data}

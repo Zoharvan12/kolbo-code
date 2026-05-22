@@ -218,6 +218,15 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
         style={{ "padding-left": `${8 + (props.level ?? 0) * 16}px` }}
       >
         <div class="flex min-w-0 items-center gap-1">
+          <Show when={props.session.time.archived}>
+            <span
+              class="shrink-0 text-text-weak/70"
+              aria-label={language.t("common.archive")}
+              title={language.t("common.archive")}
+            >
+              <Icon name="archive" size="small" />
+            </span>
+          </Show>
           <div class="min-w-0 flex-1">
             <Show
               when={!tooltip()}

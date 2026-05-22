@@ -27,6 +27,7 @@ export interface Settings {
     shellToolPartsExpanded: boolean
     editToolPartsExpanded: boolean
     showSessionProgressBar: boolean
+    showArchivedSessions: boolean
   }
   updates: {
     startup: boolean
@@ -48,8 +49,9 @@ export const monoDefault = "System Mono"
 export const sansDefault = "System Sans"
 
 const monoFallback =
-  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-const sansFallback = 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  '"JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+const sansFallback =
+  '"Inter Variable", "Heebo", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
 
 const monoBase = monoFallback
 const sansBase = sansFallback
@@ -94,6 +96,7 @@ const defaultSettings: Settings = {
     shellToolPartsExpanded: false,
     editToolPartsExpanded: false,
     showSessionProgressBar: true,
+    showArchivedSessions: false,
   },
   updates: {
     startup: true,
@@ -191,6 +194,13 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         ),
         setShowSessionProgressBar(value: boolean) {
           setStore("general", "showSessionProgressBar", value)
+        },
+        showArchivedSessions: withFallback(
+          () => store.general?.showArchivedSessions,
+          defaultSettings.general.showArchivedSessions,
+        ),
+        setShowArchivedSessions(value: boolean) {
+          setStore("general", "showArchivedSessions", value)
         },
       },
       updates: {

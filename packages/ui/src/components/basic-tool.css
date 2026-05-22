@@ -6,16 +6,25 @@
   align-self: stretch;
   gap: 0px;
   justify-content: flex-start;
+  transition: color 180ms ease;
 
   &[data-status="running"],
   &[data-status="pending"] {
     [data-slot="basic-tool-tool-title"] {
       color: var(--text-base);
     }
+
+    [data-slot="basic-tool-tool-indicator"] {
+      color: var(--kolbo-accent, #034cff);
+    }
   }
 
   &[data-clickable="true"] {
     cursor: pointer;
+  }
+
+  &[data-clickable="true"]:hover [data-slot="basic-tool-tool-title"] {
+    color: var(--text-strong);
   }
 
   &[data-hide-details="true"] {

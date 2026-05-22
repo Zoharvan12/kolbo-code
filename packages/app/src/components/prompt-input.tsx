@@ -27,6 +27,7 @@ import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Select } from "@opencode-ai/ui/select"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { usePlatformOps } from "@opencode-ai/ui/context/platform-ops"
 import { useTheme } from "@opencode-ai/ui/theme/context"
 import { ModelSelectorPopover } from "@/components/dialog-select-model"
 import { useProviders } from "@/hooks/use-providers"
@@ -145,6 +146,50 @@ function agentIcon(name?: string): AgentIconName {
   }
 }
 
+/**
+ * Avatar slot for the composer's selected-model button. The avatar URL may
+ * 404, and the provider's API can sometimes block hotlinked fetches, so we
+ * render the image first and fall back to the provider's SVG glyph when the
+ * fetch fails. Lives at module scope so the `createSignal`/`createEffect`
+ * pair attach to this component's owner — not to a per-render IIFE inside a
+ * `<Show>` (which would recreate them on every parent re-render).
+ */
+function SelectedModelAvatar(props: { url: string | undefined; providerID: string }) {
+  const ops = usePlatformOps()
+  const [failed, setFailed] = createSignal(false)
+  createEffect(on(() => props.url, () => setFailed(false)))
+  const src = () => {
+    const u = props.url
+    if (!u) return undefined
+    return ops.imageProxyUrl?.(u) ?? u
+  }
+  const providerIcon = () => (
+    <ProviderIcon
+      id={props.providerID}
+      class="size-4 shrink-0 transition-opacity duration-150"
+      classList={{ "opacity-40 group-hover:opacity-100": props.providerID !== "kolbo" }}
+      style={{
+        color: props.providerID === "kolbo" ? "#60a5fa" : undefined,
+        "will-change": "opacity",
+        transform: "translateZ(0)",
+      }}
+    />
+  )
+  return (
+    <Show when={!failed() && src()} fallback={providerIcon()}>
+      {(s) => (
+        <img
+          src={s()}
+          alt=""
+          class="size-4 shrink-0 rounded-sm object-cover"
+          referrerpolicy="no-referrer"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </Show>
+  )
+}
+
 export const PromptInput: Component<PromptInputProps> = (props) => {
   const sdk = useSDK()
   const sync = useSync()
@@ -173,27 +218,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   const [kolboPricing, setKolboPricing] = createSignal<KolboPricing>({})
   const [kolboBalance, setKolboBalance] = createSignal<number | null>(null)
-  // Real, multiplier-adjusted media spend tagged with this app's caller-
-  // session-id (kolbo-api → /credit-usage/by-caller-session). Powers the
-  // "media N" counter in the bottom bar. Polled on mount + every 12s and
-  // refreshed eagerly when the user submits a message (which usually means
-  // a generation tool is about to fire). The endpoint is cached; this is
-  // cheap.
-  const [mediaSpend, setMediaSpend] = createSignal<{ total: number; byTool: Array<{ generation_type: string | null; amount: number; count: number }> } | null>(null)
-  const refreshMediaSpend = () => {
-    // Use the opencode sidecar's absolute URL — a relative fetch in dev hits
-    // the Vite server (1420) which has no /global routes and 404s.
-    const base = server.current?.http.url
-    if (!base) return
-    fetch(`${base}/global/kolbo-session-usage`, { headers: { Accept: "application/json" } })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data: { total?: number; by_tool?: Array<{ generation_type: string | null; amount: number; count: number }> } | null) => {
-        if (data && typeof data.total === "number") {
-          setMediaSpend({ total: data.total, byTool: data.by_tool || [] })
-        }
-      })
-      .catch(() => {})
-  }
   const refreshKolboBalance = () => {
     globalSDK.client.global.kolboBalance()
       .then((res) => { if (res.data != null) setKolboBalance((res.data as { available: number }).available) })
@@ -204,9 +228,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       .then((res) => { if (res.data) setKolboPricing(res.data as KolboPricing) })
       .catch(() => {})
     refreshKolboBalance()
-    refreshMediaSpend()
-    const t = setInterval(refreshMediaSpend, 12000)
-    onCleanup(() => clearInterval(t))
   })
 
   // Eagerly refresh balance + media spend whenever a Kolbo MCP tool call
@@ -248,9 +269,10 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   createEffect((prev: number | undefined) => {
     const current = completedKolboToolCount()
     if (prev !== undefined && current > prev) {
-      // A new Kolbo tool just completed — fetch fresh totals.
+      // A new Kolbo tool just completed — refresh the global balance.
+      // Per-session media spend is derived directly from message data, so it
+      // updates reactively without an extra fetch.
       refreshKolboBalance()
-      refreshMediaSpend()
     }
     return current
   })
@@ -262,6 +284,60 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   })
 
   const sessionCreditsUsed = createMemo(() => calcCredits(sessionMessages(), kolboPricing()))
+
+  // Per-chat-session media spend, derived client-side from the Kolbo MCP tool
+  // parts in this session. Each generation tool stuffs `credits_used` (and an
+  // optional `credits_breakdown` array of {generation_type, amount, count})
+  // into its JSON state.output, so we don't need a backend endpoint scoped to
+  // the chat session — same approach as agent credits above.
+  const sessionMediaSpend = createMemo<{ total: number; byTool: Array<{ generation_type: string | null; amount: number; count: number }> } | null>(() => {
+    const id = params.id
+    if (!id) return null
+    const messages = (sync.data.message[id] ?? []) as Array<{ id: string }>
+    let total = 0
+    const byType = new Map<string | null, { amount: number; count: number }>()
+    for (const msg of messages) {
+      const parts = sync.data.part[msg.id]
+      if (!parts) continue
+      for (const p of parts) {
+        if (p.type !== "tool") continue
+        const tool = (p as { tool?: string }).tool ?? ""
+        if (!tool.startsWith("kolbo_") && !tool.startsWith("mcp__kolbo__")) continue
+        const state = (p as { state?: { status?: string; output?: string } }).state
+        if (state?.status !== "completed" || typeof state.output !== "string") continue
+        try {
+          const parsed = JSON.parse(state.output) as {
+            credits_used?: number
+            credits_breakdown?: Array<{ generation_type?: string | null; amount?: number; count?: number }>
+          }
+          if (typeof parsed.credits_used !== "number") continue
+          total += parsed.credits_used
+          const breakdown = parsed.credits_breakdown ?? []
+          if (breakdown.length === 0) {
+            const hit = byType.get(null) ?? { amount: 0, count: 0 }
+            hit.amount += parsed.credits_used
+            hit.count += 1
+            byType.set(null, hit)
+            continue
+          }
+          for (const entry of breakdown) {
+            const gt = entry.generation_type ?? null
+            const hit = byType.get(gt) ?? { amount: 0, count: 0 }
+            hit.amount += entry.amount ?? 0
+            hit.count += entry.count ?? 0
+            byType.set(gt, hit)
+          }
+        } catch {
+          // Non-JSON tool output (older tools, error frames) — skip.
+        }
+      }
+    }
+    if (total === 0) return null
+    const byTool = Array.from(byType.entries())
+      .map(([generation_type, v]) => ({ generation_type, amount: v.amount, count: v.count }))
+      .sort((a, b) => b.amount - a.amount)
+    return { total, byTool }
+  })
 
   let editorRef!: HTMLDivElement
   let fileInputRef: HTMLInputElement | undefined
@@ -1824,35 +1900,12 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                           onClose={restoreFocus}
                         >
                           <Show when={local.model.current()?.provider?.id}>
-                            <Show
-                              when={local.model.current()?.avatar}
-                              fallback={
-                                <ProviderIcon
-                                  id={local.model.current()?.provider?.id ?? ""}
-                                  class="size-4 shrink-0 transition-opacity duration-150"
-                                  classList={{
-                                    "opacity-40 group-hover:opacity-100":
-                                      local.model.current()?.provider?.id !== "kolbo",
-                                  }}
-                                  style={{
-                                    color: local.model.current()?.provider?.id === "kolbo" ? "#60a5fa" : undefined,
-                                    "will-change": "opacity",
-                                    transform: "translateZ(0)",
-                                  }}
-                                />
-                              }
-                            >
-                              {(avatar) => (
-                                <img
-                                  src={avatar()}
-                                  alt=""
-                                  class="size-4 shrink-0 rounded-sm object-cover"
-                                  onError={(e) => {
-                                    ;(e.currentTarget as HTMLImageElement).style.display = "none"
-                                  }}
-                                />
-                              )}
-                            </Show>
+                            {(providerID) => (
+                              <SelectedModelAvatar
+                                url={local.model.current()?.avatar}
+                                providerID={providerID()}
+                              />
+                            )}
                           </Show>
                           <span class="truncate">
                             {local.model.current()?.name ?? language.t("dialog.model.select.title")}
@@ -1873,19 +1926,15 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   <span class="text-border-base">|</span>
                 </Show>
                 <span class="text-text-weaker">{sessionCreditsUsed().toLocaleString(language.intl())} used</span>
-                <Show when={(mediaSpend()?.total ?? 0) > 0}>
+                <Show when={(sessionMediaSpend()?.total ?? 0) > 0}>
                   <span class="text-border-base">|</span>
                   <span
                     class="text-text-weaker"
-                    title={
-                      mediaSpend()
-                        ? mediaSpend()!.byTool
-                            .map((g) => `${g.generation_type ?? "other"}: ${g.amount} (${g.count})`)
-                            .join("\n")
-                        : ""
-                    }
+                    title={sessionMediaSpend()!.byTool
+                      .map((g) => `${g.generation_type ?? "other"}: ${g.amount} (${g.count})`)
+                      .join("\n")}
                   >
-                    {language.t("ui.kolbo.usedMedia", { n: mediaSpend()!.total.toLocaleString(language.intl()) })}
+                    {language.t("ui.kolbo.usedMedia", { n: sessionMediaSpend()!.total.toLocaleString(language.intl()) })}
                   </span>
                 </Show>
               </div>

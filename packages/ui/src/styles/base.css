@@ -402,3 +402,11 @@ input:where([type="button"], [type="reset"], [type="submit"]),
     font-size: 16px !important;
   }
 }
+
+/* While a ResizeHandle is being dragged, suppress pointer-events on every
+   iframe so the parent document continues to receive mousemove. Without
+   this, dragging the artifact-preview panel resize handle stalls the
+   moment the cursor enters the embedded HTML iframe. */
+html[data-resizing] iframe {
+  pointer-events: none !important;
+}

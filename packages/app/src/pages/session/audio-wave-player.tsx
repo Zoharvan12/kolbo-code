@@ -14,7 +14,7 @@ const BAR_HEIGHTS: number[] = (() => {
   return arr
 })()
 
-const fmt = (t: number): string => {
+export const fmt = (t: number): string => {
   if (!Number.isFinite(t) || t < 0) return "0:00"
   const m = Math.floor(t / 60)
   const s = Math.floor(t % 60).toString().padStart(2, "0")

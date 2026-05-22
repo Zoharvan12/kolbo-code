@@ -204,20 +204,23 @@ function createGlobalSync() {
       list: (query) => globalSDK.client.session.list(query),
     })
       .then((x) => {
-        const nonArchived = (x.data ?? [])
+        // Keep archived sessions in the store; the sidebar filter parameter
+        // controls whether they're visible. `nonArchivedCount` is only used
+        // for the "load more" pagination math.
+        const all = (x.data ?? [])
           .filter((s) => !!s?.id)
-          .filter((s) => !s.time?.archived)
           .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+        const nonArchivedCount = all.filter((s) => !s.time?.archived).length
         const limit = store.limit
         const childSessions = store.session.filter((s) => !!s.parentID)
-        const sessions = trimSessions([...nonArchived, ...childSessions], {
+        const sessions = trimSessions([...all, ...childSessions], {
           limit,
           permission: store.permission,
         })
         setStore(
           "sessionTotal",
           estimateRootSessionTotal({
-            count: nonArchived.length,
+            count: nonArchivedCount,
             limit: x.limit,
             limited: x.limited,
           }),

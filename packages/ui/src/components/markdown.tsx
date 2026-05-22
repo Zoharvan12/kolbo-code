@@ -9,6 +9,7 @@ import { ComponentProps, createEffect, createMemo, createResource, createSignal,
 import { isServer } from "solid-js/web"
 import { stream } from "./markdown-stream"
 import { openKolboLightbox as openLightbox, isVideoUrl as isKolboVideoUrl, firstFramePosterSrc, pauseOnFirstFrame } from "./kolbo-media"
+import { dispatchArtifact, resolveHtmlPreviewSource } from "../lib/artifact"
 
 /**
  * Download a media URL. For data: URIs the browser Save-As works natively.
@@ -222,10 +223,60 @@ function createPreviewButton(label: string) {
   return button
 }
 
+function injectHtmlInlinePreviews(container: HTMLElement, ops: PlatformOps, previewLabel: string) {
+  for (const pre of container.querySelectorAll("pre")) {
+    if (getPreviewLang(pre as HTMLPreElement) !== "html") continue
+    const content = pre.querySelector("code")?.textContent ?? ""
+    if (!content) continue
+    const wrapper = pre.closest('[data-component="markdown-code"]')
+    if (!(wrapper instanceof HTMLElement)) continue
+    if (wrapper.querySelector('[data-slot="markdown-html-inline-preview"]')) continue
+
+    const card = document.createElement("div")
+    card.setAttribute("data-slot", "markdown-html-inline-preview")
+    card.setAttribute("role", "button")
+    card.setAttribute("tabindex", "0")
+    card.setAttribute("title", previewLabel)
+    card.setAttribute("data-content", content)
+
+    const iframe = document.createElement("iframe")
+    iframe.setAttribute("loading", "lazy")
+    iframe.setAttribute("title", "HTML preview")
+    card.appendChild(iframe)
+
+    const overlay = document.createElement("div")
+    overlay.setAttribute("data-slot", "markdown-html-preview-overlay")
+    const label = document.createElement("div")
+    label.setAttribute("data-slot", "markdown-html-preview-label")
+    label.textContent = previewLabel
+    overlay.appendChild(label)
+    card.appendChild(overlay)
+
+    wrapper.appendChild(card)
+    wrapper.setAttribute("data-html-preview-active", "true")
+
+    void resolveHtmlPreviewSource(ops, content).then((src) => {
+      if (src.kind === "url") iframe.setAttribute("src", src.url)
+      else {
+        iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-popups")
+        iframe.srcdoc = src.content
+      }
+    })
+  }
+}
+
 function setupPreviewClick(root: HTMLDivElement) {
   const handleClick = (event: MouseEvent) => {
     const target = event.target
     if (!(target instanceof Element)) return
+
+    const card = target.closest('[data-slot="markdown-html-inline-preview"]')
+    if (card instanceof HTMLElement) {
+      const content = card.getAttribute("data-content") ?? ""
+      if (content) dispatchArtifact(content, "html")
+      return
+    }
+
     const button = target.closest('[data-slot="markdown-preview-button"]')
     if (!(button instanceof HTMLButtonElement)) return
     const wrapper = button.closest('[data-component="markdown-code"]')
@@ -235,14 +286,24 @@ function setupPreviewClick(root: HTMLDivElement) {
     if (!content) return
     const pre = wrapper.querySelector("pre")
     const lang = pre ? (getPreviewLang(pre as HTMLPreElement) ?? "html") : "html"
-    document.dispatchEvent(
-      new CustomEvent("kolbo:artifact", {
-        detail: { content, lang },
-      }),
-    )
+    dispatchArtifact(content, lang)
+  }
+  const handleKey = (event: KeyboardEvent) => {
+    if (event.key !== "Enter" && event.key !== " ") return
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const card = target.closest('[data-slot="markdown-html-inline-preview"]')
+    if (!(card instanceof HTMLElement)) return
+    event.preventDefault()
+    const content = card.getAttribute("data-content") ?? ""
+    if (content) dispatchArtifact(content, "html")
   }
   root.addEventListener("click", handleClick)
-  return () => root.removeEventListener("click", handleClick)
+  root.addEventListener("keydown", handleKey)
+  return () => {
+    root.removeEventListener("click", handleClick)
+    root.removeEventListener("keydown", handleKey)
+  }
 }
 
 function ensureCodeWrapper(block: HTMLPreElement, labels: CopyLabels) {
@@ -1319,6 +1380,8 @@ export function Markdown(
 
     if (!previewCleanup) previewCleanup = setupPreviewClick(container)
 
+    if (!(local.streaming ?? false)) injectHtmlInlinePreviews(container, ops, labels.preview)
+
     if (!pathLinksCleanup)
       pathLinksCleanup = setupPathLinks(container, () => ops, () => ({
         download: i18n.t("ui.download.download"),
@@ -1334,7 +1397,9 @@ export function Markdown(
     void hydrateHtmlPreviews(container, ops)
   })
 
-  // Auto-dispatch kolbo:artifact when streaming ends and a previewable block is present
+  // Pop the Canvas/preview panel for the first previewable block once
+  // streaming finishes. The inline-card injection itself is handled by the
+  // main effect (it re-runs when streaming flips to false).
   createEffect(
     on(
       () => local.streaming ?? false,
@@ -1342,18 +1407,13 @@ export function Markdown(
         if (prev !== true || now !== false) return
         const container = root()
         if (!container || isServer) return
-        const blocks = Array.from(container.querySelectorAll("pre"))
-        for (let i = blocks.length - 1; i >= 0; i--) {
-          const lang = getPreviewLang(blocks[i] as HTMLPreElement)
+        for (const pre of container.querySelectorAll("pre")) {
+          const lang = getPreviewLang(pre as HTMLPreElement)
           if (!lang) continue
-          const content = (blocks[i] as HTMLPreElement).querySelector("code")?.textContent ?? ""
+          const content = pre.querySelector("code")?.textContent ?? ""
           if (!content) continue
-          document.dispatchEvent(
-            new CustomEvent("kolbo:artifact", {
-              detail: { content, lang },
-            }),
-          )
-          break
+          dispatchArtifact(content, lang)
+          return
         }
       },
       { defer: true },

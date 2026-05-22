@@ -141,7 +141,7 @@ export const dict = {
   "ui.kolbo.generatingImage": "Bild wird generiert…",
   "ui.kolbo.generatingVideo": "Video wird generiert…",
   "ui.kolbo.generatingAudio": "Audio wird generiert…",
-  "ui.kolbo.usedMedia": "{n} Medien",
+  "ui.kolbo.usedMedia": "{{n}} Medien",
   "ui.kolbo.chip.viewInCanvas": "In Canvas anzeigen",
   "ui.kolbo.chip.generating": "{{label}} wird generiert…",
   "ui.kolbo.chip.generatingCount": "{{count}} {{label}} werden generiert…",

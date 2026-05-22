@@ -2,6 +2,7 @@ import {
   Component,
   createEffect,
   createMemo,
+  createResource,
   createSignal,
   For,
   Match,
@@ -43,6 +44,8 @@ import { useKolboModels } from "../context/kolbo-models"
 import { Accordion } from "./accordion"
 import { StickyAccordionHeader } from "./sticky-accordion-header"
 import { Card } from "./card"
+import { HtmlArtifactCard } from "./html-artifact-card"
+import { dispatchArtifact, isHtmlPath } from "../lib/artifact"
 import { Collapsible } from "./collapsible"
 import { FileIcon } from "./file-icon"
 import { Icon } from "./icon"
@@ -2047,6 +2050,41 @@ ToolRegistry.register({
     const path = createMemo(() => props.metadata?.filediff?.file || props.input.filePath || "")
     const filename = () => getFilename(props.input.filePath ?? "")
     const pending = () => props.status === "pending" || props.status === "running"
+    const editPath = () => props.input.filePath || props.metadata?.filediff?.file || ""
+    const isHtmlFile = () => !pending() && isHtmlPath(editPath())
+    // opencode's edit-tool metadata only ships {file, patch, additions,
+    // deletions} — no before/after — so we re-read the file off disk to
+    // get the full updated HTML.
+    const editOps = usePlatformOps()
+    const [editedContent] = createResource(
+      () => {
+        if (props.status !== "completed") return null
+        const p = editPath()
+        if (!isHtmlPath(p)) return null
+        return `${p}:${checksum(props.metadata?.filediff?.patch ?? "") ?? ""}`
+      },
+      async () => {
+        if (!editOps.readTextFile) return ""
+        const p = editPath()
+        try {
+          return await editOps.readTextFile(p)
+        } catch {
+          return ""
+        }
+      },
+      { initialValue: "" },
+    )
+
+    // Fire autoOpen only on the first dispatch per tool instance; subsequent
+    // edits to the same file refresh the canvas in place without yanking focus.
+    let autoOpened = false
+    createEffect(() => {
+      const content = editedContent()
+      if (!content || !isHtmlFile()) return
+      dispatchArtifact(content, "html", !autoOpened)
+      autoOpened = true
+    })
+
     return (
       <div data-component="edit-tool">
         <BasicTool
@@ -2105,6 +2143,10 @@ ToolRegistry.register({
           </Show>
           <DiagnosticsDisplay diagnostics={diagnostics()} />
         </BasicTool>
+
+        <Show when={isHtmlFile() && editedContent()} keyed>
+          {(content) => <HtmlArtifactCard content={content} />}
+        </Show>
       </div>
     )
   },
@@ -2119,45 +2161,16 @@ ToolRegistry.register({
     const path = createMemo(() => props.input.filePath || "")
     const filename = () => getFilename(props.input.filePath ?? "")
     const pending = () => props.status === "pending" || props.status === "running"
-    const isHtmlFile = () => !pending() && (props.input.filePath?.endsWith(".html") || props.input.filePath?.endsWith(".htm"))
+    const isHtmlFile = () => !pending() && isHtmlPath(props.input.filePath)
 
-    // HTTP URL from sidecar for the thumbnail — srcdoc and blob: both fail in Tauri WebView2
-    // because custom-protocol origins can't load external resources (fonts, images).
-    const ops = usePlatformOps()
-    const [thumbnailUrl, setThumbnailUrl] = createSignal<string | null>(null)
-    createEffect(() => {
-      const content = props.input.content
-      if (!content || !isHtmlFile()) return
-      if (!ops.htmlPreviewUrl) {
-        console.warn("[write-tool thumbnail] htmlPreviewUrl not in PlatformOps — no preview")
-        return
-      }
-      void ops.htmlPreviewUrl(content).then((url) => {
-        console.log("[write-tool thumbnail] sidecar URL:", url)
-        setThumbnailUrl(url)
-      })
-    })
-
-    const dispatchArtifact = (autoOpen = false) => {
-      const content = props.input.content
-      if (!content) return
-      // Dispatch on document so the session-level listener always receives it
-      document.dispatchEvent(
-        new CustomEvent("kolbo:artifact", {
-          detail: { content, lang: "html", autoOpen },
-        }),
-      )
-    }
-
-    // Update artifact content when HTML file write completes — auto-open the preview panel
-    // so the user always sees the rendered HTML inline (e.g. presentations) without an extra click.
     createEffect(
       on(
         () => props.status,
         (status, prev) => {
           if (prev !== "running" || status !== "completed") return
-          if (!isHtmlFile()) return
-          dispatchArtifact(true)
+          const content = props.input.content
+          if (!isHtmlFile() || !content) return
+          dispatchArtifact(content, "html")
         },
         { defer: true },
       ),
@@ -2193,7 +2206,8 @@ ToolRegistry.register({
                     data-slot="markdown-preview-button"
                     onClick={(e) => {
                       e.stopPropagation()
-                      dispatchArtifact(true)
+                      const content = props.input.content
+                      if (content) dispatchArtifact(content, "html")
                     }}
                     title={i18n.t("ui.artifact.preview")}
                   >
@@ -2223,58 +2237,8 @@ ToolRegistry.register({
           <DiagnosticsDisplay diagnostics={diagnostics()} />
         </BasicTool>
 
-        {/* Inline scaled iframe preview — always visible outside the accordion */}
         <Show when={isHtmlFile() && props.input.content}>
-          {(() => {
-            const THUMB_DESIGN_W = 1280
-            const THUMB_H = 320
-            const [thumbScale, setThumbScale] = createSignal(1)
-            let thumbContainerRef: HTMLDivElement | undefined
-            onMount(() => {
-              if (!thumbContainerRef) return
-              const ro = new ResizeObserver((entries) => {
-                const w = entries[0].contentRect.width
-                if (w > 0) setThumbScale(w / THUMB_DESIGN_W)
-              })
-              ro.observe(thumbContainerRef)
-              onCleanup(() => ro.disconnect())
-            })
-            return (
-              <div
-                ref={(el) => { thumbContainerRef = el }}
-                class="relative overflow-hidden cursor-pointer group mx-3 mb-3 mt-1 rounded-md border border-border-weaker-base bg-black"
-                style={{ height: `${THUMB_H}px` }}
-                onClick={() => dispatchArtifact(true)}
-              >
-                <Show when={thumbnailUrl()} keyed>
-                  {(src) => (
-                    <iframe
-                      src={src}
-                      title="HTML Preview"
-                      class="transition-[filter] duration-200 group-hover:[filter:blur(3px)]"
-                      style={{
-                        display: "block",
-                        position: "absolute",
-                        top: "0",
-                        left: "0",
-                        width: `${THUMB_DESIGN_W}px`,
-                        height: `${THUMB_H / thumbScale()}px`,
-                        border: "0",
-                        "transform-origin": "top left",
-                        transform: `scale(${thumbScale()})`,
-                        "pointer-events": "none",
-                      }}
-                    />
-                  )}
-                </Show>
-                <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 flex items-center justify-center">
-                  <div class="bg-white text-gray-900 px-5 py-2 rounded-lg font-semibold shadow-xl" style={{ "font-size": "14px" }}>
-                    {i18n.t("ui.artifact.preview")}
-                  </div>
-                </div>
-              </div>
-            )
-          })()}
+          <HtmlArtifactCard content={props.input.content!} />
         </Show>
       </div>
     )
@@ -2574,20 +2538,43 @@ ToolRegistry.register({
     const i18n = useI18n()
     const title = createMemo(() => props.input.name || i18n.t("ui.tool.skill"))
     const running = createMemo(() => props.status === "pending" || props.status === "running")
+    const description = createMemo(() => {
+      const d = (props.input as Record<string, unknown>).description
+      return typeof d === "string" && d.trim() ? d.trim() : undefined
+    })
+    const tooltipValue = () => (
+      <div data-slot="skill-tooltip">
+        <div data-slot="skill-tooltip-label">{i18n.t("ui.tool.skill")}</div>
+        <div data-slot="skill-tooltip-name">{title()}</div>
+        <Show when={description()}>
+          {(d) => <div data-slot="skill-tooltip-description">{d()}</div>}
+        </Show>
+      </div>
+    )
 
     const titleContent = () => <TextShimmer text={title()} active={running()} />
 
     const trigger = () => (
-      <div data-slot="basic-tool-tool-info-structured">
-        <div data-slot="basic-tool-tool-info-main">
-          <span data-slot="basic-tool-tool-title" class="capitalize agent-title">
-            {titleContent()}
+      <Tooltip value={tooltipValue()} placement="top" gutter={6}>
+        <span data-slot-skill-trigger>
+          <span data-slot="skill-tool-indicator" aria-hidden="true">
+            <Icon name="skill" size="normal" />
           </span>
-        </div>
-      </div>
+          <span data-slot="skill-tool-text">
+            <span data-slot="skill-tool-label">Skill</span>
+            <span data-slot="skill-tool-name" class="capitalize agent-title">
+              {titleContent()}
+            </span>
+          </span>
+        </span>
+      </Tooltip>
     )
 
-    return <BasicTool icon="brain" status={props.status} trigger={trigger()} hideDetails />
+    return (
+      <div data-slot="skill-tool-wrapper" data-running={running() ? "" : undefined}>
+        <BasicTool icon="skill" status={props.status} trigger={trigger()} hideDetails />
+      </div>
+    )
   },
 })
 
@@ -2915,10 +2902,13 @@ function KolboCompactChip(props: {
     if (fromApi && fromApi.trim()) return fromApi.trim()
     return prettifyModelId(id)
   })
+  const platformOps = usePlatformOps()
   const modelAvatar = createMemo<string | undefined>(() => {
     const id = modelId()
     if (!id) return undefined
-    return kolboModels.lookup(id).avatar ?? undefined
+    const raw = kolboModels.lookup(id).avatar ?? undefined
+    if (!raw) return undefined
+    return platformOps.imageProxyUrl?.(raw) ?? raw
   })
 
   // Show up to MAX_CHIP_THUMBS mini-thumbnails in the chip so chat and

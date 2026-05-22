@@ -5,6 +5,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 12px;
+  animation: message-enter 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
 [data-component="user-message"] {
@@ -22,6 +23,7 @@
   width: 100%;
   max-width: 100%;
   gap: 0;
+  animation: message-enter 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 
   [data-slot="user-message-attachments"] {
     display: flex;
@@ -351,6 +353,9 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
+  animation: tool-output-reveal 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  transform-origin: top left;
+  will-change: clip-path, opacity;
 
   [data-component="markdown"] {
     width: 100%;
@@ -739,6 +744,285 @@
 
 [data-component="tool-part-wrapper"] {
   width: 100%;
+  animation: tool-part-enter 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  border-radius: var(--radius-sm);
+  margin-inline: -8px;
+  padding-inline: 8px;
+  transition: background-color 180ms ease;
+}
+
+/* Skill activation — the agent loaded a skill. We want this to feel
+   distinctly "the agent gained a new capability", not just another tool call.
+   The icon gets a slow rotating gradient ring while running and a quick
+   reveal flash on first appearance. */
+[data-slot="skill-tool-wrapper"] {
+  position: relative;
+  animation: skill-row-reveal 540ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes skill-row-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.94);
+    filter: blur(4px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(1.02);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Accent flash that sweeps across the row right after the reveal —
+   feels like the skill is being "energized" into the conversation. */
+[data-slot="skill-tool-wrapper"]::after {
+  content: "";
+  position: absolute;
+  inset: -2px -8px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--kolbo-accent, #034cff) 20%, transparent) 50%,
+    transparent 100%
+  );
+  border-radius: var(--radius-md);
+  opacity: 0;
+  animation: skill-row-flash 900ms cubic-bezier(0.4, 0, 0.2, 1) 120ms 1 both;
+  z-index: -1;
+}
+
+@keyframes skill-row-flash {
+  0% {
+    opacity: 0;
+    transform: translateX(-30%);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(30%);
+  }
+}
+
+[dir="rtl"] [data-slot="skill-tool-wrapper"]::after {
+  animation-name: skill-row-flash-rtl;
+}
+
+@keyframes skill-row-flash-rtl {
+  0% {
+    opacity: 0;
+    transform: translateX(30%);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-30%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="skill-tool-wrapper"],
+  [data-slot="skill-tool-wrapper"]::after {
+    animation: none;
+  }
+}
+
+/* Force the entire wrapper chain to behave as a vertically-centered
+   inline-flex row. Kobalte's tooltip-trigger sits between our wrapper
+   and our skill-trigger span — without explicit display, it would break
+   the flex inheritance and the icon/text would fall onto different
+   baselines. */
+[data-slot="skill-tool-wrapper"] [data-component="tooltip-trigger"] {
+  display: inline-flex;
+  align-items: center;
+}
+
+[data-slot="skill-tool-wrapper"] [data-slot-skill-trigger] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  cursor: help;
+  line-height: 1;
+  padding: 6px 12px 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-weaker-base);
+  background: var(--background-stronger);
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+[data-slot="skill-tool-wrapper"] [data-slot-skill-trigger]:hover {
+  background: var(--surface-recess-base);
+  border-color: var(--border-weak-base);
+}
+
+[data-slot="skill-tool-wrapper"] [data-slot="skill-tool-text"] {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  line-height: 1;
+}
+
+[data-slot="skill-tool-wrapper"] [data-slot="skill-tool-name"] {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.1;
+  font-weight: 500;
+  color: var(--text-base);
+}
+
+[data-slot="skill-tool-wrapper"] [data-slot="skill-tool-label"] {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary-base);
+  opacity: 0.7;
+}
+
+[data-slot="skill-tool-wrapper"] [data-slot="skill-tool-name"] [data-component="text-shimmer"] {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+[data-slot="skill-tool-wrapper"] [data-slot="skill-tool-indicator"] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--kolbo-accent, #034cff);
+}
+
+[data-slot="skill-tool-wrapper"] [data-slot="skill-tool-indicator"] [data-component="icon"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+[data-slot="skill-tooltip"] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 320px;
+  padding: 2px 0;
+}
+
+[data-slot="skill-tooltip-label"] {
+  font-size: 11px;
+  font-weight: var(--font-weight-medium, 500);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--kolbo-accent, #034cff) 70%, currentColor);
+}
+
+[data-slot="skill-tooltip-name"] {
+  font-size: 14px;
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+[data-slot="skill-tooltip-description"] {
+  font-size: 12px;
+  opacity: 0.78;
+  line-height: 1.4;
+}
+
+[data-slot="skill-tool-wrapper"] [data-slot="skill-tool-indicator"]::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in srgb, var(--kolbo-accent, #034cff) 60%, transparent) 90deg,
+    transparent 180deg,
+    color-mix(in srgb, var(--kolbo-accent, #034cff) 60%, transparent) 270deg,
+    transparent 360deg
+  );
+  filter: blur(2px);
+  opacity: 0;
+  transition: opacity 220ms ease;
+  pointer-events: none;
+  z-index: -1;
+}
+
+[data-slot="skill-tool-wrapper"][data-running] [data-slot="basic-tool-tool-indicator"]::before {
+  opacity: 1;
+  animation: skill-ring-spin 2.4s linear infinite;
+}
+
+[data-slot="skill-tool-wrapper"][data-running] [data-slot="basic-tool-tool-indicator"] {
+  animation: skill-icon-breathe 1.8s ease-in-out infinite;
+}
+
+@keyframes skill-ring-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes skill-icon-breathe {
+  0%,
+  100% {
+    transform: scale(0.94);
+    filter: drop-shadow(0 0 0 color-mix(in srgb, var(--kolbo-accent, #034cff) 40%, transparent));
+  }
+  50% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--kolbo-accent, #034cff) 70%, transparent));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="skill-tool-wrapper"][data-running] [data-slot="basic-tool-tool-indicator"]::before {
+    animation: none;
+  }
+  [data-slot="skill-tool-wrapper"][data-running] [data-slot="basic-tool-tool-indicator"] {
+    animation: none;
+  }
+}
+
+[data-component="tool-part-wrapper"]:hover {
+  background-color: color-mix(in srgb, var(--text-strong) 4%, transparent);
+}
+
+@keyframes tool-part-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-component="tool-part-wrapper"] {
+    animation: none;
+  }
 }
 
 @keyframes kolbo-permission-attention {
@@ -752,6 +1036,15 @@
       inset 0 0 0 1px var(--border-warning-base, #f59e0b),
       0 0 0 6px rgba(245, 158, 11, 0.18);
   }
+}
+
+/* Generic composer chrome animation. The contenteditable itself receives focus,
+   so we use focus-within on its parent dock surface (when present) to glow
+   the whole composer. */
+[data-component="prompt-input"] {
+  outline: none;
+  caret-color: var(--kolbo-accent, #034cff);
+  transition: caret-color 180ms ease;
 }
 
 [data-component="dock-prompt"][data-kind="permission"] {
@@ -1339,5 +1632,35 @@
   [data-component="icon"] {
     flex-shrink: 0;
     color: var(--icon-weak);
+  }
+}
+
+@keyframes message-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tool-output-reveal {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  100% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-component="user-message"],
+  [data-component="assistant-message"],
+  [data-component="tool-output"] {
+    animation: none;
   }
 }

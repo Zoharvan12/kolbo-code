@@ -1,11 +1,63 @@
 [data-component="session-turn"] {
   --sticky-header-height: calc(var(--session-title-height, 0px) + 24px);
+  --turn-accent: var(--kolbo-accent, #034cff);
+  --turn-settled-opacity: 0.78;
   height: 100%;
   min-height: 0;
   min-width: 0;
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
+  position: relative;
+  transition: opacity 320ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  [data-slot="session-turn-message-container"] {
+    position: relative;
+  }
+
+  /* Active turn: breathing orange accent on the left of the message container.
+     We render it as an absolute pseudo, padded inside so it visually clings
+     to the message column without affecting layout. */
+  &[data-working] [data-slot="session-turn-message-container"]::before {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--turn-accent);
+    opacity: 0.55;
+    animation: session-turn-accent-breathe 2.4s ease-in-out infinite;
+    will-change: opacity, transform;
+  }
+
+  /* RTL flip: bar lives on the right of the message column. */
+  &[dir="rtl"][data-working] [data-slot="session-turn-message-container"]::before,
+  [dir="rtl"] &[data-working] [data-slot="session-turn-message-container"]::before {
+    left: auto;
+    right: -14px;
+  }
+
+  /* Settled turns (past turns no longer active) fade slightly so the live
+     turn draws the eye. Hover restores full opacity for re-reading. */
+  &:not([data-active]):not([data-working]) {
+    opacity: var(--turn-settled-opacity);
+  }
+
+  &:not([data-active]):not([data-working]):hover,
+  &:not([data-active]):not([data-working]):focus-within {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &[data-working] [data-slot="session-turn-message-container"]::before {
+      animation: none;
+      opacity: 0.7;
+    }
+  }
 
   [data-slot="session-turn-content"] {
     flex-grow: 1;
@@ -63,22 +115,25 @@
 
     [data-slot="session-turn-thinking-dot"] {
       flex-shrink: 0;
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
-      background-color: var(--color-primary, #818cf8);
-      animation: thinking-pulse 1.5s ease-in-out infinite;
+      background-color: var(--kolbo-accent, #034cff);
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--kolbo-accent, #034cff) 60%, transparent);
+      animation: thinking-pulse 1.6s ease-in-out infinite;
     }
   }
 
   @keyframes thinking-pulse {
     0%, 100% {
-      opacity: 0.25;
-      transform: scale(0.8);
+      opacity: 0.4;
+      transform: scale(0.85);
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--kolbo-accent, #034cff) 0%, transparent);
     }
     50% {
       opacity: 1;
-      transform: scale(1.2);
+      transform: scale(1.15);
+      box-shadow: 0 0 0 5px color-mix(in srgb, var(--kolbo-accent, #034cff) 0%, transparent);
     }
   }
 
@@ -246,5 +301,17 @@
 }
 
 [data-slot="session-turn-list"] {
-  gap: 48px;
+  gap: 56px;
+}
+
+@keyframes session-turn-accent-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scaleY(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
 }

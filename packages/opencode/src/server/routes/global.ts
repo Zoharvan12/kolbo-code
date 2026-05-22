@@ -855,6 +855,210 @@ export const GlobalRoutes = lazy(() =>
         }
       },
     )
+    // ── Media library proxies ────────────────────────────────────────────
+    // Forward to kolbo-api's /v1/media* endpoints with the user's stored
+    // Kolbo API key (X-API-Key auth — same convention as /kolbo-artifact-
+    // publish). Drives the Canvas Library tab. Auth resolution mirrors
+    // every other /kolbo-* route: OAuth `access` token is itself a
+    // kolbo_live_* API key, so we forward it directly.
+    .get("/kolbo-media", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      const qs = c.req.url.split("?")[1] ?? ""
+      try {
+        const res = await fetch(`${Partner.apiBase}/v1/media${qs ? "?" + qs : ""}`, {
+          headers: { "X-API-Key": apiKey, "User-Agent": Installation.USER_AGENT },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `media fetch failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
+    .get("/kolbo-media-folders", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      try {
+        const res = await fetch(`${Partner.apiBase}/v1/media/folders`, {
+          headers: { "X-API-Key": apiKey, "User-Agent": Installation.USER_AGENT },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `folders fetch failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
+    .post("/kolbo-media/:id/favorite", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      const id = c.req.param("id")
+      try {
+        const res = await fetch(`${Partner.apiBase}/v1/media/${encodeURIComponent(id)}/favorite`, {
+          method: "POST",
+          headers: { "X-API-Key": apiKey, "Content-Type": "application/json", "User-Agent": Installation.USER_AGENT },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `favorite failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
+    // Soft-delete (move to trash). The actual endpoint is /media/files/:id —
+    // NOT /v1/media/:id. /v1/media is the read API; /media/files is the
+    // mutation endpoint that handles the soft-delete-to-trash flow.
+    .delete("/kolbo-media/:id", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      const id = c.req.param("id")
+      try {
+        const res = await fetch(`${Partner.apiBase}/media/files/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: { "X-API-Key": apiKey, "User-Agent": Installation.USER_AGENT },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `delete failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
+    // Bulk soft-delete — POST /media/files/bulk/delete with { fileIds: [...] }.
+    .post("/kolbo-media/bulk/delete", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      let body: any
+      try { body = await c.req.json() } catch { return c.json({ error: { message: "invalid json", type: "bad_request" } }, 400) }
+      try {
+        const res = await fetch(`${Partner.apiBase}/media/files/bulk/delete`, {
+          method: "POST",
+          headers: { "X-API-Key": apiKey, "Content-Type": "application/json", "User-Agent": Installation.USER_AGENT },
+          body: JSON.stringify(body ?? {}),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `bulk delete failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
+    .delete("/kolbo-media/:id/favorite", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      const id = c.req.param("id")
+      try {
+        const res = await fetch(`${Partner.apiBase}/v1/media/${encodeURIComponent(id)}/favorite`, {
+          method: "DELETE",
+          headers: { "X-API-Key": apiKey, "User-Agent": Installation.USER_AGENT },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `unfavorite failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
+    // Favorites use a dedicated endpoint (mirrors kolbo-map's behavior).
+    // /v1/media?category=favorites returns items the user favorited but the
+    // project_id filter interacts badly with cross-project favorites and the
+    // sourceType=uploaded items have null project_id. Per kolbo-map's
+    // favoritesApi.ts, the canonical query is GET /api/favorite-items.
+    .get("/kolbo-favorites", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      const qs = c.req.url.split("?")[1] ?? ""
+      try {
+        const res = await fetch(`${Partner.apiBase}/favorite-items${qs ? "?" + qs : ""}`, {
+          headers: { "X-API-Key": apiKey, "User-Agent": Installation.USER_AGENT },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `favorites fetch failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
+    // Full model registry (avatars, identifier maps, etc.) — used by the
+    // Canvas Library to show a per-cell model badge that mirrors kolbo-map.
+    // Response shape: { data: Model[], lookups?: {...} } — pass through verbatim.
+    .get("/kolbo-models", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      const qs = c.req.url.split("?")[1] ?? ""
+      try {
+        const res = await fetch(`${Partner.apiBase}/models${qs ? "?" + qs : ""}`, {
+          headers: { "X-API-Key": apiKey, "User-Agent": Installation.USER_AGENT },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        // Derive the public assets origin from apiBase ("https://kolbo.ai/api" → "https://kolbo.ai/assets")
+        // so the client can resolve relative avatar paths the same way kolbo-map does
+        // (utils/apiConfig.ts getAssetsBaseUrl()).
+        const assetsBase = `${Partner.apiBase.replace(/\/api\/?$/, "").replace(/\/$/, "")}/assets`
+        return c.json({ ...(data as Record<string, unknown>), assetsBase })
+      } catch (e) {
+        return c.json({ error: { message: `models fetch failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
+    // Trash (deleted media, 30-day retention) — mirrors kolbo-map's trashApi.
+    .get("/kolbo-trash", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      const qs = c.req.url.split("?")[1] ?? ""
+      try {
+        const res = await fetch(`${Partner.apiBase}/media/db/trash${qs ? "?" + qs : ""}`, {
+          headers: { "X-API-Key": apiKey, "User-Agent": Installation.USER_AGENT },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `trash fetch failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
+    .post("/kolbo-media/:id/restore", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      const id = c.req.param("id")
+      try {
+        const res = await fetch(`${Partner.apiBase}/media/db/${encodeURIComponent(id)}/restore`, {
+          method: "POST",
+          headers: { "X-API-Key": apiKey, "Content-Type": "application/json", "User-Agent": Installation.USER_AGENT },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `restore failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
+    .get("/kolbo-projects", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      try {
+        const res = await fetch(`${Partner.apiBase}/project/lightweight`, {
+          headers: { "X-API-Key": apiKey, "User-Agent": Installation.USER_AGENT },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `projects fetch failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
     // In-memory HTML preview store — keyed by random ID, auto-purged after 1 hour.
     // No describeRoute: kept as plain handlers so hono-openapi doesn't interfere with routing.
     .post("/html-preview", async (c) => {
@@ -871,5 +1075,86 @@ export const GlobalRoutes = lazy(() =>
       const content = _htmlPreviewStore.get(id)
       if (!content) return c.json({ error: "not found" }, 404)
       return c.newResponse(content, 200, { "Content-Type": "text/html; charset=utf-8" })
+    })
+    // ── Image proxy ─────────────────────────────────────────────────────────
+    // Tauri's WebView2 can't reliably load https://api.kolbo.ai/assets/*.svg
+    // (TLS handshake fails — surfaces in DevTools as ERR_SSL_PROTOCOL_ERROR).
+    // We fetch the image server-side here using Bun's native HTTP stack,
+    // which has zero issues with the same URL, and stream it back to the
+    // webview. Allowlisted to kolbo's asset hosts only; everything else is
+    // rejected so the route can't be abused as an open proxy. Responses are
+    // cached in-memory for 6 hours to keep latency low — model avatars
+    // basically never change.
+    .get("/proxy-image", async (c) => {
+      const remote = c.req.query("url")
+      if (!remote) return c.json({ error: "missing url" }, 400)
+      let parsed: URL
+      try {
+        parsed = new URL(remote)
+      } catch {
+        return c.json({ error: "invalid url" }, 400)
+      }
+      const host = parsed.hostname.toLowerCase()
+      const allowed =
+        host === "api.kolbo.ai" ||
+        host === "kolbo.ai" ||
+        host === "app.kolbo.ai" ||
+        host === "media.kolbo.ai" ||
+        host.endsWith(".kolbo.ai")
+      if (!allowed || parsed.protocol !== "https:") return c.json({ error: "host not allowed" }, 403)
+
+      const now = Date.now()
+      const cached = _proxyImageCache.get(remote)
+      if (cached && now - cached.at < PROXY_IMAGE_TTL_MS) {
+        return imageResponse(cached.bytes, cached.contentType)
+      }
+
+      try {
+        // Singleflight: collapse concurrent requests for the same URL into a
+        // single upstream HTTPS call. Without this, the canvas-library view
+        // can fire N parallel requests for the same provider avatar on first
+        // paint and hit Cloudflare N times.
+        let pending = _proxyImageInflight.get(remote)
+        if (!pending) {
+          pending = (async () => {
+            const upstream = await fetch(remote, { headers: { Accept: "image/*" } })
+            if (!upstream.ok) throw new Error(`upstream ${upstream.status}`)
+            const contentType = upstream.headers.get("content-type") || "application/octet-stream"
+            const bytes = new Uint8Array(await upstream.arrayBuffer())
+            return { bytes, contentType }
+          })()
+          _proxyImageInflight.set(remote, pending)
+          pending.finally(() => _proxyImageInflight.delete(remote))
+        }
+        const result = await pending
+        // LRU-ish: cap entries by inserting at end and dropping the oldest
+        // (Map preserves insertion order). 256 × ~30KB ≈ 8MB ceiling.
+        if (_proxyImageCache.size >= PROXY_IMAGE_MAX_ENTRIES) {
+          const oldest = _proxyImageCache.keys().next().value
+          if (oldest !== undefined) _proxyImageCache.delete(oldest)
+        }
+        _proxyImageCache.set(remote, { at: now, bytes: result.bytes, contentType: result.contentType })
+        return imageResponse(result.bytes, result.contentType)
+      } catch (e) {
+        return c.json({ error: `proxy fetch failed: ${(e as Error).message}` }, 502)
+      }
     }),
 )
+
+const _proxyImageCache = new Map<string, { at: number; bytes: Uint8Array; contentType: string }>()
+const _proxyImageInflight = new Map<string, Promise<{ bytes: Uint8Array; contentType: string }>>()
+const PROXY_IMAGE_TTL_MS = 6 * 60 * 60 * 1000
+const PROXY_IMAGE_MAX_ENTRIES = 256
+
+function imageResponse(bytes: Uint8Array, contentType: string): Response {
+  // Pass the bytes through Response's BodyInit accepting path. TS narrows
+  // BodyInit to exclude Uint8Array here even though the runtime accepts it,
+  // so cast through unknown.
+  return new Response(bytes as unknown as BodyInit, {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=21600",
+    },
+  })
+}

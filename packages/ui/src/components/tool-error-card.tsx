@@ -75,7 +75,7 @@ export function ToolErrorCard(props: ToolErrorCardProps) {
   }
 
   return (
-    <Card {...rest} data-kind="tool-error-card" data-open={open() ? "true" : "false"} variant="error">
+    <Card {...rest} data-kind="tool-error-card" data-open={open() ? "true" : "false"}>
       <Collapsible
         class="tool-collapsible"
         data-open={open() ? "true" : "false"}

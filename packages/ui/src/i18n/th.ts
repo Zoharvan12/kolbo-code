@@ -159,5 +159,5 @@ export const dict = {
   "ui.kolbo.generatingImage": "กำลังสร้างรูปภาพ…",
   "ui.kolbo.generatingVideo": "กำลังสร้างวิดีโอ…",
   "ui.kolbo.generatingAudio": "กำลังสร้างเสียง…",
-  "ui.kolbo.usedMedia": "สื่อ {n} รายการ",
+  "ui.kolbo.usedMedia": "สื่อ {{n}} รายการ",
 }

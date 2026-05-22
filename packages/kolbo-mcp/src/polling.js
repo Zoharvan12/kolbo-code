@@ -6,9 +6,10 @@ class PollingTimeoutError extends Error {
   constructor(generationId, timeoutMs) {
     const seconds = Math.round(timeoutMs / 1000);
     super(
-      `Generation timed out after ${seconds}s of polling. The generation may STILL be running on the server — ` +
-      `call get_generation_status with generation_id="${generationId}" to check its current state. ` +
-      `Videos, deep-think chat, and large batches can take longer than the default polling window.`
+      `Generation timed out after ${seconds}s of polling. The generation is STILL RUNNING on the server — ` +
+      `DO NOT re-issue the original generation tool. A retry would burn credits while the original keeps producing the result you already paid for. ` +
+      `Instead, IMMEDIATELY call get_generation_status with generation_id="${generationId}" (it block-polls server-side, no need to loop). ` +
+      `Videos, deep-think chat, and large batches can legitimately take 5–15+ minutes beyond the default polling window.`
     );
     this.name = 'PollingTimeoutError';
     this.generationId = generationId;

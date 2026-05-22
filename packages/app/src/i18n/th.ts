@@ -524,7 +524,6 @@ export const dict = {
   "session.revertDock.collapse": "ย่อข้อความที่ถูกย้อนกลับ",
   "session.revertDock.expand": "ขยายข้อความที่ถูกย้อนกลับ",
   "session.revertDock.restore": "กู้คืนข้อความ",
-  "session.new.title": "สร้างอะไรก็ได้",
   "session.new.worktree.main": "สาขาหลัก",
   "session.new.worktree.mainWithBranch": "สาขาหลัก ({{branch}})",
   "session.new.worktree.create": "สร้าง worktree ใหม่",

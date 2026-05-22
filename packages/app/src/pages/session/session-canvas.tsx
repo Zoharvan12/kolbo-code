@@ -3,6 +3,7 @@ import { useSync } from "@/context/sync"
 import { useLanguage } from "@/context/language"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { AudioWavePlayer } from "@/pages/session/audio-wave-player"
+import { CanvasLibraryView } from "@/pages/session/canvas-library-view"
 import { MediaCard } from "@opencode-ai/ui/media-card"
 import { usePlatformOps } from "@opencode-ai/ui/context/platform-ops"
 import { Mark } from "@opencode-ai/ui/logo"
@@ -239,9 +240,31 @@ function exitBatchMode() {
   setBatchMode(false)
 }
 
+// Per-session set of canvas media URLs the user has hidden ("delete from
+// canvas"). This is a soft hide — the underlying generation/tool result is
+// untouched, just filtered out of the canvas view. Persisted to localStorage
+// so it survives reload. Signal-backed so filtering reacts instantly.
+const HIDDEN_KEY_PREFIX = "kolbo-canvas-hidden:"
+function loadHidden(sessionID: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(HIDDEN_KEY_PREFIX + sessionID)
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw)
+    return new Set(Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : [])
+  } catch {
+    return new Set()
+  }
+}
+function saveHidden(sessionID: string, set: Set<string>) {
+  try {
+    localStorage.setItem(HIDDEN_KEY_PREFIX + sessionID, JSON.stringify([...set]))
+  } catch {}
+}
+
 // ─── Cell ─────────────────────────────────────────────────────────────────────
 
-function CanvasCellView(props: { cell: CanvasCell }) {
+function CanvasCellView(props: { cell: CanvasCell; onHide?: (url: string) => void }) {
+  const cellLang = useLanguage()
   // Each cell now holds exactly ONE media item; no slider/index/grouping.
   // Aspect ratio is resolved BEFORE the visible <img>/<video> mounts via
   // pre-decode (see effect below). This means the cell renders at its
@@ -412,6 +435,8 @@ function CanvasCellView(props: { cell: CanvasCell }) {
             // column counts, so we suppress them and let the player provide
             // its own download control.
             hideHoverButtons={m.kind === "audio"}
+            onRemove={props.onHide ? () => props.onHide!(m.url) : undefined}
+            removeLabel={cellLang.t("canvas.hide.tooltip")}
           >
             <div class="relative size-full">
               <Show when={m.kind === "image"}>
@@ -675,6 +700,20 @@ function PendingCellView(props: { cell: PendingCell }) {
     typeof import.meta !== "undefined"
       ? (import.meta.env?.VITE_WHITELABEL_LOGO as string | undefined)
       : undefined
+
+  // Wall-clock counter so the user can tell at a glance whether a generation
+  // is making progress or frozen. Ticks once per second; freezes when the
+  // cell unmounts.
+  const [now, setNow] = createSignal(Date.now())
+  const id = setInterval(() => setNow(Date.now()), 1000)
+  onCleanup(() => clearInterval(id))
+  const elapsedLabel = createMemo(() => {
+    const s = Math.max(0, Math.floor((now() - props.cell.startedAt) / 1000))
+    const m = Math.floor(s / 60)
+    const r = s % 60
+    return `${m}:${r.toString().padStart(2, "0")}`
+  })
+
   return (
     <div
       class="relative rounded-xl overflow-hidden flex items-center justify-center kolbo-canvas-cell"
@@ -714,6 +753,15 @@ function PendingCellView(props: { cell: PendingCell }) {
           )}
         </div>
       </div>
+      {/* elapsed counter — sits just under the spinner so the user can see
+          the generation is alive even when the server-side wait runs long. */}
+      <div
+        class="absolute bottom-2 left-1/2 -translate-x-1/2 text-text-weak"
+        style="font-size:10px;font-variant-numeric:tabular-nums;opacity:0.7"
+        aria-live="polite"
+      >
+        {elapsedLabel()}
+      </div>
     </div>
   )
 }
@@ -725,6 +773,13 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
   const lang = useLanguage()
   const ops = usePlatformOps()
   const { view } = useSessionLayout()
+
+  // Lazy-mount the library on first switch, then keep it mounted (see the
+  // <Show when={librarySeen()}> below).
+  const [librarySeen, setLibrarySeen] = createSignal(false)
+  createEffect(() => {
+    if (view().canvas.mode() === "library") setLibrarySeen(true)
+  })
 
   // Reset batch state whenever the session changes — selection is per-session.
   createEffect(() => {
@@ -804,6 +859,42 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
     if (!id) return []
     return sync.data.message[id] ?? []
   })
+
+  // Per-session hidden URLs — populated from localStorage when session id
+  // changes, mutated by the hide button on each tile.
+  const [hidden, setHidden] = createSignal<Set<string>>(new Set())
+  createEffect(() => {
+    const id = props.sessionID()
+    setHidden(() => (id ? loadHidden(id) : new Set<string>()))
+  })
+  const hideMedia = (url: string) => {
+    const id = props.sessionID()
+    if (!id) return
+    setHidden((prev) => {
+      if (prev.has(url)) return prev
+      const next = new Set(prev)
+      next.add(url)
+      saveHidden(id, next)
+      return next
+    })
+  }
+  const hideSelected = () => {
+    const id = props.sessionID()
+    if (!id) return
+    const urls = Array.from(selectedUrls())
+    if (urls.length === 0) return
+    setHidden((prev) => {
+      const next = new Set(prev)
+      for (const u of urls) next.add(u)
+      saveHidden(id, next)
+      return next
+    })
+    showToast({
+      variant: "success",
+      title: lang.t("canvas.hideSelected.toast", { count: urls.length }),
+    })
+    exitBatchMode()
+  }
 
   // Stabilize cell / pending refs across memo invalidations.
   // collectCanvasCells is pure and allocates new objects every call; without
@@ -885,7 +976,11 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
     return previousCollected
   })
 
-  const cells = createMemo(() => collected().cells)
+  const cells = createMemo(() => {
+    const h = hidden()
+    if (h.size === 0) return collected().cells
+    return collected().cells.filter((c) => !c.media.some((m) => h.has(m.url)))
+  })
   const pending = createMemo(() => collected().pending)
   const cols = createMemo(() => view().canvas.gridCols())
 
@@ -1086,6 +1181,32 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
           fallback={
             <>
               <div class="flex items-center gap-2 min-w-0">
+                {/* Session/Library toggle pill — left side of the toolbar. */}
+                <div
+                  role="tablist"
+                  aria-label="Canvas mode"
+                  class="flex items-center rounded-md p-0.5"
+                  style="background:color-mix(in srgb, var(--text-base) 6%, transparent);border:1px solid color-mix(in srgb, var(--text-base) 10%, transparent)"
+                >
+                  {(["session", "library"] as const).map((m) => (
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={view().canvas.mode() === m}
+                      onClick={() => view().canvas.setMode(m)}
+                      class="px-2 py-0.5 rounded text-11-regular transition-colors"
+                      classList={{
+                        "bg-surface-base text-text-strong shadow-sm": view().canvas.mode() === m,
+                        "text-text-weak hover:text-text-base": view().canvas.mode() !== m,
+                      }}
+                      style={view().canvas.mode() === m
+                        ? "font-weight:600"
+                        : "font-weight:500"}
+                    >
+                      {lang.t(("canvas.tab." + m) as any)}
+                    </button>
+                  ))}
+                </div>
                 <span
                   class="text-text-weak"
                   style="font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase"
@@ -1113,20 +1234,22 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
                 >
                   {cols()}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setBatchMode(true)}
-                  title={lang.t("canvas.select")}
-                  aria-label={lang.t("canvas.select")}
-                  class="flex items-center justify-center shrink-0 transition-colors"
-                  style="height:22px;padding:0 8px;border-radius:6px;background:color-mix(in srgb, var(--text-base) 6%, transparent);color:var(--text-strong);border:1px solid color-mix(in srgb, var(--text-base) 10%, transparent);font-size:11px;font-weight:600;letter-spacing:0.02em;display:inline-flex;gap:5px;align-items:center"
-                >
-                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
-                    <rect x="2" y="2" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.5" />
-                    <path d="M5 8.5l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                  {lang.t("canvas.select")}
-                </button>
+                <Show when={view().canvas.mode() !== "library"}>
+                  <button
+                    type="button"
+                    onClick={() => setBatchMode(true)}
+                    title={lang.t("canvas.select")}
+                    aria-label={lang.t("canvas.select")}
+                    class="flex items-center justify-center shrink-0 transition-colors"
+                    style="height:22px;padding:0 8px;border-radius:6px;background:color-mix(in srgb, var(--text-base) 6%, transparent);color:var(--text-strong);border:1px solid color-mix(in srgb, var(--text-base) 10%, transparent);font-size:11px;font-weight:600;letter-spacing:0.02em;display:inline-flex;gap:5px;align-items:center"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                      <rect x="2" y="2" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.5" />
+                      <path d="M5 8.5l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    {lang.t("canvas.select")}
+                  </button>
+                </Show>
               </div>
             </>
           }
@@ -1162,6 +1285,27 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
                 {lang.t("canvas.clearSelection")}
               </button>
             </Show>
+            <Show when={selectedUrls().size > 0}>
+              <button
+                type="button"
+                disabled={downloading()}
+                onClick={() => hideSelected()}
+                class="flex items-center justify-center transition-colors hover:text-text-base disabled:opacity-50"
+                style="height:24px;padding:0 10px;border-radius:6px;background:transparent;color:var(--text-weak);font-size:11px;font-weight:500;display:inline-flex;gap:6px;align-items:center"
+                title={lang.t("canvas.hide.tooltip")}
+              >
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path
+                    d="M2.5 4.5h11M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4.5 4.5l.6 9a1.5 1.5 0 0 0 1.5 1.4h2.8a1.5 1.5 0 0 0 1.5-1.4l.6-9M7 7.5v4.5M9 7.5v4.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                {lang.t("canvas.hideSelected")}
+              </button>
+            </Show>
             <button
               type="button"
               disabled={selectedUrls().size === 0 || downloading()}
@@ -1185,6 +1329,20 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
         </Show>
       </div>
 
+      {/* Library is lazy-mounted on first switch and then kept mounted via
+          CSS-hide so subsequent toggles preserve scroll position, batch
+          selection, fetched pages, etc. Mounting both Session and Library
+          at once on first canvas open made the panel blank for ~2s while
+          the 1700-line library tree initialized — the lazy gate fixes that. */}
+      <Show when={librarySeen()}>
+        <div
+          class="flex-1 min-h-0 flex flex-col"
+          classList={{ hidden: view().canvas.mode() !== "library" }}
+        >
+          <CanvasLibraryView sessionID={props.sessionID} />
+        </div>
+      </Show>
+      <Show when={view().canvas.mode() === "session"}>
       <Show
         when={hasContent()}
         fallback={
@@ -1222,7 +1380,7 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
                       entry.kind === "pending" ? (
                         <PendingCellView cell={entry.item} />
                       ) : (
-                        <CanvasCellView cell={entry.item} />
+                        <CanvasCellView cell={entry.item} onHide={hideMedia} />
                       )
                     }
                   </For>
@@ -1231,6 +1389,7 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
             </Index>
           </div>
         </div>
+      </Show>
       </Show>
     </div>
   )

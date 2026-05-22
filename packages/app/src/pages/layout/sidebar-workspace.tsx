@@ -16,6 +16,7 @@ import { type Session } from "@opencode-ai/sdk/v2/client"
 import { type LocalProject } from "@/context/layout"
 import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
+import { useSettings } from "@/context/settings"
 import { NewSessionItem, SessionItem, SessionSkeleton } from "./sidebar-items"
 import { sortedRootSessions } from "./helpers"
 import { pathKey } from "@/utils/path-key"
@@ -152,7 +153,9 @@ const WorkspaceActions = (props: {
   root: string
   clearHoverProjectSoon: WorkspaceSidebarContext["clearHoverProjectSoon"]
   navigateToNewSession: () => void
-}): JSX.Element => (
+}): JSX.Element => {
+  const settings = useSettings()
+  return (
   <div
     class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 transition-opacity"
     classList={{
@@ -208,6 +211,23 @@ const WorkspaceActions = (props: {
           >
             <DropdownMenu.ItemLabel>{props.language.t("common.delete")}</DropdownMenu.ItemLabel>
           </DropdownMenu.Item>
+          <DropdownMenu.Item
+            onSelect={() => {
+              settings.general.setShowArchivedSessions(!settings.general.showArchivedSessions())
+              props.setMenuOpen(false)
+            }}
+          >
+            <DropdownMenu.ItemLabel>
+              <span class="inline-flex items-center gap-2">
+                <span aria-hidden="true" class="inline-flex w-3 justify-center">
+                  <Show when={settings.general.showArchivedSessions()}>
+                    <Icon name="check" size="small" />
+                  </Show>
+                </span>
+                {props.language.t("common.showArchivedSessions")}
+              </span>
+            </DropdownMenu.ItemLabel>
+          </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu>
@@ -230,7 +250,8 @@ const WorkspaceActions = (props: {
       </Tooltip>
     </Show>
   </div>
-)
+  )
+}
 
 const WorkspaceSessionList = (props: {
   slug: Accessor<string>
@@ -242,7 +263,9 @@ const WorkspaceSessionList = (props: {
   hasMore: Accessor<boolean>
   loadMore: () => Promise<void>
   language: ReturnType<typeof useLanguage>
-}): JSX.Element => (
+}): JSX.Element => {
+  const settings = useSettings()
+  return (
   <nav class="flex flex-col gap-1">
     <Show when={props.showNew()}>
       <NewSessionItem
@@ -286,8 +309,21 @@ const WorkspaceSessionList = (props: {
         </Button>
       </div>
     </Show>
+    <button
+      type="button"
+      class="flex items-center gap-2 w-full text-left text-12-regular text-text-weak hover:text-text-strong transition-colors pl-9 pr-3 py-1.5 mt-1 rounded-md hover:bg-surface-recess-base/40"
+      onClick={() => settings.general.setShowArchivedSessions(!settings.general.showArchivedSessions())}
+    >
+      <Icon name={settings.general.showArchivedSessions() ? "eye" : "archive"} size="small" />
+      <span>
+        {settings.general.showArchivedSessions()
+          ? props.language.t("common.hideArchivedSessions")
+          : props.language.t("common.showArchivedSessions")}
+      </span>
+    </button>
   </nav>
-)
+  )
+}
 
 export const SortableWorkspace = (props: {
   ctx: WorkspaceSidebarContext
@@ -306,8 +342,16 @@ export const SortableWorkspace = (props: {
     open: false,
     pendingRename: false,
   })
+  const settings = useSettings()
   const slug = createMemo(() => base64Encode(props.directory))
-  const sessions = createMemo(() => sortedRootSessions(workspaceStore, props.sortNow()))
+  const sessions = createMemo(() =>
+    sortedRootSessions(workspaceStore, props.sortNow(), settings.general.showArchivedSessions()),
+  )
+  // Pagination math uses the non-archived count regardless of toggle so
+  // "Load more" reflects what the server has, not what the user sees.
+  const nonArchivedCount = createMemo(
+    () => sortedRootSessions(workspaceStore, props.sortNow(), false).length,
+  )
   const local = createMemo(() => props.directory === props.project.worktree)
   const active = createMemo(() => pathKey(props.ctx.currentDir()) === pathKey(props.directory))
   const workspaceValue = createMemo(() => {
@@ -319,14 +363,14 @@ export const SortableWorkspace = (props: {
   const boot = createMemo(() => open() || active())
   const booted = createMemo((prev) => prev || workspaceStore.status === "complete", false)
   const count = createMemo(() => sessions()?.length ?? 0)
-  const hasMore = createMemo(() => workspaceStore.sessionTotal > count())
+  const hasMore = createMemo(() => workspaceStore.sessionTotal > nonArchivedCount())
   const busy = createMemo(() => props.ctx.isBusy(props.directory))
   const wasBusy = createMemo((prev) => prev || busy(), false)
   const loading = createMemo(() => open() && !booted() && count() === 0 && !wasBusy())
   const touch = createMediaQuery("(hover: none)")
   const showNew = createMemo(() => !loading() && (touch() || count() === 0 || (active() && !params.id)))
   const loadMore = async () => {
-    setWorkspaceStore("limit", (limit) => (limit ?? 0) + 5)
+    setWorkspaceStore("limit", (limit) => (limit ?? 0) + 50)
     await globalSync.project.loadSessions(props.directory)
   }
 
@@ -451,14 +495,20 @@ export const LocalWorkspace = (props: {
     const [store, setStore] = globalSync.child(props.project.worktree)
     return { store, setStore }
   })
+  const settings = useSettings()
   const slug = createMemo(() => base64Encode(props.project.worktree))
-  const sessions = createMemo(() => sortedRootSessions(workspace().store, props.sortNow()))
+  const sessions = createMemo(() =>
+    sortedRootSessions(workspace().store, props.sortNow(), settings.general.showArchivedSessions()),
+  )
+  const nonArchivedCount = createMemo(
+    () => sortedRootSessions(workspace().store, props.sortNow(), false).length,
+  )
   const booted = createMemo((prev) => prev || workspace().store.status === "complete", false)
   const count = createMemo(() => sessions()?.length ?? 0)
   const loading = createMemo(() => !booted() && count() === 0)
-  const hasMore = createMemo(() => workspace().store.sessionTotal > count())
+  const hasMore = createMemo(() => workspace().store.sessionTotal > nonArchivedCount())
   const loadMore = async () => {
-    workspace().setStore("limit", (limit) => (limit ?? 0) + 5)
+    workspace().setStore("limit", (limit) => (limit ?? 0) + 50)
     await globalSync.project.loadSessions(props.project.worktree)
   }
 

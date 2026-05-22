@@ -1,4 +1,5 @@
-import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js"
+import { createMemo, createResource, createSignal, onCleanup, onMount, Show } from "solid-js"
+import { checksum } from "@opencode-ai/util/encode"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useServer } from "@/context/server"
@@ -88,38 +89,36 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
     return w > 0 && w < HTML_DESIGN_WIDTH ? w / HTML_DESIGN_WIDTH : 1
   })
 
-  // HTTP URL from sidecar for the HTML content.
-  // null = still loading, "" = failed (fall back to blob)
-  const [htmlPreviewUrl, setHtmlPreviewUrl] = createSignal<string | null>(null)
-  const [htmlPreviewFailed, setHtmlPreviewFailed] = createSignal(false)
+  // Keyed on content checksum so reactive reads stay cheap and refetches
+  // The source returns a stable string key (server::content) so the resource
+  // refetches only when one of those actually changes — and createResource
+  // automatically discards stale resolutions if a newer fetch starts first.
+  const [htmlPreview] = createResource(
+    () => {
+      if (props.artifact.lang !== "html") return null
+      const url = server.current?.http.url
+      if (!url) return null
+      return `${url}:${checksum(props.artifact.content) ?? ""}`
+    },
+    async () => {
+      const url = server.current?.http.url
+      if (!url) return null
+      return storeHtmlPreview(url, props.artifact.content)
+    },
+  )
 
-  createEffect(() => {
-    if (props.artifact.lang !== "html") return
-    const url = server.current?.http.url
-    if (!url) {
-      setHtmlPreviewFailed(true)
-      return
-    }
-    const content = props.artifact.content
-    setHtmlPreviewUrl(null)
-    setHtmlPreviewFailed(false)
-    void storeHtmlPreview(url, content).then((result) => {
-      if (result) {
-        setHtmlPreviewUrl(result)
-      } else {
-        setHtmlPreviewFailed(true)
-      }
-    })
-  })
-
-  // Fallback blob URL — only used when sidecar URL failed
+  // Fallback blob URL — used when the sidecar isn't reachable or returned null.
+  const needsBlobFallback = createMemo(
+    () =>
+      props.artifact.lang === "html" &&
+      ((!server.current?.http.url) || (htmlPreview.state === "ready" && htmlPreview() === null)),
+  )
   const blobUrl = createMemo<string>((prev) => {
-    if (!htmlPreviewFailed()) {
+    if (!needsBlobFallback()) {
       if (prev) URL.revokeObjectURL(prev)
       return ""
     }
-    if (prev) return prev // keep existing blob url while still failed
-    if (props.artifact.lang !== "html") return ""
+    if (prev) URL.revokeObjectURL(prev)
     const blob = new Blob([props.artifact.content], { type: "text/html" })
     return URL.createObjectURL(blob)
   })
@@ -128,10 +127,15 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
     if (u) URL.revokeObjectURL(u)
   })
 
-  // The URL to use: prefer HTTP (WebGL works), fall back to blob
-  const effectiveHtmlUrl = createMemo(() => htmlPreviewUrl() ?? (htmlPreviewFailed() ? blobUrl() : null))
-  // True while we're waiting for the sidecar to respond
-  const isLoadingPreview = createMemo(() => props.artifact.lang === "html" && !htmlPreviewUrl() && !htmlPreviewFailed())
+  const effectiveHtmlUrl = createMemo(() => {
+    const u = htmlPreview()
+    if (typeof u === "string" && u) return u
+    const b = blobUrl()
+    return b || null
+  })
+  const isLoadingPreview = createMemo(
+    () => props.artifact.lang === "html" && htmlPreview.loading && !blobUrl(),
+  )
 
   // ── Publish flow ─────────────────────────────────────────────────────────
   // POSTs the current artifact to the opencode server's /global/kolbo-artifact-publish
@@ -257,8 +261,8 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
                 return
               }
               // Web fallback: open sidecar URL if available
-              const u = htmlPreviewUrl()
-              if (u) platform.openLink(u)
+              const u = htmlPreview()
+              if (typeof u === "string" && u) platform.openLink(u)
             }
             return (
               <button
@@ -290,26 +294,34 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
             </div>
           </Show>
 
-          {/* Iframe — scaled to fit panel width so fixed-width HTML isn't cropped */}
+          {/* Iframe — scaled to fit panel width so fixed-width HTML isn't cropped.
+              Starts transparent and fades in on `load` so we don't flash an
+              empty-white iframe while the HTML is still painting. */}
           <Show when={effectiveHtmlUrl()} keyed>
-            {(src) => (
-              <iframe
-                src={src}
-                style={{
-                  position: "absolute",
-                  top: "0",
-                  left: "0",
-                  width: `${HTML_DESIGN_WIDTH}px`,
-                  height: `${panelHeight() / htmlScale()}px`,
-                  border: "0",
-                  background: "#fff",
-                  "transform-origin": "top left",
-                  transform: `scale(${htmlScale()})`,
-                  opacity: view() === "preview" ? "1" : "0",
-                  "pointer-events": view() === "preview" ? "auto" : "none",
-                }}
-              />
-            )}
+            {(src) => {
+              const [loaded, setLoaded] = createSignal(false)
+              return (
+                <iframe
+                  src={src}
+                  onLoad={() => setLoaded(true)}
+                  style={{
+                    position: "absolute",
+                    top: "0",
+                    left: "0",
+                    width: `${HTML_DESIGN_WIDTH}px`,
+                    height: `${panelHeight() / htmlScale()}px`,
+                    border: "0",
+                    background: "transparent",
+                    "color-scheme": "light",
+                    "transform-origin": "top left",
+                    transform: `scale(${htmlScale()})`,
+                    opacity: view() === "preview" && loaded() ? "1" : "0",
+                    transition: "opacity 220ms cubic-bezier(0.2, 0.7, 0.2, 1)",
+                    "pointer-events": view() === "preview" ? "auto" : "none",
+                  }}
+                />
+              )
+            }}
           </Show>
         </Show>
 

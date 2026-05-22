@@ -36,10 +36,10 @@ export function trimSessions(
 ) {
   const limit = Math.max(0, options.limit)
   const cutoff = (options.now ?? Date.now()) - SESSION_RECENT_WINDOW
-  const all = input
-    .filter((s) => !!s?.id)
-    .filter((s) => !s.time?.archived)
-    .sort((a, b) => cmp(a.id, b.id))
+  // Archived sessions stay in the store so the "Show archived sessions"
+  // toggle in the sidebar can reveal them. They're hidden by default via
+  // the filter in helpers.ts; trim no longer drops them.
+  const all = input.filter((s) => !!s?.id).sort((a, b) => cmp(a.id, b.id))
   const roots = all.filter((s) => !s.parentID)
   const children = all.filter((s) => !!s.parentID)
   const base = roots.slice(0, limit)

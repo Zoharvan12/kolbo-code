@@ -120,20 +120,17 @@ export function applyDirectoryEvent(input: {
     case "session.updated": {
       const info = (event.properties as { info: Session }).info
       const result = Binary.search(input.store.session, info.id, (s) => s.id)
-      if (info.time.archived) {
-        if (result.found) {
-          input.setStore(
-            "session",
-            produce((draft) => {
-              draft.splice(result.index, 1)
-            }),
-          )
-        }
-        cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo)
-        if (info.parentID) break
-        input.setStore("sessionTotal", (value) => Math.max(0, value - 1))
-        break
+      // Archive transitions: keep the session in the store and just update
+      // its `time.archived` field via the regular update path below. The
+      // sidebar filter parameter controls visibility. `sessionTotal` still
+      // tracks the non-archived count for pagination math.
+      const wasArchived = result.found && !!input.store.session[result.index].time?.archived
+      const isArchived = !!info.time.archived
+      if (!info.parentID && wasArchived !== isArchived) {
+        const delta = isArchived ? -1 : 1
+        input.setStore("sessionTotal", (value) => Math.max(0, value + delta))
       }
+      if (isArchived) cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo)
       if (result.found) {
         input.setStore("session", result.index, reconcile(info))
         break

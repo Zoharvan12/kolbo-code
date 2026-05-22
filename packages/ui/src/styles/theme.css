@@ -1,23 +1,34 @@
 :root {
-  --font-family-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-family-sans--font-feature-settings: normal;
+  --font-family-sans:
+    "Inter Variable", "Heebo", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-sans--font-feature-settings: "cv11", "ss01", "ss03";
+  --font-family-sans--font-variation-settings: normal;
+  --font-family-display:
+    "Inter Variable", "Heebo", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-family-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --font-family-mono--font-feature-settings: normal;
+    "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  --font-family-mono--font-feature-settings: "calt", "liga", "zero";
 
   --font-size-small: 13px;
   --font-size-base: 14px;
   --font-size-large: 16px;
   --font-size-x-large: 20px;
+  --font-size-display: 28px;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
   --line-height-normal: 130%;
   --line-height-large: 150%;
   --line-height-x-large: 180%;
   --line-height-2x-large: 200%;
+  --line-height-display: 110%;
   --letter-spacing-normal: 0;
-  --letter-spacing-tight: -0.1599999964237213;
-  --letter-spacing-tightest: -0.3199999928474426;
+  --letter-spacing-tight: -0.011em;
+  --letter-spacing-tighter: -0.018em;
+  --letter-spacing-tightest: -0.024em;
+  --letter-spacing-display: -0.028em;
   --paragraph-spacing-base: 0;
 
   --spacing: 0.25rem;
@@ -42,11 +53,18 @@
   --container-6xl: 72rem;
   --container-7xl: 80rem;
 
-  --radius-xs: 0.125rem;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.625rem;
+  --radius-xs: 0.1875rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-pill: 999px;
+  --kolbo-accent: var(--icon-interactive-base, #034cff);
+  --motion-ease-spring: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-quick: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 360ms;
 
   --shadow-xs:
     0 1px 2px -0.5px light-dark(hsl(0 0% 0% / 0.04), hsl(0 0% 0% / 0.06)),
@@ -357,8 +375,12 @@
     --background-stronger: #151515;
     --surface-base: rgba(255, 255, 255, 0.031);
     --base: rgba(255, 255, 255, 0.034);
-    --surface-base-hover: rgba(255, 255, 255, 0.039);
-    --surface-base-active: rgba(255, 255, 255, 0.059);
+    /* Hover/active overlays in dark mode were so faint (3.9% / 5.9%) that
+       icon-button and ghost-variant hovers looked broken — the rule fires
+       but the result is invisible. Bumping to give a perceptible delta over
+       the resting surface (3.1%). */
+    --surface-base-hover: rgba(255, 255, 255, 0.085);
+    --surface-base-active: rgba(255, 255, 255, 0.125);
     --surface-base-interactive-active: rgba(3, 76, 255, 0.125);
     --base2: rgba(255, 255, 255, 0.034);
     --base3: rgba(255, 255, 255, 0.034);
@@ -454,7 +476,7 @@
     --text-on-brand-strong: rgba(255, 255, 255, 0.928);
     --button-primary-base: #ededed;
     --button-secondary-base: #1c1c1c;
-    --button-secondary-hover: rgba(255, 255, 255, 0.039);
+    --button-secondary-hover: rgba(255, 255, 255, 0.085);
     --button-ghost-hover: rgba(255, 255, 255, 0.031);
     --button-ghost-hover2: rgba(255, 255, 255, 0.059);
     --border-base: rgba(255, 255, 255, 0.195);

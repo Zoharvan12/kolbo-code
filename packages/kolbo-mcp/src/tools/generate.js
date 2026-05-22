@@ -32,9 +32,14 @@ function registerGenerateTools(server, client) {
         reference_images, visual_dna_ids, moodboard_id, enable_web_search, resolution, preset_id
       });
 
+      // 60s here (not 120s) so a stuck generation surfaces faster — the
+      // PollingTimeoutError tells the model to switch to get_generation_status,
+      // which block-polls for 10min by default. Same total wait, but the
+      // first hand-off happens at 60s instead of 120s so the user isn't
+      // staring at a frozen spinner.
       const result = await pollUntilDone(client, gen.generation_id, {
         interval: (gen.poll_interval_hint || 3) * 1000,
-        timeout: 120000
+        timeout: 60000
       });
 
       return {
@@ -386,10 +391,20 @@ function registerGenerateTools(server, client) {
     }
   );
 
+  // Track how many consecutive get_generation_status polls land on the same
+  // id within a short window. Models routinely ignore the "stop polling"
+  // hint and re-call, burning minutes of wall-clock and confusing the user.
+  // After STATUS_POLL_CAP attempts in a row, we hard-abandon: return a
+  // distinct shape (no `still_pending`) so the model can't pattern-match
+  // its way back into the loop.
+  const STATUS_POLL_CAP = 2;
+  const STATUS_POLL_RESET_MS = 10 * 60 * 1000; // a quiet 10min resets the counter
+  const statusPollHistory = new Map(); // id → { count, lastAt }
+
   // ─── get_generation_status ─────────────────────────────────
   server.tool(
     'get_generation_status',
-    'Resume polling a generation after a timeout. Pass the generation_id from a prior generation tool that timed out. This call BLOCKS server-side, polling internally — you do NOT need to call it again in a loop. Defaults to a 10-minute internal poll which covers most image edits and short videos; pass `wait_seconds` up to 1700 (~28 min) for long video / 3D / batch generations. **If you fired multiple generations in parallel and they all timed out, you MUST call get_generation_status for EACH generation_id in this same turn — do not give up on any of them, or their URLs will be lost forever.** If a single call returns `still_pending: true`, that specific generation is genuinely slow — STOP calling THAT one, tell the user it is still running, and resume on the next user turn. Never call this tool more than ONCE per generation_id consecutively in the same turn.',
+    'Resume polling a generation after a timeout. Pass the generation_id from a prior generation tool that timed out. This call BLOCKS server-side, polling internally — you do NOT need to call it again in a loop. Defaults to a 10-minute internal poll which covers most image edits and short videos; pass `wait_seconds` up to 1700 (~28 min) for long video / 3D / batch generations. **If you fired multiple generations in parallel and they all timed out, you MUST call get_generation_status for EACH generation_id in this same turn — do not give up on any of them, or their URLs will be lost forever.** A response with `abandoned: true` is TERMINAL — the generation will not be polled again in this turn; report it to the user and move on. A response with `still_pending: true` means the job is genuinely slow — STOP polling THAT id immediately, tell the user, and wait for them to ask again. Never call this tool more than ONCE per generation_id consecutively in the same turn.',
     {
       generation_id: z.string().describe('The generation ID to check'),
       wait_seconds: z.number().int().min(60).max(1700).optional().describe('How long to block-poll internally before giving up (60–1700 seconds, default 600). Values below 300 are clamped up to 300 server-side because shorter waits cause the model to abandon still-running generations. Use higher values for video / 3D / large batches that can legitimately take 15+ minutes.'),
@@ -400,6 +415,48 @@ function registerGenerateTools(server, client) {
       // wasted). 300s is the floor that survived real-world cases.
       const requested = wait_seconds ?? 600;
       const timeoutMs = Math.max(requested, 300) * 1000;
+
+      // Update the consecutive-call counter for this id. We reset if the
+      // last attempt was a long time ago (new user turn), so this only
+      // catches within-turn looping.
+      const now = Date.now();
+      const prior = statusPollHistory.get(generation_id);
+      const count = prior && now - prior.lastAt < STATUS_POLL_RESET_MS ? prior.count + 1 : 1;
+      statusPollHistory.set(generation_id, { count, lastAt: now });
+
+      // Hard abandon — the model has hit the cap. Return a non-pending
+      // shape so it has nothing left to keep polling against.
+      if (count > STATUS_POLL_CAP) {
+        const current = await client
+          .get(`/v1/generate/${encodeURIComponent(generation_id)}/status`)
+          .catch(() => null);
+        // If the generation actually finished in the meantime, surface it.
+        if (current?.state === 'completed') {
+          statusPollHistory.delete(generation_id);
+          return {
+            content: [{ type: 'text', text: JSON.stringify(current, null, 2) }],
+          };
+        }
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  generation_id,
+                  state: current?.state ?? 'unknown',
+                  abandoned: true,
+                  poll_attempts: count,
+                  _note: `This generation has been polled ${count} consecutive times in this turn and is still not done. ABANDONED — do NOT call get_generation_status for this id again. Tell the user the generation is taking unusually long and ask them to check back later.`,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      }
+
       let result;
       try {
         result = await pollUntilDone(client, generation_id, {
@@ -418,13 +475,17 @@ function registerGenerateTools(server, client) {
                 state: current?.state ?? 'unknown',
                 still_pending: true,
                 waited_seconds: Math.round(timeoutMs / 1000),
-                _note: `Polled for ${minutes} minute(s) — generation is taking longer than usual. STOP calling get_generation_status now. Tell the user the generation is still running and ask them to prompt you to check again later. Do NOT loop.`,
+                poll_attempts: count,
+                _note: `Polled for ${minutes} minute(s) — generation is taking longer than usual. STOP calling get_generation_status now. Tell the user the generation is still running and ask them to prompt you to check again later. Do NOT loop — one more consecutive call for this id will be hard-abandoned.`,
               }, null, 2),
             }],
           };
         }
         throw err;
       }
+      // Completed cleanly — clear the counter so a future generation reusing
+      // the id (theoretically possible) starts fresh.
+      statusPollHistory.delete(generation_id);
       return {
         content: [{
           type: 'text',

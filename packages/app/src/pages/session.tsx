@@ -460,11 +460,12 @@ export default function Page() {
     onCleanup(() => document.removeEventListener("kolbo:open-canvas", openCanvas))
   })
 
-  // Auto-open the Canvas tab whenever the agent kicks off a new media
-  // generation — track the count of Kolbo generation tool parts and pop the
-  // panel any time the count grows. Initial render of a session that already
-  // has media also opens it. Dismissing just hides it until the next new
-  // generation; we intentionally do NOT permanently gate on a dismissed flag.
+  // Track media generation count. On every new media item we auto-open the
+  // Canvas tab so the user sees the result immediately — unless they've
+  // explicitly closed Canvas this session (canvas.dismissed=true), in which
+  // case we respect that and only flip the tab indicator when the panel is
+  // already open. The header Canvas button (kolbo:open-canvas) clears
+  // `dismissed` so the auto-open behavior returns.
   const mediaPartCount = createMemo(() => {
     const id = params.id
     if (!id) return 0
@@ -492,10 +493,13 @@ export default function Page() {
     const c = mediaPartCount()
     const prev = lastMediaPartCount
     lastMediaPartCount = c
-    // First observation per session is a baseline — opening the panel on
-    // every session load (just because it already has media) is what we're
-    // avoiding here.
     if (prev < 0 || c <= prev) return
+    if (view().canvas.dismissed()) {
+      // User explicitly closed Canvas — don't fight them. Still flip the tab
+      // indicator so the next time they open the panel they land on Canvas.
+      if (view().reviewPanel.opened()) setCanvasTabActive(true)
+      return
+    }
     setCanvasTabActive(true)
     if (!view().reviewPanel.opened()) view().reviewPanel.open()
   })

@@ -45,7 +45,11 @@ type SessionView = {
   pendingMessageAt?: number
   canvasGridCols?: number
   canvasUserDismissed?: boolean
+  canvasMode?: CanvasMode
 }
+
+export type CanvasMode = "session" | "library"
+const DEFAULT_CANVAS_MODE: CanvasMode = "session"
 
 const DEFAULT_CANVAS_GRID_COLS = 2
 
@@ -266,6 +270,13 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         },
       }),
     )
+
+    // The review panel is ephemeral UI: don't restore its opened state across
+    // app launches. Users were getting it auto-opened every cold-start just
+    // because it happened to be open when they last quit.
+    ready.promise?.then(() => {
+      if (store.review?.panelOpened) setStore("review", "panelOpened", false)
+    })
 
     const MAX_SESSION_KEYS = 50
     const PENDING_MESSAGE_TTL_MS = 2 * 60 * 1000
@@ -897,6 +908,17 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
               }
               if ((current.canvasUserDismissed ?? false) === value) return
               setStore("sessionView", session, "canvasUserDismissed", value)
+            },
+            mode: createMemo<CanvasMode>(() => s().canvasMode ?? DEFAULT_CANVAS_MODE),
+            setMode(next: CanvasMode) {
+              const session = key()
+              const current = store.sessionView[session]
+              if (!current) {
+                setStore("sessionView", session, { scroll: {}, canvasMode: next })
+                return
+              }
+              if ((current.canvasMode ?? DEFAULT_CANVAS_MODE) === next) return
+              setStore("sessionView", session, "canvasMode", next)
             },
           },
         }

@@ -1,4 +1,4 @@
-import { For, Match, Show, Switch, createEffect, createMemo, onCleanup, type JSX } from "solid-js"
+import { For, Match, Show, Switch, createEffect, createMemo, createSignal, onCleanup, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
 import { Tabs } from "@opencode-ai/ui/tabs"
@@ -26,7 +26,7 @@ import { FileTabContent } from "@/pages/session/file-tabs"
 import { createOpenSessionFileTab, createSessionTabs, getTabReorderIndex, type Sizing } from "@/pages/session/helpers"
 import { setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionLayout } from "@/pages/session/session-layout"
-import { SessionCanvas, hasKolboMediaInSession } from "@/pages/session/session-canvas"
+import { SessionCanvas } from "@/pages/session/session-canvas"
 import type { Part } from "@opencode-ai/sdk/v2"
 
 export function SessionSidePanel(props: {
@@ -65,13 +65,6 @@ export function SessionSidePanel(props: {
     if (!id) return []
     return sync.data.message[id] ?? []
   })
-  const hasMedia = createMemo(() => {
-    const msgs = sessionMessages()
-    if (msgs.length === 0) return false
-    const lists = msgs.map((m) => (sync.data.part[m.id] ?? []) as Part[])
-    return hasKolboMediaInSession(lists)
-  })
-
   const isDesktop = createMediaQuery("(min-width: 768px)")
 
   const reviewOpen = createMemo(() => isDesktop() && view().reviewPanel.opened())
@@ -160,8 +153,17 @@ export function SessionSidePanel(props: {
   // Override active tab when artifacts or canvas tab is requested
   const effectiveActiveTab = createMemo(() => {
     if (props.artifactsTabActive() && props.artifact()) return "artifacts"
-    if (props.canvasTabActive() && hasMedia()) return "canvas"
+    if (props.canvasTabActive()) return "canvas"
     return activeTab()
+  })
+
+  // Mount Canvas lazily on first activation, then keep it mounted across
+  // tab switches — Tabs.Content CSS-hides inactive tabs, so subsequent
+  // switches become pure visibility toggles instead of a 1300-line remount
+  // (which left the panel blank for a moment while it rebuilt the grid).
+  const [canvasSeen, setCanvasSeen] = createSignal(false)
+  createEffect(() => {
+    if (effectiveActiveTab() === "canvas") setCanvasSeen(true)
   })
 
   const fileTreeTab = () => layout.fileTree.tab()
@@ -338,7 +340,7 @@ export function SessionSidePanel(props: {
                           {language.t("session.tab.artifacts")}
                         </Tabs.Trigger>
                       </Show>
-                      <Show when={hasMedia()}>
+                      <Show when={props.canvasTabActive()}>
                         <Tabs.Trigger
                           value="canvas"
                           closeButton={
@@ -381,7 +383,7 @@ export function SessionSidePanel(props: {
                             which (or whether any) tabs are visible. */}
                         <Tooltip placement="bottom" value={language.t("session.panel.close")}>
                           <IconButton
-                            icon="close-small"
+                            icon="panel-right-close"
                             variant="ghost"
                             iconSize="large"
                             class="!rounded-md"
@@ -423,13 +425,13 @@ export function SessionSidePanel(props: {
                   </Show>
 
                   <Tabs.Content value="artifacts" class="flex flex-col h-full overflow-hidden">
-                    <Show when={props.artifact()} keyed>
-                      {(art) => <ArtifactPreviewTab artifact={art} />}
+                    <Show when={props.artifact()}>
+                      {(art) => <ArtifactPreviewTab artifact={art()} />}
                     </Show>
                   </Tabs.Content>
 
                   <Tabs.Content value="canvas" class="flex flex-col h-full overflow-hidden contain-strict">
-                    <Show when={effectiveActiveTab() === "canvas" && hasMedia()}>
+                    <Show when={canvasSeen()}>
                       <SessionCanvas sessionID={currentSessionID} />
                     </Show>
                   </Tabs.Content>

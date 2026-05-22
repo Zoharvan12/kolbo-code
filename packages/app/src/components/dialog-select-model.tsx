@@ -14,6 +14,7 @@ import {
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/context/local"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { usePlatformOps } from "@opencode-ai/ui/context/platform-ops"
 import { popularProviders } from "@/hooks/use-providers"
 import { Button } from "@opencode-ai/ui/button"
 import { IconButton } from "@opencode-ai/ui/icon-button"
@@ -215,7 +216,9 @@ const ModelList: Component<{
       }}
     >
       {(i) => {
+        const platformOps = usePlatformOps()
         const avatar = i.avatar
+        const proxiedAvatar = avatar ? (platformOps.imageProxyUrl?.(avatar) ?? avatar) : undefined
         const isDefault = i.default || (i.provider.id === "kolbo" && i.id === "kolbo-default")
         // Resolve the kolbo per-1K price once per row, reactively. The signal
         // read is cached in a memo so multiple reads in the same row don't
@@ -239,12 +242,9 @@ const ModelList: Component<{
                 }
               >
                 <img
-                  src={avatar}
+                  src={proxiedAvatar}
                   alt=""
                   class="size-full object-cover"
-                  // Cloudflare hotlink protection on api.kolbo.ai rejects PNG/JPG
-                  // when the Referer header isn't a kolbo.ai origin. The Tauri
-                  // webview sends Referer: tauri://localhost/..., so suppress it.
                   referrerpolicy="no-referrer"
                   onError={(e) => {
                     ;(e.currentTarget as HTMLImageElement).style.display = "none"

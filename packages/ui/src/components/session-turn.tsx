@@ -20,6 +20,7 @@ import { StickyAccordionHeader } from "./sticky-accordion-header"
 import { DiffChanges } from "./diff-changes"
 import { Icon } from "./icon"
 import { TextShimmer } from "./text-shimmer"
+import { Spinner } from "./spinner"
 import { SessionRetry } from "./session-retry"
 import { TextReveal } from "./text-reveal"
 import { createAutoScroll } from "../hooks"
@@ -389,7 +390,12 @@ export function SessionTurn(
   })
 
   return (
-    <div data-component="session-turn" class={props.classes?.root}>
+    <div
+      data-component="session-turn"
+      data-active={active() ? "" : undefined}
+      data-working={working() ? "" : undefined}
+      class={props.classes?.root}
+    >
       <div
         ref={autoScroll.scrollRef}
         onScroll={autoScroll.handleScroll}
@@ -427,7 +433,7 @@ export function SessionTurn(
               </Show>
               <Show when={showThinking()}>
                 <div data-slot="session-turn-thinking">
-                  <span data-slot="session-turn-thinking-dot" />
+                  <Spinner class="size-[15px] shrink-0" style={{ color: "var(--icon-agent-build-base)" }} />
                   <TextShimmer text={i18n.t("ui.sessionTurn.status.thinking")} />
                   <Show when={!showReasoningSummaries()}>
                     <TextReveal

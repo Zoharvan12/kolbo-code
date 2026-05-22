@@ -5,3 +5,41 @@ button#decorum-tb-close,
 div[data-tauri-decorum-tb] {
   height: calc(var(--spacing) * 10) !important;
 }
+
+/* Tauri-decorum window control hovers (minimize / maximize / close).
+   Decorum ships no defaults that show against our dark titlebar, so
+   buttons looked dead on hover. These match Windows 11 convention:
+   minimize + maximize get a subtle neutral overlay, close turns red. */
+button.decorum-tb-btn,
+button#decorum-tb-minimize,
+button#decorum-tb-maximize,
+button#decorum-tb-close {
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+button.decorum-tb-btn:hover,
+button#decorum-tb-minimize:hover,
+button#decorum-tb-maximize:hover {
+  background-color: var(--surface-base-hover) !important;
+}
+
+button.decorum-tb-btn:active,
+button#decorum-tb-minimize:active,
+button#decorum-tb-maximize:active {
+  background-color: var(--surface-base-active) !important;
+}
+
+button#decorum-tb-close:hover {
+  background-color: #e81123 !important;
+  color: #ffffff !important;
+}
+
+button#decorum-tb-close:hover svg,
+button#decorum-tb-close:hover * {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+}
+
+button#decorum-tb-close:active {
+  background-color: #c50f1f !important;
+}

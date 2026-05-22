@@ -11,6 +11,7 @@
     "build": "bun run typecheck && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "swap-installed-sidecar": "bun ./scripts/swap-installed-sidecar.ts",
     "build:whitelabel:sapir": "bun run scripts/build-whitelabel.ts sapir",
     "setup:whitelabel:sapir": "bunx tauri icon whitelabels/sapir/source-icon.png -o src-tauri/icons/sapir && bun run scripts/convert-whitelabel-assets.ts sapir"
   },

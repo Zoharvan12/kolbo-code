@@ -204,10 +204,38 @@
     margin-top: 2rem;
     margin-bottom: 2rem;
     overflow: auto;
+    border-radius: var(--radius-md);
+    animation: code-block-enter 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 
     scrollbar-width: none;
     &::-webkit-scrollbar {
       display: none;
+    }
+  }
+
+  /* When an inline HTML artifact card is rendered, hide the raw code block
+     and its action buttons — the card replaces them visually. The <pre> is
+     kept in the DOM so morphdom can still diff highlighted source. */
+  [data-component="markdown-code"][data-html-preview-active="true"] > pre,
+  [data-component="markdown-code"][data-html-preview-active="true"] > [data-slot="markdown-copy-button"],
+  [data-component="markdown-code"][data-html-preview-active="true"] > [data-slot="markdown-preview-button"] {
+    display: none;
+  }
+
+  @keyframes code-block-enter {
+    0% {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    pre {
+      animation: none;
     }
   }
 
@@ -250,13 +278,27 @@
     border-bottom: 1px solid var(--border-weak-base);
   }
 
-  /* Images */
+  /* Images — generated media should be substantial, not a hyperlink-sized
+     thumbnail. Cap at a comfortable on-screen size while still respecting
+     container width. */
   img {
-    max-width: 100%;
+    max-width: min(100%, 480px);
+    max-height: 60vh;
     height: auto;
-    border-radius: 4px;
+    width: auto;
+    border-radius: var(--radius-md);
     margin: 1.5rem 0;
     display: block;
+    margin-inline-start: 0;
+    margin-inline-end: auto;
+  }
+
+  /* In RTL contexts, an image inside a markdown block should hug the
+     start (right) edge instead of drifting to the LTR left. */
+  [dir="rtl"] & img,
+  &[dir="rtl"] img {
+    margin-inline-start: 0;
+    margin-inline-end: auto;
   }
 }
 
@@ -340,27 +382,49 @@
    on the thumb would block what they're trying to see. The action
    buttons sit OUTSIDE the chip so they don't interfere. */
 [data-component="markdown"] .kolbo-media-chip-group {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  vertical-align: middle;
-  margin: 0 2px;
+  gap: 6px;
+  margin: 8px 0;
+  width: fit-content;
+}
+
+/* Default (LTR chat): chip hugs the left. */
+[data-component="markdown"] .kolbo-media-chip-group {
+  margin-right: auto;
+  margin-left: 0;
+}
+
+/* RTL chat: force chip to hug the right edge regardless of whatever
+   per-block direction markdown's auto-direction logic assigned to the
+   surrounding paragraph (URLs make a block read as LTR even inside a
+   Hebrew message). Use physical margins so a local dir="ltr" can't flip
+   us back. */
+[dir="rtl"] [data-component="markdown"] .kolbo-media-chip-group,
+[data-component="markdown"][dir="rtl"] .kolbo-media-chip-group {
+  margin-right: 0;
+  margin-left: auto;
 }
 
 [data-component="markdown"] .kolbo-media-chip {
   position: relative;
   display: inline-block;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 160px;
+  height: 160px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-weak-base);
   background: var(--background-stronger);
   vertical-align: middle;
   overflow: hidden;
   cursor: zoom-in;
-  transition: border-color 140ms ease,
-              box-shadow 140ms ease;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
   flex-shrink: 0;
+}
+[data-component="markdown"] .kolbo-media-chip:hover {
+  transform: translateY(-1px);
 }
 [data-component="markdown"] .kolbo-media-chip:hover {
   border-color: var(--border-base);
@@ -521,4 +585,139 @@
 [data-component="markdown"] .kolbo-media-chip-iconbtn[data-tooltip]:focus-visible::after {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* HTML artifact card — top-level so it works inside the markdown scope and
+   inside write/edit tool renderers (which mount the Solid version directly). */
+[data-slot="markdown-html-inline-preview"] {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 12px 0;
+  border: 1px solid var(--border-weak-base);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-base-active, #fafafa);
+  color-scheme: light;
+  cursor: pointer;
+  container-type: inline-size;
+  transition:
+    border-color 200ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 200ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation: artifact-card-enter 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+[data-slot="markdown-html-inline-preview"]:hover {
+  border-color: var(--border-base);
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--text-base) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+[data-slot="markdown-html-inline-preview"]:active {
+  transform: translateY(0);
+}
+
+[data-slot="markdown-html-inline-preview"] iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 720px;
+  border: 0;
+  pointer-events: none;
+  transform-origin: top left;
+  transform: scale(calc(100cqw / 1280px));
+  transition:
+    filter 220ms ease,
+    opacity 220ms ease;
+  animation: artifact-iframe-enter 460ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+[data-slot="markdown-html-preview-overlay"] {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #000 10%, transparent) 0%,
+    color-mix(in srgb, #000 50%, transparent) 100%
+  );
+  opacity: 0;
+  transition: opacity 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  z-index: 1;
+  pointer-events: none;
+}
+
+[data-slot="markdown-html-inline-preview"]:hover [data-slot="markdown-html-preview-overlay"],
+[data-slot="markdown-html-inline-preview"]:focus-visible [data-slot="markdown-html-preview-overlay"] {
+  opacity: 1;
+}
+
+[data-slot="markdown-html-inline-preview"]:hover iframe {
+  filter: blur(2px) saturate(1.05);
+}
+
+[data-slot="markdown-html-preview-label"] {
+  background: #ffffff;
+  color: #111827;
+  padding: 8px 20px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-family-sans);
+  font-size: 14px;
+  font-weight: var(--font-weight-medium);
+  box-shadow: var(--shadow-md);
+  transform: translateY(6px) scale(0.96);
+  transition: transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+[data-slot="markdown-html-inline-preview"]:hover [data-slot="markdown-html-preview-label"],
+[data-slot="markdown-html-inline-preview"]:focus-visible [data-slot="markdown-html-preview-label"] {
+  transform: translateY(0) scale(1);
+}
+
+/* When the artifact card replaces a fenced code block, fade the swap so
+   the iframe doesn't pop in on top of the disappearing <pre>. */
+[data-component="markdown-code"][data-html-preview-active="true"] > [data-slot="markdown-html-inline-preview"] {
+  animation: artifact-card-enter 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes artifact-card-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes artifact-iframe-enter {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="markdown-html-inline-preview"],
+  [data-slot="markdown-html-inline-preview"] iframe,
+  [data-slot="markdown-html-preview-overlay"],
+  [data-slot="markdown-html-preview-label"],
+  [data-component="markdown-code"][data-html-preview-active="true"] > [data-slot="markdown-html-inline-preview"] {
+    animation: none;
+    transition: none;
+  }
+  [data-slot="markdown-html-inline-preview"]:hover {
+    transform: none;
+  }
+  [data-slot="markdown-html-preview-label"] {
+    transform: none;
+  }
 }

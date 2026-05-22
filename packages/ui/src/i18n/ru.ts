@@ -141,7 +141,7 @@ export const dict = {
   "ui.kolbo.generatingImage": "Генерация изображения…",
   "ui.kolbo.generatingVideo": "Генерация видео…",
   "ui.kolbo.generatingAudio": "Генерация аудио…",
-  "ui.kolbo.usedMedia": "{n} медиа",
+  "ui.kolbo.usedMedia": "{{n}} медиа",
   "ui.kolbo.chip.viewInCanvas": "Открыть в Canvas",
   "ui.kolbo.chip.generating": "Создание {{label}}…",
   "ui.kolbo.chip.generatingCount": "Создание {{count}} {{label}}…",

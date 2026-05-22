@@ -20,6 +20,16 @@ export type MediaCardProps = {
    * would otherwise overlap the cell content at narrow column counts.
    */
   hideHoverButtons?: boolean
+  /**
+   * When provided, renders a hover-revealed "X" button alongside the
+   * download/folder buttons. Click hides the media from the parent view
+   * (the caller is responsible for the actual hide/persist semantics —
+   * MediaCard just surfaces the affordance). Use for canvas tiles where
+   * the user wants to declutter without deleting the underlying generation.
+   */
+  onRemove?: () => void
+  /** Optional tooltip for the remove button. Defaults to "Hide from canvas". */
+  removeLabel?: string
 }
 
 function extractFilename(path?: string, fallback = "download"): string {
@@ -147,8 +157,31 @@ export function MediaCard(props: MediaCardProps) {
   return (
     <div class="group relative h-full">
       {props.children}
-      <Show when={!props.hideHoverButtons && (showDownload() || showOpenFolder())}>
+      <Show when={!props.hideHoverButtons && (showDownload() || showOpenFolder() || !!props.onRemove)}>
         <div class="absolute top-2 right-2 z-10 flex gap-1.5 opacity-0 translate-y-0.5 transition-all duration-200 ease-out group-hover:opacity-100 group-hover:translate-y-0">
+          <Show when={props.onRemove}>
+            <button
+              type="button"
+              title={props.removeLabel ?? "Hide from canvas"}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                props.onRemove?.()
+              }}
+              class="flex items-center justify-center size-[30px] rounded-md transition-all duration-150 hover:scale-[1.08]"
+              style={btnBase()}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M2.5 4.5h11M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4.5 4.5l.6 9a1.5 1.5 0 0 0 1.5 1.4h2.8a1.5 1.5 0 0 0 1.5-1.4l.6-9M7 7.5v4.5M9 7.5v4.5"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </Show>
           <Show when={showDownload()}>
             <button
               type="button"

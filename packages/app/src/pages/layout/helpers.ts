@@ -21,16 +21,19 @@ function sortSessions(now: number) {
   }
 }
 
-const isRootVisibleSession = (session: Session, directory: string) =>
-  pathKey(session.directory) === pathKey(directory) && !session.parentID && !session.time?.archived
+const isRootVisibleSession = (session: Session, directory: string, includeArchived = false) =>
+  pathKey(session.directory) === pathKey(directory) &&
+  !session.parentID &&
+  (includeArchived || !session.time?.archived)
 
-const roots = (store: SessionStore) =>
-  (store.session ?? []).filter((session) => isRootVisibleSession(session, store.path.directory))
+const roots = (store: SessionStore, includeArchived = false) =>
+  (store.session ?? []).filter((session) => isRootVisibleSession(session, store.path.directory, includeArchived))
 
-export const sortedRootSessions = (store: SessionStore, now: number) => roots(store).sort(sortSessions(now))
+export const sortedRootSessions = (store: SessionStore, now: number, includeArchived = false) =>
+  roots(store, includeArchived).sort(sortSessions(now))
 
 export const latestRootSession = (stores: SessionStore[], now: number) =>
-  stores.flatMap(roots).sort(sortSessions(now))[0]
+  stores.flatMap((store) => roots(store)).sort(sortSessions(now))[0]
 
 export function hasProjectPermissions<T>(
   request: Record<string, T[] | undefined> | undefined,

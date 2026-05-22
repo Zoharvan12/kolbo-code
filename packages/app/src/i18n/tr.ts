@@ -524,7 +524,6 @@ export const dict = {
   "session.revertDock.collapse": "Geri alınan mesajları daralt",
   "session.revertDock.expand": "Geri alınan mesajları genişlet",
   "session.revertDock.restore": "Mesajı geri yükle",
-  "session.new.title": "İstediğini yap",
   "session.new.worktree.main": "Ana dal",
   "session.new.worktree.mainWithBranch": "Ana dal ({{branch}})",
   "session.new.worktree.create": "Yeni çalışma ağacı oluştur",

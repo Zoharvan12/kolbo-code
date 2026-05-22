@@ -674,10 +674,11 @@ export default function Layout(props: ParentProps) {
     const dirs = visibleSessionDirs()
     if (dirs.length === 0) return [] as Session[]
 
+    const includeArchived = settings.general.showArchivedSessions()
     const result: Session[] = []
     for (const dir of dirs) {
       const [dirStore] = globalSync.child(dir, { bootstrap: true })
-      const dirSessions = sortedRootSessions(dirStore, now)
+      const dirSessions = sortedRootSessions(dirStore, now, includeArchived)
       result.push(...dirSessions)
     }
     return result

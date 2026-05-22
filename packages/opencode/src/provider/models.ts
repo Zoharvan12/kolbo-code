@@ -216,6 +216,11 @@ export namespace ModelsDev {
       // that still isn't an http(s) URL — relative paths would 404 anyway.
       const passAvatar = (a: string | null | undefined): string | undefined => {
         if (typeof a !== "string") return undefined
+        // Dev API runs on http://localhost:5050 — keep that as-is. Tauri
+        // treats localhost as a "potentially trustworthy" origin so http://
+        // images load fine without mixed-content errors. Don't upgrade to
+        // https because there's no cert there.
+        if (/^http:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:|\/|$)/i.test(a)) return a
         if (a.startsWith("http://")) return "https://" + a.slice("http://".length)
         return /^https:\/\//i.test(a) ? a : undefined
       }
