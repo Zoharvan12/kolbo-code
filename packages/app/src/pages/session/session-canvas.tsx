@@ -2,7 +2,7 @@ import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup, on
 import { useSync } from "@/context/sync"
 import { useLanguage } from "@/context/language"
 import { useSessionLayout } from "@/pages/session/session-layout"
-import { AudioWavePlayer } from "@/pages/session/audio-wave-player"
+import { AudioWavePlayer, fmt } from "@/pages/session/audio-wave-player"
 import { CanvasLibraryView } from "@/pages/session/canvas-library-view"
 import { MediaCard } from "@opencode-ai/ui/media-card"
 import { usePlatformOps } from "@opencode-ai/ui/context/platform-ops"
@@ -688,9 +688,28 @@ function CanvasCellView(props: { cell: CanvasCell; onHide?: (url: string) => voi
   )
 }
 
+// Shared 1Hz ticker for all PendingCellView elapsed counters. One interval
+// for the whole app instead of one per cell — N parallel generations no
+// longer mean N timers + N signal writes per second.
+const [sharedTickNow, setSharedTickNow] = createSignal(Date.now())
+let sharedTickRefs = 0
+let sharedTickId: ReturnType<typeof setInterval> | null = null
+function useSharedTick() {
+  sharedTickRefs++
+  if (sharedTickRefs === 1) {
+    sharedTickId = setInterval(() => setSharedTickNow(Date.now()), 1000)
+  }
+  onCleanup(() => {
+    sharedTickRefs--
+    if (sharedTickRefs === 0 && sharedTickId !== null) {
+      clearInterval(sharedTickId)
+      sharedTickId = null
+    }
+  })
+  return sharedTickNow
+}
+
 function PendingCellView(props: { cell: PendingCell }) {
-  // Pending cells don't know aspect ratio yet — use a sensible default per kind
-  // so they reserve realistic space (videos tend wider, images squarer).
   const fallbackAspect = createMemo(() => {
     if (props.cell.kind === "video") return 16 / 9
     if (props.cell.kind === "audio") return 16 / 2.5
@@ -701,18 +720,10 @@ function PendingCellView(props: { cell: PendingCell }) {
       ? (import.meta.env?.VITE_WHITELABEL_LOGO as string | undefined)
       : undefined
 
-  // Wall-clock counter so the user can tell at a glance whether a generation
-  // is making progress or frozen. Ticks once per second; freezes when the
-  // cell unmounts.
-  const [now, setNow] = createSignal(Date.now())
-  const id = setInterval(() => setNow(Date.now()), 1000)
-  onCleanup(() => clearInterval(id))
-  const elapsedLabel = createMemo(() => {
-    const s = Math.max(0, Math.floor((now() - props.cell.startedAt) / 1000))
-    const m = Math.floor(s / 60)
-    const r = s % 60
-    return `${m}:${r.toString().padStart(2, "0")}`
-  })
+  // m:ss formatter shared with audio-wave-player — keep the import path
+  // local-relative to avoid cycles (sibling file in the same dir).
+  const now = useSharedTick()
+  const elapsedLabel = createMemo(() => fmt(Math.max(0, (now() - props.cell.startedAt) / 1000)))
 
   return (
     <div

@@ -194,7 +194,33 @@ type RegistryModel = {
   identifierToNameMap?: Record<string, string>
   identifierToAvatarMap?: Record<string, string>
 }
-type RegistryData = { models: RegistryModel[]; assetsBase: string }
+// Indexed registry: O(1) lookup keyed by every searchable field. Built once
+// when the registry resource resolves; reused by every cell.
+type RegistryData = {
+  models: RegistryModel[]
+  assetsBase: string
+  byKey: Map<string, { model: RegistryModel; subKey?: string }>
+}
+
+function indexRegistry(models: RegistryModel[], assetsBase: string): RegistryData {
+  const byKey = new Map<string, { model: RegistryModel; subKey?: string }>()
+  const put = (k: string | undefined, model: RegistryModel, subKey?: string) => {
+    if (!k) return
+    const lc = k.toLowerCase()
+    if (!byKey.has(lc)) byKey.set(lc, { model, subKey })
+  }
+  for (const m of models) {
+    put(m.identifier, m)
+    put(m.id, m)
+    if (typeof m._id === "string") put(m._id, m)
+    put(m.name, m)
+    if (m.identifierToNameMap) {
+      for (const k of Object.keys(m.identifierToNameMap)) put(k, m, k)
+    }
+    if (m.subModels) for (const s of m.subModels) put(s, m, s)
+  }
+  return { models, assetsBase, byKey }
+}
 
 const registryCache = new Map<string, Promise<RegistryData>>()
 function loadModelRegistry(serverBase: string): Promise<RegistryData> {
@@ -205,19 +231,12 @@ function loadModelRegistry(serverBase: string): Promise<RegistryData> {
       const res = await fetch(`${serverBase}/global/kolbo-models?format=detailed`, {
         headers: { Accept: "application/json" },
       })
-      if (!res.ok) return { models: [], assetsBase: "" }
-      // Response shapes seen in the wild:
-      //   { status, data: { models: [...] } }     ← current /models?format=detailed
-      //   { data: [...] }                          ← older slim shape
-      //   { models: [...] }                        ← if ever proxied raw
+      if (!res.ok) return indexRegistry([], "")
       const raw = (await res.json()) as {
-        data?: RegistryModel[] | { models?: RegistryModel[] }
-        models?: RegistryModel[]
+        data?: { models?: RegistryModel[] }
         assetsBase?: string
       }
-      const models = Array.isArray(raw.data)
-        ? raw.data
-        : raw.data?.models ?? raw.models ?? []
+      const models = raw.data?.models ?? []
       if (models.length === 0) {
         // Loud warning so a future backend shape change can't silently kill
         // every model badge in the library (the prior bug). Inspect `raw`
@@ -227,9 +246,9 @@ function loadModelRegistry(serverBase: string): Promise<RegistryData> {
           raw,
         )
       }
-      return { models, assetsBase: raw.assetsBase ?? "" }
+      return indexRegistry(models, raw.assetsBase ?? "")
     } catch {
-      return { models: [], assetsBase: "" }
+      return indexRegistry([], "")
     }
   })()
   registryCache.set(serverBase, p)
@@ -237,46 +256,26 @@ function loadModelRegistry(serverBase: string): Promise<RegistryData> {
 }
 
 function resolveRegistryModel(
-  raw: string | undefined,
+  rawId: string | undefined,
   registry: RegistryData,
 ): { name?: string; avatar?: string } {
-  if (!raw || !registry.models.length) return {}
-  const q = raw.toLowerCase()
+  if (!rawId || !registry.models.length) return {}
   const absolutize = (a: string | undefined) => {
     if (!a) return undefined
     if (a.startsWith("http://") || a.startsWith("https://") || a.startsWith("data:")) return a
     if (!registry.assetsBase) return undefined
     return `${registry.assetsBase}/${a.replace(/^\/+/, "")}`
   }
-  // Exact match on identifier / id / _id / name
-  const exact = registry.models.find(
-    (m) =>
-      m.identifier?.toLowerCase() === q ||
-      m.id?.toLowerCase() === q ||
-      (typeof m._id === "string" && m._id.toLowerCase() === q) ||
-      m.name?.toLowerCase() === q,
-  )
-  if (exact) {
-    const subAvatar =
-      exact.identifierToAvatarMap?.[raw] ||
-      (exact.identifierToAvatarMap &&
-        Object.entries(exact.identifierToAvatarMap).find(([k]) => k.toLowerCase() === q)?.[1])
-    return { name: exact.name, avatar: absolutize(subAvatar || exact.avatar || exact.imageUrl) }
+  const hit = registry.byKey.get(rawId.toLowerCase())
+  if (hit) {
+    const { model, subKey } = hit
+    // Submodel-specific avatar/name if the matched key is a submodel id.
+    const avatar = (subKey && model.identifierToAvatarMap?.[subKey]) || model.avatar || model.imageUrl
+    const name = (subKey && model.identifierToNameMap?.[subKey]) || model.name
+    return { name, avatar: absolutize(avatar) }
   }
-  // Submodel maps
-  for (const m of registry.models) {
-    const nameFromMap = m.identifierToNameMap?.[raw]
-    if (nameFromMap) {
-      const avatar = m.identifierToAvatarMap?.[raw] || m.avatar || m.imageUrl
-      return { name: nameFromMap, avatar: absolutize(avatar) }
-    }
-    if (m.subModels?.some((s) => s?.toLowerCase() === q)) {
-      const avatar = m.identifierToAvatarMap?.[raw] || m.avatar || m.imageUrl
-      const name = m.identifierToNameMap?.[raw] || m.name
-      return { name, avatar: absolutize(avatar) }
-    }
-  }
-  // Partial identifier-contains (≥8 chars to avoid false matches)
+  // Partial contains fallback — rare path, scan when no exact key hit.
+  const q = rawId.toLowerCase()
   if (q.length >= 8) {
     for (const m of registry.models) {
       const id = (m.identifier || m.id || "").toLowerCase()
@@ -474,7 +473,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
 
   const [projects] = createResource(serverBase, (base) => (base ? loadProjects(base) : Promise.resolve([] as Project[])))
   const [registry] = createResource(serverBase, (base) =>
-    base ? loadModelRegistry(base) : Promise.resolve({ models: [], assetsBase: "" } as RegistryData),
+    base ? loadModelRegistry(base) : Promise.resolve(indexRegistry([], "")),
   )
 
   // Filters tuple — any change resets pagination and replaces the page list.

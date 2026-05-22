@@ -92,7 +92,18 @@ export namespace FileTime {
 
         const reads = (yield* InstanceState.get(state)).reads
         const time = reads.get(sessionID)?.get(filepath)
-        if (!time) throw new Error(`You must read file ${filepath} before overwriting it. Use the Read tool first`)
+        if (!time) {
+          // Self-healing: record the read now and surface the current contents
+          // in the error so the next attempt has the context it needed, instead
+          // of forcing a Read → Write round-trip the model often fumbles.
+          session(reads, sessionID).set(filepath, yield* stamp(filepath))
+          const current = yield* fsys.readFileString(filepath).pipe(Effect.catch(() => Effect.succeed("")))
+          const MAX = 64 * 1024
+          const snippet = current.length > MAX ? `${current.slice(0, MAX)}\n… (truncated, ${current.length - MAX} more bytes — use the Read tool to view the rest)` : current
+          throw new Error(
+            `You must read ${filepath} before overwriting it. Here are the current contents — review them, then retry your edit:\n\n<file path="${filepath}">\n${snippet}\n</file>`,
+          )
+        }
 
         const next = yield* stamp(filepath)
         const changed = next.mtime !== time.mtime || next.size !== time.size

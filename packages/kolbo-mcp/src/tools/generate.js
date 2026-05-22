@@ -418,8 +418,16 @@ function registerGenerateTools(server, client) {
 
       // Update the consecutive-call counter for this id. We reset if the
       // last attempt was a long time ago (new user turn), so this only
-      // catches within-turn looping.
+      // catches within-turn looping. Opportunistic sweep keeps the map
+      // bounded on long-lived MCP servers (no setInterval — that would
+      // keep the Node event loop alive forever).
       const now = Date.now();
+      if (statusPollHistory.size > 64) {
+        const cutoff = now - STATUS_POLL_RESET_MS;
+        for (const [k, v] of statusPollHistory) {
+          if (v.lastAt < cutoff) statusPollHistory.delete(k);
+        }
+      }
       const prior = statusPollHistory.get(generation_id);
       const count = prior && now - prior.lastAt < STATUS_POLL_RESET_MS ? prior.count + 1 : 1;
       statusPollHistory.set(generation_id, { count, lastAt: now });

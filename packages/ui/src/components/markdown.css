@@ -385,25 +385,10 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 8px 0;
+  margin-block: 8px;
+  margin-inline-start: 0;
+  margin-inline-end: auto;
   width: fit-content;
-}
-
-/* Default (LTR chat): chip hugs the left. */
-[data-component="markdown"] .kolbo-media-chip-group {
-  margin-right: auto;
-  margin-left: 0;
-}
-
-/* RTL chat: force chip to hug the right edge regardless of whatever
-   per-block direction markdown's auto-direction logic assigned to the
-   surrounding paragraph (URLs make a block read as LTR even inside a
-   Hebrew message). Use physical margins so a local dir="ltr" can't flip
-   us back. */
-[dir="rtl"] [data-component="markdown"] .kolbo-media-chip-group,
-[data-component="markdown"][dir="rtl"] .kolbo-media-chip-group {
-  margin-right: 0;
-  margin-left: auto;
 }
 
 [data-component="markdown"] .kolbo-media-chip {
