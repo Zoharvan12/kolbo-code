@@ -446,8 +446,18 @@ export const GlobalRoutes = lazy(() =>
         if (!callerSessionId) return c.json(empty)
 
         const base = Partner.apiBase
+        // Pass through startDate / endDate so callers can scope the window
+        // (e.g. the desktop prompt-input scopes to "this chat session" by
+        // sending startDate = first-message timestamp). kolbo-api filters
+        // CreditUsage.created_at by these. Strings only — non-string values
+        // are dropped to defend against NoSQL operator injection.
+        const startDate = typeof c.req.query("startDate") === "string" ? c.req.query("startDate") : undefined
+        const endDate = typeof c.req.query("endDate") === "string" ? c.req.query("endDate") : undefined
+        const qs = new URLSearchParams({ caller_session_id: callerSessionId })
+        if (startDate) qs.set("startDate", startDate)
+        if (endDate) qs.set("endDate", endDate)
         try {
-          const url = `${base}/credit-usage/by-caller-session?caller_session_id=${encodeURIComponent(callerSessionId)}`
+          const url = `${base}/credit-usage/by-caller-session?${qs.toString()}`
           const res = await fetch(url, {
             headers: {
               "X-API-Key": apiKey,

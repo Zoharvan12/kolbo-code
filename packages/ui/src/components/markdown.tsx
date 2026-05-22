@@ -837,13 +837,38 @@ function buildMediaChip(opts: {
  * <img> element is removed; the chip carries the same data-media-wrapper
  * attribute so groupConsecutiveMedia + the lightbox delegation still apply.
  */
+// The first <p> inside an <li> is forced to display:inline (so the bullet
+// sits on the same line as the first text). That makes every chip-group
+// flow inline with the surrounding Hebrew/English text — and in RTL that
+// visually flips the chip onto the wrong side. Force the chip out of
+// inline flow with display:flex + auto margin toward the message-level
+// inline-start (right in RTL, left in LTR). Physical margins so no parent
+// dir="auto" can flip them back.
+function applyChipDirectionStyles(chip: HTMLElement, isRtl: boolean): void {
+  chip.style.display = "flex"
+  chip.style.width = "fit-content"
+  chip.style.alignItems = "center"
+  chip.style.clear = "both"
+  chip.style.marginTop = "8px"
+  chip.style.marginBottom = "8px"
+  if (isRtl) {
+    chip.style.marginLeft = "auto"
+    chip.style.marginRight = "0"
+  } else {
+    chip.style.marginRight = "auto"
+    chip.style.marginLeft = "0"
+  }
+}
+
 function wrapMarkdownImages(root: HTMLDivElement, dlLabels: DownloadLabels): void {
+  const isRtl = root.getAttribute("dir") === "rtl"
   const images = Array.from(root.querySelectorAll("img"))
   for (const img of images) {
     if (!(img instanceof HTMLImageElement)) continue
     if (img.closest("[data-media-wrapper]")) continue
     if (!img.src) continue
     const chip = buildMediaChip({ url: img.src, isVideo: false, dlLabels })
+    applyChipDirectionStyles(chip, isRtl)
     img.parentNode?.replaceChild(chip, img)
   }
 }
@@ -854,6 +879,7 @@ function wrapMarkdownImages(root: HTMLDivElement, dlLabels: DownloadLabels): voi
  * chat stays compact.
  */
 function wrapMarkdownImageLinks(root: HTMLDivElement, dlLabels: DownloadLabels): void {
+  const isRtl = root.getAttribute("dir") === "rtl"
   const anchors = Array.from(root.querySelectorAll("a[href]"))
   for (const anchor of anchors) {
     if (!(anchor instanceof HTMLAnchorElement)) continue
@@ -861,6 +887,7 @@ function wrapMarkdownImageLinks(root: HTMLDivElement, dlLabels: DownloadLabels):
     if (!imageExtPattern.test(href)) continue
     if (anchor.closest("[data-media-wrapper]")) continue
     const chip = buildMediaChip({ url: href, isVideo: false, dlLabels })
+    applyChipDirectionStyles(chip, isRtl)
     anchor.parentNode?.replaceChild(chip, anchor)
   }
 }
@@ -955,10 +982,19 @@ function decorate(root: HTMLDivElement, labels: CopyLabels, dlLabels: DownloadLa
  * direction. Pure DOM tweak — costs ~ms per message, applied once.
  */
 function applyBlockAutoDirection(root: HTMLDivElement): void {
+  // Note: don't include ol/ul here. dir="auto" on a list container skips
+  // descendants whose own dir is set, and every <li> below gets dir="auto"
+  // too — so the list would find no eligible text and fall back to LTR.
+  // Lists inherit direction from the markdown root instead.
   const blocks = root.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, dd, dt")
   for (const el of Array.from(blocks)) {
     if (!(el instanceof HTMLElement)) continue
     if (el.hasAttribute("dir")) continue
+    // Skip blocks whose only meaningful content is a media chip — the URL
+    // is LTR text and would force the whole block to LTR, mis-aligning the
+    // chip in an otherwise RTL message. Let it inherit from the root.
+    const hasMedia = el.querySelector("[data-media-wrapper], .kolbo-media-grid")
+    if (hasMedia && (el.textContent ?? "").trim() === "") continue
     el.setAttribute("dir", "auto")
   }
 }
@@ -968,6 +1004,7 @@ function applyBlockAutoDirection(root: HTMLDivElement): void {
  * the file in a new tab (no inline player; the canvas is the gallery).
  */
 function wrapMarkdownVideoLinks(root: HTMLDivElement, dlLabels: DownloadLabels): void {
+  const isRtl = root.getAttribute("dir") === "rtl"
   const anchors = Array.from(root.querySelectorAll("a[href]"))
   for (const anchor of anchors) {
     if (!(anchor instanceof HTMLAnchorElement)) continue
@@ -975,6 +1012,7 @@ function wrapMarkdownVideoLinks(root: HTMLDivElement, dlLabels: DownloadLabels):
     if (!isKolboVideoUrl(href)) continue
     if (anchor.closest("[data-media-wrapper]")) continue
     const chip = buildMediaChip({ url: href, isVideo: true, dlLabels })
+    applyChipDirectionStyles(chip, isRtl)
     anchor.parentNode?.replaceChild(chip, anchor)
   }
 }
@@ -1351,6 +1389,11 @@ export function Markdown(
       openingInBrowser: i18n.t("ui.download.openingInBrowser"),
     }
     const temp = document.createElement("div")
+    // Mirror the markdown root's direction onto the staging div so decorate()
+    // can detect it. wrapMarkdownImages / wrapMarkdownImageLinks read this
+    // attribute to decide which side the chip aligns to — without it, every
+    // chip falls back to LTR regardless of the actual message direction.
+    temp.setAttribute("dir", textDir())
     temp.innerHTML = content
     decorate(temp, labels, dlLabels)
 
@@ -1440,6 +1483,12 @@ export function Markdown(
       .slice(0, DIR_SAMPLE_CHARS)
       .replace(/```[\s\S]*?```/g, "")
       .replace(/`[^`]*`/g, "")
+      // Strip URLs and markdown link/image targets — a single long image
+      // URL is hundreds of LTR chars and would flip a Hebrew message back
+      // to LTR (which then mis-aligns inline media chips to the left).
+      .replace(/\bhttps?:\/\/\S+/gi, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[[^\]]*\]\([^)]*\)/g, "")
     const rtlChars = (prose.match(/[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/g) || []).length
     const ltrChars = (prose.match(/[A-Za-z\u00C0-\u024F]/g) || []).length
     const total = rtlChars + ltrChars

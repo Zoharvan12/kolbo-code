@@ -55,13 +55,15 @@
     text-underline-offset: 2px;
   }
 
-  /* Lists */
+  /* Lists — use logical properties so the marker indent follows the
+     list's direction (left in LTR, right in RTL). */
   ul,
   ol {
     margin-top: 0.5rem;
     margin-bottom: 1rem;
-    margin-left: 0;
-    padding-left: 1.5rem;
+    margin-inline-start: 0;
+    padding-inline-start: 1.5rem;
+    padding-inline-end: 0;
     list-style-position: outside;
   }
 
@@ -71,7 +73,7 @@
 
   ol {
     list-style-type: decimal;
-    padding-left: 2.25rem;
+    padding-inline-start: 2.25rem;
   }
 
   li {
@@ -97,11 +99,12 @@
   li > ol {
     margin-top: 0.25rem;
     margin-bottom: 0.25rem;
-    padding-left: 1rem; /* Minimal indent for nesting only */
+    padding-inline-start: 1rem; /* Minimal indent for nesting only */
+    padding-inline-end: 0;
   }
 
   li > ol {
-    padding-left: 1.75rem;
+    padding-inline-start: 1.75rem;
   }
 
   /* Blockquotes */
@@ -334,6 +337,20 @@
   padding-inline-start: 2.25rem;
 }
 
+/* Force the list container to match the markdown root's direction so the
+   ::marker (rendered outside via list-style-position: outside) sits on
+   the correct inline-start side. Lists inherit direction by default, but
+   some upstream styles toggle direction on the <ol>/<ul> container which
+   pulls the marker back to the LTR left. */
+[data-component="markdown"][dir="rtl"] ol,
+[data-component="markdown"][dir="rtl"] ul {
+  direction: rtl;
+}
+[data-component="markdown"][dir="ltr"] ol,
+[data-component="markdown"][dir="ltr"] ul {
+  direction: ltr;
+}
+
 [data-component="markdown"] li > ul,
 [data-component="markdown"] li > ol {
   padding-inline-start: 1rem;
@@ -381,14 +398,18 @@
    click it to open the full-size lightbox preview — anything overlaid
    on the thumb would block what they're trying to see. The action
    buttons sit OUTSIDE the chip so they don't interfere. */
+/* Block-level flex container so the chip starts its own line, with its
+   inner thumb+buttons laid out as a horizontal flex row. The horizontal
+   margin (left:auto vs right:auto) is set inline by wrapMarkdownImages
+   based on the message-level direction, so the chip lands on the right
+   in RTL and the left in LTR — robust against any per-paragraph dir="auto"
+   that would otherwise resolve to the wrong direction. */
 [data-component="markdown"] .kolbo-media-chip-group {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-block: 8px;
-  margin-inline-start: 0;
-  margin-inline-end: auto;
   width: fit-content;
+  margin: 8px 0;
 }
 
 [data-component="markdown"] .kolbo-media-chip {
@@ -413,7 +434,9 @@
 }
 [data-component="markdown"] .kolbo-media-chip:hover {
   border-color: var(--border-base);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--text-base) 14%, transparent);
+  /* Drop shadow stays dark in both modes — a theme-following shadow turns
+     bright-white in dark mode and reads as a "burned" glow around the image. */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
 }
 [data-component="markdown"] .kolbo-media-chip--video {
   cursor: pointer;

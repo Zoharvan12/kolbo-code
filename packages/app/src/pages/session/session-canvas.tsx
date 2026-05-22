@@ -1091,9 +1091,13 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
           contain-intrinsic-size: 1px 280px;
         }
         .kolbo-canvas-cell:hover {
+          /* Inset border follows --text-base (subtle theme-tinted edge — fine
+             in both modes). The OUTER drop shadow must stay dark in both
+             modes; a theme-following shadow goes bright-white in dark mode
+             and reads as a "burned" glow around the image. */
           box-shadow:
             inset 0 0 0 1px color-mix(in srgb, var(--text-base) 12%, transparent),
-            0 6px 18px color-mix(in srgb, var(--text-base) 10%, transparent);
+            0 6px 18px rgba(0, 0, 0, 0.22);
           transform: translateY(-1px);
         }
         .kolbo-canvas-cell-selected,
