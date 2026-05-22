@@ -19,10 +19,10 @@ function registerChatTools(server, client) {
       system_prompt: z.string().optional().describe('System prompt for the conversation. Only applied when creating a new session.'),
       web_search: z.boolean().optional().describe('Enable web search for this message. Default: false'),
       deep_think: z.boolean().optional().describe('Enable deep think (extended reasoning). Default: false'),
-      enhance_prompt: z.boolean().optional().describe('Enhance the prompt. Default: true'),
+      enhance_prompt: z.boolean().optional().describe('Set true to ask the API to rewrite your prompt for richer detail. Default: false — by default we send your prompt as-is.'),
       media_urls: z.array(z.string()).optional().describe('Public URLs of images, videos, or audio files to analyze. The model auto-routes to a vision-capable model when media is present. Use upload_media first to get a public URL for local files.')
     },
-    async ({ message, model, session_id, system_prompt, web_search, deep_think, enhance_prompt, media_urls }) => {
+    async ({ message, model, session_id, system_prompt, web_search, deep_think, enhance_prompt = false, media_urls }) => {
       const gen = await client.post('/v1/chat', {
         message,
         model,
