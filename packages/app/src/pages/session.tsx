@@ -445,16 +445,25 @@ export default function Page() {
       if (lang !== "html" && lang !== "svg" && lang !== "mermaid") return
       setArtifact({ content: detail.content, lang })
       setArtifactsTabActive(true)
+      // Explicit artifact request wins over any sticky canvas override.
+      setCanvasTabActive(false)
       if (detail.autoOpen && !view().reviewPanel.opened()) view().reviewPanel.open()
     }
     document.addEventListener("kolbo:artifact", handler)
     onCleanup(() => document.removeEventListener("kolbo:artifact", handler))
 
     const openCanvas = () => {
-      // Explicit user request — override the "dismissed" flag for this session.
-      view().canvas.setDismissed(false)
-      setCanvasTabActive(true)
-      if (!view().reviewPanel.opened()) view().reviewPanel.open()
+      batch(() => {
+        // Explicit user request — override the "dismissed" flag for this session.
+        view().canvas.setDismissed(false)
+        // Clear any sticky artifacts override so effectiveActiveTab in the side
+        // panel actually resolves to "canvas". Otherwise — because effectiveActiveTab
+        // checks artifacts FIRST — clicking Canvas while artifacts is showing
+        // would silently keep showing artifacts.
+        setArtifactsTabActive(false)
+        setCanvasTabActive(true)
+        if (!view().reviewPanel.opened()) view().reviewPanel.open()
+      })
     }
     document.addEventListener("kolbo:open-canvas", openCanvas)
     onCleanup(() => document.removeEventListener("kolbo:open-canvas", openCanvas))

@@ -29,6 +29,20 @@ beforeAll(async () => {
   mock.module("@opencode-ai/ui/file-icon", () => ({ FileIcon: () => null }))
   mock.module("@opencode-ai/ui/icon", () => ({ Icon: () => null }))
   mock.module("@opencode-ai/ui/tooltip", () => ({ Tooltip: (props: { children?: unknown }) => props.children }))
+  const passthrough = (props: { children?: unknown }) => props.children
+  mock.module("@opencode-ai/ui/context-menu", () => ({
+    ContextMenu: Object.assign(passthrough, {
+      Trigger: passthrough,
+      Portal: passthrough,
+      Content: passthrough,
+      Item: passthrough,
+      ItemLabel: passthrough,
+      Separator: () => null,
+    }),
+  }))
+  mock.module("@opencode-ai/ui/toast", () => ({ showToast: () => {} }))
+  mock.module("@/context/platform", () => ({ usePlatform: () => ({}) }))
+  mock.module("@/context/language", () => ({ useLanguage: () => ({ t: (k: string) => k }) }))
   const mod = await import("./file-tree")
   shouldListRoot = mod.shouldListRoot
   shouldListExpanded = mod.shouldListExpanded

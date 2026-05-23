@@ -182,13 +182,12 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
     ]
   })
 
-  // Images → sent as multimodal file parts (vision models can process inline)
-  // Video/Audio → sent as a text URL reference to the AI (providers don't support video inline),
-  //               but kept as file parts in optimisticParts so the UI bubble renders them properly.
+  // All media (image/video/audio/PDF/text) → sent as multimodal file parts.
+  // The backend (provider/transform.ts unsupportedParts) gracefully degrades to
+  // a clear "model does not support X" text part when the chosen model can't
+  // handle that modality, so we no longer pre-filter on the client.
   const imageParts: PromptRequestPart[] = []
-  const imageOptimisticParts: PromptRequestPart[] = []  // use dataUrl so bubble always renders locally
-  const mediaFileParts: PromptRequestPart[] = []  // for optimistic UI only
-  const mediaNotes: string[] = []
+  const imageOptimisticParts: PromptRequestPart[] = []
 
   for (const attachment of input.images) {
     const url = attachment.publicUrl ?? attachment.dataUrl
@@ -201,69 +200,42 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
       url,
       filename: label,
     }
-    if (
-      attachment.mime.startsWith("image/") ||
-      attachment.mime === "application/pdf" ||
-      attachment.mime.startsWith("text/")
-    ) {
-      // Images, PDFs, and text files: sent as inline file parts so vision /
-      // document / text-capable models can read them. Also emit a source note
-      // so the agent knows how to reference the file for tool use.
-      imageParts.push(filePart)
-      // Optimistic part uses dataUrl so the message bubble always renders locally,
-      // regardless of whether the CDN upload succeeded or the URL is accessible.
-      imageOptimisticParts.push({ ...filePart, url: attachment.dataUrl })
-      const kind =
-        attachment.mime === "application/pdf"
-          ? "PDF"
-          : attachment.mime.startsWith("text/")
-            ? "File"
-            : "Image"
-      const sourceParts: string[] = []
-      if (attachment.localPath) sourceParts.push(`local path: ${attachment.localPath}`)
-      if (attachment.publicUrl) sourceParts.push(`URL: ${attachment.publicUrl}`)
-      if (sourceParts.length > 0) {
-        const noteId = Identifier.ascending("part")
-        const notePart: PromptRequestPart = {
-          id: noteId,
-          type: "text",
-          text: `[${kind} — ${sourceParts.join(" | ")}]`,
-          synthetic: true,
-        }
-        imageParts.push(notePart)
-        imageOptimisticParts.push(notePart)
-      }
-    } else {
-      // Video/audio: providers don't support these inline, so pass source info as text
-      // so the agent can hand the URL/path to generation tools (ffmpeg, Remotion, etc.).
-      const kind = attachment.mime.startsWith("video/") ? "Video" : "Audio"
-      const sourceParts: string[] = []
-      if (attachment.localPath) sourceParts.push(`local path: ${attachment.localPath}`)
-      if (attachment.publicUrl) sourceParts.push(`URL: ${attachment.publicUrl}`)
-      else if (attachment.dataUrl && !attachment.dataUrl.startsWith("data:")) sourceParts.push(`URL: ${attachment.dataUrl}`)
-      const sourceNote = sourceParts.length > 0 ? ` — ${sourceParts.join(" | ")}` : ""
-      mediaNotes.push(`[${kind} attached${sourceNote}]`)
-      // keep as file part for the optimistic UI message bubble, using dataUrl for local rendering
-      mediaFileParts.push({ ...filePart, url: attachment.dataUrl || url })
-    }
-  }
+    imageParts.push(filePart)
+    // Optimistic part prefers publicUrl (durable CDN URL — survives page reload
+    // and blob URL revocation), falling back to dataUrl for the brief window
+    // before upload finishes. For images dataUrl is base64; for video/audio
+    // it's a blob: URL that only stays valid while the chip is mounted.
+    imageOptimisticParts.push({ ...filePart, url: attachment.publicUrl ?? attachment.dataUrl })
 
-  if (mediaNotes.length > 0) {
-    requestParts.push({
-      id: Identifier.ascending("part"),
-      type: "text",
-      text: mediaNotes.join("\n"),
-    } satisfies PromptRequestPart)
+    const kind = attachment.mime.startsWith("image/")
+      ? "Image"
+      : attachment.mime.startsWith("video/")
+        ? "Video"
+        : attachment.mime.startsWith("audio/")
+          ? "Audio"
+          : attachment.mime === "application/pdf"
+            ? "PDF"
+            : "File"
+    const sourceParts: string[] = []
+    if (attachment.localPath) sourceParts.push(`local path: ${attachment.localPath}`)
+    if (attachment.publicUrl) sourceParts.push(`URL: ${attachment.publicUrl}`)
+    if (sourceParts.length > 0) {
+      const notePart: PromptRequestPart = {
+        id: Identifier.ascending("part"),
+        type: "text",
+        text: `[${kind} — ${sourceParts.join(" | ")}]`,
+        synthetic: true,
+      }
+      imageParts.push(notePart)
+      imageOptimisticParts.push(notePart)
+    }
   }
 
   requestParts.push(...files, ...context, ...agents, ...imageParts)
 
-  // optimisticParts = what the UI shows locally. Video/audio shown as file parts (not text notes).
-  // Image parts use dataUrl copies so the bubble always renders even if CDN URL is inaccessible.
   const optimisticRequestParts = [
     ...requestParts.filter((p) => !imageParts.includes(p)),
     ...imageOptimisticParts,
-    ...mediaFileParts,
   ]
 
   return {

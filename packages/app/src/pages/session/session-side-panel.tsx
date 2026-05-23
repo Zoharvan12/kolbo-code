@@ -165,6 +165,19 @@ export function SessionSidePanel(props: {
   createEffect(() => {
     if (effectiveActiveTab() === "canvas") setCanvasSeen(true)
   })
+  // Pre-mount SessionCanvas during browser idle time so the first user
+  // click on Canvas is an instant CSS-toggle, not a 1700-line component
+  // bootstrap (which was producing a brief blank/black flash on first open).
+  // Cost is ~50-100ms paid silently while the user reads chat output.
+  onMount(() => {
+    const schedule = (cb: () => void) => {
+      const ric = (globalThis as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number })
+        .requestIdleCallback
+      if (typeof ric === "function") return ric(cb, { timeout: 5000 })
+      return setTimeout(cb, 2000)
+    }
+    schedule(() => setCanvasSeen(true))
+  })
 
   // Focus the Review tab — used by both (a) the closed→open transition of
   // reviewPanel.opened (header Review button when panel was closed) and
@@ -183,7 +196,14 @@ export function SessionSidePanel(props: {
     const isOpen = view().reviewPanel.opened()
     const justOpened = !prevReviewOpened && isOpen
     prevReviewOpened = isOpen
-    if (justOpened) focusReviewTab()
+    if (!justOpened) return
+    // The panel opens as a side-effect of clicking the Canvas / Artifacts
+    // buttons too — don't yank the user away from canvas/artifacts back to
+    // review just because the panel transitioned closed→open. The explicit
+    // header Review button uses the `kolbo:focus-review` event for the
+    // already-open case; that path bypasses this guard.
+    if (props.canvasTabActive() || props.artifactsTabActive()) return
+    focusReviewTab()
   })
 
   onMount(() => {
@@ -350,7 +370,23 @@ export function SessionSidePanel(props: {
                           </div>
                         </Tabs.Trigger>
                       </Show>
-                      <Show when={props.artifact()}>
+                      {/* Artifacts + Canvas Triggers are ALWAYS rendered — never
+                          gated by `<Show when={…}>`. Kobalte Tabs' root effect
+                          (tabs-root.tsx:117-153) auto-falls-back to the first
+                          registered Trigger and FIRES onChange when the
+                          controlled `value` isn't in its DomCollection on the
+                          current tick. If we Show-gate these Triggers, setting
+                          `value="canvas"` races against Solid's Show mounting —
+                          Kobalte's effect runs first, sees no canvas entry,
+                          fires onChange("review"), our handler treats it as a
+                          user click and clears canvasTabActive → the Canvas
+                          Trigger never appears. Visual hiding via classList is
+                          the only safe way to keep them out of the UI while
+                          still being registered in the collection. */}
+                      <div
+                        classList={{ hidden: !props.artifact() }}
+                        class="contents"
+                      >
                         <Tabs.Trigger
                           value="artifacts"
                           closeButton={
@@ -365,8 +401,11 @@ export function SessionSidePanel(props: {
                         >
                           {language.t("session.tab.artifacts")}
                         </Tabs.Trigger>
-                      </Show>
-                      <Show when={props.canvasTabActive()}>
+                      </div>
+                      <div
+                        classList={{ hidden: !props.canvasTabActive() }}
+                        class="contents"
+                      >
                         <Tabs.Trigger
                           value="canvas"
                           closeButton={
@@ -381,7 +420,7 @@ export function SessionSidePanel(props: {
                         >
                           {language.t("session.tab.canvas")}
                         </Tabs.Trigger>
-                      </Show>
+                      </div>
                       <SortableProvider ids={openedTabs()}>
                         <For each={openedTabs()}>{(tab) => <SortableTab tab={tab} onTabClose={tabs().close} />}</For>
                       </SortableProvider>

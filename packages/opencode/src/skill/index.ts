@@ -181,6 +181,17 @@ export namespace Skill {
       for (const root of upDirs) {
         yield* scan(state, bus, root, EXTERNAL_SKILL_PATTERN, { dot: true, scope: "project" })
       }
+
+      // Also pick up bare project-level skill folders (no .claude/.agents prefix),
+      // so users can drop a SKILL.md at <project>/skills/<name>/SKILL.md or
+      // <project>/skill/<name>/SKILL.md and have it auto-discovered.
+      const bareSkillDirs = yield* fsys
+        .up({ targets: ["skills", "skill"], start: directory, stop: worktree })
+        .pipe(Effect.catch(() => Effect.succeed([] as string[])))
+
+      for (const root of bareSkillDirs) {
+        yield* scan(state, bus, root, SKILL_PATTERN, { scope: "project-bare" })
+      }
     }
 
     const configDirs = yield* config.directories()

@@ -1,8 +1,12 @@
 import { useFile } from "@/context/file"
 import { encodeFilePath } from "@/context/file/path"
+import { usePlatform } from "@/context/platform"
+import { useLanguage } from "@/context/language"
 import { Collapsible } from "@opencode-ai/ui/collapsible"
+import { ContextMenu } from "@opencode-ai/ui/context-menu"
 import { FileIcon } from "@opencode-ai/ui/file-icon"
 import { Icon } from "@opencode-ai/ui/icon"
+import { showToast } from "@opencode-ai/ui/toast"
 import {
   createEffect,
   createMemo,
@@ -143,51 +147,90 @@ const FileTreeNode = (
     return kindTextColor(value)
   }
 
+  const platform = usePlatform()
+  const language = useLanguage()
+  const revealLabel = () => {
+    if (platform.os === "macos") return language.t("session.header.open.finder")
+    return language.t("session.header.open.fileExplorer")
+  }
+
+  const copyPath = () => {
+    void navigator.clipboard.writeText(local.node.path).then(
+      () => showToast({ title: language.t("session.header.open.copyPath") }),
+      () => showToast({ title: language.t("common.requestFailed") }),
+    )
+  }
+
+  const reveal = () => {
+    void platform.revealFile?.(local.node.path).catch((e) => {
+      showToast({ title: language.t("common.requestFailed"), description: (e as Error)?.message })
+    })
+  }
+
   return (
-    <Dynamic
-      component={local.as ?? "div"}
-      classList={{
-        "w-full min-w-0 h-6 flex items-center justify-start gap-x-1.5 rounded-md px-1.5 py-0 text-left hover:bg-surface-raised-base-hover active:bg-surface-base-active transition-colors cursor-pointer": true,
-        "bg-surface-base-active": local.node.path === local.active,
-        ...(local.classList ?? {}),
-        [local.class ?? ""]: !!local.class,
-        [local.nodeClass ?? ""]: !!local.nodeClass,
-      }}
-      style={`padding-left: ${Math.max(0, 8 + local.level * 12 - (local.node.type === "file" ? 24 : 4))}px`}
-      draggable={local.draggable}
-      onDragStart={(event: DragEvent) => {
-        if (!local.draggable) return
-        event.dataTransfer?.setData("text/plain", `file:${local.node.path}`)
-        event.dataTransfer?.setData("text/uri-list", pathToFileUrl(local.node.path))
-        if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy"
-        withFileDragImage(event)
-      }}
-      {...rest}
-    >
-      {local.children}
-      <span
+    <ContextMenu>
+      <ContextMenu.Trigger
+        // Trigger forwards to the `as` element; spreading `...rest` covers click,
+        // ref, aria, data-* etc. Cast keeps Kobalte's strict trigger types happy.
+        {...({ as: local.as ?? "div" } as any)}
         classList={{
-          "flex-1 min-w-0 text-12-medium whitespace-nowrap truncate": true,
-          "text-text-weaker": local.node.ignored,
-          "text-text-weak": !local.node.ignored && !active(),
+          "w-full min-w-0 h-6 flex items-center justify-start gap-x-1.5 rounded-md px-1.5 py-0 text-left hover:bg-surface-raised-base-hover active:bg-surface-base-active transition-colors cursor-pointer": true,
+          "bg-surface-base-active": local.node.path === local.active,
+          ...(local.classList ?? {}),
+          [local.class ?? ""]: !!local.class,
+          [local.nodeClass ?? ""]: !!local.nodeClass,
         }}
-        style={active() ? color() : undefined}
+        style={`padding-left: ${Math.max(0, 8 + local.level * 12 - (local.node.type === "file" ? 24 : 4))}px`}
+        draggable={local.draggable}
+        onDragStart={(event: DragEvent) => {
+          if (!local.draggable) return
+          event.dataTransfer?.setData("text/plain", `file:${local.node.path}`)
+          event.dataTransfer?.setData("text/uri-list", pathToFileUrl(local.node.path))
+          if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy"
+          withFileDragImage(event)
+        }}
+        {...rest}
       >
-        {local.node.name}
-      </span>
-      {(() => {
-        const value = kind()
-        if (!value) return null
-        if (local.node.type === "file") {
-          return (
-            <span class="shrink-0 w-4 text-center text-12-medium" style={kindTextColor(value)}>
-              {kindLabel(value)}
-            </span>
-          )
-        }
-        return <div class="shrink-0 size-1.5 mr-1.5 rounded-full" style={kindDotColor(value)} />
-      })()}
-    </Dynamic>
+        {local.children}
+        <span
+          classList={{
+            "flex-1 min-w-0 text-12-medium whitespace-nowrap truncate": true,
+            "text-text-weaker": local.node.ignored,
+            "text-text-weak": !local.node.ignored && !active(),
+          }}
+          style={active() ? color() : undefined}
+        >
+          {local.node.name}
+        </span>
+        {(() => {
+          const value = kind()
+          if (!value) return null
+          if (local.node.type === "file") {
+            return (
+              <span class="shrink-0 w-4 text-center text-12-medium" style={kindTextColor(value)}>
+                {kindLabel(value)}
+              </span>
+            )
+          }
+          return <div class="shrink-0 size-1.5 mr-1.5 rounded-full" style={kindDotColor(value)} />
+        })()}
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content>
+          {platform.revealFile && (
+            <ContextMenu.Item onSelect={reveal}>
+              <ContextMenu.ItemLabel>
+                {language.t("session.header.openIn")} {revealLabel()}
+              </ContextMenu.ItemLabel>
+            </ContextMenu.Item>
+          )}
+          {platform.revealFile && <ContextMenu.Separator />}
+          <ContextMenu.Item onSelect={copyPath}>
+            <ContextMenu.ItemLabel>{language.t("session.header.open.copyPath")}</ContextMenu.ItemLabel>
+          </ContextMenu.Item>
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu>
   )
 }
 

@@ -50,7 +50,8 @@
       "nsis": {
         "installerIcon": "icons/dev/icon.ico",
         "headerImage": "assets/nsis-header.bmp",
-        "sidebarImage": "assets/nsis-sidebar.bmp"
+        "sidebarImage": "assets/nsis-sidebar.bmp",
+        "installMode": "currentUser"
       }
     }
   },
@@ -66,7 +67,7 @@
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBMjM3NUExRTBGRjFDNEEKUldSS0hQL2dvWFVqK290bkM0QmllWmFSbDRlOWY2TFBldGpaM1djNFNaRTY4UDRleFVSbmpETHIK",
       "windows": {
-        "installMode": "basicUi"
+        "installMode": "passive"
       }
     }
   }

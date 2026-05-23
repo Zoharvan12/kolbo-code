@@ -292,6 +292,15 @@ export namespace File {
   const isTextByName = (file: string) => textName.has(name(file))
   const isBinaryByExtension = (file: string) => binary.has(ext(file))
   const isImage = (mimeType: string) => mimeType.startsWith("image/")
+  // Media types that the UI knows how to preview (FileMedia.tsx renders these
+  // as inline <img>/<audio>/<video> via data: URLs). Anything outside this set
+  // is still returned as `binary` with no bytes so we don't ship gigabytes of
+  // base64 for arbitrary binaries.
+  const isPreviewableMedia = (mimeType: string) =>
+    isImage(mimeType) || mimeType.startsWith("audio/") || mimeType.startsWith("video/")
+  // Hard cap on inlined base64 payload. ~100 MB raw → ~134 MB base64. Bigger
+  // files fall back to the binary placeholder.
+  const MAX_INLINE_MEDIA_BYTES = 100 * 1024 * 1024
   const getImageMimeType = (file: string) => mime[ext(file)] || "image/" + ext(file)
 
   function shouldEncode(mimeType: string) {
@@ -568,9 +577,13 @@ export namespace File {
         const mimeType = AppFileSystem.mimeType(full)
         const encode = knownText ? false : shouldEncode(mimeType)
 
-        if (encode && !isImage(mimeType)) return { type: "binary" as const, content: "", mimeType }
+        if (encode && !isPreviewableMedia(mimeType)) return { type: "binary" as const, content: "", mimeType }
 
         if (encode) {
+          const stat = yield* appFs.stat(full).pipe(Effect.catch(() => Effect.succeed(undefined)))
+          if (stat && Number(stat.size) > MAX_INLINE_MEDIA_BYTES) {
+            return { type: "binary" as const, content: "", mimeType }
+          }
           const bytes = yield* appFs.readFile(full).pipe(Effect.catch(() => Effect.succeed(new Uint8Array())))
           return {
             type: "text" as const,

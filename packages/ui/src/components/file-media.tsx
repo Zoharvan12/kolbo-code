@@ -20,7 +20,7 @@ export type FileMediaOptions = {
   deleted?: boolean
   readFile?: (path: string) => Promise<FileContent | undefined>
   onLoad?: () => void
-  onError?: (ctx: { kind: "image" | "audio" | "svg" }) => void
+  onError?: (ctx: { kind: "image" | "audio" | "video" | "svg" }) => void
 }
 
 function mediaValue(cfg: FileMediaOptions, mode: "image" | "audio") {
@@ -60,14 +60,14 @@ export function FileMedia(props: { media?: FileMediaOptions; fallback: () => JSX
   const direct = createMemo(() => {
     const media = cfg()
     const k = kind()
-    if (!media || (k !== "image" && k !== "audio")) return
-    return dataUrlFromMediaValue(mediaValue(media, k), k)
+    if (!media || (k !== "image" && k !== "audio" && k !== "video")) return
+    return dataUrlFromMediaValue(mediaValue(media, k === "video" ? "audio" : k), k)
   })
 
   const request = createMemo(() => {
     const media = cfg()
     const k = kind()
-    if (!media || (k !== "image" && k !== "audio")) return
+    if (!media || (k !== "image" && k !== "audio" && k !== "video")) return
     if (media.current !== undefined) return
     if (deleted()) return
     if (direct()) return
@@ -94,7 +94,7 @@ export function FileMedia(props: { media?: FileMediaOptions; fallback: () => JSX
         return {
           key: input.key,
           src,
-          mime: input.kind === "audio" ? normalizeMimeType(result?.mimeType) : undefined,
+          mime: input.kind === "audio" || input.kind === "video" ? normalizeMimeType(result?.mimeType) : undefined,
         }
       },
       () => {
@@ -127,6 +127,7 @@ export function FileMedia(props: { media?: FileMediaOptions; fallback: () => JSX
     const value = remote()
     return value && "mime" in value ? value.mime : undefined
   })
+  const videoMime = audioMime
 
   const svgSource = createMemo(() => {
     const media = cfg()
@@ -157,18 +158,24 @@ export function FileMedia(props: { media?: FileMediaOptions; fallback: () => JSX
     ),
   )
 
-  const kindLabel = (value: "image" | "audio") =>
-    i18n.t(value === "image" ? "ui.fileMedia.kind.image" : "ui.fileMedia.kind.audio")
+  const kindLabel = (value: "image" | "audio" | "video") =>
+    i18n.t(
+      value === "image"
+        ? "ui.fileMedia.kind.image"
+        : value === "video"
+          ? "ui.fileMedia.kind.video"
+          : "ui.fileMedia.kind.audio",
+    )
 
   return (
     <Switch>
-      <Match when={kind() === "image" || kind() === "audio"}>
+      <Match when={kind() === "image" || kind() === "audio" || kind() === "video"}>
         <Show
           when={src()}
           fallback={(() => {
             const media = cfg()
             const k = kind()
-            if (!media || (k !== "image" && k !== "audio")) return props.fallback()
+            if (!media || (k !== "image" && k !== "audio" && k !== "video")) return props.fallback()
             const label = kindLabel(k)
 
             if (deleted()) {
@@ -201,7 +208,7 @@ export function FileMedia(props: { media?: FileMediaOptions; fallback: () => JSX
         >
           {(value) => {
             const k = kind()
-            if (k !== "image" && k !== "audio") return props.fallback()
+            if (k !== "image" && k !== "audio" && k !== "video") return props.fallback()
             if (k === "image") {
               return (
                 <MediaCard src={value()} path={cfg()?.path}>
@@ -212,6 +219,23 @@ export function FileMedia(props: { media?: FileMediaOptions; fallback: () => JSX
                       class="max-h-[60vh] max-w-full rounded border border-border-weak-base bg-background-base object-contain"
                       onLoad={onLoad}
                     />
+                  </div>
+                </MediaCard>
+              )
+            }
+
+            if (k === "video") {
+              return (
+                <MediaCard src={value()} path={cfg()?.path}>
+                  <div class="flex justify-center bg-background-stronger px-6 py-4">
+                    <video
+                      class="max-h-[60vh] max-w-full rounded border border-border-weak-base bg-background-base"
+                      controls
+                      preload="metadata"
+                      onLoadedMetadata={onLoad}
+                    >
+                      <source src={value()} type={videoMime()} />
+                    </video>
                   </div>
                 </MediaCard>
               )

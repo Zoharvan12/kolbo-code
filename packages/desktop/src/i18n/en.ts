@@ -39,6 +39,11 @@ export const dict = {
     "Version {{version}} of Kodu has been downloaded, would you like to install it and relaunch?",
   "desktop.updater.installFailed.title": "Update Failed",
   "desktop.updater.installFailed.message": "Failed to install update",
+  "desktop.updater.silentFailed.title": "Update needs your attention",
+  "desktop.updater.silentFailed.message":
+    "An automatic update to v{{version}} couldn't complete. Open the download page to install it manually?",
+  "desktop.updater.silentFailed.fallback":
+    "Visit the latest release page to download and install the update manually:",
 
   "desktop.cli.installed.title": "CLI Installed",
   "desktop.cli.installed.message": "CLI installed to {{path}}\n\nRestart your terminal to use the 'kolbo' command.",

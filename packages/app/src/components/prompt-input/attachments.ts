@@ -133,6 +133,29 @@ type PromptAttachmentsInput = {
 
 const inAppMediaPattern = /\.(png|jpe?g|gif|webp|avif|bmp|svg|mp4|webm|mov|avi|mkv|m4v|mp3|wav|ogg|m4a|aac|flac|opus)(\?.*)?$/i
 
+// Probe an upload-endpoint JSON body for a usable HTTPS URL. kolbo-api's
+// `/kolbo/v1/files` returns `{url}` on first upload but has been observed to
+// return different shapes (e.g. nested under `file`/`data`) for deduplicated
+// uploads, so we check the common spots before giving up.
+function extractUploadUrl(body: unknown): string | undefined {
+  if (!body || typeof body !== "object") return undefined
+  const b = body as Record<string, any>
+  const candidates: unknown[] = [
+    b.url,
+    b.publicUrl,
+    b.public_url,
+    b.cdn_url,
+    b.cdnUrl,
+    b.file?.url,
+    b.data?.url,
+    b.result?.url,
+  ]
+  for (const c of candidates) {
+    if (typeof c === "string" && /^https?:\/\//i.test(c)) return c
+  }
+  return undefined
+}
+
 export function createPromptAttachments(input: PromptAttachmentsInput) {
   const prompt = usePrompt()
   const language = useLanguage()
@@ -187,8 +210,16 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       } catch {}
       return { status: res.status, errorMessage }
     }
-    const data = (await res.json()) as { url?: string; error?: { message: string } }
-    return { url: data.url, status: res.status, errorMessage: data.error?.message }
+    const data = (await res.json()) as Record<string, any>
+    // kolbo-api dedup responses have been observed to nest the public URL under
+    // different keys (`url`, `file.url`, `data.url`) instead of the canonical
+    // top-level `url`. Probe the common shapes so an already-uploaded file
+    // doesn't silently lose its URL and force the agent to re-upload via MCP.
+    const url = extractUploadUrl(data)
+    if (!url) {
+      console.warn("[kolbo-files-upload] 200 OK but no URL in response", data)
+    }
+    return { url, status: res.status, errorMessage: data?.error?.message }
   }
 
   async function uploadAttachment(id: string, blob: Blob, mime: string, filename: string) {
@@ -217,7 +248,9 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
         if (cached) {
           uploadAborts.delete(id)
           prompt.updateImageAttachment(id, { uploading: false, publicUrl: cached })
-          if (mime.startsWith("video/") || mime.startsWith("audio/")) releasePreview(id)
+          // Keep video/audio blob preview alive — it's used by the optimistic
+          // message bubble (which reads `dataUrl`, not `publicUrl`). Revoked on
+          // chip remove via `removeAttachment`.
           return
         }
 
@@ -238,7 +271,6 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
                 mime: converted.mime,
                 filename: converted.filename,
               })
-              if (mime.startsWith("video/") || mime.startsWith("audio/")) releasePreview(id)
               return
             }
           }
@@ -256,7 +288,6 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
 
         cachePut(hash, result.url)
         prompt.updateImageAttachment(id, { uploading: false, publicUrl: result.url })
-        if (mime.startsWith("video/") || mime.startsWith("audio/")) releasePreview(id)
       } catch (e) {
         uploadAborts.delete(id)
         if ((e as Error).name === "AbortError") return
@@ -433,12 +464,14 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
           })
           uploadAborts.delete(id)
           if (!res.ok) throw new Error(`Upload failed (HTTP ${res.status})`)
-          const data = (await res.json()) as { url?: string; error?: { message: string } }
-          if (data.url) {
-            pathCachePut(filePath, data.url)
-            prompt.updateImageAttachment(id, { uploading: false, publicUrl: data.url })
+          const data = (await res.json()) as Record<string, any>
+          const url = extractUploadUrl(data)
+          if (url) {
+            pathCachePut(filePath, url)
+            prompt.updateImageAttachment(id, { uploading: false, publicUrl: url })
           } else {
-            throw new Error(data.error?.message ?? "No URL in upload response")
+            console.warn("[kolbo-files-upload-from-path] 200 OK but no URL in response", data)
+            throw new Error(data?.error?.message ?? "No URL in upload response")
           }
         } catch (e) {
           uploadAborts.delete(id)
