@@ -229,8 +229,19 @@ Skip this phase if no desktop build was triggered.
 
 After a desktop release to `kolbo-releases`, old installs (pre-1.0.28) check a different URL: `https://github.com/Zoharvan12/kolbo-code/releases/download/updater/latest.json`. Without this step those users never see the update.
 
+**6a — Wait for `kolbo-release-all` to finish** (publishes the manifests we mirror; running too early syncs stale 1-version-back data):
+
+If you can schedule a wake-up (e.g. ScheduleWakeup in Claude Code), defer ~20–25 min then resume. Otherwise poll:
+
 ```bash
-# Download manifests from kolbo-releases and push to legacy kolbo-code endpoint
+# `<run_id>` is the kolbo-release-all run id from Phase 5's `gh run list` output.
+gh run view <run_id> --repo Zoharvan12/kolbo-code --json status,conclusion
+```
+Continue when `"status":"completed","conclusion":"success"`. If it failed, report and stop — do NOT proceed to 6b (would mirror broken or missing manifests).
+
+**6b — Mirror manifests:**
+
+```bash
 curl -sL "https://github.com/Zoharvan12/kolbo-releases/releases/download/updater/latest.json" > /tmp/latest.json
 gh release delete-asset updater latest.json --yes -R Zoharvan12/kolbo-code 2>/dev/null || true
 gh release upload updater /tmp/latest.json -R Zoharvan12/kolbo-code
@@ -240,9 +251,15 @@ gh release delete-asset updater sapir-latest.json --yes -R Zoharvan12/kolbo-code
 gh release upload updater /tmp/sapir-latest.json -R Zoharvan12/kolbo-code
 ```
 
-Verify: `curl -sL "https://github.com/Zoharvan12/kolbo-code/releases/download/updater/latest.json" | head -3` — should show the new version.
+**6c — Verify both mirrors show the version you just released** (not a stale one):
 
-Report: "Phase 6 done — legacy updater endpoint synced"
+```bash
+curl -sL "https://github.com/Zoharvan12/kolbo-code/releases/download/updater/latest.json" | head -3
+curl -sL "https://github.com/Zoharvan12/kolbo-code/releases/download/updater/sapir-latest.json" | head -3
+```
+Both `version` fields must equal `<new_cli_version>`. If either still shows the prior version, the `kolbo-releases` manifest hasn't been written yet (the desktop workflow's `publish-updater` step lags the rest by a minute or two) — wait 30s and retry the curl+upload sequence.
+
+Report: "Phase 6 done — legacy updater endpoint synced (verified v`<new_cli_version>` in both manifests)"
 
 ---
 
