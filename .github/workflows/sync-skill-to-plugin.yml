@@ -116,30 +116,19 @@ jobs:
             echo "Updated $VERSION_FILE to $NEW"
           fi
 
-          # 3) Sync the same NEW version into the SKILL.md frontmatter `version:` field
-          #    so the skill's self-reported version matches the plugin's published one.
+          # 3) Sync the same NEW version into the SKILL.md frontmatter `version:`
+          #    field. Use sed (range-bounded to the opening frontmatter block)
+          #    instead of an embedded Python heredoc — the heredoc indentation
+          #    fights YAML's block-scalar detection and a literal triple-dash
+          #    inside the regex is read by the YAML parser as a document
+          #    separator. sed avoids both traps.
           SKILL_FILE=skills/kolbo/SKILL.md
           if [ -f "$SKILL_FILE" ]; then
-            # Replace the first `version:` line inside the opening frontmatter block only.
-            python3 - "$SKILL_FILE" "$NEW" <<'PY'
-import sys, re, pathlib
-path = pathlib.Path(sys.argv[1])
-new_v = sys.argv[2]
-text = path.read_text()
-# Match the opening frontmatter (between leading '---' and the next '---').
-m = re.match(r"^(---\n)(.*?)(\n---\n)", text, re.DOTALL)
-if not m:
-    print(f"::warning::no frontmatter in {path}, skipping version sync")
-    sys.exit(0)
-fm = m.group(2)
-new_fm, n = re.subn(r"(^|\n)version:\s*[^\n]+", lambda mm: f"{mm.group(1)}version: {new_v}", fm, count=1)
-if n == 0:
-    # No version field yet — inject right after the opening '---'.
-    new_fm = f"version: {new_v}\n{fm}"
-out = m.group(1) + new_fm + m.group(3) + text[m.end():]
-path.write_text(out)
-print(f"Synced SKILL.md frontmatter version to {new_v}")
-PY
+            # Sed range '/^---$/,/^---$/' targets only the opening frontmatter
+            # block (first --- ... ---). Inside it, replace the version line.
+            # GNU sed in-place edit on Linux runners.
+            sed -i "1,/^---$/{ /^version:/s/^version:.*/version: $NEW/ }" "$SKILL_FILE"
+            echo "Synced $SKILL_FILE frontmatter version to $NEW"
           fi
 
       - name: Commit & push to plugin repo
