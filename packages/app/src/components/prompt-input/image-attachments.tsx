@@ -33,12 +33,30 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
                     <Show
                       when={attachment.mime.startsWith("video/")}
                       fallback={
-                        // Audio — music note icon
-                        <div class={fallbackClass}>
-                          <svg width="24" height="24" viewBox="0 0 20 20" fill="none" class="text-text-weak">
-                            <path d="M7.5 15V5.833L15.833 4.167V13.333M7.5 15C7.5 16.381 6.381 17.5 5 17.5C3.619 17.5 2.5 16.381 2.5 15C2.5 13.619 3.619 12.5 5 12.5C6.381 12.5 7.5 13.619 7.5 15ZM15.833 13.333C15.833 14.714 14.714 15.833 13.333 15.833C11.952 15.833 10.833 14.714 10.833 13.333C10.833 11.952 11.952 10.833 13.333 10.833C14.714 10.833 15.833 11.952 15.833 13.333Z" stroke="currentColor" stroke-linecap="square"/>
-                          </svg>
-                        </div>
+                        <Show
+                          when={attachment.mime.startsWith("audio/")}
+                          fallback={
+                            // Generic file (text, pdf, unknown) — paperclip icon
+                            <div class={fallbackClass}>
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-text-weak">
+                                <path
+                                  d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 17.98 8.83l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"
+                                  stroke="currentColor"
+                                  stroke-width="1.6"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                />
+                              </svg>
+                            </div>
+                          }
+                        >
+                          {/* Audio — music note icon */}
+                          <div class={fallbackClass}>
+                            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" class="text-text-weak">
+                              <path d="M7.5 15V5.833L15.833 4.167V13.333M7.5 15C7.5 16.381 6.381 17.5 5 17.5C3.619 17.5 2.5 16.381 2.5 15C2.5 13.619 3.619 12.5 5 12.5C6.381 12.5 7.5 13.619 7.5 15ZM15.833 13.333C15.833 14.714 14.714 15.833 13.333 15.833C11.952 15.833 10.833 14.714 10.833 13.333C10.833 11.952 11.952 10.833 13.333 10.833C14.714 10.833 15.833 11.952 15.833 13.333Z" stroke="currentColor" stroke-linecap="square"/>
+                            </svg>
+                          </div>
+                        </Show>
                       }
                     >
                       {/* Video — first-frame poster (no live decode). */}

@@ -1121,7 +1121,7 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
   return (
     <div data-component="user-message">
       <Show when={attachments().length > 0 || mediaFromNotes().length > 0}>
-        <div data-slot="user-message-attachments">
+        <div data-slot="user-message-attachments" dir={detectBubbleDirection(text())}>
           <For each={attachments()}>
             {(file) => {
               const type = kind(file)
@@ -1178,6 +1178,22 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
                         <FileIcon node={{ path: name, type: "file" }} />
                         <span data-slot="user-message-attachment-name">{name}</span>
                       </div>
+                      <button
+                        type="button"
+                        data-slot="user-message-attachment-path"
+                        title="Copy path"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const target = e.currentTarget
+                          void navigator.clipboard.writeText(name).then(() => {
+                            target.setAttribute("data-copied", "true")
+                            setTimeout(() => target.removeAttribute("data-copied"), 1500)
+                          })
+                        }}
+                      >
+                        <span data-slot="user-message-attachment-path-text">{name}</span>
+                        <Icon name="copy" size="small" />
+                      </button>
                     </Match>
                   </Switch>
                 </div>

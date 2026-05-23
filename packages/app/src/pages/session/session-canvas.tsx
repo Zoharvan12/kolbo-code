@@ -422,6 +422,20 @@ function CanvasCellView(props: { cell: CanvasCell; onHide?: (url: string) => voi
         e.dataTransfer.setData("text/plain", url)
         e.dataTransfer.effectAllowed = "copy"
       }}
+      // Right-click → copy the public CDN URL. Audio cells in particular
+      // had no other way to grab the link (image/video use the browser's
+      // native context menu on the <img>/<video>, but the AudioWavePlayer
+      // is custom and intercepts that). Override at the cell level so all
+      // three media kinds behave identically.
+      onContextMenu={(e) => {
+        const url = current()?.url
+        if (!url) return
+        e.preventDefault()
+        void navigator.clipboard
+          .writeText(url)
+          .then(() => showToast({ variant: "success", icon: "circle-check", title: "Link copied" }))
+          .catch(() => showToast({ variant: "error", title: "Couldn't copy link" }))
+      }}
     >
       <Show when={revealed() && current()} keyed>
         {(m) => (

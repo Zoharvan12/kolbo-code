@@ -434,8 +434,14 @@ export function SessionSidePanel(props: {
                   </Show>
 
                   <Tabs.Content value="artifacts" class="flex flex-col h-full overflow-hidden">
+                    {/* Plain-children Show (not the {(art) => ...} render-prop
+                        form) so Solid doesn't treat artifact() as a key and
+                        remount ArtifactPreviewTab every time the agent emits a
+                        new HTML version. The component reads props.artifact
+                        reactively, so the iframe / scroll position survives
+                        across versions and the whole screen no longer flashes. */}
                     <Show when={props.artifact()}>
-                      {(art) => <ArtifactPreviewTab artifact={art()} />}
+                      <ArtifactPreviewTab artifact={props.artifact()!} />
                     </Show>
                   </Tabs.Content>
 

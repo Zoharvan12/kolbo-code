@@ -59,7 +59,6 @@ export function SortableTab(props: { tab: string; onTabClose: (tab: string) => v
               />
             </TooltipKeybind>
           }
-          hideCloseButton
           onMiddleClick={() => props.onTabClose(props.tab)}
         >
           <Show when={content()}>{(value) => value()}</Show>

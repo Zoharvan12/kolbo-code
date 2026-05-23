@@ -94,6 +94,9 @@ export namespace SystemPrompt {
   export async function skills(agent: Agent.Info) {
     if (Permission.disabled(["skill"], agent.permission).has("skill")) return
 
+    // Re-scan skill directories on every turn so any SKILL.md the user (or an
+    // agent) just wrote becomes available without restarting the session.
+    await Skill.reload()
     const list = await Skill.available(agent)
 
     return [

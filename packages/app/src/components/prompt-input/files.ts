@@ -82,6 +82,7 @@ export function mimeFromUrl(url: string): string | undefined {
   const lastDot = clean.lastIndexOf(".")
   if (lastDot === -1) return undefined
   const suffix = clean.slice(lastDot + 1).toLowerCase()
+  if (suffix === "pdf") return "application/pdf"
   return IMAGE_EXTS.get(suffix) ?? AUDIO_EXTS.get(suffix) ?? VIDEO_EXTS.get(suffix)
 }
 

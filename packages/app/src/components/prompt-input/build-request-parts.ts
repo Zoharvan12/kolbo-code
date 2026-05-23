@@ -201,14 +201,24 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
       url,
       filename: label,
     }
-    if (attachment.mime.startsWith("image/") || attachment.mime === "application/pdf") {
-      // Images and PDFs: sent as inline file parts so vision/document models can read them.
-      // Also emit a source note so the agent knows how to reference the file for tool use.
+    if (
+      attachment.mime.startsWith("image/") ||
+      attachment.mime === "application/pdf" ||
+      attachment.mime.startsWith("text/")
+    ) {
+      // Images, PDFs, and text files: sent as inline file parts so vision /
+      // document / text-capable models can read them. Also emit a source note
+      // so the agent knows how to reference the file for tool use.
       imageParts.push(filePart)
       // Optimistic part uses dataUrl so the message bubble always renders locally,
       // regardless of whether the CDN upload succeeded or the URL is accessible.
       imageOptimisticParts.push({ ...filePart, url: attachment.dataUrl })
-      const kind = attachment.mime === "application/pdf" ? "PDF" : "Image"
+      const kind =
+        attachment.mime === "application/pdf"
+          ? "PDF"
+          : attachment.mime.startsWith("text/")
+            ? "File"
+            : "Image"
       const sourceParts: string[] = []
       if (attachment.localPath) sourceParts.push(`local path: ${attachment.localPath}`)
       if (attachment.publicUrl) sourceParts.push(`URL: ${attachment.publicUrl}`)

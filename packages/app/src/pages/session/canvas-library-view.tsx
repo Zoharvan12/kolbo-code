@@ -1309,6 +1309,28 @@ function LibraryCell(props: {
         e.dataTransfer.setData("text/plain", urls.join("\n"))
         e.dataTransfer.effectAllowed = "copy"
       }}
+      // Right-click → copy the public CDN URL. Audio cells in particular
+      // had no other way to grab the link (the AudioWavePlayer intercepts
+      // the native context menu). Override at the cell level so all media
+      // kinds behave identically. In batch mode this copies the whole
+      // selection separated by newlines.
+      onContextMenu={(e) => {
+        e.preventDefault()
+        const sel = librarySelected()
+        const urls = sel.has(m.id) && sel.size > 1 ? props.getSelectedUrls() : [m.url]
+        const text = urls.join("\n")
+        void navigator.clipboard
+          .writeText(text)
+          .then(() =>
+            showToast({
+              variant: "success",
+              icon: "circle-check",
+              title: "Link copied",
+              description: urls.length > 1 ? `${urls.length} URLs` : undefined,
+            }),
+          )
+          .catch(() => showToast({ variant: "error", title: "Couldn't copy link" }))
+      }}
     >
       <MediaCard
         src={m.url}

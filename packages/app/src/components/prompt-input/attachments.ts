@@ -275,7 +275,9 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     void uploadAttachment(id, stored.blob, stored.mime, stored.filename)
   }
 
-  type Prepared = { attachment: ImageAttachmentPart; afterInsert: () => void }
+  type Prepared =
+    | { kind: "chip"; attachment: ImageAttachmentPart; afterInsert: () => void }
+    | { kind: "mention"; path: string }
 
   const prepareFileAttachment = async (file: File, toast: boolean): Promise<Prepared | undefined> => {
     const mime = await attachmentMime(file)
@@ -288,9 +290,44 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       return undefined
     }
 
-    const previewUrl = URL.createObjectURL(file)
     const localPath = (file as File & { path?: string }).path ?? undefined
+    const isInline = mime.startsWith("image/") || mime.startsWith("audio/") || mime.startsWith("video/") || mime === "application/pdf"
+
+    // Non-inline (text/*, unknown) → if we have a local path, attach as an
+    // @-mention so the agent reads it locally with its file tools. Avoids the
+    // wrong audio icon and the chip vanishing after send.
+    if (!isInline && localPath) {
+      return { kind: "mention", path: localPath }
+    }
+
     const id = uuid()
+
+    // Text files (no localPath, e.g. web file picker): embed content as a
+    // data:text/plain;base64 URL. The backend (prompt.ts data: case) decodes
+    // and inlines the text into the prompt while keeping the file part visible
+    // in the user bubble. Avoids the CDN round-trip and the "File data is
+    // missing" error when providers can't fetch URLs.
+    if (mime === "text/plain") {
+      const text = await file.text()
+      const base64 = typeof btoa === "function" ? btoa(unescape(encodeURIComponent(text))) : ""
+      const inlineUrl = `data:text/plain;base64,${base64}`
+      const attachment: ImageAttachmentPart = {
+        type: "image",
+        id,
+        filename: file.name,
+        mime,
+        dataUrl: inlineUrl,
+        localPath,
+        uploading: false,
+      }
+      return {
+        kind: "chip",
+        attachment,
+        afterInsert: () => {},
+      }
+    }
+
+    const previewUrl = URL.createObjectURL(file)
     const isMedia = mime.startsWith("image/") || mime.startsWith("audio/") || mime.startsWith("video/")
     previewUrls.set(id, previewUrl)
 
@@ -305,6 +342,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     }
 
     return {
+      kind: "chip",
       attachment,
       afterInsert: () => {
         if (isMedia) void uploadAttachment(id, file, mime, file.name)
@@ -316,9 +354,19 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     if (items.length === 0) return false
     const editor = input.editor()
     if (!editor) return false
-    const cursor = prompt.cursor() ?? getCursorPosition(editor)
-    prompt.set([...prompt.current(), ...items.map((p) => p.attachment)], cursor)
-    for (const p of items) p.afterInsert()
+    const chips = items.filter((p): p is Extract<Prepared, { kind: "chip" }> => p.kind === "chip")
+    const mentions = items.filter((p): p is Extract<Prepared, { kind: "mention" }> => p.kind === "mention")
+    if (chips.length > 0) {
+      const cursor = prompt.cursor() ?? getCursorPosition(editor)
+      prompt.set([...prompt.current(), ...chips.map((p) => p.attachment)], cursor)
+      for (const p of chips) p.afterInsert()
+    }
+    if (mentions.length > 0) {
+      input.focusEditor()
+      for (const m of mentions) {
+        input.addPart({ type: "file", path: m.path, content: "@" + m.path, start: 0, end: 0 })
+      }
+    }
     return true
   }
 
@@ -333,12 +381,16 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
   // Add an attachment given a filesystem path (desktop native picker returns paths, not File objects).
   // The server reads the file from disk and uploads it, so we don't need file:// access in the WebView.
   const addAttachmentFromPath = async (filePath: string) => {
-    const mime = mimeFromUrl(filePath) ?? "application/octet-stream"
+    // Default unknown extensions to text/plain so the backend's file:// handler
+    // can load the content via the Read tool. Keeps the chip + localPath flow
+    // consistent across media, PDF, and arbitrary files.
+    const mime = mimeFromUrl(filePath) ?? "text/plain"
     const filename = filePath.split(/[\\/]/).pop() || "file"
-    const isMedia = mime.startsWith("image/") || mime.startsWith("audio/") || mime.startsWith("video/")
 
     const editor = input.editor()
     if (!editor) return false
+
+    const isMedia = mime.startsWith("image/") || mime.startsWith("audio/") || mime.startsWith("video/")
 
     const id = uuid()
     // Use file:// URL for local preview; the actual upload happens server-side
@@ -516,6 +568,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
 
     if (url.startsWith("http://") || url.startsWith("https://")) {
       return {
+        kind: "chip",
         attachment: { type: "image", id, filename, mime, dataUrl: url, publicUrl: url, uploading: false },
         afterInsert: () => {},
       }
@@ -523,6 +576,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
 
     if (url.startsWith("file://")) {
       return {
+        kind: "chip",
         attachment: {
           type: "image",
           id,
@@ -538,6 +592,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
 
     const finalMime = mime
     return {
+      kind: "chip",
       attachment: { type: "image", id, filename, mime: finalMime, dataUrl: url, uploading: true },
       afterInsert: () => {
         void (async () => {
@@ -603,9 +658,10 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       )
       // Files prepareFileAttachment rejected (.zip, folders, unknown types) get
       // added as @mention path refs when the platform exposes a local path.
-      const fallbacks = files.filter(
-        (_, i) => !prepared.some((p) => p.attachment.filename === files[i].name),
+      const handledNames = new Set(
+        prepared.flatMap((p) => (p.kind === "chip" ? [p.attachment.filename] : [p.path.split(/[\\/]/).pop() ?? ""])),
       )
+      const fallbacks = files.filter((f) => !handledNames.has(f.name))
       let anyHandled = insertPrepared(prepared)
       if (fallbacks.length > 0) {
         for (const file of fallbacks) {

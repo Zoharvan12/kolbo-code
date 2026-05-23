@@ -397,6 +397,43 @@ export namespace File {
               next.dirs.push(dir + "/")
             }
           }
+
+          // Ripgrep --files only emits files, so directories created by the user
+          // that are empty (or contain only gitignored files) never make it into
+          // cache.dirs and become invisible to @ completion. Walk the tree once
+          // more — cheap because it reuses the same gitignore filter — to surface
+          // those folders too.
+          const ig = ignore()
+          if (Instance.project.vcs === "git") {
+            const gitignoreText = yield* appFs
+              .readFileString(path.join(Instance.project.worktree, ".gitignore"))
+              .pipe(Effect.catch(() => Effect.succeed("")))
+            if (gitignoreText) ig.add(gitignoreText)
+            const ignoreText = yield* appFs
+              .readFileString(path.join(Instance.project.worktree, ".ignore"))
+              .pipe(Effect.catch(() => Effect.succeed("")))
+            if (ignoreText) ig.add(ignoreText)
+          }
+          const alwaysSkip = new Set([".git", "node_modules"])
+          const MAX_DEPTH = 10
+          const queue: Array<{ rel: string; depth: number }> = [{ rel: "", depth: 0 }]
+          while (queue.length > 0) {
+            const { rel, depth } = queue.shift()!
+            if (depth > MAX_DEPTH) continue
+            const abs = rel ? path.join(Instance.directory, rel) : Instance.directory
+            const entries = yield* appFs.readDirectoryEntries(abs).pipe(Effect.orElseSucceed(() => []))
+            for (const entry of entries) {
+              if (entry.type !== "directory") continue
+              if (alwaysSkip.has(entry.name)) continue
+              const child = rel ? `${rel}/${entry.name}` : entry.name
+              if (ig.ignores(child + "/")) continue
+              if (!seen.has(child)) {
+                seen.add(child)
+                next.dirs.push(child + "/")
+              }
+              queue.push({ rel: child, depth: depth + 1 })
+            }
+          }
         }
 
         const s = yield* InstanceState.get(state)
