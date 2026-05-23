@@ -29,12 +29,16 @@ import { Global } from "../global"
 // swap, accidental refactor), this fails loudly at module load instead of
 // shipping users a binary that writes an empty SKILL.md to disk and breaks
 // every MCP session afterwards. The markers are stable anchors picked from
-// distinct sections — touching any one is intentional, dropping all is not.
+// distinct sections of the current SKILL.md (post v0.4.0 progressive-disclosure
+// restructure) — touching any one is intentional, dropping all is not.
+//
+// When you trim/move a section out of SKILL.md, update the marker list here
+// to a still-present anchor from the same conceptual area.
 const KOLBO_SKILL_MARKERS = [
-  "Production Log — `.kolbo/production.md`",
-  "Tagging references inside the prompt",
-  "Rate Limiting & Batch Generation",
-  "Video / Audio Analysis & Transcription",
+  "Routing Index — Read These Files on Demand", // core: the progressive-disclosure index
+  "Step 0 — Bootstrap",                          // core: auth/MCP wiring check
+  "Rate Limiting & Batch Generation",            // core: still in SKILL.md
+  "Runaway-Loop Guard",                          // core: still in SKILL.md
 ] as const
 for (const marker of KOLBO_SKILL_MARKERS) {
   if (!KOLBO_SKILL_MD_BUNDLED.includes(marker)) {

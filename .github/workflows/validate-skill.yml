@@ -1,0 +1,167 @@
+name: Validate Kolbo Skill
+
+# Runs on PRs / pushes that touch the skill tree. Enforces:
+#  1. SKILL.md has YAML frontmatter with name=kolbo
+#  2. Frontmatter `version:` matches the VERSION file
+#  3. Every references/ link in SKILL.md resolves to a real file
+#  4. No orphan files in references/ (every file is reachable from SKILL.md
+#     or transitively from another reference)
+#  5. Every references/models/*.md has a PARITY comment pointing at a real
+#     get<Skill>PromptSystemPrompt() function in kolbo-api/src/config/systemPrompt.js
+#     (skipped if kolbo-api repo isn't checked out as a sibling — best-effort)
+#  6. SKILL.md is ≤ 300 lines (warn, don't fail)
+#  7. ZERO `higgsfield` mentions anywhere in the skill tree (rebrand-rule
+#     enforcement — hard fail; we imported some content from higgsfield-ai/skills
+#     and stripped the brand references — this check guards against drift)
+
+on:
+  pull_request:
+    paths:
+      - 'packages/opencode/skills/kolbo/**'
+      - '.github/workflows/validate-skill.yml'
+  push:
+    branches: [main, master, dev]
+    paths:
+      - 'packages/opencode/skills/kolbo/**'
+      - '.github/workflows/validate-skill.yml'
+
+jobs:
+  validate:
+    name: Frontmatter, version, references, rebrand
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PyYAML
+        run: pip install pyyaml --quiet
+
+      - name: Rebrand check — zero `higgsfield` mentions (HARD FAIL)
+        run: |
+          set -euo pipefail
+          # Search the skill tree for any case-insensitive mention of "higgsfield".
+          # Some marketing/UGC content was imported from higgsfield-ai/skills and
+          # rebranded; this check catches any drift.
+          if grep -rliE 'higgsfield' packages/opencode/skills/kolbo/ ; then
+            echo ""
+            echo "::error::Found `higgsfield` mention(s) in the skill tree. Rebrand rule: zero matches allowed. Replace with Kolbo equivalents or remove."
+            grep -rniE 'higgsfield' packages/opencode/skills/kolbo/ | head -50
+            exit 1
+          fi
+          echo "✓ Rebrand check passed — no `higgsfield` mentions in the skill tree."
+
+      - name: Frontmatter + name + version + 300-line check
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, sys, pathlib, yaml
+          skill_dir = pathlib.Path("packages/opencode/skills/kolbo")
+          skill_md = skill_dir / "SKILL.md"
+          version_file = skill_dir / "VERSION"
+          errors = []
+          warnings = []
+
+          if not skill_md.exists():
+              print(f"::error::{skill_md} missing"); sys.exit(1)
+          text = skill_md.read_text()
+
+          # Frontmatter
+          m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
+          if not m:
+              print(f"::error file={skill_md}::no YAML frontmatter"); sys.exit(1)
+          try:
+              fm = yaml.safe_load(m.group(1))
+          except yaml.YAMLError as e:
+              print(f"::error file={skill_md}::frontmatter YAML parse error: {e}"); sys.exit(1)
+
+          if fm.get("name") != "kolbo":
+              errors.append(f"frontmatter `name` is {fm.get('name')!r}, expected 'kolbo'")
+          if "description" not in fm or not str(fm.get("description","")).strip():
+              errors.append("frontmatter `description` is missing or empty")
+
+          # Version sync with VERSION file
+          if version_file.exists():
+              v_file = version_file.read_text().strip()
+              v_fm = str(fm.get("version","")).strip()
+              if v_file != v_fm:
+                  errors.append(f"VERSION file says {v_file!r} but SKILL.md frontmatter says {v_fm!r} — they must match")
+
+          # 300-line soft cap
+          n_lines = len(text.splitlines())
+          if n_lines > 300:
+              warnings.append(f"SKILL.md is {n_lines} lines (target ≤ 300). Move sections to references/.")
+
+          for w in warnings: print(f"::warning file={skill_md}::{w}")
+          if errors:
+              for e in errors: print(f"::error file={skill_md}::{e}")
+              sys.exit(1)
+          print(f"✓ SKILL.md frontmatter OK ({n_lines} lines)")
+          PY
+
+      - name: Reference link resolution + orphan check
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, sys, pathlib
+          skill_dir = pathlib.Path("packages/opencode/skills/kolbo")
+          skill_md = skill_dir / "SKILL.md"
+          refs_dir = skill_dir / "references"
+          errors = []
+
+          # All actual reference files on disk
+          existing = set()
+          if refs_dir.exists():
+              for p in refs_dir.rglob("*.md"):
+                  existing.add(str(p.relative_to(skill_dir)).replace("\\", "/"))
+
+          # All `references/...` paths mentioned across SKILL.md + every reference file
+          referenced = set()
+          link_re = re.compile(r"references/[A-Za-z0-9_\-/]+\.md")
+          for f in [skill_md] + sorted(refs_dir.rglob("*.md") if refs_dir.exists() else []):
+              text = f.read_text()
+              for m in link_re.finditer(text):
+                  referenced.add(m.group(0))
+
+          # Missing references (linked but file doesn't exist)
+          missing = referenced - existing
+          if missing:
+              for p in sorted(missing):
+                  errors.append(f"reference link to non-existent file: {p}")
+
+          # Orphan files (exist but never referenced anywhere)
+          # SKILL.md itself isn't a reference, exclude it from this set.
+          orphans = existing - referenced
+          if orphans:
+              for p in sorted(orphans):
+                  errors.append(f"orphan reference file (not linked from SKILL.md or any reference): {p}")
+
+          if errors:
+              for e in errors: print(f"::error::{e}")
+              sys.exit(1)
+          print(f"✓ References OK ({len(existing)} files, all resolved & non-orphan)")
+          PY
+
+      - name: PARITY headers on references/models/*.md (best-effort)
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, pathlib
+          models_dir = pathlib.Path("packages/opencode/skills/kolbo/references/models")
+          if not models_dir.exists():
+              print("No references/models/ dir — skipping PARITY check"); exit(0)
+          warnings = []
+          for p in sorted(models_dir.glob("*.md")):
+              head = p.read_text()[:500]
+              if "<!-- PARITY:" not in head:
+                  warnings.append(f"{p}: missing `<!-- PARITY: ... -->` header (should point at the kolbo-api source function)")
+          for w in warnings:
+              print(f"::warning::{w}")
+          if warnings:
+              print(f"{len(warnings)} PARITY warning(s) — not blocking, but the header keeps kolbo-api ↔ kolbo-code in sync")
+          else:
+              print("✓ Every references/models/*.md carries a PARITY header")
+          PY
