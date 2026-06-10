@@ -168,16 +168,18 @@ jobs:
           # Keep SKILL.md PRISTINE (frontmatter must stay on line 1 — the install
           # command drops this into ~/.claude/skills/ where leading comments break
           # frontmatter parsing). Mark the dir as generated via a separate file.
-          cat > "$DST_DIR/GENERATED.md" <<EOF
-# AUTO-GENERATED — do not edit
-
-This \`skill/\` tree is mirrored from **kolbo-code** (the single source of truth)
-by \`.github/workflows/sync-skill-to-plugin.yml\` — synced from kolbo-code@${SHA}.
-
-It is the skill that \`npx @kolbo/mcp install\` deploys.
-To change it, edit \`packages/opencode/skills/kolbo/\` in kolbo-code and push;
-this workflow re-mirrors the whole tree here. Hand-edits here will be overwritten.
-EOF
+          # Use echo lines (not a heredoc) so nothing sits at column 0 and breaks
+          # this YAML block scalar.
+          {
+            echo "# AUTO-GENERATED — do not edit"
+            echo ""
+            echo "This skill/ tree is mirrored from kolbo-code (the single source of truth)"
+            echo "by .github/workflows/sync-skill-to-plugin.yml — synced from kolbo-code@${SHA}."
+            echo ""
+            echo "It is the skill that 'npx @kolbo/mcp install' deploys into the user's agent."
+            echo "To change it, edit packages/opencode/skills/kolbo/ in kolbo-code and push;"
+            echo "this workflow re-mirrors the whole tree here. Hand-edits here are overwritten."
+          } > "$DST_DIR/GENERATED.md"
 
       - name: Commit & push to kolbo-mcp
         run: |
