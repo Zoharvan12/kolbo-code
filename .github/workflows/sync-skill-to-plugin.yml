@@ -1,9 +1,11 @@
-name: Sync SKILL.md to kolbo-claude-plugin
+name: Sync SKILL.md to consumers (plugin + @kolbo/mcp)
 
 # Mirrors the canonical Kolbo SKILL.md from this monorepo
-# (packages/opencode/skills/kolbo/SKILL.md) into the dedicated
-# Zoharvan12/kolbo-claude-plugin repo, with an auto-generated banner and
-# a patch version bump on the plugin manifest.
+# (packages/opencode/skills/kolbo/) into its downstream consumers:
+#   1. Zoharvan12/kolbo-claude-plugin  (the Claude Code plugin)
+#   2. Zoharvan12/kolbo-mcp  -> skill/  (the skill bundled by `npx @kolbo/mcp install`)
+# kolbo-code stays the SINGLE SOURCE OF TRUTH; both copies are build artifacts
+# carrying an AUTO-GENERATED banner. Never hand-edit them.
 #
 # Why this exists: the plugin repo intentionally ships only ~6 files so
 # antivirus tools (Bitdefender, Norton) have no monorepo of build configs
@@ -144,3 +146,50 @@ jobs:
           git add skills/kolbo/ .claude-plugin/plugin.json
           git commit -m "chore(skill): sync skills/kolbo/ tree from kolbo-code@${SHA}"
           git push
+
+      # ─── Consumer 2: @kolbo/mcp (the skill bundled by `npx @kolbo/mcp install`) ───
+      - name: Checkout kolbo-mcp (destination)
+        uses: actions/checkout@v4
+        with:
+          repository: Zoharvan12/kolbo-mcp
+          token: ${{ secrets.PLUGIN_REPO_TOKEN }}
+          path: mcp
+
+      - name: Mirror skills/kolbo/ tree into kolbo-mcp/skill/
+        run: |
+          set -euo pipefail
+          SRC_DIR=source/packages/opencode/skills/kolbo
+          DST_DIR=mcp/skill
+          SHA=$(cd source && git rev-parse --short HEAD)
+          # Wipe + re-create so deletions in source propagate.
+          rm -rf "$DST_DIR"
+          mkdir -p "$DST_DIR"
+          cp -R "$SRC_DIR"/. "$DST_DIR"/
+          # Keep SKILL.md PRISTINE (frontmatter must stay on line 1 — the install
+          # command drops this into ~/.claude/skills/ where leading comments break
+          # frontmatter parsing). Mark the dir as generated via a separate file.
+          cat > "$DST_DIR/GENERATED.md" <<EOF
+# AUTO-GENERATED — do not edit
+
+This \`skill/\` tree is mirrored from **kolbo-code** (the single source of truth)
+by \`.github/workflows/sync-skill-to-plugin.yml\` — synced from kolbo-code@${SHA}.
+
+It is the skill that \`npx @kolbo/mcp install\` deploys.
+To change it, edit \`packages/opencode/skills/kolbo/\` in kolbo-code and push;
+this workflow re-mirrors the whole tree here. Hand-edits here will be overwritten.
+EOF
+
+      - name: Commit & push to kolbo-mcp
+        run: |
+          set -euo pipefail
+          cd mcp
+          SHA=$(cd ../source && git rev-parse --short HEAD)
+          git add skill/
+          if git diff --cached --quiet -- skill/; then
+            echo "::notice::kolbo-mcp/skill/ identical — nothing to push."
+          else
+            git config user.name  "kolbo-skill-sync[bot]"
+            git config user.email "kolbo-skill-sync@users.noreply.github.com"
+            git commit -m "chore(skill): sync skill/ from kolbo-code@${SHA}"
+            git push
+          fi
