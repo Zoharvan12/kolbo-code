@@ -82,6 +82,12 @@ jobs:
               errors.append(f"frontmatter `name` is {fm.get('name')!r}, expected 'kolbo'")
           if "description" not in fm or not str(fm.get("description","")).strip():
               errors.append("frontmatter `description` is missing or empty")
+          # HARD LIMIT: Claude Code SILENTLY REJECTS a skill whose description
+          # exceeds 1024 chars (the skill copies fine but never loads). This guard
+          # is why /kolbo loads at all — do not remove it.
+          desc_len = len(str(fm.get("description","")).strip())
+          if desc_len > 1024:
+              errors.append(f"frontmatter `description` is {desc_len} chars — Claude Code silently rejects skills with description > 1024. Shorten it (move detail into the SKILL.md body).")
 
           # Version sync with VERSION file
           if version_file.exists():

@@ -2,31 +2,21 @@
 version: 0.4.0
 name: kolbo
 description: |
-  Generate, edit, or analyze creative media via the Kolbo AI MCP server.
-  Covers images (GPT Image 2, Nano Banana, Flux, ...), video (Seedance 2,
-  Veo 3.1, Kling, Hailuo, ...), music (Suno), TTS (ElevenLabs), 3D,
-  transcription, Visual DNA (character consistency), Marketing Studio
-  (UGC + DTC ads + product photoshoot + marketplace cards),
-  Creative Director (multi-scene batches), HTML artifact publishing
-  (presentations, landing pages, dashboards), and the App Builder.
+  Generate, edit, or analyze creative media via the Kolbo AI MCP server:
+  images (GPT Image, Nano Banana, Flux), video (Seedance, Veo, Kling, Hailuo),
+  music (Suno), TTS (ElevenLabs), 3D, transcription, Visual DNA (character
+  consistency), Marketing Studio (UGC + DTC ads + product photoshoot +
+  marketplace cards), Creative Director (multi-scene batches), HTML artifact
+  publishing (presentations, landing pages, dashboards), and the App Builder.
 
-  Use when: "generate", "create", "make me a", "edit", "animate",
-  "transcribe", "Visual DNA", "the same character", "UGC ad",
-  "TikTok / Reels / Shorts", "unboxing", "product review", "TV spot",
-  "Pinterest pin", "product photo", "lifestyle shot", "hero banner",
-  "ad pack", "social carousel", "virtual try-on", "Amazon listing",
-  "marketplace cards", "A+ content", "build a presentation/slide deck",
-  "landing page", "dashboard / widget / game", "music / song / jingle",
-  "TTS / voice", "sound effect", "3D model", "build me an app".
+  Use when the user wants to generate, create, make, edit, animate, or
+  transcribe media: images, video, music, voice/TTS, sound effects, 3D models,
+  UGC or TV-spot ads, product / lifestyle / hero shots, Amazon or marketplace
+  listings, presentations, landing pages, dashboards, or 'build me an app';
+  or to reuse a character or brand (Visual DNA, brand kits).
 
-  Chain: train Visual DNA → use vdna_id in any DNA-aware tool;
-  research-first → persist brand kit (.kolbo/brand-kits/) → DTC ads /
-  product photoshoot / marketplace cards; generate frames (Creative
-  Director) → animate each frame (generate_video_from_image).
-
-  NOT for: video editing / FFmpeg work (use video-production skill),
-  motion graphics (use remotion-best-practices skill), code editing,
-  general chat outside media generation.
+  NOT for: video editing / FFmpeg (use video-production), motion graphics
+  (use remotion-best-practices), code editing, or general chat.
 argument-hint: "[prompt-or-command] [--model <name>] [--image <path>] [--video <path>]"
 allowed-tools: Bash, Read, Write, Edit
 ---
