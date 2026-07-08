@@ -20,7 +20,7 @@ import { StickyAccordionHeader } from "./sticky-accordion-header"
 import { DiffChanges } from "./diff-changes"
 import { Icon } from "./icon"
 import { TextShimmer } from "./text-shimmer"
-import { Spinner } from "./spinner"
+import { SquareLoader } from "./square-loader"
 import { SessionRetry } from "./session-retry"
 import { TextReveal } from "./text-reveal"
 import { createAutoScroll } from "../hooks"
@@ -433,7 +433,7 @@ export function SessionTurn(
               </Show>
               <Show when={showThinking()}>
                 <div data-slot="session-turn-thinking">
-                  <Spinner class="size-[15px] shrink-0" style={{ color: "var(--icon-agent-build-base)" }} />
+                  <SquareLoader size={20} class="shrink-0" style={{ color: "var(--icon-agent-build-base)" }} />
                   <TextShimmer text={i18n.t("ui.sessionTurn.status.thinking")} />
                   <Show when={!showReasoningSummaries()}>
                     <TextReveal

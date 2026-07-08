@@ -160,4 +160,7 @@ export const dict = {
   "ui.kolbo.generatingVideo": "正在生成影片…",
   "ui.kolbo.generatingAudio": "正在生成音訊…",
   "ui.kolbo.usedMedia": "{{n}} 個媒體",
+  "ui.permission.suggestChange.placeholder": "或者告訴代理程式該如何修改…",
+  "ui.permission.sendChange": "發送修改",
+  "ui.kolbo.chip.creditCost": "{{count}} 點數",
 }

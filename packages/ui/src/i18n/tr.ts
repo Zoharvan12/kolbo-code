@@ -160,4 +160,7 @@ export const dict = {
   "ui.kolbo.generatingVideo": "Video oluşturuluyor…",
   "ui.kolbo.generatingAudio": "Ses oluşturuluyor…",
   "ui.kolbo.usedMedia": "{{n}} medya",
+  "ui.permission.suggestChange.placeholder": "Ya da asistana bunun yerine neyi değiştirmesi gerektiğini söyle…",
+  "ui.permission.sendChange": "Değişikliği gönder",
+  "ui.kolbo.chip.creditCost": "{{count}} kredi",
 }

@@ -9,6 +9,7 @@ import {
 } from "@thisbeyond/solid-dnd"
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
 import { IconButton } from "@opencode-ai/ui/icon-button"
+import { Icon } from "@opencode-ai/ui/icon"
 import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { type LocalProject } from "@/context/layout"
 
@@ -50,7 +51,7 @@ export const SidebarContent = (props: {
     <div class="flex h-full w-full min-w-0 overflow-hidden">
       <div
         data-component="sidebar-rail"
-        class="w-16 shrink-0 bg-background-base flex flex-col items-center overflow-hidden"
+        class="w-16 shrink-0 bg-background-stronger flex flex-col items-center overflow-hidden"
         onMouseMove={props.aimMove}
       >
         <div class="flex-1 min-h-0 w-full">
@@ -77,13 +78,14 @@ export const SidebarContent = (props: {
                   </div>
                 }
               >
-                <IconButton
-                  icon="plus"
-                  variant="ghost"
-                  size="large"
+                <button
+                  type="button"
                   onClick={props.onOpenProject}
                   aria-label={typeof props.openProjectLabel === "string" ? props.openProjectLabel : undefined}
-                />
+                  class="flex size-10 items-center justify-center rounded-xl border border-dashed border-border-base text-icon-weak transition-all duration-200 cursor-pointer hover:border-text-interactive-base hover:text-text-interactive-base hover:bg-surface-base-hover hover:-translate-y-px"
+                >
+                  <Icon name="plus" size="small" />
+                </button>
               </Tooltip>
             </div>
             <DragOverlay>{props.renderProjectOverlay()}</DragOverlay>

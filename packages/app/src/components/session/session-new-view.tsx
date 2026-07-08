@@ -4,7 +4,7 @@ import { useSync } from "@/context/sync"
 import { useSDK } from "@/context/sdk"
 import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
-import { Icon } from "@opencode-ai/ui/icon"
+import { Icon, type IconProps } from "@opencode-ai/ui/icon"
 import { Mark } from "@opencode-ai/ui/logo"
 import { getDirectory, getFilename } from "@opencode-ai/util/path"
 
@@ -17,11 +17,15 @@ interface NewSessionViewProps {
 }
 
 type Starter = {
-  key: "landing" | "images" | "video" | "music"
-  icon: "app-window" | "photo" | "video" | "music"
+  key: "ugc" | "productAnimation" | "productPhotoshoot" | "aiInfluencer" | "landing" | "images" | "video" | "music"
+  icon: IconProps["name"]
 }
 
 const STARTERS: Starter[] = [
+  { key: "ugc", icon: "video" },
+  { key: "productAnimation", icon: "video" },
+  { key: "productPhotoshoot", icon: "photo" },
+  { key: "aiInfluencer", icon: "brain" },
   { key: "landing", icon: "app-window" },
   { key: "images", icon: "photo" },
   { key: "video", icon: "video" },

@@ -38,7 +38,7 @@ import { useDialog } from "../context/dialog"
 import { type UiI18n, useI18n } from "../context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
 import { setupPathLinks } from "./markdown"
-import { extractKolboUrls as extractKolboUrlsShared, isVideoUrl as isVideoUrlShared } from "./kolbo-media"
+import { extractKolboUrls as extractKolboUrlsShared, isVideoUrl as isVideoUrlShared, openKolboLightbox } from "./kolbo-media"
 import { usePlatformOps } from "../context/platform-ops"
 import { useKolboModels } from "../context/kolbo-models"
 import { Accordion } from "./accordion"
@@ -981,13 +981,19 @@ function ContextToolGroup(props: { parts: ToolPart[]; busy?: boolean }) {
               const running = createMemo(
                 () => partAccessor().state.status === "pending" || partAccessor().state.status === "running",
               )
+              const icon = createMemo(
+                () => getToolInfo(partAccessor().tool, (partAccessor().state as { input?: unknown }).input ?? {}).icon,
+              )
               return (
-                <div data-slot="context-tool-group-item">
+                <div data-slot="context-tool-group-item" data-running={running() ? "true" : undefined}>
                   <div data-component="tool-trigger">
                     <div data-slot="basic-tool-tool-trigger-content">
                       <div data-slot="basic-tool-tool-info">
                         <div data-slot="basic-tool-tool-info-structured">
                           <div data-slot="basic-tool-tool-info-main">
+                            <span data-slot="context-tool-group-icon" aria-hidden="true">
+                              <Icon name={icon()} size="small" />
+                            </span>
                             <span data-slot="basic-tool-tool-title">
                               <TextShimmer text={trigger().title} active={running()} />
                             </span>
@@ -2126,7 +2132,7 @@ ToolRegistry.register({
               </div>
               <div data-slot="message-part-actions">
                 <Show when={!pending() && props.metadata.filediff}>
-                  <DiffChanges changes={props.metadata.filediff} />
+                  <DiffChanges changes={props.metadata.filediff} animated />
                 </Show>
               </div>
             </div>
@@ -2137,7 +2143,7 @@ ToolRegistry.register({
               path={path()}
               actions={
                 <Show when={!pending() && props.metadata.filediff}>
-                  <DiffChanges changes={props.metadata.filediff!} />
+                  <DiffChanges changes={props.metadata.filediff!} animated />
                 </Show>
               }
             >
@@ -2361,7 +2367,7 @@ ToolRegistry.register({
                                       </span>
                                     </Match>
                                     <Match when={true}>
-                                      <DiffChanges changes={{ additions: file.additions, deletions: file.deletions }} />
+                                      <DiffChanges changes={{ additions: file.additions, deletions: file.deletions }} animated />
                                     </Match>
                                   </Switch>
                                   <Icon name="chevron-grabber-vertical" size="small" />
@@ -2410,7 +2416,7 @@ ToolRegistry.register({
                 </div>
                 <div data-slot="message-part-actions">
                   <Show when={!pending()}>
-                    <DiffChanges changes={{ additions: single()!.additions, deletions: single()!.deletions }} />
+                    <DiffChanges changes={{ additions: single()!.additions, deletions: single()!.deletions }} animated />
                   </Show>
                 </div>
               </div>
@@ -2436,7 +2442,7 @@ ToolRegistry.register({
                     </span>
                   </Match>
                   <Match when={true}>
-                    <DiffChanges changes={{ additions: single()!.additions, deletions: single()!.deletions }} />
+                    <DiffChanges changes={{ additions: single()!.additions, deletions: single()!.deletions }} animated />
                   </Match>
                 </Switch>
               }
@@ -2856,6 +2862,64 @@ function KolboVideoChipThumb(props: { url: string }) {
   )
 }
 
+// Large inline preview cell used in the "ready" state of a generation chip.
+// Shows the actual generated image/video at a real, legible size (natural
+// aspect, capped) so the user sees the result in the chat without opening
+// Canvas. Clicking enlarges it in the shared lightbox. This is deliberately
+// bigger than the old 20px pill thumbs — for a generation tool the result IS
+// the message.
+function KolboBigPreview(props: { url: string }) {
+  const isVideo = () => isVideoUrlShared(props.url)
+  return (
+    <button
+      type="button"
+      onClick={() => openKolboLightbox(props.url)}
+      class="group/preview relative block overflow-hidden rounded-xl border border-border-weaker-base bg-[#0b0b0c] transition-all duration-200 hover:border-border-base cursor-zoom-in"
+      style="line-height:0"
+      aria-label="Open preview"
+    >
+      <Show
+        when={isVideo()}
+        fallback={
+          <img
+            src={props.url}
+            alt=""
+            loading="lazy"
+            class="block transition-transform duration-300 ease-out group-hover/preview:scale-[1.03]"
+            style="max-height:200px;max-width:min(100%,300px);width:auto;height:auto;object-fit:contain"
+          />
+        }
+      >
+        <video
+          src={props.url.includes("#") ? props.url : `${props.url}#t=0.05`}
+          preload="auto"
+          muted
+          playsinline
+          autoplay
+          onLoadedData={(e) => {
+            try { e.currentTarget.pause() } catch {}
+          }}
+          class="block"
+          style="max-height:200px;max-width:min(100%,300px);width:auto;height:auto;object-fit:contain;pointer-events:none"
+        />
+        <span
+          aria-hidden="true"
+          class="absolute inset-0 flex items-center justify-center"
+        >
+          <span
+            class="flex items-center justify-center transition-transform duration-150 group-hover/preview:scale-110"
+            style="width:44px;height:44px;border-radius:50%;background:color-mix(in srgb, #000 55%, transparent);backdrop-filter:blur(4px);border:1px solid color-mix(in srgb, #fff 18%, transparent)"
+          >
+            <svg width="18" height="18" viewBox="0 0 22 22" fill="#fff" style="margin-left:2px">
+              <path d="M5 3.5v15l13-7.5L5 3.5Z" />
+            </svg>
+          </span>
+        </span>
+      </Show>
+    </button>
+  )
+}
+
 function KolboCompactChip(props: {
   tool: string
   status?: string
@@ -2937,6 +3001,20 @@ function KolboCompactChip(props: {
     if (kind() !== "image" && kind() !== "asset" && kind() !== "video") return []
     return urls().slice(0, MAX_CHIP_THUMBS)
   })
+  // Credit cost for this generation, parsed from the tool result. Kolbo's
+  // cost transparency is a deliberate edge over tools that hide it, so surface
+  // it on every completed generation chip.
+  const cost = createMemo<number | undefined>(() => {
+    if (inFlight() || isError()) return undefined
+    const out = props.output
+    if (!out) return undefined
+    try {
+      const parsed = JSON.parse(out) as { cost_credits?: unknown }
+      return typeof parsed.cost_credits === "number" ? parsed.cost_credits : undefined
+    } catch {
+      return undefined
+    }
+  })
   const overflowN = createMemo(() => {
     const total = urls().length
     return total > MAX_CHIP_THUMBS ? total - MAX_CHIP_THUMBS : 0
@@ -2946,6 +3024,9 @@ function KolboCompactChip(props: {
   return (
     <div class="px-3 pb-2">
       <Show when={isError()} fallback={
+      <Show
+        when={thumbs().length > 0}
+        fallback={
         <button
           type="button"
           onClick={openCanvas}
@@ -3025,6 +3106,17 @@ function KolboCompactChip(props: {
               <span style="font-variant-numeric:tabular-nums">{modelName()}</span>
             </span>
           </Show>
+          <Show when={cost() !== undefined}>
+            <span
+              class="inline-flex items-center gap-0.5 shrink-0 text-text-weak"
+              style="font-variant-numeric:tabular-nums"
+              title={i18n.t("ui.kolbo.chip.creditCost", { count: cost()! })}
+            >
+              <span class="opacity-60">·</span>
+              <span aria-hidden="true">✦</span>
+              {cost()}
+            </span>
+          </Show>
           <Show when={!inFlight() && doneN() > 0}>
             <span class="text-text-weak group-hover:text-text-base transition-colors inline-flex items-center gap-0.5 pl-1 border-l border-border-weaker-base ml-0.5">
               {i18n.t("ui.kolbo.chip.viewInCanvas")}
@@ -3034,6 +3126,74 @@ function KolboCompactChip(props: {
             </span>
           </Show>
         </button>
+        }
+      >
+        {/* Completed image/video generation — show the actual result BIG so
+            the user sees it in the chat, not a fingernail thumb. Clicking any
+            preview enlarges it; the caption underneath carries the model,
+            credit cost, and a "View in Canvas" jump. */}
+        <div class="flex flex-col gap-1.5">
+          <div class="flex flex-wrap gap-2">
+            <For each={thumbs()}>{(src) => <KolboBigPreview url={src} />}</For>
+            <Show when={overflowN() > 0}>
+              <button
+                type="button"
+                onClick={openCanvas}
+                class="flex items-center justify-center rounded-xl border border-border-weaker-base bg-background-stronger text-text-weak hover:text-text-base hover:border-border-weak-base transition-colors cursor-pointer"
+                style="width:80px;height:80px;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums"
+                aria-label={i18n.t("ui.kolbo.chip.viewInCanvas")}
+              >
+                +{overflowN()}
+              </button>
+            </Show>
+          </div>
+          <button
+            type="button"
+            onClick={openCanvas}
+            class="group inline-flex items-center gap-1.5 self-start max-w-full text-text-weak hover:text-text-base transition-colors cursor-pointer"
+            style="font-size:12px"
+          >
+            <span class="text-text-base">{text()}</span>
+            <Show when={modelName()}>
+              <span class="inline-flex items-center gap-1 shrink-0" title={modelName()}>
+                <span class="opacity-60">·</span>
+                <Show when={modelAvatar()}>
+                  <img
+                    src={modelAvatar()}
+                    alt=""
+                    loading="lazy"
+                    width={14}
+                    height={14}
+                    referrerpolicy="no-referrer"
+                    style="width:14px;height:14px;border-radius:3px;object-fit:cover;background:var(--background-stronger);display:inline-block"
+                    onError={(e) => {
+                      ;(e.currentTarget as HTMLImageElement).style.display = "none"
+                    }}
+                  />
+                </Show>
+                <span style="font-variant-numeric:tabular-nums">{modelName()}</span>
+              </span>
+            </Show>
+            <Show when={cost() !== undefined}>
+              <span
+                class="inline-flex items-center gap-0.5 shrink-0"
+                style="font-variant-numeric:tabular-nums"
+                title={i18n.t("ui.kolbo.chip.creditCost", { count: cost()! })}
+              >
+                <span class="opacity-60">·</span>
+                <span aria-hidden="true">✦</span>
+                {cost()}
+              </span>
+            </Show>
+            <span class="inline-flex items-center gap-0.5 pl-1 border-l border-border-weaker-base ml-0.5 group-hover:text-text-base transition-colors">
+              {i18n.t("ui.kolbo.chip.viewInCanvas")}
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
+                <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+          </button>
+        </div>
+      </Show>
       }>
         <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails />
       </Show>

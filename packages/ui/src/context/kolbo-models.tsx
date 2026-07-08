@@ -26,9 +26,29 @@ export type KolboModelMetadata = {
 
 export type KolboModelsFetcher = () => Promise<KolboModelMetadata>
 
+// Generation models for a specific generation type (text_to_img, image_editing,
+// text_to_video, …) — for the approval-card model picker.
+export type KolboGenModel = { id: string; name: string; avatar?: string | null }
+export type KolboTypeFetcher = (type: string) => Promise<KolboGenModel[]>
+
 const [data, setData] = createSignal<KolboModelMetadata | null>(null)
 let inflight: Promise<unknown> | null = null
 let attempted = false
+
+const [typeData, setTypeData] = createSignal<Record<string, KolboGenModel[]>>({})
+const typeAttempted = new Set<string>()
+let typeFetcherRef: KolboTypeFetcher | undefined
+
+function ensureType(type: string): void {
+  if (!type || !typeFetcherRef || typeAttempted.has(type)) return
+  typeAttempted.add(type)
+  typeFetcherRef(type)
+    .then((models) => setTypeData((prev) => ({ ...prev, [type]: models })))
+    .catch(() => {
+      // Allow a retry later.
+      typeAttempted.delete(type)
+    })
+}
 
 function ensureLoaded(fetcher: KolboModelsFetcher | undefined): void {
   if (!fetcher || inflight || attempted) return
@@ -49,10 +69,11 @@ function ensureLoaded(fetcher: KolboModelsFetcher | undefined): void {
 
 export const { use: useKolboModels, provider: KolboModelsProvider } = createSimpleContext({
   name: "KolboModels",
-  init: (props: { fetcher?: KolboModelsFetcher }) => {
+  init: (props: { fetcher?: KolboModelsFetcher; typeFetcher?: KolboTypeFetcher }) => {
     // Kick off the fetch immediately so by the time the first chip renders
     // the data is usually already in the cache.
     ensureLoaded(props.fetcher)
+    if (props.typeFetcher) typeFetcherRef = props.typeFetcher
     return {
       lookup: (id: string): KolboModelEntry => {
         ensureLoaded(props.fetcher)
@@ -62,6 +83,22 @@ export const { use: useKolboModels, provider: KolboModelsProvider } = createSimp
           name: d.names[id],
           avatar: d.avatars[id] ?? undefined,
         }
+      },
+      // Full catalog for pickers (approval card model dropdown, etc.) — every
+      // known model id with its friendly name + avatar. Empty until data lands.
+      list: (): Array<{ id: string; name: string; avatar?: string }> => {
+        ensureLoaded(props.fetcher)
+        const d = data()
+        if (!d) return []
+        return Object.keys(d.names)
+          .map((id) => ({ id, name: d.names[id] ?? id, avatar: d.avatars[id] ?? undefined }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      },
+      // Generation models for a specific generation type (reactive — empty
+      // until the per-type fetch lands, then populated).
+      byType: (type: string): KolboGenModel[] => {
+        ensureType(type)
+        return typeData()[type] ?? []
       },
     }
   },

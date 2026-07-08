@@ -176,4 +176,7 @@ export const dict = {
   "ui.download.openInFolder": "Im Ordner öffnen",
   "ui.download.changeFolder": "Ordner ändern",
   "ui.download.openingInBrowser": "Im Browser öffnen",
+  "ui.permission.suggestChange.placeholder": "Oder sag dem Agenten, was stattdessen geändert werden soll…",
+  "ui.permission.sendChange": "Änderung senden",
+  "ui.kolbo.chip.creditCost": "{{count}} Credits",
 }

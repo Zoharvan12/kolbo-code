@@ -311,7 +311,12 @@ export function SessionHeader() {
         {(mount) => (
           <Portal mount={mount()}>
             <div class="flex items-center gap-2">
-              <Show when={projectDirectory()}>
+              {/* "Open in File Explorer / VS Code / Cursor / PowerShell / Copy
+                  path" — developer-only affordances. Hidden for the creative
+                  workflow. Kept behind `false` (not deleted) so the openDir /
+                  copyPath / app-picker helpers stay referenced and it's a
+                  one-word revert if we ever want a dev mode. */}
+              <Show when={false && projectDirectory()}>
                 <div class="hidden xl:flex items-center">
                   <Show
                     when={canOpen()}
@@ -425,9 +430,14 @@ export function SessionHeader() {
                 </div>
               </Show>
               <div class="flex items-center gap-1">
-                <Tooltip placement="bottom" value={language.t("status.popover.trigger")}>
-                  <StatusPopover />
-                </Tooltip>
+                {/* Server / MCP / LSP / Plugins status popover — developer
+                    diagnostics that read as confusing to a creative user.
+                    Hidden (kept behind `false` for a one-word revert). */}
+                <Show when={false}>
+                  <Tooltip placement="bottom" value={language.t("status.popover.trigger")}>
+                    <StatusPopover />
+                  </Tooltip>
+                </Show>
 
                 {/* Zoom controls */}
                 <Show when={platform.zoomOut && platform.zoomIn}>
@@ -479,97 +489,28 @@ export function SessionHeader() {
                   </Button>
                 </Tooltip>
 
-                <TooltipKeybind
-                  title={language.t("command.terminal.toggle")}
-                  keybind={command.keybind("terminal.toggle")}
-                >
+                {/* Only Canvas (the media gallery) lives in the toolbar now.
+                    The developer panels — Terminal, Review (code diff), Files
+                    (file tree) — were removed from here: this is a creative
+                    tool, not a code editor, and those read as technical/scary.
+                    They're all still reachable via their keyboard shortcuts /
+                    command palette; the underlying wiring is untouched so
+                    canvas + artifact auto-open still works. */}
+                <Tooltip placement="bottom" value={language.t("command.canvas.toggle")}>
                   <Button
                     variant="ghost"
-                    class="group/terminal-toggle titlebar-icon h-6 px-1.5 box-border shrink-0 flex items-center gap-1"
-                    onClick={toggleTerminal}
-                    aria-label={language.t("command.terminal.toggle")}
-                    aria-expanded={view().terminal.opened()}
-                    aria-controls="terminal-panel"
+                    class="titlebar-icon h-7 px-3 ml-1 box-border shrink-0 flex items-center gap-1.5 border border-border-weak-base rounded-lg bg-surface-raised-base hover:bg-surface-raised-base-hover transition-colors"
+                    onClick={() => {
+                      if (typeof document !== "undefined") {
+                        document.dispatchEvent(new CustomEvent("kolbo:open-canvas"))
+                      }
+                    }}
+                    aria-label={language.t("command.canvas.toggle")}
                   >
-                    <Icon size="small" name={view().terminal.opened() ? "terminal-active" : "terminal"} />
-                    <span class="text-11-regular text-text-weak hidden md:inline">{language.t("session.header.tab.terminal")}</span>
+                    <Icon name="canvas" class="size-4" />
+                    <span class="text-13-medium text-text-strong">{language.t("session.header.tab.canvas")}</span>
                   </Button>
-                </TooltipKeybind>
-
-                <div class="hidden md:flex items-center gap-1 shrink-0">
-                  <Tooltip placement="bottom" value={language.t("command.canvas.toggle")}>
-                    <Button
-                      variant="ghost"
-                      class="titlebar-icon h-6 px-2 box-border shrink-0 flex items-center gap-1.5 mx-1"
-                      onClick={() => {
-                        if (typeof document !== "undefined") {
-                          document.dispatchEvent(new CustomEvent("kolbo:open-canvas"))
-                        }
-                      }}
-                      aria-label={language.t("command.canvas.toggle")}
-                    >
-                      <Icon size="small" name="canvas" />
-                      <span class="text-11-regular text-text-weak">{language.t("session.header.tab.canvas")}</span>
-                    </Button>
-                  </Tooltip>
-
-                  <TooltipKeybind
-                    title={language.t("command.review.toggle")}
-                    keybind={command.keybind("review.toggle")}
-                  >
-                    <Button
-                      variant="ghost"
-                      class="group/review-toggle titlebar-icon h-6 px-1.5 box-border flex items-center gap-1"
-                      onClick={() => {
-                        const wasOpen = view().reviewPanel.opened()
-                        if (wasOpen) {
-                          // Panel was already open — the click should refocus
-                          // the Review tab (it might currently be showing
-                          // canvas/artifacts). The side-panel listens for this.
-                          if (typeof document !== "undefined") {
-                            document.dispatchEvent(new CustomEvent("kolbo:focus-review"))
-                          }
-                        } else {
-                          // Panel was closed — open it; the side-panel's
-                          // closed→open effect will set the active tab to review.
-                          view().reviewPanel.open()
-                        }
-                      }}
-                      aria-label={language.t("command.review.toggle")}
-                      aria-expanded={view().reviewPanel.opened()}
-                      aria-controls="review-panel"
-                    >
-                      <Icon size="small" name={view().reviewPanel.opened() ? "review-active" : "review"} />
-                      <span class="text-11-regular text-text-weak">{language.t("session.header.tab.review")}</span>
-                    </Button>
-                  </TooltipKeybind>
-
-                  <TooltipKeybind
-                    title={language.t("command.fileTree.toggle")}
-                    keybind={command.keybind("fileTree.toggle")}
-                  >
-                    <Button
-                      variant="ghost"
-                      class="titlebar-icon h-6 px-1.5 box-border flex items-center gap-1"
-                      onClick={() => layout.fileTree.toggle()}
-                      aria-label={language.t("command.fileTree.toggle")}
-                      aria-expanded={layout.fileTree.opened()}
-                      aria-controls="file-tree-panel"
-                    >
-                      <div class="relative flex items-center justify-center size-4">
-                        <Icon
-                          size="small"
-                          name={layout.fileTree.opened() ? "file-tree-active" : "file-tree"}
-                          classList={{
-                            "text-icon-strong": layout.fileTree.opened(),
-                            "text-icon-weak": !layout.fileTree.opened(),
-                          }}
-                        />
-                      </div>
-                      <span class="text-11-regular text-text-weak">{language.t("session.header.tab.files")}</span>
-                    </Button>
-                  </TooltipKeybind>
-                </div>
+                </Tooltip>
               </div>
             </div>
           </Portal>

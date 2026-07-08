@@ -2097,8 +2097,7 @@ export default function Layout(props: ParentProps) {
           "border border-b-0 border-border-weak-base": !merged(),
           "border-l border-t border-border-weaker-base": merged() && !isRTL(),
           "border-r border-t border-border-weaker-base": merged() && isRTL(),
-          "bg-background-base": merged() || hover(),
-          "bg-background-stronger": !merged() && !hover(),
+          "bg-background-stronger": true,
           "flex-1 min-w-0": panelProps.mobile,
           "max-w-full overflow-hidden": panelProps.mobile,
         }}

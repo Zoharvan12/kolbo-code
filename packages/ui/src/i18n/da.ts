@@ -162,4 +162,7 @@ export const dict = {
   "ui.kolbo.generatingVideo": "Genererer video…",
   "ui.kolbo.generatingAudio": "Genererer lyd…",
   "ui.kolbo.usedMedia": "{{n}} medier",
+  "ui.permission.suggestChange.placeholder": "Eller fortæl agenten, hvad der skal ændres i stedet…",
+  "ui.permission.sendChange": "Send ændring",
+  "ui.kolbo.chip.creditCost": "{{count}} credits",
 }

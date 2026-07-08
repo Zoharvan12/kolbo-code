@@ -2050,7 +2050,7 @@ export default function Page() {
         {/* Session panel */}
         <div
           classList={{
-            "@container relative shrink-0 flex flex-col min-h-0 h-full bg-background-stronger flex-1 md:flex-none": true,
+            "@container relative shrink-0 flex flex-col min-h-0 h-full bg-background-base flex-1 md:flex-none": true,
             "transition-[width] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
               !size.active() && !ui.reviewSnap,
           }}
@@ -2061,7 +2061,20 @@ export default function Page() {
           <div class="flex-1 min-h-0 overflow-hidden">
             <Switch>
               <Match when={params.id}>
-                <Show when={messagesReady()}>
+                <Show
+                  when={messagesReady()}
+                  fallback={
+                    <div class="size-full flex justify-center overflow-hidden" aria-hidden="true">
+                      <div class="w-full max-w-200 px-6 pt-12 flex flex-col gap-6">
+                        <div class="skeleton h-4 w-40 self-end" />
+                        <div class="skeleton h-24 w-2/3 self-end" />
+                        <div class="skeleton h-4 w-32" />
+                        <div class="skeleton h-40 w-full" />
+                        <div class="skeleton h-4 w-48" />
+                      </div>
+                    </div>
+                  }
+                >
                   <MessageTimeline
                     mobileChanges={mobileChanges()}
                     mobileFallback={reviewContent({

@@ -22,7 +22,7 @@ function dot(status: Todo["status"]) {
       viewBox="0 0 12 12"
       width="12"
       height="12"
-      fill="currentColor"
+      fill="var(--icon-accent-base, currentColor)"
       xmlns="http://www.w3.org/2000/svg"
       class="block"
     >
@@ -236,7 +236,7 @@ export function SessionTodoDock(props: {
   )
 }
 
-function TodoList(props: { todos: Todo[] }) {
+export function TodoList(props: { todos: Todo[] }) {
   const [store, setStore] = createStore({
     stuck: false,
   })
@@ -244,7 +244,7 @@ function TodoList(props: { todos: Todo[] }) {
   return (
     <div class="relative">
       <div
-        class="px-3 pb-11 flex flex-col gap-1.5 max-h-42 overflow-y-auto no-scrollbar"
+        class="px-3 pb-2 flex flex-col gap-1.5 max-h-60 overflow-y-auto no-scrollbar"
         style={{ "overflow-anchor": "none" }}
         onScroll={(e) => {
           setStore("stuck", e.currentTarget.scrollTop > 0)

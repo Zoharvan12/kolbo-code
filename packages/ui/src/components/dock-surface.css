@@ -8,7 +8,11 @@
 }
 
 [data-dock-surface="tray"] {
-  background-color: var(--background-base);
+  /* Match the shell fill so the controls tray reads as one continuous
+     composer card (it tucks under the shell via attach="top"). Previously
+     this was --background-base, which now equals the deep canvas, leaving
+     the controls floating with no surface. */
+  background-color: var(--surface-raised-stronger-non-alpha);
   border: 1px solid var(--border-weak-base);
   position: relative;
   z-index: 0;

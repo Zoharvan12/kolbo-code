@@ -1,9 +1,12 @@
 import { createMemo, For, Match, Show, Switch } from "solid-js"
+import { AnimatedNumber } from "./animated-number"
 
 export function DiffChanges(props: {
   class?: string
   changes: { additions: number; deletions: number } | { additions: number; deletions: number }[]
   variant?: "default" | "bars"
+  /** Roll the +/- counts like an odometer when they change (live writes). Static on mount, so safe for history. */
+  animated?: boolean
 }) {
   const variant = () => props.variant ?? "default"
 
@@ -105,8 +108,22 @@ export function DiffChanges(props: {
             </svg>
           </Match>
           <Match when={variant() === "default"}>
-            <span data-slot="diff-changes-additions">{`+${additions()}`}</span>
-            <span data-slot="diff-changes-deletions">{`-${deletions()}`}</span>
+            <Show
+              when={props.animated}
+              fallback={
+                <>
+                  <span data-slot="diff-changes-additions">{`+${additions()}`}</span>
+                  <span data-slot="diff-changes-deletions">{`-${deletions()}`}</span>
+                </>
+              }
+            >
+              <span data-slot="diff-changes-additions">
+                +<AnimatedNumber value={additions()} />
+              </span>
+              <span data-slot="diff-changes-deletions">
+                -<AnimatedNumber value={deletions()} />
+              </span>
+            </Show>
           </Match>
         </Switch>
       </div>

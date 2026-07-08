@@ -160,4 +160,7 @@ export const dict = {
   "ui.kolbo.generatingVideo": "Generowanie wideo…",
   "ui.kolbo.generatingAudio": "Generowanie audio…",
   "ui.kolbo.usedMedia": "{{n}} mediów",
+  "ui.permission.suggestChange.placeholder": "Albo powiedz agentowi, co zmienić…",
+  "ui.permission.sendChange": "Wyślij zmianę",
+  "ui.kolbo.chip.creditCost": "{{count}} kredytów",
 }

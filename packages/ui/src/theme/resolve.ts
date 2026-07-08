@@ -93,6 +93,9 @@ export function resolveThemeVariant(variant: ThemeVariant, isDark: boolean): Res
   const infob = info[isDark ? 6 : 4]
   const infow = info[isDark ? 5 : 3]
   const infos = info[10]
+  const accb = accent[isDark ? 6 : 4]
+  const accw = accent[isDark ? 5 : 3]
+  const accs = accent[isDark ? 7 : 5]
   const lum = (hex: HexColor) => {
     const rgb = hexToRgb(hex)
     const lift = (v: number) => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4))
@@ -165,6 +168,20 @@ export function resolveThemeVariant(variant: ThemeVariant, isDark: boolean): Res
   tokens["surface-info-base"] = infob
   tokens["surface-info-weak"] = infow
   tokens["surface-info-strong"] = infos
+
+  // Signature accent — one high-chroma family reserved for primary actions and
+  // active/working states. The accent scale is generated in every theme; these
+  // tokens expose it to the UI (glow button, working header, active steps).
+  tokens["accent-base"] = accb
+  tokens["accent-weak"] = accw
+  tokens["accent-strong"] = accs
+  tokens["surface-accent-base"] = accb
+  tokens["surface-accent-weak"] = accw
+  tokens["surface-accent-strong"] = accs
+  tokens["border-accent-base"] = accent[6]
+  tokens["text-on-accent-base"] = on(accb)
+  tokens["text-accent-base"] = accent[isDark ? 10 : 9]
+  tokens["icon-accent-base"] = accent[isDark ? 8 : 6]
 
   tokens["surface-diff-unchanged-base"] = isDark ? neutral[0] : "#ffffff00"
   tokens["surface-diff-skip-base"] = isDark ? neutralAlpha[0] : neutral[1]

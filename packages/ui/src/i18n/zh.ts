@@ -176,4 +176,7 @@ export const dict = {
   "ui.download.openInFolder": "在文件夹中打开",
   "ui.download.changeFolder": "更改文件夹",
   "ui.download.openingInBrowser": "在浏览器中打开",
+  "ui.permission.suggestChange.placeholder": "或者告诉代理你需要修改什么……",
+  "ui.permission.sendChange": "发送修改建议",
+  "ui.kolbo.chip.creditCost": "{{count}} 点积分",
 }

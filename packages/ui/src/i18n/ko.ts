@@ -176,4 +176,7 @@ export const dict = {
   "ui.download.openInFolder": "폴더에서 열기",
   "ui.download.changeFolder": "폴더 변경",
   "ui.download.openingInBrowser": "브라우저에서 열기",
+  "ui.permission.suggestChange.placeholder": "또는 에이전트에게 무엇을 변경할지 알려주세요…",
+  "ui.permission.sendChange": "변경 사항 전송",
+  "ui.kolbo.chip.creditCost": "{{count}} 크레딧",
 }

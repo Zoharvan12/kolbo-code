@@ -68,9 +68,16 @@ export function SessionSidePanel(props: {
   const isDesktop = createMediaQuery("(min-width: 768px)")
 
   const reviewOpen = createMemo(() => isDesktop() && view().reviewPanel.opened())
-  const fileOpen = createMemo(() => isDesktop() && layout.fileTree.opened())
+  // Developer-only surfaces disabled: this is a creative tool, not a code
+  // editor. The "Review" (code-diff) tab and the "Files" (file-tree) panel
+  // read as confusing/technical, so they never render. The reviewPanel
+  // CONTAINER still exists — it hosts Canvas (media gallery) + Artifacts
+  // (app preview), which auto-open on generation. Forcing these two off (vs
+  // ripping out the machinery) keeps that host + all the canvas/artifact
+  // wiring intact and reversible.
+  const fileOpen = createMemo(() => false)
   const open = createMemo(() => reviewOpen() || fileOpen())
-  const reviewTab = createMemo(() => isDesktop())
+  const reviewTab = createMemo(() => false)
   const panelWidth = createMemo(() => {
     if (!open()) return "0px"
     if (reviewOpen()) return `calc(100% - ${layout.session.width()}px)`
@@ -165,18 +172,13 @@ export function SessionSidePanel(props: {
   createEffect(() => {
     if (effectiveActiveTab() === "canvas") setCanvasSeen(true)
   })
-  // Pre-mount SessionCanvas during browser idle time so the first user
-  // click on Canvas is an instant CSS-toggle, not a 1700-line component
-  // bootstrap (which was producing a brief blank/black flash on first open).
-  // Cost is ~50-100ms paid silently while the user reads chat output.
+  // Pre-mount SessionCanvas right after the panel's first paint so opening
+  // Canvas is always an instant CSS-toggle, never an on-click 1700-line
+  // bootstrap (which froze the whole app for ~2s when idle time never came
+  // before the user clicked). Two rAFs = "after this session paints", off the
+  // click path; content-visibility on the cells keeps that mount cheap.
   onMount(() => {
-    const schedule = (cb: () => void) => {
-      const ric = (globalThis as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number })
-        .requestIdleCallback
-      if (typeof ric === "function") return ric(cb, { timeout: 5000 })
-      return setTimeout(cb, 2000)
-    }
-    schedule(() => setCanvasSeen(true))
+    requestAnimationFrame(() => requestAnimationFrame(() => setCanvasSeen(true)))
   })
 
   // Focus the Review tab — used by both (a) the closed→open transition of
@@ -484,7 +486,19 @@ export function SessionSidePanel(props: {
                     </Show>
                   </Tabs.Content>
 
-                  <Tabs.Content value="canvas" class="flex flex-col h-full overflow-hidden contain-strict">
+                  {/* forceMount is LOAD-BEARING: without it Kobalte
+                      (createPresence show:() => forceMount || isSelected)
+                      fully UNMOUNTS this content while another tab is active,
+                      so the `canvasSeen` pre-mount below can never run ahead of
+                      time — clicking Canvas would then mount SessionCanvas +
+                      the ~1700-line library tree synchronously on the click,
+                      freezing the whole app for ~2s. forceMount keeps the
+                      content in the DOM (Kobalte just `hidden`s it), so the
+                      two-rAF pre-mount actually mounts the canvas off the click
+                      path and opening Canvas is a pure visibility flip. The
+                      cells' IntersectionObserver sees `display:none` while
+                      hidden and stays un-revealed, so the pre-mount is cheap. */}
+                  <Tabs.Content value="canvas" forceMount class="flex-col h-full overflow-hidden contain-strict [&[data-selected]]:flex [&:not([data-selected])]:hidden">
                     <Show when={canvasSeen()}>
                       <SessionCanvas sessionID={currentSessionID} />
                     </Show>
@@ -521,6 +535,7 @@ export function SessionSidePanel(props: {
             </div>
           </div>
 
+          <Show when={fileOpen()}>
           <div
             id="file-tree-panel"
             aria-hidden={!fileOpen()}
@@ -613,6 +628,7 @@ export function SessionSidePanel(props: {
               </div>
             </Show>
           </div>
+          </Show>
         </div>
       </aside>
     </Show>

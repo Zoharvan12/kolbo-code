@@ -13,18 +13,18 @@ Load this file when the user wants a **Seedance 2 / Seedance 2.0** (ByteDance) v
 
 - **First line ALWAYS declares shot structure**: total duration, shot count, aspect ratio. Example: `Total: 15s / 6 shots / 16:9`. Put it at the BOTTOM of the prompt too.
 - **Order inside each shot**: Subject → Action → Camera → Style → Constraints → (Audio/SFX if relevant).
-- **Prompt length**: aim for ~120–280 words TOTAL across all shots combined (not per shot). Shorter than ~120 words = random output. Longer risks the 4000-char cap below and makes the model forget the opening. For 6-shot prompts, keep each shot 1–2 tight sentences.
+- **Prompt length**: aim for ~120–280 words TOTAL across all shots combined (not per shot). Shorter than ~120 words = random output. Longer risks the 8000-char cap below and makes the model forget the opening. For 6-shot prompts, keep each shot 1–2 tight sentences.
 - **Character lock**: if a character recurs, open with `same character throughout all shots` to stop identity drift.
 - **Max 3 shots per single-shot prompt; max 6 shots in a multi-shot montage.** More causes drift.
 - **Always describe at least one camera movement per shot.**
 - **Tell Seedance what the camera is NOT doing** (e.g. `no cuts, no zoom, natural head movement`) — this is what locks POV.
 - **Final prompt is always English**, wrapped in a copy-ready code block. Detect intent in any language and reply in the user's language, but the prompt itself is English.
-- **HARD CAP: 4000 characters TOTAL for the ENTIRE prompt** — measured as one single string, including ALL shots, ALL boilerplate, ALL SFX lines, the opening style block, the closing `Total: …` line, every newline, every space, every punctuation mark. This is non-negotiable.
-  - Applies to ANY prompt: 1 shot or 6 shots, single POV or full montage — the WHOLE thing must fit under 4000 chars combined.
-  - It is NOT 4000 chars per shot. It is 4000 chars per prompt.
-  - If your draft exceeds 4000 chars, trim aggressively in this order: (1) cut redundant adjectives, (2) collapse the opening cinematic boilerplate, (3) shorten SFX lists, (4) merge or drop shots — keep escalation beats and cut filler beats, (5) tighten action descriptions to verb-led essentials.
+- **HARD CAP: 8000 characters TOTAL for the ENTIRE prompt** — measured as one single string, including ALL shots, ALL boilerplate, ALL SFX lines, the opening style block, the closing `Total: …` line, every newline, every space, every punctuation mark. This is non-negotiable.
+  - Applies to ANY prompt: 1 shot or 6 shots, single POV or full montage — the WHOLE thing must fit under 8000 chars combined.
+  - It is NOT 8000 chars per shot. It is 8000 chars per prompt.
+  - If your draft exceeds 8000 chars, trim aggressively in this order: (1) cut redundant adjectives, (2) collapse the opening cinematic boilerplate, (3) shorten SFX lists, (4) merge or drop shots — keep escalation beats and cut filler beats, (5) tighten action descriptions to verb-led essentials.
   - **Never** split into multiple prompts, multiple code blocks, or "part 1 / part 2" to evade the cap.
-  - Before outputting, internally count the characters of the final prompt as a single string. If > 4000, rewrite tighter and re-count. Repeat until ≤ 4000. Only then show the user.
+  - Before outputting, internally count the characters of the final prompt as a single string. If > 8000, rewrite tighter and re-count. Repeat until ≤ 8000. Only then show the user.
 
 ## The 5 Formats
 
@@ -83,7 +83,7 @@ When the user uploads a 3×3 grid image and asks for Seedance prompts, switch to
 - Final prompt(s) ALWAYS in a fenced code block ready to paste into the Seedance `prompt` field (or pass as `prompt` on `generate_video` / `generate_elements`).
 - After the code block, give a 1-line "why this works" note (camera/escalation/physics choice).
 - If user asked in any language other than English, write your explanation in their language but keep the prompt itself English.
-- **Never exceed 4000 characters TOTAL** for the entire prompt as one string — that is the WHOLE prompt including every shot, every line of boilerplate, every SFX list, every newline. NOT 4000 per shot — 4000 for the prompt as one combined unit. Count before output. If over, rewrite tighter (cut adjectives, collapse boilerplate, merge or drop shots). NEVER split into multiple prompts / multiple code blocks / "part 1 / part 2" to work around the limit.
+- **Never exceed 8000 characters TOTAL** for the entire prompt as one string — that is the WHOLE prompt including every shot, every line of boilerplate, every SFX list, every newline. NOT 8000 per shot — 8000 for the prompt as one combined unit. Count before output. If over, rewrite tighter (cut adjectives, collapse boilerplate, merge or drop shots). NEVER split into multiple prompts / multiple code blocks / "part 1 / part 2" to work around the limit.
 
 ## Seedance + Visual DNA / References
 

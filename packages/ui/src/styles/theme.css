@@ -9,6 +9,11 @@
     "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
   --font-family-mono--font-feature-settings: "calt", "liga", "zero";
+  /* Editorial serif for assistant narrative prose — the Higgsfield / Claude
+     look. Falls back to a quality system serif (bundle Source Serif 4 for the
+     exact face). */
+  --font-family-serif: "Source Serif 4", "Source Serif Pro", Charter, "Iowan Old Style", Georgia, Cambria, ui-serif,
+    "Times New Roman", serif;
 
   --font-size-small: 13px;
   --font-size-base: 14px;

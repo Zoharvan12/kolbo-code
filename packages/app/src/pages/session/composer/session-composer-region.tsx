@@ -139,7 +139,7 @@ export function SessionComposerRegion(props: {
     <div
       ref={props.setPromptDockRef}
       data-component="session-prompt-dock"
-      class="shrink-0 w-full pb-3 flex flex-col justify-center items-center bg-background-stronger pointer-events-none"
+      class="shrink-0 w-full pb-3 flex flex-col justify-center items-center bg-background-base pointer-events-none"
     >
       <div
         classList={{
@@ -161,9 +161,9 @@ export function SessionComposerRegion(props: {
               <SessionPermissionDock
                 request={request}
                 responding={props.state.permissionResponding()}
-                onDecide={(response) => {
+                onDecide={(response, message) => {
                   props.onResponseSubmit()
-                  props.state.decide(response)
+                  props.state.decide(response, message)
                 }}
               />
             </div>
@@ -193,7 +193,12 @@ export function SessionComposerRegion(props: {
               </>
             }
           >
-            <Show when={dock()}>
+            {/* Todo/plan progress moved OUT of the composer — it used to sit
+                here as a panel that ate space and lingered. It now lives as a
+                compact toggle in the chat title bar at the top (Higgsfield
+                style). Kept behind `false` so the dock's open/close animation
+                wiring stays intact and it's a one-word revert. */}
+            <Show when={false && dock()}>
               <div
                 classList={{
                   "overflow-hidden": true,

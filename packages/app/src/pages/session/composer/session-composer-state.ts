@@ -126,14 +126,17 @@ export function createSessionComposerState(options?: { closeMs?: number | (() =>
     return store.responding === perm.id
   })
 
-  const decide = (response: "once" | "always" | "reject") => {
+  // `message` carries a free-text correction ("use 480p") straight to the agent
+  // via the engine's CorrectedError path. We use the non-deprecated `reply`
+  // endpoint (respond is deprecated and has no message channel).
+  const decide = (response: "once" | "always" | "reject", message?: string) => {
     const perm = permissionRequest()
     if (!perm) return
     if (store.responding === perm.id) return
 
     setStore("responding", perm.id)
     sdk.client.permission
-      .respond({ sessionID: perm.sessionID, permissionID: perm.id, response })
+      .reply({ requestID: perm.id, reply: response, message, directory: sdk.directory })
       .catch((err: unknown) => {
         const description = err instanceof Error ? err.message : String(err)
         showToast({ title: language.t("common.requestFailed"), description })

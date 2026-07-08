@@ -100,6 +100,43 @@ async function getKolboModelMetadata(): Promise<KolboModelMetadata> {
   return kolboModelInflight
 }
 
+// Generation models FILTERED BY generation type (text_to_img, image_editing,
+// text_to_video, …) — for the desktop approval-card model picker, which needs
+// the models valid for the tool being run (not the chat model list). Backed by
+// the kolbo-api SDK /v1/models?type= endpoint (same one the MCP list_models
+// uses), returning each model's id, friendly name and avatar. Cached per type.
+type KolboGenModel = { id: string; name: string; avatar: string | null }
+const kolboGenModelCache = new Map<string, { at: number; data: KolboGenModel[] }>()
+async function getKolboGenerationModels(type: string): Promise<KolboGenModel[]> {
+  const cached = kolboGenModelCache.get(type)
+  if (cached && Date.now() - cached.at < KOLBO_MODELS_TTL_MS) return cached.data
+  const base = Partner.apiBase
+  try {
+    // /v1/models is authenticated (unlike the public chat metadata). The Kolbo
+    // key is an X-API-Key (NOT a Bearer token — Bearer returns "Invalid token").
+    const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+    const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+    const res = await fetch(`${base}/v1/models?type=${encodeURIComponent(type)}`, {
+      headers: apiKey ? { "X-API-Key": apiKey } : {},
+    })
+    if (!res.ok) return []
+    const data = (await res.json()) as {
+      models?: Array<{ identifier: string; name?: string | null; avatar?: string | null }>
+    }
+    const out: KolboGenModel[] = (data.models ?? [])
+      .filter((m) => typeof m.identifier === "string" && m.identifier.length > 0)
+      .map((m) => ({
+        id: m.identifier,
+        name: (typeof m.name === "string" && m.name.trim()) || m.identifier,
+        avatar: typeof m.avatar === "string" && m.avatar.length > 0 ? m.avatar : null,
+      }))
+    kolboGenModelCache.set(type, { at: Date.now(), data: out })
+    return out
+  } catch {
+    return []
+  }
+}
+
 export const GlobalDisposedEvent = BusEvent.define("global.disposed", z.object({}))
 
 async function streamEvents(c: Context, subscribe: (q: AsyncQueue<string | null>) => () => void) {
@@ -585,6 +622,38 @@ export const GlobalRoutes = lazy(() =>
       async (c) => {
         const out = await getKolboModelMetadata()
         return c.json(out)
+      },
+    )
+    .get(
+      "/kolbo-generation-models",
+      describeRoute({
+        summary: "List Kolbo generation models for a generation type",
+        description:
+          "Returns the generation models (id, friendly name, avatar) valid for a given generation type — text_to_img, image_editing, text_to_video, img_to_video, video_to_video, music_gen, text_to_speech, text_to_sound, elements, lipsync-*, 3d_*, etc. Backs the desktop approval-card model picker so the user only sees models valid for the tool being run. Proxies kolbo-api /v1/models?type= (same source as MCP list_models), cached per type.",
+        operationId: "global.kolbo-generation-models",
+        responses: {
+          200: {
+            description: "Generation models for the type",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    models: z.array(
+                      z.object({ id: z.string(), name: z.string(), avatar: z.string().nullable() }),
+                    ),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(502),
+        },
+      }),
+      async (c) => {
+        const type = c.req.query("type") ?? ""
+        if (!type) return c.json({ models: [] })
+        const models = await getKolboGenerationModels(type)
+        return c.json({ models })
       },
     )
     .get(

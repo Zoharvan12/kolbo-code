@@ -805,19 +805,12 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
   createEffect(() => {
     if (view().canvas.mode() === "library") setLibrarySeen(true)
   })
-  // Pre-mount the library tree during browser idle time so the first
-  // session→library toggle is a CSS-hide flip, not a ~1700-line bootstrap
-  // (which produced a black flash across the whole app during the long
-  // synchronous mount). Cost is ~80-150ms paid silently while the user
-  // browses session media.
+  // Pre-mount the library tree right after first paint (two rAFs) so the
+  // session→library toggle is always an instant CSS-hide flip, never an
+  // on-click ~1700-line bootstrap that froze the whole app. content-visibility
+  // on the cells keeps this mount cheap even for media-heavy sessions.
   onMount(() => {
-    const schedule = (cb: () => void) => {
-      const ric = (globalThis as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number })
-        .requestIdleCallback
-      if (typeof ric === "function") return ric(cb, { timeout: 5000 })
-      return setTimeout(cb, 2000)
-    }
-    schedule(() => setLibrarySeen(true))
+    requestAnimationFrame(() => requestAnimationFrame(() => setLibrarySeen(true)))
   })
 
   // Reset batch state whenever the session changes — selection is per-session.

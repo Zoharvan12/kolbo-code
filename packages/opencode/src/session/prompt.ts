@@ -52,6 +52,48 @@ import { SessionRunState } from "./run-state"
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
 
+// The prompt/subject and opaque reference fields aren't editable "knobs" — the
+// prompt renders on its own, and IDs / URL arrays aren't chip material.
+const KOLBO_PROMPT_KEYS = ["prompt", "text", "description", "monologue", "lyrics", "script"]
+const KOLBO_NON_PARAM_KEYS = new Set([
+  ...KOLBO_PROMPT_KEYS,
+  "reference_images",
+  "source_images",
+  "source_video",
+  "reference_videos",
+  "image_url",
+  "files",
+  "visual_dna_ids",
+  "moodboard_id",
+  "preset_id",
+  "session_id",
+  "sessionId",
+])
+
+// Build the approval-card metadata for a gated Kolbo generation — fully DYNAMIC:
+// every scalar argument the model chose becomes an editable field, so any tool /
+// any model surfaces its own parameters with no hard-coded field list. The
+// prompt is surfaced separately for display.
+function kolboGenerationMetadata(key: string, rawArgs: unknown): Record<string, unknown> {
+  const args = (rawArgs && typeof rawArgs === "object" ? rawArgs : {}) as Record<string, unknown>
+  const fields: { key: string; value: string; type: "string" | "number" | "boolean" }[] = []
+  for (const [k, v] of Object.entries(args)) {
+    if (KOLBO_NON_PARAM_KEYS.has(k)) continue
+    const t = typeof v
+    if (t !== "string" && t !== "number" && t !== "boolean") continue
+    fields.push({ key: k, value: String(v), type: t as "string" | "number" | "boolean" })
+  }
+  const meta: Record<string, unknown> = { tool: key, fields }
+  for (const pk of KOLBO_PROMPT_KEYS) {
+    const p = args[pk]
+    if (typeof p === "string" && p.length > 0) {
+      meta.prompt = p.length > 500 ? p.slice(0, 500) + "…" : p
+      break
+    }
+  }
+  return meta
+}
+
 const STRUCTURED_OUTPUT_DESCRIPTION = `Use this tool to return your final response in the requested structured format.
 
 IMPORTANT:
@@ -487,7 +529,16 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                   { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId },
                   { args },
                 )
-                yield* Effect.promise(() => ctx.ask({ permission: key, metadata: {}, patterns: ["*"], always: ["*"] }))
+                // For gated Kolbo generations, surface the actual parameters
+                // (model / aspect / count / prompt / …) so the approval card
+                // shows the user WHAT is about to be generated, not an empty
+                // confirm. Non-generation MCP tools keep empty metadata.
+                const askMetadata = /_generate_|_edit_image$|_edit_video$/.test(key)
+                  ? kolboGenerationMetadata(key, args)
+                  : {}
+                yield* Effect.promise(() =>
+                  ctx.ask({ permission: key, metadata: askMetadata, patterns: ["*"], always: ["*"] }),
+                )
                 const result: Awaited<ReturnType<NonNullable<typeof execute>>> = yield* Effect.promise(() =>
                   execute(args, opts),
                 )

@@ -119,6 +119,68 @@ For ads that feature a specific product:
 
 If the user gives a **product URL** instead of a photo, see `workflows/research-first.md` — scrape, extract images, re-host via `upload_media`, persist as a brand kit at `.kolbo/brand-kits/<slug>.md`.
 
+<!-- SKILL-ONLY: no server parity — UGC output routes through the creative-director / veo / seedance enhancers, so any server-side rule lives in those parity files, not here. -->
+
+## Multi-Slot Board Method (structured shot specs + character consistency)
+
+For any multi-shot UGC / review / how-to where the SAME presenter must stay identical across shots, compose the prompt as explicit **slots** and lock identity with a **board-first** pass. This is a prompt-only convention — no special MCP mode; it uses `generate_image` (board) + `generate_elements` / `generate_video_from_image` (per-slot animate) that already exist.
+
+### 1. Structured input slots
+
+Define each shot as one row. Fill every column before generating — blanks are where identity/quality drift creeps in.
+
+| Slot | Arc role | POV / framing | Presenter action | Product visibility | Aspect | Audio |
+|---|---|---|---|:-:|:-:|:-:|
+| 1 | hook | selfie arm, chest-up, eye contact | states the problem / grabs attention | held up to camera | 9:16 | monologue seg 1 |
+| 2 | demo | slightly wider, hands in frame | uses / demonstrates the product | in active use | 9:16 | monologue seg 2 |
+| 3 | payoff | back to selfie framing | reaction + soft CTA | resting in hand / on surface | 9:16 | monologue seg 3 |
+
+Scale to 2–6 slots. Keep `hook → demo → payoff` as the minimum arc; add `tension` / `proof` slots between demo and payoff for longer reviews.
+
+### 2. Rendering rules (hard invariants — apply to EVERY slot)
+
+- One aspect ratio across all slots (UGC = `9:16`). Never mix.
+- **No on-image text**, captions, subtitles, watermarks, or lower-thirds (users add captions in post).
+- **Identity lock**: same presenter, same wardrobe, same lighting environment across all slots — open the prompt with `same character throughout all shots`.
+- Hands and product must read cleanly — no deformed hands, no floating / clipping product, product logo legible when held.
+- Phone-shot aesthetic (handheld sway, window/screen key) unless the mode is polished (`tv_spot`, `product_showcase`).
+
+### 3. Board-first consistency (the grid technique)
+
+Before animating, generate ONE composite board image that locks the presenter's identity, then animate each panel:
+
+1. `generate_image` a labeled N-panel grid (2×2 or 1×N) of the presenter across the slot poses — front hook pose, hands-on-product demo pose, reaction pose — locked to `visual_dna_ids` (the presenter's Visual DNA). Aspect `16:9` for the board sheet.
+2. Treat that board image's CDN URL as the **`board_media_id`** — the single source of truth for identity.
+3. Animate each slot with `generate_video_from_image` / `generate_elements`, passing the board panel (and product) as `reference_images` and tagging `@image1`, so every clip inherits the same face/wardrobe.
+
+This mirrors how the best UGC pipelines keep a character consistent: lock once as a board, then move each shot — not N independent generations that drift.
+
+### 4. Structured parameters (what to carry per generation)
+
+Track these so each slot's call is reproducible and the arc stays coherent:
+
+| Param | Meaning | Maps to |
+|---|---|---|
+| `arc_role` | hook / tension / demo / proof / payoff | prompt framing + shot order |
+| `board_media_id` | the locked board image URL | `reference_images` (`@image1`) |
+| `character_media_id` / `visual_dna_id` | presenter identity | `visual_dna_ids` (`@<dna-name>`) |
+| `product_media_id` | product photo URL | `reference_images` (`@image2`) |
+| `input_tier` | `draft` (fast preview) vs `hero` (final) | model + resolution choice |
+| `monologue_segment` | the spoken line for this slot | prompt audio/dialogue line |
+| `aspect_ratio` / `duration` / `sound_enabled` | per UGC Family Defaults above | MCP call args |
+
+### 5. Worked example (brief → slots → board → clips)
+
+Brief: *"15s UGC review of a skincare serum, tech-savvy woman creator."*
+
+1. Ensure/create presenter Visual DNA (tech-savvy woman) → `visual_dna_id`.
+2. Board: `generate_image` a 3-panel `16:9` sheet — (a) chest-up hook holding the serum, (b) hands applying it, (c) thumbs-up reaction — `same character throughout all shots`, locked to the DNA. → `board_media_id`.
+3. Slots (each `9:16`, ~5s, sound OFF, animate from the matching board panel + product `@image2`):
+   - Slot 1 (hook): "Before this serum my routine was five products…" holding it to camera.
+   - Slot 2 (demo): hands applying, product in active use.
+   - Slot 3 (payoff): reaction + "…now it's just one step." soft CTA.
+4. Deliver as a structured message (setup + monologue + media), humanized refs (names/thumbnails, not raw IDs).
+
 ## UX Rules
 
 1. **Always pick a mode explicitly.** Don't auto-pick from one ambiguous word. If the user said "make me an ad" with no other signal, offer labeled options: `[UGC / TV Spot / Product Showcase / Surprise me]`.

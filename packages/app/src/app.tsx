@@ -92,7 +92,26 @@ function KolboModelsBridge(props: ParentProps) {
       avatars: data?.avatars ?? {},
     }
   }
-  return <KolboModelsProvider fetcher={fetcher}>{props.children}</KolboModelsProvider>
+  // Generation models filtered by generation type (for the approval-card model
+  // picker) — proxied by the sidecar from kolbo-api /v1/models?type=.
+  const typeFetcher = async (type: string) => {
+    const base = sdk.url.replace(/\/+$/, "")
+    const res = await fetch(`${base}/global/kolbo-generation-models?type=${encodeURIComponent(type)}`)
+    if (!res.ok) return []
+    const data = (await res.json()) as {
+      models?: Array<{ id: string; name?: string; avatar?: string | null }>
+    }
+    return (data?.models ?? []).map((m) => ({
+      id: m.id,
+      name: m.name ?? m.id,
+      avatar: m.avatar ?? undefined,
+    }))
+  }
+  return (
+    <KolboModelsProvider fetcher={fetcher} typeFetcher={typeFetcher}>
+      {props.children}
+    </KolboModelsProvider>
+  )
 }
 
 declare global {

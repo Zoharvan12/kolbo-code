@@ -9,7 +9,8 @@ import { IconButton } from "@opencode-ai/ui/icon-button"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
 import { Dialog } from "@opencode-ai/ui/dialog"
 import { InlineInput } from "@opencode-ai/ui/inline-input"
-import { Spinner } from "@opencode-ai/ui/spinner"
+import { SquareLoader } from "@opencode-ai/ui/square-loader"
+import { getToolInfo } from "@opencode-ai/ui/message-part"
 import { SessionTurn } from "@opencode-ai/ui/session-turn"
 import { ScrollView } from "@opencode-ai/ui/scroll-view"
 import { TextField } from "@opencode-ai/ui/text-field"
@@ -29,6 +30,8 @@ import { usePlatform } from "@/context/platform"
 import { useSettings } from "@/context/settings"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
+import { useGlobalSync } from "@/context/global-sync"
+import { TodoList } from "./composer/session-todo-dock"
 import { messageAgentColor } from "@/utils/agent"
 import { sessionTitle } from "@/utils/session-title"
 import { parseCommentNote, readCommentMetadata } from "@/utils/comment-note"
@@ -45,6 +48,17 @@ type MessageComment = {
 
 const emptyMessages: MessageType[] = []
 const idle = { type: "idle" as const }
+
+// "45s", "1m 7s", "1h 2m" — compact elapsed for the working header.
+function formatWorkingDuration(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000)
+  if (totalSeconds < 60) return `${totalSeconds}s`
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  if (minutes < 60) return `${minutes}m ${seconds}s`
+  const hours = Math.floor(minutes / 60)
+  return `${hours}h ${minutes % 60}m`
+}
 type UserActions = {
   fork?: (input: { sessionID: string; messageID: string }) => Promise<void> | void
   revert?: (input: { sessionID: string; messageID: string }) => Promise<void> | void
@@ -236,6 +250,7 @@ export function MessageTimeline(props: {
   const globalSDK = useGlobalSDK()
   const sdk = useSDK()
   const sync = useSync()
+  const globalSync = useGlobalSync()
   const settings = useSettings()
   const dialog = useDialog()
   const language = useLanguage()
@@ -244,6 +259,17 @@ export function MessageTimeline(props: {
 
   const rendered = createMemo(() => props.renderedUserMessages.map((message) => message.id))
   const sessionID = createMemo(() => params.id)
+  // Plan/todo list, surfaced as a compact toggle in the title bar (top) rather
+  // than a panel wedged above the composer.
+  const todos = createMemo(() => {
+    const id = sessionID()
+    if (!id) return []
+    return globalSync.data.session_todo[id] ?? []
+  })
+  const todoDone = createMemo(
+    () => todos().filter((t) => t.status === "completed" || t.status === "cancelled").length,
+  )
+  const [todoOpen, setTodoOpen] = createSignal(false)
   const sessionMessages = createMemo(() => {
     const id = sessionID()
     if (!id) return emptyMessages
@@ -267,6 +293,36 @@ export function MessageTimeline(props: {
   // so pending() adds nothing and only creates stale-state bugs.
   const working = createMemo(() => sessionStatus().type !== "idle")
   const tint = createMemo(() => messageAgentColor(sessionMessages(), sync.data.agent))
+
+  // Live "Working for {elapsed} • {stage}" header. SessionStatus carries no
+  // stage, so derive it from the last running/pending tool part of the active
+  // assistant message. The elapsed clock only ticks while the run is live.
+  const [nowTick, setNowTick] = createSignal(Date.now())
+  createEffect(() => {
+    if (!working()) return
+    setNowTick(Date.now())
+    const id = setInterval(() => setNowTick(Date.now()), 1000)
+    onCleanup(() => clearInterval(id))
+  })
+  const elapsedMs = createMemo(() => {
+    const started = pending()?.time.created
+    if (!started) return 0
+    return Math.max(0, nowTick() - started)
+  })
+  const currentStage = createMemo(() => {
+    const active = pending()
+    if (!active) return undefined
+    const parts = sync.data.part[active.id] ?? []
+    const toolPart = parts.findLast(
+      (part) => part.type === "tool" && (part.state.status === "running" || part.state.status === "pending"),
+    )
+    if (toolPart && toolPart.type === "tool") {
+      const running = toolPart.state.status === "running" ? (toolPart.state as { title?: string }) : undefined
+      const input = (toolPart.state as { input?: unknown }).input ?? {}
+      return running?.title || getToolInfo(toolPart.tool, input).title
+    }
+    return undefined
+  })
 
   const [timeoutDone, setTimeoutDone] = createSignal(true)
 
@@ -719,12 +775,12 @@ export function MessageTimeline(props: {
                 }}
                 data-session-title
                 classList={{
-                  "sticky top-0 z-30 bg-[linear-gradient(to_bottom,var(--background-stronger)_48px,transparent)]": true,
+                  "sticky top-0 z-30 bg-[linear-gradient(to_bottom,var(--background-base)_48px,transparent)]": true,
                   relative: true,
                   "w-full": true,
                   "pb-4": true,
                   "pl-2 pr-3 md:pl-4 md:pr-3": true,
-                  "md:max-w-200 md:mx-auto 2xl:max-w-[1000px]": props.centered,
+                  "md:max-w-[780px] md:mx-auto": props.centered,
                 }}
               >
                 <Show when={workingStatus() !== "hidden" && settings.general.showSessionProgressBar()}>
@@ -763,7 +819,7 @@ export function MessageTimeline(props: {
                       <div
                         class="shrink-0 flex items-center justify-center overflow-hidden transition-[width,margin] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
                         style={{
-                          width: working() ? "16px" : "0px",
+                          width: working() ? "20px" : "0px",
                           "margin-right": working() ? "8px" : "0px",
                         }}
                         aria-hidden="true"
@@ -773,23 +829,26 @@ export function MessageTimeline(props: {
                             class="transition-opacity duration-200 ease-out"
                             classList={{ "opacity-0": workingStatus() === "hiding" }}
                           >
-                            <Spinner class="size-4" style={{ color: tint() ?? "var(--icon-interactive-base)" }} />
+                            <SquareLoader size={20} style={{ color: tint() ?? "var(--icon-interactive-base)" }} />
                           </div>
                         </Show>
                       </div>
-                      <Show when={childTitle() || title.editing}>
-                        <Show
-                          when={title.editing}
-                          fallback={
-                            <h1
-                              data-slot="session-title-child"
-                              class="text-14-medium text-text-strong truncate grow-1 min-w-0"
-                              onDblClick={openTitleEditor}
+                      <Show
+                        when={working() && !title.editing}
+                        fallback={
+                          <Show when={childTitle() || title.editing}>
+                            <Show
+                              when={title.editing}
+                              fallback={
+                                <h1
+                                  data-slot="session-title-child"
+                                  class="text-14-medium text-text-strong truncate grow-1 min-w-0"
+                                  onDblClick={openTitleEditor}
+                                >
+                                  {childTitle()}
+                                </h1>
+                              }
                             >
-                              {childTitle()}
-                            </h1>
-                          }
-                        >
                           <InlineInput
                             ref={(el) => {
                               titleRef = el
@@ -814,13 +873,75 @@ export function MessageTimeline(props: {
                             }}
                             onBlur={closeTitleEditor}
                           />
-                        </Show>
+                            </Show>
+                          </Show>
+                        }
+                      >
+                        <div
+                          data-slot="session-working-status"
+                          class="text-14-medium truncate grow-1 min-w-0"
+                          aria-live="polite"
+                        >
+                          <span class="text-text-strong">
+                            {language.t("session.working.for", { time: formatWorkingDuration(elapsedMs()) })}
+                          </span>
+                          <Show when={currentStage()}>
+                            <span class="text-text-weak"> • {currentStage()}</span>
+                          </Show>
+                        </div>
                       </Show>
                     </div>
                   </div>
                   <Show when={sessionID()}>
                     {(id) => (
                       <div class="shrink-0 flex items-center gap-3">
+                        {/* Plan/todo toggle — compact progress pill in the top
+                            bar that opens the checklist on click (Higgsfield
+                            style). Only shows while there are todos. */}
+                        <Show when={todos().length > 0}>
+                          <KobaltePopover
+                            open={todoOpen()}
+                            placement="bottom-end"
+                            gutter={6}
+                            onOpenChange={setTodoOpen}
+                          >
+                            <KobaltePopover.Trigger
+                              class="flex items-center gap-1.5 h-6 pl-1.5 pr-2 rounded-md border border-border-weak-base bg-surface-raised-base hover:bg-surface-raised-base-hover transition-colors text-12-medium text-text-base data-[expanded]:bg-surface-raised-base-active"
+                              aria-label={language.t("session.todo.progress", { done: todoDone(), total: todos().length })}
+                            >
+                              <span
+                                class="inline-flex items-center justify-center size-3.5 rounded-full border-2"
+                                style={{
+                                  "border-color":
+                                    todoDone() === todos().length
+                                      ? "var(--icon-success-base, var(--text-interactive-base))"
+                                      : "var(--border-strong-base)",
+                                }}
+                              >
+                                <Show when={todoDone() === todos().length}>
+                                  <svg width="8" height="8" viewBox="0 0 16 16" fill="none">
+                                    <path d="M3.5 8.5l3 3 6-6" stroke="var(--icon-success-base, var(--text-interactive-base))" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+                                  </svg>
+                                </Show>
+                              </span>
+                              <span class="tabular-nums">{todoDone()}/{todos().length}</span>
+                              <Icon name="chevron-down" size="small" class="text-icon-weak" style={{ transform: todoOpen() ? "rotate(180deg)" : "none", transition: "transform 150ms" }} />
+                            </KobaltePopover.Trigger>
+                            <KobaltePopover.Portal>
+                              <KobaltePopover.Content
+                                data-component="popover-content"
+                                style={{ "min-width": "300px", "max-width": "440px" }}
+                              >
+                                <div class="py-2">
+                                  <div class="px-3 pb-1.5 text-12-medium text-text-weak">
+                                    {language.t("session.todo.progress", { done: todoDone(), total: todos().length })}
+                                  </div>
+                                  <TodoList todos={todos()} />
+                                </div>
+                              </KobaltePopover.Content>
+                            </KobaltePopover.Portal>
+                          </KobaltePopover>
+                        </Show>
                         <SessionContextUsage placement="bottom" />
                         <Show when={!parentID()}>
                           <DropdownMenu
@@ -1004,10 +1125,10 @@ export function MessageTimeline(props: {
             <div
               role="log"
               data-slot="session-turn-list"
-              class="flex flex-col items-start justify-start pb-16 transition-[margin]"
+              class="flex flex-col items-start justify-start gap-5 pb-16 transition-[margin]"
               classList={{
                 "w-full": true,
-                "md:max-w-200 md:mx-auto 2xl:max-w-[1000px]": props.centered,
+                "md:max-w-[780px] md:mx-auto": props.centered,
                 "mt-0.5": props.centered,
                 "mt-0": !props.centered,
               }}
@@ -1048,7 +1169,7 @@ export function MessageTimeline(props: {
                       data-message-id={messageID}
                       classList={{
                         "min-w-0 w-full max-w-full": true,
-                        "md:max-w-200 2xl:max-w-[1000px]": props.centered,
+                        "md:max-w-[780px]": props.centered,
                       }}
                       style={{
                         "content-visibility": active() ? undefined : "auto",
@@ -1106,8 +1227,8 @@ export function MessageTimeline(props: {
                         shellToolDefaultOpen={settings.general.shellToolPartsExpanded()}
                         editToolDefaultOpen={settings.general.editToolPartsExpanded()}
                         classes={{
-                          root: "min-w-0 w-full relative",
-                          content: "flex flex-col justify-between !overflow-visible",
+                          root: "min-w-0 w-full relative !h-auto",
+                          content: "flex flex-col justify-start !overflow-visible !h-auto",
                           container: "w-full px-4 md:px-5",
                         }}
                       />

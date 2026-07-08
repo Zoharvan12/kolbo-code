@@ -1,6 +1,8 @@
 :root {
   --animate-pulse: pulse-opacity 2s ease-in-out infinite;
   --animate-pulse-scale: pulse-scale 1.2s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-glow: accent-glow 2.4s ease-in-out infinite;
 }
 
 @keyframes pulse-opacity {
@@ -36,6 +38,53 @@
 @keyframes kolbo-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* The square loader is a fully self-contained SVG (see square-loader.tsx) with
+   hard width/height attributes + SMIL fill animation, so it needs no CSS. */
+
+/* Sweeping highlight for skeleton/loading placeholders. */
+@keyframes shimmer {
+  from {
+    background-position: -150% 0;
+  }
+  to {
+    background-position: 250% 0;
+  }
+}
+
+/* Pulsing accent glow for primary/working affordances. */
+@keyframes accent-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent-strong) 35%, transparent),
+      0 0 8px -2px color-mix(in srgb, var(--accent-base) 45%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent-strong) 55%, transparent),
+      0 0 18px 0 color-mix(in srgb, var(--accent-base) 65%, transparent);
+  }
+}
+
+/* Skeleton placeholder — used during session hydration and pending media. */
+.skeleton {
+  background-image: linear-gradient(
+    90deg,
+    var(--surface-weak) 0%,
+    var(--surface-base-hover) 50%,
+    var(--surface-weak) 100%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+  border-radius: var(--radius-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
   }
 }
 

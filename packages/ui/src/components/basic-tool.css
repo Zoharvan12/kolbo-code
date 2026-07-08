@@ -49,6 +49,23 @@
     gap: 8px;
   }
 
+  /* Per-tool icon — makes every agent step read as a structured row instead
+     of a flat line of text. Tints to the signature accent while running. */
+  [data-slot="basic-tool-tool-icon"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--icon-weak-base);
+    transition: color 180ms ease;
+  }
+
+  [data-slot="basic-tool-tool-icon"][data-pending="true"] {
+    color: var(--accent-base, var(--kolbo-accent));
+  }
+
   [data-slot="basic-tool-tool-indicator"] {
     width: 16px;
     height: 16px;

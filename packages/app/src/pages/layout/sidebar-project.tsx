@@ -100,11 +100,11 @@ const ProjectTile = (props: {
         data-action="project-switch"
         data-project={base64Encode(props.project.worktree)}
         classList={{
-          "flex items-center justify-center size-10 p-1 rounded-lg overflow-hidden transition-colors cursor-default": true,
-          "bg-transparent border-2 border-icon-strong-base hover:bg-surface-base-hover": props.selected(),
-          "bg-transparent border border-transparent hover:bg-surface-base-hover hover:border-border-weak-base":
+          "flex items-center justify-center size-10 p-1 rounded-xl overflow-hidden transition-all duration-200 cursor-pointer": true,
+          "bg-surface-base-active": props.selected(),
+          "bg-transparent hover:bg-surface-base-hover hover:-translate-y-px":
             !props.selected() && !props.active(),
-          "bg-surface-base-hover border border-border-weak-base": !props.selected() && props.active(),
+          "bg-surface-base-hover": !props.selected() && props.active(),
         }}
         onPointerDown={(event) => {
           if (event.button === 0 && !event.ctrlKey) {
@@ -333,7 +333,13 @@ export const SortableProject = (props: {
 
   return (
     // @ts-ignore
-    <div use:sortable classList={{ "opacity-30": sortable.isActiveDraggable }}>
+    <div use:sortable class="relative" classList={{ "opacity-30": sortable.isActiveDraggable }}>
+      <Show when={selected() && !props.mobile}>
+        <span
+          aria-hidden="true"
+          class="pointer-events-none absolute -left-3 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-text-interactive-base"
+        />
+      </Show>
       <Show when={preview() && !selected()} fallback={tile()}>
         <HoverCard
           open={!state.suppressHover && hoverOpen() && !state.menu}

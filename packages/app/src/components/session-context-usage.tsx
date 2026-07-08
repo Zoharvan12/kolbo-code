@@ -17,6 +17,20 @@ interface SessionContextUsageProps {
   placement?: TooltipProps["placement"]
 }
 
+type KolboMediaKind = "image" | "video" | "audio" | "threeD"
+
+// Map a Kolbo generation tool to the media bucket it bills to. Text/chat cost
+// is tracked separately (LLM tokens → USD), so it's not here.
+function kolboMediaKind(tool: string): KolboMediaKind | undefined {
+  const t = tool.toLowerCase()
+  if (t.includes("3d")) return "threeD"
+  if (t.includes("music") || t.includes("speech") || t.includes("sound") || t.includes("voice")) return "audio"
+  if (t.includes("video") || t.includes("elements") || t.includes("creative_director") || t.includes("lipsync"))
+    return "video"
+  if (t.includes("image")) return "image"
+  return undefined
+}
+
 function openSessionContext(args: {
   view: ReturnType<ReturnType<typeof useLayout>["view"]>
   layout: ReturnType<typeof useLayout>
@@ -56,6 +70,37 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
   const context = createMemo(() => metrics().context)
   const cost = createMemo(() => {
     return usd().format(metrics().totalCost)
+  })
+
+  // Per-session Kolbo credit spend broken down by media type (Image / Video /
+  // Audio / 3D) — parsed from each generation tool's result. Beats the
+  // Higgsfield reference by including 3D, which theirs omits.
+  const creditsByType = createMemo(() => {
+    const buckets: Record<KolboMediaKind, number> = { image: 0, video: 0, audio: 0, threeD: 0 }
+    const id = params.id
+    if (!id) return buckets
+    for (const message of sync.data.message[id] ?? []) {
+      for (const part of sync.data.part[message.id] ?? []) {
+        if (part.type !== "tool" || part.state.status !== "completed") continue
+        const out = (part.state as { output?: string }).output
+        if (!out) continue
+        let credits: number | undefined
+        try {
+          const parsed = JSON.parse(out) as { cost_credits?: unknown }
+          if (typeof parsed.cost_credits === "number") credits = parsed.cost_credits
+        } catch {
+          continue
+        }
+        if (!credits) continue
+        const kind = kolboMediaKind(part.tool)
+        if (kind) buckets[kind] += credits
+      }
+    }
+    return buckets
+  })
+  const totalCredits = createMemo(() => {
+    const b = creditsByType()
+    return b.image + b.video + b.audio + b.threeD
   })
 
   const openContext = () => {
@@ -98,6 +143,38 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
         <span class="text-text-invert-strong">{cost()}</span>
         <span class="text-text-invert-base">{language.t("context.usage.cost")}</span>
       </div>
+      <Show when={totalCredits() > 0}>
+        <div class="mt-1.5 pt-1.5 border-t border-border-weak-base flex flex-col gap-0.5">
+          <div class="flex items-center gap-2">
+            <span class="text-text-invert-strong">✦ {totalCredits().toLocaleString(language.intl())}</span>
+            <span class="text-text-invert-base">{language.t("context.usage.credits")}</span>
+          </div>
+          <Show when={creditsByType().image > 0}>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-text-invert-base">{language.t("context.usage.credits.image")}</span>
+              <span class="text-text-invert-strong tabular-nums">{creditsByType().image}</span>
+            </div>
+          </Show>
+          <Show when={creditsByType().video > 0}>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-text-invert-base">{language.t("context.usage.credits.video")}</span>
+              <span class="text-text-invert-strong tabular-nums">{creditsByType().video}</span>
+            </div>
+          </Show>
+          <Show when={creditsByType().audio > 0}>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-text-invert-base">{language.t("context.usage.credits.audio")}</span>
+              <span class="text-text-invert-strong tabular-nums">{creditsByType().audio}</span>
+            </div>
+          </Show>
+          <Show when={creditsByType().threeD > 0}>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-text-invert-base">{language.t("context.usage.credits.threeD")}</span>
+              <span class="text-text-invert-strong tabular-nums">{creditsByType().threeD}</span>
+            </div>
+          </Show>
+        </div>
+      </Show>
     </div>
   )
 

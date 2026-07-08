@@ -111,6 +111,17 @@ export namespace Agent {
             // also relax these per-tool / per-pattern via ~/.kolbo/config.json
             // (user config merges last and wins).
             "*": "allow",
+            // Kolbo paid generations (image/video/music/speech/3D/edits/…) gate
+            // on an approval card so the user confirms what to generate with
+            // (model, aspect, count, prompt) and can adjust or "Always allow" —
+            // the core UX from the Higgsfield teardown. MCP tool keys are
+            // `<client>_<name>`; every generation tool is `generate_*`, plus the
+            // two edit generators. `check_credits` / `list_models` /
+            // `get_generation_status` / `transcribe_*` are NOT paid generations
+            // → they stay allowed and never interrupt.
+            "kolbo_generate_*": "ask",
+            "kolbo_edit_image": "ask",
+            "kolbo_edit_video": "ask",
             // The three tools with real side effects: shell, filesystem,
             // network. `edit` covers edit/write/multiedit/apply_patch — they
             // all request `permission: "edit"` in tool/{edit,write}.ts.

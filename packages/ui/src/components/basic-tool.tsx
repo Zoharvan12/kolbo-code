@@ -3,7 +3,7 @@ import { animate, type AnimationPlaybackControls } from "motion"
 import { useI18n } from "../context/i18n"
 import { createStore } from "solid-js/store"
 import { Collapsible } from "./collapsible"
-import type { IconProps } from "./icon"
+import { Icon, type IconProps } from "./icon"
 import { TextShimmer } from "./text-shimmer"
 
 export type TriggerTitle = {
@@ -132,6 +132,9 @@ export function BasicTool(props: BasicToolProps) {
       data-status={props.status}
     >
       <div data-slot="basic-tool-tool-trigger-content">
+        <span data-slot="basic-tool-tool-icon" data-pending={pending() ? "true" : undefined} aria-hidden="true">
+          <Icon name={props.icon} size="small" />
+        </span>
         <div data-slot="basic-tool-tool-info">
           <Switch>
             <Match when={isTriggerTitle(props.trigger) && props.trigger}>
