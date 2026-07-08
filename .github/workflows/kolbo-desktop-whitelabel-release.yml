@@ -88,7 +88,11 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Node 22, not 20: node-gyp@13 (pulled by `bun x node-gyp` when
+          # rebuilding tree-sitter-powershell) bundles an undici that calls
+          # webidl.util.markAsUncloneable, which only exists on Node 22+.
+          # On Node 20 the native build fails at "Install dependencies".
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
       - name: Setup Rust
