@@ -1,5 +1,5 @@
 ---
-version: 0.5.0
+version: 0.5.1
 name: kolbo
 description: |
   Generate, edit, or analyze creative media via the Kolbo AI MCP server:
@@ -113,6 +113,7 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 | `upload_media` / `list_media` / `get_media` / `get_media_stats` / `favorite_media` / `unfavorite_media` / `delete_media` / `restore_media` / `permanently_delete_media` / `move_media` / `bulk_*_media` / `*_media_folder` | Media library — see `workflows/media-library.md` |
 | `create_visual_dna` / `list_visual_dnas` / `get_visual_dna` / `delete_visual_dna` | Visual DNA — see `workflows/visual-dna.md` |
 | `list_moodboards` / `get_moodboard` / `list_presets` | Style overlays |
+| `search_stock_media` / `get_stock_sources` / `get_stock_categories` / `get_stock_collections` / `get_stock_asset` / `analyze_script_for_stock` / `import_stock_asset` | Stock library (free, no credits) — EXISTING photos / videos / 3D / SFX / music. For stock **music** use `search_stock_media` with `mediaType: "music"` (semantic vibe query, e.g. "uplifting corporate background") → `get_stock_asset` for downloads. The older `*_music_library` tools are deprecated adapters over this — prefer the stock tools. |
 | `chat_send_message` / `chat_list_conversations` / `chat_get_messages` | Kolbo chat with optional `media_urls` (up to 10 per call) |
 | `app_builder_*` (9 tools) | Full React app generation — see `workflows/app-builder.md` |
 | `publish_html_artifact` | Publish HTML / SVG / Mermaid to `sites.kolbo.ai`. Server dedupes by content hash. Strict CSP. |
@@ -149,7 +150,7 @@ A user-named tool — in any language — overrides every other rule. Recognized
 1. **Check credits** ONCE per conversation (Step 0). Skip if already checked.
 2. **Discover models** with `list_models` using a `type` filter — but **skip when the user names a specific model**.
 3. **Pick the model**:
-   - User named one → use it.
+   - User named one → use it. Model identifiers resolve leniently — shorthand like `"z-image"` or `"nano banana 2"` auto-resolves to the exact identifier, so don't over-engineer exact-id lookups (`list_models` is still authoritative for constraints, caps, and pricing).
    - Auto-select → only from "Auto-selectable" section (models with a `summary`). Cheapest fit. Prefer `[RECOMMENDED]` when cost is similar.
    - Never auto-select from "Named-only" section.
 4. **Validate inputs** against model caps — see `references/workflows/cost-and-validation.md`.
@@ -202,6 +203,8 @@ You are NOT allowed to:
 Existing video → modify → **single `generate_video_from_video` call** with source video URL + edit prompt.
 
 **Use a TRUE video-to-video model.** Image-to-video models reject with `WRONG_MODEL_TYPE`. Valid: `wan/2-7-videoedit`, `happyhorse/video-edit`, `kling-video/o3-video-to-video`, or any model whose DB `type` includes `video_to_video` (use `list_models({ type: "video_to_video" })`).
+
+**Motion-control / animate-move models invert the inputs**: `reference_images[0]` = the CHARACTER IMAGE to animate, `source_video` = the driving/reference video whose motion is transferred. Omitting the character image returns a `MOTION_CONTROL_INPUTS` error.
 
 **Do NOT** decompose into frames. **Do NOT** re-fire if the first call returned URLs.
 

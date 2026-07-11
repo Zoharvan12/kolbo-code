@@ -8,9 +8,12 @@ Load this file when the user wants AI-generated **music** — full songs, lyrics
 
 **Kolbo MCP routing:** call `generate_music`. Suno is a model option — use `list_models({ type: "music_gen" })` to see versions. Pass `instrumental` and `duration` as separate params; pass the Style/Description text as `style` and the Lyrics as `lyrics`.
 
+**Wants an EXISTING track, not a new song?** ("background music", "stock music", "royalty-free track") → don't generate. Use `search_stock_media` with `mediaType: "music"` (semantic vibe query — "tense cinematic pulse", "uplifting corporate background") → `get_stock_asset` for download URLs. Free, no credits. The older `*_music_library` tools are deprecated adapters over the stock library — prefer the stock tools.
+
 ## CRITICAL Kolbo Platform Rules
 
 - **Model version, duration, and instrumental toggle are MCP-tool params.** Don't write `v4.5`, `30 seconds`, or `instrumental: true` inside the prompt fields themselves.
+- **Exact track length = `duration_seconds`** (clamped 5–300s). Only length-controllable models honor it (e.g. ElevenLabs Music, `music-v1`) — without it those models default to a ~10s track, so ALWAYS pass it for jingles/beds on those models. Suno ignores it and picks its own length.
 - Suno generations have **two separate input fields**: a **Style / Description** field (`style` param) and a **Lyrics** field (`lyrics` param). Output your prompt as **TWO separate fenced code blocks** so the user (and the tool call) know exactly what goes where.
 - Tell the user to run the prompt multiple times — Suno output varies significantly between generations, that's a feature. Use `num_generations` if the tool supports it, or fire 2–4 parallel `generate_music` calls.
 
@@ -85,7 +88,7 @@ Use Suno's section tags to control structure. Each tag goes on its own line, con
 ### Jingle / ad music (15–30s)
 - `style`: short, punchy descriptor (`upbeat retail pop jingle, female vocal, claps, glossy production, summer energy`)
 - `lyrics`: 2–4 short lines max, often just chorus
-- Pass the shortest `duration` the tool supports.
+- Pass the shortest `duration` the tool supports — or, on a length-controllable model (ElevenLabs Music), pass the exact `duration_seconds` (e.g. `15` or `30`).
 
 ### Cinematic trailer / score
 - `style`: `cinematic orchestral trailer, swelling strings, taiko drums, hybrid choir, dramatic build, modern hybrid score`
