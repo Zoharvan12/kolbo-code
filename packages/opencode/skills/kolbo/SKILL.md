@@ -1,5 +1,5 @@
 ---
-version: 0.5.1
+version: 0.6.0
 name: kolbo
 description: |
   Generate, edit, or analyze creative media via the Kolbo AI MCP server:
@@ -7,13 +7,15 @@ description: |
   music (Suno), TTS (ElevenLabs), 3D, transcription, Visual DNA (character
   consistency), Marketing Studio (UGC + DTC ads + product photoshoot +
   marketplace cards), Creative Director (multi-scene batches), HTML artifact
-  publishing (presentations, landing pages, dashboards), and the App Builder.
+  publishing (presentations, landing pages, dashboards), AI Docs (project
+  documents you author and share), and the App Builder.
 
   Use when the user wants to generate, create, make, edit, animate, or
   transcribe media: images, video, music, voice/TTS, sound effects, 3D models,
   UGC or TV-spot ads, product / lifestyle / hero shots, Amazon or marketplace
   listings, presentations, landing pages, dashboards, or 'build me an app';
-  or to reuse a character or brand (Visual DNA, brand kits).
+  to reuse a character or brand (Visual DNA, brand kits); or to save a written
+  plan / brief / script / research doc into their Kolbo project (AI Docs).
 
   NOT for: video editing / FFmpeg (use video-production), motion graphics
   (use remotion-best-practices), code editing, or general chat.
@@ -114,6 +116,8 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 | `create_visual_dna` / `list_visual_dnas` / `get_visual_dna` / `delete_visual_dna` | Visual DNA — see `workflows/visual-dna.md` |
 | `list_moodboards` / `get_moodboard` / `list_presets` | Style overlays |
 | `search_stock_media` / `get_stock_sources` / `get_stock_categories` / `get_stock_collections` / `get_stock_asset` / `analyze_script_for_stock` / `import_stock_asset` | Stock library (free, no credits) — EXISTING photos / videos / 3D / SFX / music. For stock **music** use `search_stock_media` with `mediaType: "music"` (semantic vibe query, e.g. "uplifting corporate background") → `get_stock_asset` for downloads. The older `*_music_library` tools are deprecated adapters over this — prefer the stock tools. |
+| `list_projects` / `move_session` | Projects: resolve a project NAME → the `project_id` you pass on generation/upload/doc calls; `move_session` relocates a whole session + its media when work landed in the wrong project. NOT the same as `app_builder_list_projects`. See "Projects — Where Work Lands" below. |
+| `create_doc` / `list_docs` / `get_doc` / `update_doc` / `share_doc` / `delete_doc` | AI Docs (Magic Pad): YOU author full HTML documents (plans, briefs, scripts, research) saved into the user's project, editable in the Kolbo app. `share_doc` returns a public link. `update_doc` content replaces the WHOLE doc — `get_doc` first. |
 | `chat_send_message` / `chat_list_conversations` / `chat_get_messages` | Kolbo chat with optional `media_urls` (up to 10 per call) |
 | `app_builder_*` (9 tools) | Full React app generation — see `workflows/app-builder.md` |
 | `publish_html_artifact` | Publish HTML / SVG / Mermaid to `sites.kolbo.ai`. Server dedupes by content hash. Strict CSP. |
@@ -159,6 +163,15 @@ A user-named tool — in any language — overrides every other rule. Recognized
 7. **Share the URL** after success. Never fabricate URLs.
 
 Model types for `list_models`: `text_to_img`, `image_editing`, `text_to_video`, `img_to_video`, `draw_to_video`, `video_to_video`, `elements`, `firstlastgenerations`, `lipsync-image`, `lipsync-video`, `music_gen`, `text_to_speech`, `text_to_sound`, `stt`, `text`, `3d_text_to_model`, `3d_image_to_model`, `3d_multi_image_to_model`, `3d_world`.
+
+## 📁 Projects — Where Work Lands (CRITICAL)
+
+Everything in Kolbo — sessions, generations, media, docs — lives inside a PROJECT. Getting this wrong is the #1 user complaint ("my work went to the wrong project").
+
+1. **User names a project** ("in my Acme project", "for the film") → call `list_projects` ONCE to resolve the name to an ObjectId, then pass that id as `project_id` on **EVERY** subsequent `generate_*` / `upload_media` / `create_doc` / `chat_send_message` call in the conversation. It is **per-call, NOT sticky** — any call that omits it silently lands in the default "API Generations" bucket (`is_default: true`).
+2. **No project mentioned** → omit `project_id`; the default bucket is correct. Don't ask unless intent is ambiguous.
+3. **`list_projects` ≠ `app_builder_list_projects`** — the latter scopes App Builder coding sessions only.
+4. **Work landed in the wrong project? MOVE it, never regenerate**: `move_session` relocates a whole session + all its media (works for any session type — the `session_id` from generation responses, chats, transcriptions); `move_media` / `bulk_move_media` / `move_folder_contents` relocate individual media items.
 
 ## Cost Awareness — Quick Rules
 

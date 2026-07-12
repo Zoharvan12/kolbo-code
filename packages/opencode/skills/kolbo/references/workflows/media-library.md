@@ -49,6 +49,7 @@ When you produce a media file LOCALLY — `ffmpeg` via the `video-production` sk
 | "Restore it" / "undelete" / "bring it back from trash" | `restore_media` |
 | "Permanently delete" / "wipe it forever" / "free up space" | **confirm with user** → `permanently_delete_media` |
 | "Move this to project X" | `move_media` |
+| "Move this whole session/chat to project X" / "this landed in the wrong project" | `move_session` (moves the session + ALL its media in one call — prefer over per-item `move_media`) |
 | "Clean up old [type]" / "delete everything from [time period]" | `list_media` (find ids) → **confirm** → `bulk_delete_media` |
 | "Restore all from trash" | `list_media include_deleted=true` → `bulk_restore_media` |
 | "Empty my trash" / "purge deleted items" | `list_media include_deleted=true` → **show count, confirm** → `bulk_permanently_delete_media` |
@@ -68,9 +69,10 @@ When you produce a media file LOCALLY — `ffmpeg` via the `video-production` sk
 1. **"Delete" is soft by default.** Use `delete_media` / `bulk_delete_media` for normal "delete" intent — items go to trash for 30 days and are recoverable. Only use `permanently_delete_media` / `bulk_permanently_delete_media` when the user explicitly asks for unrecoverable deletion ("permanently", "forever", "wipe", "free up space"). **Always confirm before either permanent variant.**
 2. **Confirm before destructive folder ops.** `delete_media_folder` detaches items (they stay in the library) but the folder itself is gone — no undo. Confirm with the user.
 3. **`bulk_move_media` is atomic.** If you get a "not all items owned by you" error, do NOT retry partially. Surface the error to the user and let them pick a smaller batch.
-4. **Prefer `list_media` filters over post-filtering.** Pass `project_id` / `folder_id` / `category` / `type` / `search` to the backend; don't fetch the whole library and filter client-side.
-5. **`is_favorited` is per-user.** On shared projects, an item can be favorited by you and not by your teammates — the value reflects the calling user only.
-6. **"Empty trash" flow:** `list_media` with `include_deleted=true` → show the count → confirm → `bulk_permanently_delete_media`. Never call the bulk-permanent endpoint without listing first so the user knows the scope.
-7. **Bulk caps:** 1000 ids for `bulk_delete_media` / `bulk_restore_media` / `bulk_permanently_delete_media` / `bulk_move_media`; 500 ids for `add_media_to_folder` / `remove_media_from_folder`. Split larger jobs into successive calls.
-8. **Folder share resolution:** `share_media_folder` takes emails; users not found come back in `not_found`. Report those to the user — don't assume the share succeeded silently. Members can list/add/remove items but cannot delete the folder or reshare it.
-9. **`get_media` accepts a generation_id as a fallback** for the `media_id` arg, so you can chase down items the user references by their original generation rather than by library id.
+4. **`upload_media` accepts `project_id`** — when the user works in a named project, pass it on uploads too (resolve via `list_projects`), or the file lands outside the project.
+5. **Prefer `list_media` filters over post-filtering.** Pass `project_id` / `folder_id` / `category` / `type` / `search` to the backend; don't fetch the whole library and filter client-side.
+6. **`is_favorited` is per-user.** On shared projects, an item can be favorited by you and not by your teammates — the value reflects the calling user only.
+7. **"Empty trash" flow:** `list_media` with `include_deleted=true` → show the count → confirm → `bulk_permanently_delete_media`. Never call the bulk-permanent endpoint without listing first so the user knows the scope.
+8. **Bulk caps:** 1000 ids for `bulk_delete_media` / `bulk_restore_media` / `bulk_permanently_delete_media` / `bulk_move_media`; 500 ids for `add_media_to_folder` / `remove_media_from_folder`. Split larger jobs into successive calls.
+9. **Folder share resolution:** `share_media_folder` takes emails; users not found come back in `not_found`. Report those to the user — don't assume the share succeeded silently. Members can list/add/remove items but cannot delete the folder or reshare it.
+10. **`get_media` accepts a generation_id as a fallback** for the `media_id` arg, so you can chase down items the user references by their original generation rather than by library id.
