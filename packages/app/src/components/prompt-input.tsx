@@ -60,6 +60,7 @@ import { PromptContextItems } from "./prompt-input/context-items"
 import { PromptImageAttachments } from "./prompt-input/image-attachments"
 import { PromptDragOverlay } from "./prompt-input/drag-overlay"
 import { promptPlaceholder } from "./prompt-input/placeholder"
+import { createVoiceDictation, type DictationErrorCode } from "./prompt-input/voice-dictation"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
 
 type KolboPricing = Record<string, { input: number; output: number }>
@@ -228,6 +229,54 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       .then((res) => { if (res.data) setKolboPricing(res.data as KolboPricing) })
       .catch(() => {})
     refreshKolboBalance()
+  })
+
+  // ── Voice dictation (realtime Scribe) ──────────────────────────────────
+  // Streams the mic to kolbo-api's realtime transcription and types the
+  // committed text into the editor — same pipeline as the TUI push-to-talk.
+  const [voiceError, setVoiceError] = createSignal<DictationErrorCode | null>(null)
+  let voiceErrorTimer: ReturnType<typeof setTimeout> | undefined
+  const insertDictation = (text: string) => {
+    const el = editorRef
+    if (!el) return
+    el.focus()
+    // Move the caret to the end so committed chunks append in order.
+    const sel = window.getSelection()
+    if (sel) {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      range.collapse(false)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    }
+    const existing = el.textContent ?? ""
+    const chunk = (existing.length > 0 && !/\s$/.test(existing) ? " " : "") + text
+    // execCommand fires the input event, so handleInput syncs the prompt
+    // store — same mechanism the paste path relies on.
+    document.execCommand("insertText", false, chunk)
+  }
+  const dictation = createVoiceDictation({
+    baseUrl: () => globalSDK.url,
+    onCommitted: insertDictation,
+    onError: (code) => {
+      setVoiceError(code)
+      clearTimeout(voiceErrorTimer)
+      voiceErrorTimer = setTimeout(() => setVoiceError(null), 5000)
+    },
+  })
+  const dictating = createMemo(() => dictation.state() === "recording" || dictation.state() === "starting")
+  const voiceErrorText = createMemo(() => {
+    switch (voiceError()) {
+      case "notLoggedIn":
+        return language.t("prompt.voice.error.notLoggedIn")
+      case "micDenied":
+        return language.t("prompt.voice.error.mic")
+      case "serverError":
+      case "connectFailed":
+        return language.t("prompt.voice.error.connection")
+      default:
+        return null
+    }
   })
 
   // Eagerly refresh balance + media spend whenever a Kolbo MCP tool call
@@ -1740,7 +1789,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
           <div class="pointer-events-none absolute bottom-2 left-2">
             <div
               aria-hidden={store.mode !== "normal"}
-              class="pointer-events-auto"
+              class="pointer-events-auto flex items-center gap-1"
               style={{
                 "pointer-events": buttonsSpring() > 0.5 ? "auto" : "none",
               }}
@@ -1764,8 +1813,54 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   <Icon name="plus" class="size-4.5" />
                 </Button>
               </TooltipKeybind>
+              <Tooltip
+                placement="top"
+                value={dictating() ? language.t("prompt.action.dictateStop") : language.t("prompt.action.dictate")}
+              >
+                <Button
+                  data-action="prompt-dictate"
+                  type="button"
+                  variant="ghost"
+                  class={"size-8 p-0" + (dictation.state() === "starting" ? " animate-pulse" : "")}
+                  style={{
+                    ...buttons(),
+                    ...(dictating() ? { color: "rgb(239,68,68)", background: "rgba(239,68,68,0.12)" } : {}),
+                  }}
+                  onClick={() => dictation.toggle()}
+                  disabled={store.mode !== "normal"}
+                  tabIndex={store.mode === "normal" ? undefined : -1}
+                  aria-label={
+                    dictating() ? language.t("prompt.action.dictateStop") : language.t("prompt.action.dictate")
+                  }
+                >
+                  <Icon name="mic" class="size-4.5" />
+                </Button>
+              </Tooltip>
             </div>
           </div>
+
+          <Show when={dictating() || voiceErrorText()}>
+            <div class="pointer-events-none absolute bottom-12 left-2 z-10 max-w-[80%]">
+              <div
+                class="flex items-center gap-2 rounded-full px-3 py-1.5 text-12-regular shadow-md"
+                style={{
+                  background: "var(--surface-raised-stronger-non-alpha)",
+                  border: "1px solid var(--border-weak, rgba(128,128,128,0.25))",
+                  color: voiceErrorText() ? "rgb(239,68,68)" : "var(--text-base, inherit)",
+                }}
+              >
+                <Show when={!voiceErrorText()}>
+                  <span
+                    class="inline-block size-2 rounded-full animate-pulse shrink-0"
+                    style={{ background: "rgb(239,68,68)" }}
+                  />
+                </Show>
+                <span class="truncate">
+                  {voiceErrorText() ?? (dictation.partial() || language.t("prompt.voice.listening"))}
+                </span>
+              </div>
+            </div>
+          </Show>
         </div>
       </DockShellForm>
       <Show when={store.mode === "normal" || store.mode === "shell"}>

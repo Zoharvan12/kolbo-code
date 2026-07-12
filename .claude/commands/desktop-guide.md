@@ -161,3 +161,25 @@ Use `/deploy` skill — it handles: commit → upstream sync → version bump �
 | `packages/desktop/src-tauri/tauri.conf.json` | Must match desktop package.json |
 
 The two versions are **independent** — CLI and desktop can release separately.
+
+---
+
+## Voice Dictation (mic button in the chat input)
+
+The desktop app has realtime voice-to-text in the prompt input — the webview
+counterpart of the TUI's Ctrl+Y push-to-talk. Same backend pipeline
+(Socket.IO → kolbo-api → ElevenLabs Scribe v2 Realtime, `source: "chat"` = free).
+
+| Piece | Where |
+|---|---|
+| Mic capture + Socket.IO client (getUserMedia → 16kHz PCM16 → base64 `scribe:audio`) | `packages/app/src/components/prompt-input/voice-dictation.ts` |
+| Mic button + listening chip UI | `packages/app/src/components/prompt-input.tsx` (next to the + attach button) |
+| Auth (API key + apiBase for the socket) | existing sidecar route `GET /global/kolbo-auth-context` |
+| TUI reference implementation (same protocol) | `packages/opencode/src/cli/cmd/tui/util/push-to-talk.ts` |
+| macOS mic permission | `packages/desktop/src-tauri/Info.plist` (NSMicrophoneUsageDescription) + `entitlements.plist` audio-input |
+| kolbo-api Socket.IO CORS | `kolbo-api/index.js` allowlist includes `http(s)://tauri.localhost` + `tauri://localhost` + dev `http://localhost:1420` — required, the webview sends an Origin header the TUI never does |
+
+Committed transcripts are typed into the contenteditable editor via
+`document.execCommand("insertText")` (same mechanism as paste), so the prompt
+store stays in sync automatically. Partial transcripts show in a floating
+"Listening…" chip and are never committed to the buffer.

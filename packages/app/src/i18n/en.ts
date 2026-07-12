@@ -296,6 +296,12 @@ export const dict = {
   "prompt.action.send": "Send",
   "prompt.action.stop": "Stop",
   "prompt.action.uploading": "Uploading attachments…",
+  "prompt.action.dictate": "Dictate (voice to text)",
+  "prompt.action.dictateStop": "Stop dictation",
+  "prompt.voice.listening": "Listening…",
+  "prompt.voice.error.notLoggedIn": "Sign in to Kolbo to use voice dictation",
+  "prompt.voice.error.mic": "Microphone unavailable — check system permissions",
+  "prompt.voice.error.connection": "Voice service unavailable — try again",
 
   "prompt.toast.pasteUnsupported.title": "Unsupported attachment",
   "prompt.toast.pasteUnsupported.description": "Only images, PDFs, text, audio, or video files can be attached here.",

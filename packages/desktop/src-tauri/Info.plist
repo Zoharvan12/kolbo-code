@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Required for voice dictation (getUserMedia in the webview). Without
+         this key macOS kills the app the moment the mic is requested. Tauri
+         merges this file into the generated Info.plist at build time. -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Kolbo Code uses the microphone for voice dictation in the chat input.</string>
+</dict>
+</plist>
