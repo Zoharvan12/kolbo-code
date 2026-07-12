@@ -48,6 +48,8 @@ Apply when confirming cost before firing:
 
 **Batch totalling 100+ credits:** run `check_credits` first and include the available balance in the summary.
 
+**After generating, report cost only — never "credits remaining".** Coding/chat usage also deducts credits, so any balance you compute (opening balance − generation costs) is wrong by the time you say it. Quote `credits_used` per generation / batch total; if the user asks what's left, run `check_credits` fresh at that moment and quote that number.
+
 ## ⚠️ Quote Real Cost, Never Estimates (CRITICAL)
 
 Pre-flight formulas above are for **preview only**. After firing, every generation returns `credits_used` (multiplier-adjusted total) and `credits_breakdown` (per-model attribution).

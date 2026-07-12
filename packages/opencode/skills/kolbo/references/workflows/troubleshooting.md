@@ -30,6 +30,10 @@ This re-wires the MCP configuration automatically. Then restart the session.
 
 Wait 60s for the window to reset, retry only the failed calls. For batch image work prefer `generate_creative_director` over multiple `generate_image` calls. Full rate-limit details + retry sequence: see SKILL.md "Rate Limiting & Batch Generation".
 
+## Checking generation status without spinning
+
+`get_generation_status` supports `wait=true` (blocks server-side until the generation reaches a final state, up to ~3 min) and `generation_ids` (many ids in one call → returns `all_done`, `still_processing`, and per-generation results). **Never call it repeatedly in a loop** — one `wait=true` call replaces the loop. If some generations are still running after the wait window, call it ONCE more with `wait=true` and only the `still_processing` ids.
+
 ## Failure envelope from `get_generation_status`
 
 When a generation fails, `get_generation_status` returns a structured `failure` field alongside `error`:
