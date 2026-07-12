@@ -42,7 +42,7 @@ import { useServer } from "@/context/server"
 import { createSessionTabs } from "@/pages/session/helpers"
 import { promptEnabled, promptProbe } from "@/testing/prompt"
 import { detectTextDirection } from "@/utils/rtl"
-import { createTextFragment, getCursorPosition, setCursorPosition, setRangeEdge } from "./prompt-input/editor-dom"
+import { createTextFragment, getCursorPosition, getTextLength, setCursorPosition, setRangeEdge } from "./prompt-input/editor-dom"
 import { createPromptAttachments } from "./prompt-input/attachments"
 import { ACCEPTED_FILE_TYPES } from "./prompt-input/files"
 import {
@@ -232,32 +232,44 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   })
 
   // ── Voice dictation (realtime Scribe) ──────────────────────────────────
-  // Streams the mic to kolbo-api's realtime transcription and types the
-  // committed text into the editor — same pipeline as the TUI push-to-talk.
+  // Streams the mic to kolbo-api's realtime transcription and types the text
+  // into the editor LIVE — partials render as you speak and get replaced by
+  // the refined text on each update/commit, mirroring kolbo-map's voice input.
   const [voiceError, setVoiceError] = createSignal<DictationErrorCode | null>(null)
   let voiceErrorTimer: ReturnType<typeof setTimeout> | undefined
-  const insertDictation = (text: string) => {
+  // Dictation session state: the accumulated committed text, how many chars
+  // of dictation are currently written at the end of the editor (the region
+  // each update replaces), and whether a separating space is needed before it.
+  let dictationCommitted = ""
+  let dictationWritten = 0
+  let dictationNeedsSpace = false
+  const joinChunks = (a: string, b: string) => (a ? `${a} ${b}` : b)
+  const writeDictation = (live: string) => {
     const el = editorRef
     if (!el) return
     el.focus()
-    // Move the caret to the end so committed chunks append in order.
+    const total = getTextLength(el)
+    // Select the previously written dictation tail (collapsed at the end on
+    // the first write) and replace it via execCommand so the input event
+    // fires and the prompt store stays in sync — same mechanism as paste.
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    setRangeEdge(el, range, "start", Math.max(0, total - dictationWritten))
     const sel = window.getSelection()
-    if (sel) {
-      const range = document.createRange()
-      range.selectNodeContents(el)
-      range.collapse(false)
-      sel.removeAllRanges()
-      sel.addRange(range)
-    }
-    const existing = el.textContent ?? ""
-    const chunk = (existing.length > 0 && !/\s$/.test(existing) ? " " : "") + text
-    // execCommand fires the input event, so handleInput syncs the prompt
-    // store — same mechanism the paste path relies on.
+    if (!sel) return
+    sel.removeAllRanges()
+    sel.addRange(range)
+    const chunk = (dictationNeedsSpace ? " " : "") + live
     document.execCommand("insertText", false, chunk)
+    dictationWritten = chunk.length
   }
   const dictation = createVoiceDictation({
     baseUrl: () => globalSDK.url,
-    onCommitted: insertDictation,
+    onPartial: (text) => writeDictation(joinChunks(dictationCommitted, text)),
+    onCommitted: (text) => {
+      dictationCommitted = joinChunks(dictationCommitted, text)
+      writeDictation(dictationCommitted)
+    },
     onError: (code) => {
       setVoiceError(code)
       clearTimeout(voiceErrorTimer)
@@ -265,6 +277,14 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     },
   })
   const dictating = createMemo(() => dictation.state() === "recording" || dictation.state() === "starting")
+  // New dictation session → fresh region at the current end of the editor.
+  createEffect(() => {
+    if (dictation.state() !== "starting") return
+    dictationCommitted = ""
+    dictationWritten = 0
+    const existing = editorRef?.textContent ?? ""
+    dictationNeedsSpace = existing.length > 0 && !/\s$/.test(existing)
+  })
   const voiceErrorText = createMemo(() => {
     switch (voiceError()) {
       case "notLoggedIn":
@@ -1836,31 +1856,18 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   <Icon name="mic" class="size-4.5" />
                 </Button>
               </Tooltip>
+              <Show when={dictating() || voiceErrorText()}>
+                {/* Inline status in the reserved button strip — the editor keeps
+                    padding-bottom for this row, so it never covers typed text. */}
+                <span
+                  class="truncate text-12-regular max-w-[220px] pl-1"
+                  style={{ color: voiceErrorText() ? "rgb(239,68,68)" : "var(--text-weak, inherit)" }}
+                >
+                  {voiceErrorText() ?? language.t("prompt.voice.listening")}
+                </span>
+              </Show>
             </div>
           </div>
-
-          <Show when={dictating() || voiceErrorText()}>
-            <div class="pointer-events-none absolute bottom-12 left-2 z-10 max-w-[80%]">
-              <div
-                class="flex items-center gap-2 rounded-full px-3 py-1.5 text-12-regular shadow-md"
-                style={{
-                  background: "var(--surface-raised-stronger-non-alpha)",
-                  border: "1px solid var(--border-weak, rgba(128,128,128,0.25))",
-                  color: voiceErrorText() ? "rgb(239,68,68)" : "var(--text-base, inherit)",
-                }}
-              >
-                <Show when={!voiceErrorText()}>
-                  <span
-                    class="inline-block size-2 rounded-full animate-pulse shrink-0"
-                    style={{ background: "rgb(239,68,68)" }}
-                  />
-                </Show>
-                <span class="truncate">
-                  {voiceErrorText() ?? (dictation.partial() || language.t("prompt.voice.listening"))}
-                </span>
-              </div>
-            </div>
-          </Show>
         </div>
       </DockShellForm>
       <Show when={store.mode === "normal" || store.mode === "shell"}>

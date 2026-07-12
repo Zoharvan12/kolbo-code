@@ -21,15 +21,13 @@ type Starter = {
   icon: IconProps["name"]
 }
 
+// Keep this list short — the page must fit above the composer without
+// feeling crowded. One card per pillar: video ad, code, image, video.
 const STARTERS: Starter[] = [
   { key: "ugc", icon: "video" },
-  { key: "productAnimation", icon: "video" },
-  { key: "productPhotoshoot", icon: "photo" },
-  { key: "aiInfluencer", icon: "brain" },
   { key: "landing", icon: "app-window" },
   { key: "images", icon: "photo" },
   { key: "video", icon: "video" },
-  { key: "music", icon: "music" },
 ]
 
 export function NewSessionView(props: NewSessionViewProps) {
@@ -73,7 +71,7 @@ export function NewSessionView(props: NewSessionViewProps) {
   return (
     <div class={ROOT_CLASS} data-component="session-new-view">
       <div class="h-12 shrink-0" aria-hidden />
-      <div class="flex-1 px-6 pb-30 flex items-start justify-center">
+      <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-30 flex items-start justify-center">
         <div class="w-full max-w-200 flex flex-col items-center text-center gap-8 pt-12">
           <div class="flex flex-col items-center gap-5" data-slot="new-session-hero">
             <div data-slot="new-session-mark">

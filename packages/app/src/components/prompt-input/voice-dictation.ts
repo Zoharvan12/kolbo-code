@@ -24,6 +24,8 @@ export type DictationErrorCode = "notLoggedIn" | "micDenied" | "connectFailed" |
 export interface VoiceDictationOptions {
   /** Sidecar base URL (globalSDK.url) — used to fetch /global/kolbo-auth-context. */
   baseUrl: () => string
+  /** Interim text — display live, will be replaced by the next partial/commit. */
+  onPartial?: (text: string) => void
   /** Final transcript chunk — safe to insert into the prompt buffer. */
   onCommitted: (text: string) => void
   /** Anything went wrong (auth, mic, socket, backend). */
@@ -176,6 +178,7 @@ export function createVoiceDictation(opts: VoiceDictationOptions) {
     socket.on("scribe:partial_transcript", (data: { sessionId: string; text: string }) => {
       if (data.sessionId !== sessionId || !data.text) return
       setPartial(data.text)
+      opts.onPartial?.(data.text)
     })
 
     socket.on("scribe:committed_transcript", (data: { sessionId: string; text: string }) => {
