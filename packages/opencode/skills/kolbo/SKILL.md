@@ -1,5 +1,5 @@
 ---
-version: 0.6.0
+version: 0.6.1
 name: kolbo
 description: |
   Generate, edit, or analyze creative media via the Kolbo AI MCP server:
@@ -113,7 +113,7 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 |------|---------|
 | `list_models` / `list_voices` / `check_credits` / `get_generation_status` / `get_session_usage` | Discovery + status |
 | `upload_media` / `list_media` / `get_media` / `get_media_stats` / `favorite_media` / `unfavorite_media` / `delete_media` / `restore_media` / `permanently_delete_media` / `move_media` / `bulk_*_media` / `*_media_folder` | Media library — see `workflows/media-library.md` |
-| `create_visual_dna` / `list_visual_dnas` / `get_visual_dna` / `delete_visual_dna` | Visual DNA — see `workflows/visual-dna.md` |
+| `create_visual_dna` / `list_visual_dnas` / `get_visual_dna` / `delete_visual_dna` / `*_visual_dna_folder` (5 folder tools) | Visual DNA + character folders — see `workflows/visual-dna.md` |
 | `list_moodboards` / `get_moodboard` / `list_presets` | Style overlays |
 | `search_stock_media` / `get_stock_sources` / `get_stock_categories` / `get_stock_collections` / `get_stock_asset` / `analyze_script_for_stock` / `import_stock_asset` | Stock library (free, no credits) — EXISTING photos / videos / 3D / SFX / music. For stock **music** use `search_stock_media` with `mediaType: "music"` (semantic vibe query, e.g. "uplifting corporate background") → `get_stock_asset` for downloads. The older `*_music_library` tools are deprecated adapters over this — prefer the stock tools. |
 | `list_projects` / `move_session` | Projects: resolve a project NAME → the `project_id` you pass on generation/upload/doc calls; `move_session` relocates a whole session + its media when work landed in the wrong project. NOT the same as `app_builder_list_projects`. See "Projects — Where Work Lands" below. |

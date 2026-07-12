@@ -231,3 +231,14 @@ Read `max_visual_dna` from `list_models` for the exact cap, AND `supports_visual
 
 - **Animating an image** → `generate_video_from_image`; the source image IS the reference, don't add `visual_dna_ids`.
 - **Video DNA support is limited to `generate_elements`** (Seedance 2, Kling O3 Reference, Grok Imagine). `generate_video`, `generate_video_from_image`, and `generate_first_last_frame` all ignore `visual_dna_ids` — for character-consistent video, route through `generate_elements`.
+
+
+## Folders — organizing a large cast
+
+Tools: `list_visual_dna_folders`, `create_visual_dna_folder` (`name`, optional hex `color`), `update_visual_dna_folder`, `delete_visual_dna_folder`, `move_visual_dna_to_folder`.
+
+- Folders are user-scoped and flat; names are unique per user (409 on duplicate).
+- **Personal DNAs only** — global presets must be imported first; organization DNAs cannot go in personal folders (server rejects with a clear message).
+- **Deleting a folder never deletes DNAs** — contents move back to root (`items_moved_to_root` in the response). Mention this instead of asking for confirmation on non-empty folders.
+- **Creating many characters for one production?** Create the folder FIRST, then `move_visual_dna_to_folder` each DNA right after `create_visual_dna` — don't leave a big cast unsorted at root.
+- To list a folder's contents: `list_visual_dnas` and filter by each profile's `folder_id` (there is no server-side folder filter).
