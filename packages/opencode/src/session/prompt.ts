@@ -436,11 +436,24 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             ),
           ask: (req) =>
             Effect.runPromise(
-              permission.ask({
-                ...req,
-                sessionID: input.session.id,
-                tool: { messageID: input.processor.message.id, callID: options.toolCallId },
-                ruleset: Permission.merge(input.agent.permission, input.session.permission ?? []),
+              Effect.gen(function* () {
+                // Re-read the session's CURRENT permission so a change made
+                // mid-run (e.g. flipping the approval mode, or a session-level
+                // grant) applies to the next tool call — not only the next
+                // message. `input.session` is a snapshot from turn start;
+                // fall back to it if the live read fails.
+                const live = yield* sessions
+                  .get(input.session.id)
+                  .pipe(
+                    Effect.map((s) => s.permission),
+                    Effect.orElseSucceed(() => input.session.permission),
+                  )
+                return yield* permission.ask({
+                  ...req,
+                  sessionID: input.session.id,
+                  tool: { messageID: input.processor.message.id, callID: options.toolCallId },
+                  ruleset: Permission.merge(input.agent.permission, live ?? []),
+                })
               }),
             ),
         })

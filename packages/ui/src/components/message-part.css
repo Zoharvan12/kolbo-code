@@ -286,12 +286,12 @@
     margin-top: 0;
   }
 
-  /* Assistant narrative in an editorial serif with the Claude-style layout:
-     serif body, bold lead-ins, roomy line-height and list spacing. Structure
-     (code, tables) keeps its own fonts. */
+  /* Assistant narrative: English/Latin -> Poppins, Hebrew -> Heebo (sans
+     stack), with the Claude-style roomy line-height and list spacing.
+     Structure (code, tables) keeps its own fonts. */
   [data-slot="text-part-body"] p,
   [data-slot="text-part-body"] li {
-    font-family: var(--font-family-serif);
+    font-family: var(--font-family-sans);
     font-size: 15px;
     line-height: 1.62;
     letter-spacing: 0.001em;

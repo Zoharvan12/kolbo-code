@@ -117,6 +117,7 @@ export function TextReveal(props: {
     <span
       ref={rootRef}
       data-component="text-reveal"
+      dir="auto"
       data-ready={ready() ? "true" : "false"}
       data-swapping={swapping() ? "true" : "false"}
       data-truncate={props.truncate ? "true" : "false"}

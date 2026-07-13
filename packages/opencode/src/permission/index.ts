@@ -128,6 +128,9 @@ export namespace Permission {
   interface State {
     pending: Map<PermissionID, PendingEntry>
     approved: Ruleset
+    // Project this permission state belongs to — needed so reply() can
+    // persist newly-granted "always" rules back to PermissionTable.
+    projectId: string
   }
 
   export function evaluate(permission: string, pattern: string, ...rulesets: Ruleset[]): Rule {
@@ -149,6 +152,7 @@ export namespace Permission {
           const state = {
             pending: new Map<PermissionID, PendingEntry>(),
             approved: row?.data ?? [],
+            projectId: ctx.project.id,
           }
 
           yield* Effect.addFinalizer(() =>
@@ -202,7 +206,7 @@ export namespace Permission {
       })
 
       const reply = Effect.fn("Permission.reply")(function* (input: z.infer<typeof ReplyInput>) {
-        const { approved, pending } = yield* InstanceState.get(state)
+        const { approved, pending, projectId } = yield* InstanceState.get(state)
         const existing = pending.get(input.requestID)
         if (!existing) return
 
@@ -241,6 +245,22 @@ export namespace Permission {
             pattern,
             action: "allow",
           })
+        }
+
+        // Persist "always" grants so they survive a server restart. The
+        // desktop respawns its sidecar (on relaunch and on crash), and
+        // without this every "Allow always" was forgotten — the approved
+        // set lived only in memory. Written per-project, matching how the
+        // state is loaded from PermissionTable on init.
+        if (existing.info.always.length > 0) {
+          const now = Date.now()
+          Database.use((db) =>
+            db
+              .insert(PermissionTable)
+              .values({ project_id: projectId, data: approved, time_created: now, time_updated: now })
+              .onConflictDoUpdate({ target: PermissionTable.project_id, set: { data: approved, time_updated: now } })
+              .run(),
+          )
         }
 
         for (const [id, item] of pending.entries()) {

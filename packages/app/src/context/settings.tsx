@@ -51,7 +51,7 @@ export const sansDefault = "System Sans"
 const monoFallback =
   '"JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
 const sansFallback =
-  '"Inter Variable", "Heebo", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  '"Poppins", "Heebo", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
 
 const monoBase = monoFallback
 const sansBase = sansFallback

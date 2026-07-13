@@ -27,19 +27,59 @@ export const KOLBO_OUTPUT_FIELDS = [
  * `_followup_hint` text don't pollute the result), falls back to a
  * regex scan of the raw text only when the output isn't JSON.
  */
+// Pull generated URLs from one object using the known output fields (first
+// match wins, so echoed input URLs from a later field don't fold in), with a
+// final fallback to a singular `url` for per-item media records.
+function urlsFromFields(obj: Record<string, unknown>): string[] {
+  for (const field of KOLBO_OUTPUT_FIELDS) {
+    const value = obj[field]
+    if (Array.isArray(value)) {
+      const urls = value.filter((v): v is string => typeof v === "string" && /^https?:\/\//.test(v))
+      if (urls.length > 0) return urls
+    } else if (typeof value === "string" && /^https?:\/\//.test(value)) {
+      return [value]
+    }
+  }
+  const single = obj.url
+  if (typeof single === "string" && /^https?:\/\//.test(single)) return [single]
+  return []
+}
+
 export function extractKolboUrls(output: string | undefined): string[] {
   if (!output) return []
   try {
     const obj = JSON.parse(output)
     if (obj && typeof obj === "object") {
-      for (const field of KOLBO_OUTPUT_FIELDS) {
-        const value = (obj as Record<string, unknown>)[field]
-        if (Array.isArray(value)) {
-          const urls = value.filter((v): v is string => typeof v === "string" && /^https?:\/\//.test(v))
-          if (urls.length > 0) return [...new Set(urls)]
-        } else if (typeof value === "string" && /^https?:\/\//.test(value)) {
-          return [value]
+      // 1. Direct output fields on the root (generate_image → { urls: [...] }).
+      const direct = urlsFromFields(obj as Record<string, unknown>)
+      if (direct.length > 0) return [...new Set(direct)]
+
+      // 2. Nested `result` object. get_generation_status recovers a timed-out
+      //    generation as { state, result: { urls: [...] } } — the urls live one
+      //    level down, so the flat scan above misses them.
+      const result = (obj as Record<string, unknown>).result
+      if (result && typeof result === "object") {
+        const nested = urlsFromFields(result as Record<string, unknown>)
+        if (nested.length > 0) return [...new Set(nested)]
+      }
+
+      // 3. Batch / multi-item shapes: an array of per-item objects, each with
+      //    output fields directly or under `result` (batch get_generation_status,
+      //    creative_director scenes). Collect across every item.
+      const batchKeys = ["generations", "results", "scenes", "data"] as const
+      for (const key of batchKeys) {
+        const arr = (obj as Record<string, unknown>)[key]
+        if (!Array.isArray(arr)) continue
+        const collected: string[] = []
+        for (const item of arr) {
+          if (!item || typeof item !== "object") continue
+          collected.push(...urlsFromFields(item as Record<string, unknown>))
+          const itemResult = (item as Record<string, unknown>).result
+          if (itemResult && typeof itemResult === "object") {
+            collected.push(...urlsFromFields(itemResult as Record<string, unknown>))
+          }
         }
+        if (collected.length > 0) return [...new Set(collected)]
       }
     }
   } catch {

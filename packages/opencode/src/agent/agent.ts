@@ -198,6 +198,21 @@ export namespace Agent {
                 Permission.fromConfig({
                   question: "allow",
                   plan_enter: "allow",
+                  // "Trust the model" (Zohar's product call, 2026-07-13): the
+                  // default agent proceeds on paid generations, file edits, and
+                  // shell without a per-call approval prompt — if the model
+                  // calls the tool, it goes. The safety floor from `defaults`
+                  // is deliberately NOT relaxed: `doom_loop` still gates a
+                  // runaway repeat-generation loop (the thing that would burn
+                  // credits without end), and `external_directory` still gates
+                  // access outside the workspace. `user` config merges last, so
+                  // anyone can re-tighten these in ~/.kolbo/config.json.
+                  "kolbo_generate_*": "allow",
+                  "kolbo_edit_image": "allow",
+                  "kolbo_edit_video": "allow",
+                  edit: "allow",
+                  bash: "allow",
+                  webfetch: "allow",
                 }),
                 user,
               ),

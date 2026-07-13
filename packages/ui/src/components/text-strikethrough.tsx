@@ -61,6 +61,7 @@ export function TextStrikethrough(props: {
   return (
     <span
       data-component="text-strikethrough"
+      dir="auto"
       class={props.class}
       style={{ display: "grid", ...props.style }}
       ref={containerRef}

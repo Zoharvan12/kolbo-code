@@ -195,7 +195,7 @@
     },
     "packages/desktop": {
       "name": "@opencode-ai/desktop",
-      "version": "2.4.0",
+      "version": "2.4.1",
       "dependencies": {
         "@opencode-ai/app": "workspace:*",
         "@opencode-ai/ui": "workspace:*",
@@ -330,7 +330,7 @@
     },
     "packages/opencode": {
       "name": "@kolbo/kolbo-code",
-      "version": "2.4.0",
+      "version": "2.4.1",
       "bin": {
         "kolbo": "./bin/kolbo",
       },

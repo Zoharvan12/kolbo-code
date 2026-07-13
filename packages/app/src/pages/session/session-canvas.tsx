@@ -39,6 +39,15 @@ const KOLBO_GENERATION_TOOL_NAMES = new Set([
   "generate_speech",
   "generate_3d",
   "generate_creative_director",
+  // Recovered generations: when a generate_* call times out at 60s of MCP
+  // polling, its own tool output carries NO urls — only a "still running,
+  // call get_generation_status" message. The URLs land later in the
+  // get_generation_status result instead. Without this, timed-out
+  // generations never appear in the canvas even though they succeeded.
+  // extractKolboUrls reads the nested result.urls shape; the per-URL dedupe
+  // in collectCanvasCells prevents a double cell when the original
+  // generate_* call ALSO returned the same url.
+  "get_generation_status",
 ])
 
 export function isKolboGenerationTool(tool: string): boolean {
@@ -48,6 +57,22 @@ export function isKolboGenerationTool(tool: string): boolean {
 }
 
 type MediaKind = "image" | "video" | "audio" | "model"
+
+// Content-identity key for a media URL: the path basename minus query string.
+// Generated filenames carry a per-generation hash, so this is unique per asset
+// while collapsing the same file served from different hosts / with different
+// signed query params into one canvas cell. Falls back to the raw URL if it
+// can't be parsed.
+function mediaDedupeKey(url: string): string {
+  try {
+    const u = new URL(url)
+    const base = u.pathname.split("/").filter(Boolean).pop()
+    return base || url
+  } catch {
+    const noQuery = url.split("?")[0]
+    return noQuery.split("/").filter(Boolean).pop() || url
+  }
+}
 
 function classifyUrl(url: string): MediaKind {
   if (isVideoUrl(url)) return "video"
@@ -123,12 +148,15 @@ function collectCanvasCells(
   const cells: CanvasCell[] = []
   const pending: PendingCell[] = []
   const now = Date.now()
-  // Track which URLs have already been added so we don't show the same media
-  // twice. The same URL can appear in multiple tool results — e.g. an image
-  // generated earlier is later passed back as an input to a video tool,
-  // which echoes it in its `image_url`/`image_urls` field. Without dedup the
-  // canvas shows the source photo next to its derived video.
-  const seenUrls = new Set<string>()
+  // Track which media has already been added so we don't show the same asset
+  // twice. Dedupe by the stored FILENAME (path basename), not the full URL:
+  // the same generated file can come back from more than one tool with a
+  // different host (raw bucket vs media.kolbo.ai CDN) or different signed
+  // query params — e.g. a video returned by both generate_video and the
+  // get_generation_status recovery. Exact-URL matching would miss those and
+  // render a duplicate cell; the filename carries a per-generation hash so it
+  // is unique per asset and safe to key on.
+  const seenKeys = new Set<string>()
   for (const message of messages) {
     const parts = partsByMessage[message.id]
     if (!parts) continue
@@ -146,12 +174,13 @@ function collectCanvasCells(
         const urls = extractUrls(completed.output)
         if (urls.length === 0) continue
         urls.forEach((url, idx) => {
-          // Cross-call dedupe: same URL legitimately reappearing in a
-          // later tool's output (e.g. a generated image fed into
-          // `generate_video_from_image` and the video tool's response
-          // still references it) only earns one cell — the original.
-          if (seenUrls.has(url)) return
-          seenUrls.add(url)
+          // Cross-call dedupe keyed on the filename so the same asset from a
+          // different host / query / tool (e.g. a generated image fed into
+          // `generate_video_from_image`, or a video echoed by its
+          // get_generation_status recovery) only earns one cell.
+          const key = mediaDedupeKey(url)
+          if (seenKeys.has(key)) return
+          seenKeys.add(key)
           cells.push({
             key: `${tool.id}:${idx}`,
             messageID: message.id,

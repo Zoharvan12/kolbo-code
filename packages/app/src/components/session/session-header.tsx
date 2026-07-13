@@ -217,6 +217,21 @@ export function SessionHeader() {
     focusTerminalById(id)
   }
 
+  // The Canvas toolbar button reflects whether the side panel (the canvas
+  // surface) is open, so it reads as a real toggle instead of a permanently
+  // "selected" pill. Opening routes through the kolbo:open-canvas event so the
+  // canvas tab is activated; closing just collapses the panel.
+  const canvasOpen = () => view().reviewPanel.opened()
+  const toggleCanvas = () => {
+    if (canvasOpen()) {
+      view().reviewPanel.close()
+      return
+    }
+    if (typeof document !== "undefined") {
+      document.dispatchEvent(new CustomEvent("kolbo:open-canvas"))
+    }
+  }
+
   const [prefs, setPrefs] = persisted(Persist.global("open.app"), createStore({ app: "finder" as OpenApp }))
   const [menu, setMenu] = createStore({ open: false })
   const [openRequest, setOpenRequest] = createStore({
@@ -430,6 +445,30 @@ export function SessionHeader() {
                 </div>
               </Show>
               <div class="flex items-center gap-1">
+                {/* Only Canvas (the media gallery) lives in the toolbar now.
+                    The developer panels — Terminal, Review (code diff), Files
+                    (file tree) — were removed from here: this is a creative
+                    tool, not a code editor, and those read as technical/scary.
+                    They're all still reachable via their keyboard shortcuts /
+                    command palette; the underlying wiring is untouched so
+                    canvas + artifact auto-open still works. */}
+                <Tooltip placement="bottom" value={language.t("command.canvas.toggle")}>
+                  <Button
+                    variant="ghost"
+                    class={`titlebar-icon h-7 px-3 box-border shrink-0 flex items-center gap-1.5 rounded-lg border transition-colors ${
+                      canvasOpen()
+                        ? "border-border-base bg-surface-raised-base text-text-strong"
+                        : "border-transparent text-text-weak hover:text-text-strong hover:bg-surface-raised-base"
+                    }`}
+                    onClick={toggleCanvas}
+                    aria-pressed={canvasOpen()}
+                    aria-label={language.t("command.canvas.toggle")}
+                  >
+                    <Icon name="canvas" class="size-4" />
+                    <span class="text-13-medium">{language.t("session.header.tab.canvas")}</span>
+                  </Button>
+                </Tooltip>
+
                 {/* Server / MCP / LSP / Plugins status popover — developer
                     diagnostics that read as confusing to a creative user.
                     Hidden (kept behind `false` for a one-word revert). */}
@@ -486,29 +525,6 @@ export function SessionHeader() {
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
                       </svg>
                     </Show>
-                  </Button>
-                </Tooltip>
-
-                {/* Only Canvas (the media gallery) lives in the toolbar now.
-                    The developer panels — Terminal, Review (code diff), Files
-                    (file tree) — were removed from here: this is a creative
-                    tool, not a code editor, and those read as technical/scary.
-                    They're all still reachable via their keyboard shortcuts /
-                    command palette; the underlying wiring is untouched so
-                    canvas + artifact auto-open still works. */}
-                <Tooltip placement="bottom" value={language.t("command.canvas.toggle")}>
-                  <Button
-                    variant="ghost"
-                    class="titlebar-icon h-7 px-3 ml-1 box-border shrink-0 flex items-center gap-1.5 border border-border-weak-base rounded-lg bg-surface-raised-base hover:bg-surface-raised-base-hover transition-colors"
-                    onClick={() => {
-                      if (typeof document !== "undefined") {
-                        document.dispatchEvent(new CustomEvent("kolbo:open-canvas"))
-                      }
-                    }}
-                    aria-label={language.t("command.canvas.toggle")}
-                  >
-                    <Icon name="canvas" class="size-4" />
-                    <span class="text-13-medium text-text-strong">{language.t("session.header.tab.canvas")}</span>
                   </Button>
                 </Tooltip>
               </div>

@@ -2541,8 +2541,8 @@ ToolRegistry.register({
                 const answer = () => answers()[i()] ?? []
                 return (
                   <div data-slot="question-answer-item">
-                    <div data-slot="question-text">{q.question}</div>
-                    <div data-slot="answer-text">{answer().join(", ") || i18n.t("ui.question.answer.none")}</div>
+                    <div data-slot="question-text" dir="auto">{q.question}</div>
+                    <div data-slot="answer-text" dir="auto">{answer().join(", ") || i18n.t("ui.question.answer.none")}</div>
                   </div>
                 )
               }}
@@ -3244,3 +3244,25 @@ ToolRegistry.register({
   name: "kolbo_generate_3d",
   render: (props) => <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />,
 })
+
+// get_generation_status: when a generate_* call times out at 60s of polling,
+// the model recovers the finished media here. If this status result carries
+// generated URLs, render it as a media chip so the images appear inline in the
+// conversation (not just a bare "Called kolbo_get_generation_status" row).
+// When it's a plain status check with no media yet, fall back to the generic
+// tool row.
+function KolboStatusTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
+  const hasMedia = createMemo(() => props.status === "completed" && extractUrls(props.output).length > 0)
+  return (
+    <Show
+      when={hasMedia()}
+      fallback={<GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />}
+    >
+      <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />
+    </Show>
+  )
+}
+
+for (const name of ["kolbo_get_generation_status", "mcp__kolbo__get_generation_status"]) {
+  ToolRegistry.register({ name, render: (props) => <KolboStatusTool {...props} tool={props.tool} /> })
+}

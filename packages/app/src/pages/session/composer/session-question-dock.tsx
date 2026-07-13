@@ -49,9 +49,9 @@ function Option(props: {
     >
       <Mark multi={props.multi} picked={props.picked} />
       <span data-slot="question-option-main">
-        <span data-slot="option-label">{props.label}</span>
+        <span data-slot="option-label" dir="auto">{props.label}</span>
         <Show when={props.description}>
-          <span data-slot="option-description">{props.description}</span>
+          <span data-slot="option-description" dir="auto">{props.description}</span>
         </Show>
       </span>
     </button>
@@ -469,7 +469,7 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; onSubmit
         </>
       }
     >
-      <div data-slot="question-text">{question()?.question}</div>
+      <div data-slot="question-text" dir="auto">{question()?.question}</div>
       <Show when={multi()} fallback={<div data-slot="question-hint">{language.t("ui.question.singleHint")}</div>}>
         <div data-slot="question-hint">{language.t("ui.question.multiHint")}</div>
       </Show>
@@ -507,7 +507,7 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; onSubmit
               <Mark multi={multi()} picked={on()} onClick={toggleCustomMark} />
               <span data-slot="question-option-main">
                 <span data-slot="option-label">{customLabel()}</span>
-                <span data-slot="option-description">{input() || customPlaceholder()}</span>
+                <span data-slot="option-description" dir="auto">{input() || customPlaceholder()}</span>
               </span>
             </button>
           }
@@ -538,6 +538,7 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; onSubmit
               <textarea
                 ref={focusCustom}
                 data-slot="question-custom-input"
+                dir="auto"
                 placeholder={customPlaceholder()}
                 value={input()}
                 rows={1}

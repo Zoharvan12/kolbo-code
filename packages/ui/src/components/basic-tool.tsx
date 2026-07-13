@@ -1,7 +1,7 @@
 import { createEffect, For, Match, on, onCleanup, Show, Switch, type JSX } from "solid-js"
-import { animate, type AnimationPlaybackControls } from "motion"
 import { useI18n } from "../context/i18n"
 import { createStore } from "solid-js/store"
+import { AnimatedExpand } from "./animated-expand"
 import { Collapsible } from "./collapsible"
 import { Icon, type IconProps } from "./icon"
 import { TextShimmer } from "./text-shimmer"
@@ -38,8 +38,6 @@ export interface BasicToolProps {
   triggerHref?: string
   clickable?: boolean
 }
-
-const SPRING = { type: "spring" as const, visualDuration: 0.35, bounce: 0 }
 
 export function BasicTool(props: BasicToolProps) {
   const [state, setState] = createStore({
@@ -85,38 +83,6 @@ export function BasicTool(props: BasicToolProps) {
       { defer: true },
     ),
   )
-
-  // Animated height for collapsible open/close
-  let contentRef: HTMLDivElement | undefined
-  let heightAnim: AnimationPlaybackControls | undefined
-  const initialOpen = open()
-
-  createEffect(
-    on(
-      open,
-      (isOpen) => {
-        if (!props.animated || !contentRef) return
-        heightAnim?.stop()
-        if (isOpen) {
-          contentRef.style.overflow = "hidden"
-          heightAnim = animate(contentRef, { height: "auto" }, SPRING)
-          heightAnim.finished.then(() => {
-            if (!contentRef || !open()) return
-            contentRef.style.overflow = "visible"
-            contentRef.style.height = "auto"
-          })
-        } else {
-          contentRef.style.overflow = "hidden"
-          heightAnim = animate(contentRef, { height: "0px" }, SPRING)
-        }
-      },
-      { defer: true },
-    ),
-  )
-
-  onCleanup(() => {
-    heightAnim?.stop()
-  })
 
   const handleOpenChange = (value: boolean) => {
     if (pending()) return
@@ -224,17 +190,9 @@ export function BasicTool(props: BasicToolProps) {
         )}
       </Show>
       <Show when={props.animated && props.children && !props.hideDetails}>
-        <div
-          ref={contentRef}
-          data-slot="collapsible-content"
-          data-animated
-          style={{
-            height: initialOpen ? "auto" : "0px",
-            overflow: initialOpen ? "visible" : "hidden",
-          }}
-        >
+        <AnimatedExpand open={open()} data-slot="collapsible-content" data-animated>
           {props.children}
-        </div>
+        </AnimatedExpand>
       </Show>
       <Show when={!props.animated && props.children && !props.hideDetails}>
         <Show when={open()}>
