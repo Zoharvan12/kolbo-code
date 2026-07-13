@@ -242,3 +242,10 @@ Tools: `list_visual_dna_folders`, `create_visual_dna_folder` (`name`, optional h
 - **Deleting a folder never deletes DNAs** — contents move back to root (`items_moved_to_root` in the response). Mention this instead of asking for confirmation on non-empty folders.
 - **Creating many characters for one production?** Create the folder FIRST, then `move_visual_dna_to_folder` each DNA right after `create_visual_dna` — don't leave a big cast unsorted at root.
 - To list a folder's contents: `list_visual_dnas` and filter by each profile's `folder_id` (there is no server-side folder filter).
+
+## Character sheet — offer it for character DNAs
+
+`generate_character_sheet` builds a multi-angle turnaround from reference image URLs — the strongest consistency booster for a character DNA. It CHARGES CREDITS, so:
+- When the user is about to create a **character** DNA, proactively OFFER it: "want me to generate a character sheet first? It makes the character far more consistent and costs a few credits." Run it only on a yes.
+- Flow: `generate_character_sheet {image_urls}` → show the sheet → `create_visual_dna {name, images, character_sheet_url: <url>}`.
+- For non-character DNAs (style/product/environment), skip it.
