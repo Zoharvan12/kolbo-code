@@ -240,7 +240,7 @@ jobs:
           trap 'rm -rf "$TMP"' EXIT
           cp packages/opencode/src/mcp/runner.ts "$TMP/runner.ts"
           python3 - "packages/desktop/src-tauri/sidecars/opencode-cli-${{ matrix.rust-target }}" "$TMP" <<'PY'
-          import json, os, pathlib, subprocess, sys
+          import json, os, pathlib, select, subprocess, sys, time
           binary, root = sys.argv[1:]
           env = dict(os.environ, BUN_BE_BUN="1", KOLBO_API_KEY="smoke")
           msg = "\n".join([
@@ -248,10 +248,20 @@ jobs:
             json.dumps({"jsonrpc":"2.0","method":"notifications/initialized"}),
             json.dumps({"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}),
           ]) + "\n"
-          run = subprocess.run([binary, root + "/runner.ts"], input=msg, text=True, capture_output=True, env=env, timeout=60)
-          assert run.returncode == 0, run.stderr
+          run = subprocess.Popen([binary, root + "/runner.ts"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+          run.stdin.write(msg)
+          run.stdin.flush()
+          rows = []
+          end = time.time() + 60
+          while time.time() < end and not any(row.get("id") == 2 for row in rows):
+            ready, _, _ = select.select([run.stdout], [], [], max(0, end - time.time()))
+            assert ready, "MCP smoke timed out"
+            line = run.stdout.readline()
+            if line.startswith("{"):
+              rows.append(json.loads(line))
+          run.terminate()
+          run.wait(timeout=10)
           state = json.loads(pathlib.Path(root, "current.json").read_text())
-          rows = [json.loads(line) for line in run.stdout.splitlines() if line.startswith("{")]
           tools = next(row["result"]["tools"] for row in rows if row.get("id") == 2)
           assert state["version"] and tools
           print("macOS MCP updater OK:", state["version"], len(tools), "tools")
