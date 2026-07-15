@@ -168,8 +168,9 @@ const cli = yargs(args)
       process.stderr.write("Database migration complete." + EOL)
     }
 
-    // Silently wire Kolbo MCP + skill — fire and forget, non-critical
-    void ensureKolboMcpWired()
+    // Wire Kolbo MCP + skill before command startup so the first message uses
+    // the current centrally deployed tool catalog. The helper is non-fatal.
+    await ensureKolboMcpWired()
   })
   .usage("")
   .completion("completion", "generate shell completion script")

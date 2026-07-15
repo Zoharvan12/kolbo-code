@@ -12,6 +12,8 @@ import crypto from "crypto"
 import fs from "fs"
 import os from "os"
 import path from "path"
+// @ts-ignore — Bun text-import attribute syntax
+import KOLBO_MCP_RUNNER from "./runner.ts" with { type: "text" }
 // Single source of truth for the Kolbo skill: the canonical SKILL.md is
 // inlined at build time via Bun's `with { type: "text" }` import. There is
 // only ONE place to edit — packages/opencode/skills/kolbo/SKILL.md — and the
@@ -84,28 +86,36 @@ export async function ensureKolboMcpWired(): Promise<void> {
       try { existing = JSON.parse(fs.readFileSync(configFile, "utf8")) } catch {}
     }
 
-    // Build MCP environment — include KOLBO_API_URL only for non-production
-    const mcpEnv: Record<string, string> = { KOLBO_API_KEY: apiKey }
-    if (apiBase) mcpEnv.KOLBO_API_URL = apiBase
-
     // Stable per-app-launch identifier the MCP forwards to kolbo-api as the
     // X-Kolbo-Caller-Session-Id header. kolbo-api tags every CreditUsage
     // record with it so the desktop UI's "media N" counter and the
     // `get_session_usage` MCP tool can aggregate spend without enumerating
     // individual generation_ids. Persisted in the kolbo.json so it stays
     // stable across MCP respawns within the same opencode process.
+    // Build MCP environment — include KOLBO_API_URL only for non-production
+    const mcpEnv: Record<string, string> = { KOLBO_API_KEY: apiKey }
+    if (apiBase) mcpEnv.KOLBO_API_URL = apiBase
+
     const existingCallerSessionId = existing.mcp?.kolbo?.environment?.KOLBO_CALLER_SESSION_ID
     const callerSessionId = existingCallerSessionId || `kolbo-code:${crypto.randomUUID()}`
     mcpEnv.KOLBO_CALLER_SESSION_ID = callerSessionId
-    // Run the MCP via the bundled Kolbo CLI binary instead of `npx -y @kolbo/mcp@latest`.
-    // The CLI ships a `kolbo mcp serve` subcommand that hosts the same MCP server
-    // inline, so users no longer need Node.js / npx on their machine and we no
-    // longer fight npm registry availability, corporate proxies, or PATH issues.
-    // `process.execPath` is the absolute path of the currently-running Kolbo CLI
-    // executable — same binary the desktop app spawns as the sidecar, the same
-    // binary a global `kolbo` install puts on PATH. Auto-updates ride along with
-    // CLI updates instead of npx cache invalidation.
-    const expectedCommand = [process.execPath, "mcp", "serve"]
+
+    // The compiled Kolbo executable doubles as a Bun runtime. Write a tiny
+    // runner beside the config; every MCP start reads Kolbo's approved MCP
+    // version, installs that exact package into a versioned cache, and runs it.
+    // This gives users new tools on their next app launch without requiring a
+    // Kolbo Code release, while retaining the bundled MCP as an offline fallback.
+    const dir = path.join(configDir, "mcp")
+    const runner = path.join(dir, "runner.ts")
+    fs.mkdirSync(dir, { recursive: true })
+    if (!fs.existsSync(runner) || fs.readFileSync(runner, "utf8") !== KOLBO_MCP_RUNNER) {
+      const tmp = `${runner}.tmp.${process.pid}.${Math.random().toString(36).slice(2, 10)}`
+      fs.writeFileSync(tmp, KOLBO_MCP_RUNNER, { mode: 0o600 })
+      try { fs.chmodSync(tmp, 0o600) } catch {}
+      fs.renameSync(tmp, runner)
+    }
+
+    const expectedCommand = [process.execPath, runner]
     const currentKey = existing.mcp?.kolbo?.environment?.KOLBO_API_KEY
     const currentUrl = existing.mcp?.kolbo?.environment?.KOLBO_API_URL
     const currentCallerSession = existing.mcp?.kolbo?.environment?.KOLBO_CALLER_SESSION_ID
@@ -113,6 +123,7 @@ export async function ensureKolboMcpWired(): Promise<void> {
     const commandDrift = JSON.stringify(currentCommand) !== JSON.stringify(expectedCommand)
     const currentTimeout = existing.mcp?.kolbo?.timeout
     let needsWrite =
+      existing.mcp?.kolbo?.type !== "local" ||
       currentKey !== apiKey ||
       currentUrl !== mcpEnv.KOLBO_API_URL ||
       currentCallerSession !== callerSessionId ||

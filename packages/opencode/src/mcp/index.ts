@@ -438,7 +438,7 @@ export namespace MCP {
         // (e.g. C:\Users\...\kolbo.exe — the form wire.ts writes now that it
         // points at the bundled binary) and a bare "kolbo" both count.
         const cmdBase = cmd.split(/[\\/]/).pop()?.toLowerCase() ?? ""
-        const isKolboBinary = cmdBase === "kolbo" || cmdBase === "kolbo.exe"
+        const isKolboBinary = ["kolbo", "kolbo.exe", "opencode-cli", "opencode-cli.exe"].includes(cmdBase)
         // BUN_BE_BUN=1 makes the Bun-compiled binary behave as a Bun runtime
         // (script loader) instead of executing its compiled entrypoint. That's
         // wrong for `kolbo mcp serve` — we WANT the compiled entrypoint to
