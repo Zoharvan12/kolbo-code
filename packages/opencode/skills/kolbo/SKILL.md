@@ -83,7 +83,7 @@ For multi-scene / batch work this pairs with `generate_creative_director` (see b
 | **Transcribe** or **analyze** audio/video | `references/workflows/transcription.md` |
 | **Scrape brand/product info** before generating + persist as `.kolbo/brand-kits/<slug>.md` | `references/workflows/research-first.md` |
 | Browse, manage, or present existing **media library** items | `references/workflows/media-library.md` |
-| Use the **App Builder** (React app generation) | `references/workflows/app-builder.md` |
+| Use the **App Builder** (React app generation) — preview, ask first | `references/workflows/app-builder.md` |
 | Confirm **cost** or validate **resolution / aspect / duration** against model caps | `references/workflows/cost-and-validation.md` |
 | Hit an **auth / MCP / 429** issue | `references/workflows/troubleshooting.md` |
 
@@ -124,7 +124,7 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 | `trim_video` | Frame-accurate trim of a Kolbo-hosted video (tool waits and returns the URL). `edit_video` also gained `remove_background`. |
 | `create_doc` / `list_docs` / `get_doc` / `update_doc` / `share_doc` / `delete_doc` | AI Docs (Magic Pad): YOU author full HTML documents (plans, briefs, scripts, research) saved into the user's project, editable in the Kolbo app. `share_doc` returns a public link. `update_doc` content replaces the WHOLE doc — `get_doc` first. |
 | `chat_send_message` / `chat_list_conversations` / `chat_get_messages` | Kolbo chat with optional `media_urls` (up to 10 per call) |
-| `app_builder_*` (9 tools) | Full React app generation — see `workflows/app-builder.md` |
+| `app_builder_*` (9 tools) | Full React app generation (preview) — see `workflows/app-builder.md`. Different surface from generation tools: produces a deployed app with GitHub repo + Supabase DB + live URL. Don't confuse `session_id` types, don't confuse `app_builder_generate_app` with `generate_image`. |
 | `publish_html_artifact` | Publish HTML / SVG / Mermaid to `sites.kolbo.ai`. Server dedupes by content hash. Strict CSP. |
 
 ## ⚠️ If the User Names a Tool, USE THAT TOOL (HARD RULE)
@@ -175,8 +175,19 @@ Everything in Kolbo — sessions, generations, media, docs — lives inside a PR
 
 1. **User names a project** ("in my Acme project", "for the film") → call `list_projects` ONCE to resolve the name to an ObjectId, then pass that id as `project_id` on **EVERY** subsequent `generate_*` / `upload_media` / `create_doc` / `chat_send_message` call in the conversation. It is **per-call, NOT sticky** — any call that omits it silently lands in the default "API Generations" bucket (`is_default: true`).
 2. **No project mentioned** → omit `project_id`; the default bucket is correct. Don't ask unless intent is ambiguous.
-3. **`list_projects` ≠ `app_builder_list_projects`** — the latter scopes App Builder coding sessions only.
+3. **`list_projects` ≠ `app_builder_list_projects`** — both return the SAME Kolbo projects (different endpoints, different shapes). Use `list_projects` for generation/media/chat flows; use `app_builder_list_projects` when scoping an App Builder session. Never substitute one for the other.
 4. **Work landed in the wrong project? MOVE it, never regenerate**: `move_session` relocates a whole session + all its media (works for any session type — the `session_id` from generation responses, chats, transcriptions); `move_media` / `bulk_move_media` / `move_folder_contents` relocate individual media items.
+
+## 🧱 App Builder ≠ regular Kolbo project (4-layer mental model)
+
+App Builder is a separate surface that builds and runs full React apps. It shares the **Kolbo project** layer with regular generations (a single Kolbo project can hold BOTH app-builder sessions AND image/video sessions), but every layer above it is distinct. The single biggest routing mistake is treating an `app_builder_generate_app` call as a media-generation call, or passing an App Builder `session_id` to `generate_image`. Read `workflows/app-builder.md` before the first App Builder turn — the four layers are:
+
+1. **Kolbo project** (shared) — `list_projects` / `app_builder_list_projects`
+2. **App Builder session** — `app_builder_create_session(project_id)` → returns a `session_id` distinct from any chat/generation session id
+3. **The app itself** — `deployment_url` + `github_repo_url` + `supabase_url` + `supabase_anon_key` (auto-provisioned on first successful build)
+4. **App end-users** — per-app JWT, hit `/api/apps/:appId/ai/*`; the OWNER of the app pays for their AI usage (NOT surfaced as MCP tools — owned by `@kolbo/app-sdk` in the deployed bundle)
+
+Heuristic: deliverable is a **single file** (image / video / doc / artifact) → regular tools. Deliverable is "**an app** that does X" or "my **users** can do Y" → App Builder. App Builder is **preview** — don't proactively advertise; if the user asks, load `workflows/app-builder.md` and confirm they're an opted-in owner.
 
 ## Cost Awareness — Quick Rules
 
