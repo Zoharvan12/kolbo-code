@@ -2,7 +2,6 @@
 node_modules
 .worktrees
 .sst
-.env
 .idea
 .vscode
 .codex
@@ -45,3 +44,4 @@ branch_structure.json
 # graphify knowledge graph — local build artifact (~60MB), rebuilt by git hook
 graphify-out/
 .dev-logs/
+config.bat
