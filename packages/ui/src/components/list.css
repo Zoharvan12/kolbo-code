@@ -235,9 +235,76 @@
           width: 100%;
           padding: 6px 8px 6px 8px;
           align-items: center;
+          /* Rows are <button>s, and the UA default for a button is
+             text-align: center — which quietly centred every wrapped label in
+             every list (most visibly the two-line model picker rows). `start`
+             rather than `left` so RTL locales still read correctly. */
+          text-align: start;
           color: var(--text-strong);
           scroll-margin-top: 28px;
           border-radius: var(--radius-sm);
+
+          /* Progressive-disclosure hooks for row content.
+             `[data-list-reveal]`     — hidden until this is the row the user is
+                                        pointing at, without ever reflowing (it
+                                        keeps its box, only opacity changes).
+             `[data-list-desaturate]` — muted until the same moment.
+             Both key off :hover AND [data-active], because [data-active] is what
+             the List sets for keyboard navigation — so arrow keys reveal exactly
+             what the mouse does.
+             Plain CSS rather than a Tailwind arbitrary variant: the
+             `[[data-slot=list-item]:hover_&]` form silently compiles to nothing,
+             which is why these appeared always-on. */
+          [data-list-reveal] {
+            opacity: 0;
+            transition: opacity 150ms ease;
+          }
+          /* The inverse: visible at rest, yields on hover. Pair it with
+             `[data-list-reveal]` in a shared grid cell to swap one piece of
+             metadata for another without either reserving width twice — which
+             is what was squeezing long model names into an ellipsis. */
+          [data-list-hide] {
+            opacity: 1;
+            transition: opacity 150ms ease;
+          }
+          [data-list-desaturate] {
+            filter: saturate(0.55);
+            transition: filter 150ms ease;
+          }
+          /* Reveal ONLY for the row being pointed at. Deliberately excludes
+             the selected row: it is always on screen, so including it would
+             leave one chip permanently visible — the exact thing this was
+             meant to stop.
+             The ="true" is load-bearing. list.tsx renders data-active and
+             data-selected from booleans, which serialise to the strings
+             "true"/"false" — so the bare attribute selector [data-active]
+             matches EVERY row, present-but-false included, and revealed the
+             chip on all of them. */
+          &:hover,
+          &[data-active="true"] {
+            [data-list-reveal] {
+              opacity: 1;
+            }
+            [data-list-hide] {
+              opacity: 0;
+            }
+          }
+          /* Desaturation is different — the selected row's icon SHOULD stay
+             full-colour, since selection is a persistent state worth showing. */
+          &:hover,
+          &[data-active="true"],
+          &[data-selected="true"] {
+            [data-list-desaturate] {
+              filter: saturate(1);
+            }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            [data-list-reveal],
+            [data-list-hide],
+            [data-list-desaturate] {
+              transition: none;
+            }
+          }
           transition:
             background-color 160ms ease,
             color 160ms ease,

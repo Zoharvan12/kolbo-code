@@ -6,6 +6,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js"
 import {
   CallToolResultSchema,
+  type Progress,
   type Tool as MCPToolDef,
   ToolListChangedNotificationSchema,
 } from "@modelcontextprotocol/sdk/types.js"
@@ -131,6 +132,10 @@ export namespace MCP {
   const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, "_")
 
   // Convert MCP tool definition to AI SDK Tool type
+  type ProgressOptions = {
+    onProgress?: (progress: Progress) => void
+  }
+
   function convertMcpTool(mcpTool: MCPToolDef, client: MCPClient, timeout?: number): Tool {
     const inputSchema = mcpTool.inputSchema
 
@@ -145,7 +150,8 @@ export namespace MCP {
     return dynamicTool({
       description: mcpTool.description ?? "",
       inputSchema: jsonSchema(schema),
-      execute: async (args: unknown) => {
+      execute: async (args: unknown, options) => {
+        const progress = options as typeof options & ProgressOptions
         return client.callTool(
           {
             name: mcpTool.name,
@@ -153,6 +159,7 @@ export namespace MCP {
           },
           CallToolResultSchema,
           {
+            onprogress: progress.onProgress,
             resetTimeoutOnProgress: true,
             timeout,
           },

@@ -30,6 +30,19 @@ This re-wires the MCP configuration automatically. Then restart the session.
 
 Wait 60s for the window to reset, retry only the failed calls. For batch image work prefer `generate_creative_director` over multiple `generate_image` calls. Full rate-limit details + retry sequence: see SKILL.md "Rate Limiting & Batch Generation".
 
+## Every generation comes back with an unexpected colour cast
+
+An active **Color DNA** palette is the usual cause. It is sticky and account-wide:
+once activated it strict-grades every image and video generation, with no
+per-call argument and nothing in the prompt to hint at it — so the user
+experiences it as "all my images suddenly look brown" long after they set it.
+
+Call `list_color_palettes` and look for `is_active: true`. Then either
+`deactivate_color_palette` (clears it for everything) or pass
+`skip_color_palette: true` on the single generation. Don't try to counteract the
+grade by writing colours into the prompt — the palette is applied after, and the
+prompt loses.
+
 ## Checking generation status without spinning
 
 `get_generation_status` supports `wait=true` (blocks server-side until the generation reaches a final state, up to ~3 min) and `generation_ids` (many ids in one call → returns `all_done`, `still_processing`, and per-generation results). **Never call it repeatedly in a loop** — one `wait=true` call replaces the loop. If some generations are still running after the wait window, call it ONCE more with `wait=true` and only the `still_processing` ids.

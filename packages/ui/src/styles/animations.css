@@ -41,6 +41,18 @@
   }
 }
 
+/* Equalizer bars for the audio generation placeholder — a square spinner in a
+   wide 72px row reads as a broken image, so audio gets a waveform instead. */
+@keyframes kolbo-eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
 /* The square loader is a fully self-contained SVG (see square-loader.tsx) with
    hard width/height attributes + SMIL fill animation, so it needs no CSS. */
 

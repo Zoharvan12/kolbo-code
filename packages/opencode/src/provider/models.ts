@@ -98,6 +98,21 @@ export namespace ModelsDev {
     // Kolbo-provider extras tacked on at runtime by refreshKolboLimits().
     default: z.boolean().optional(),
     avatar: z.string().optional(),
+    // Model family ("Claude", "Gemini", "Kolbo"...) and its position within the
+    // whole catalog. The picker clusters rows into family sections and orders
+    // them by sortOrder, matching kolbo-map's SharedModelSelector. Backend-owned
+    // (kolbo-api set-code-model-groups.js), so families can be re-arranged
+    // without shipping a CLI release.
+    group: z.string().optional(),
+    sortOrder: z.number().optional(),
+    // Short picker blurb (kolbo-api caps these at 6 words). Rendered as the
+    // second line of each row.
+    description: z.string().optional(),
+    // Credits an average message costs on this model, and its band. Computed by
+    // kolbo-api from a measured token profile so every surface agrees and the
+    // profile can be re-tuned without a client release.
+    typicalMessageCredits: z.number().optional(),
+    costTier: z.enum(["low", "medium", "high"]).optional(),
   })
   export type Model = z.infer<typeof Model>
 
@@ -133,8 +148,9 @@ export namespace ModelsDev {
   }
 
   // Kolbo.AI provider — routes through kolbo-api at the isolated /kolbo/v1
-  // prefix so the CLI consumes the user's Kolbo.AI credit balance via the
-  // hidden kodu-default model (exposed publicly as kolbo-default).
+  // prefix so the CLI consumes the user's Kolbo.AI credit balance. The public
+  // catalog is DB-driven (refreshKolboLimits below); the entry here is only the
+  // offline fallback.
   const KOLBO_PROVIDER = {
     id: "kolbo",
     env: ["KOLBO_API_KEY"],
@@ -143,21 +159,28 @@ export namespace ModelsDev {
     name: Partner.name,
     doc: `https://${Partner.domain}/cli`,
     models: {
-      "kolbo-default": {
-        id: "kolbo-default",
-        name: Partner.name,
+      // Offline-only fallback so the picker isn't empty before the first
+      // /models fetch lands. `kolbo-auto-smart` is a server-side slot: the
+      // backend maps it to a different upstream per agent (plan vs build), so
+      // the CLI only ever needs to send this identifier.
+      "kolbo-auto-smart": {
+        id: "kolbo-auto-smart",
+        name: "Auto Smart",
         family: "kolbo",
         attachment: true,
         reasoning: false,
         tool_call: true,
         structured_output: true,
         temperature: true,
-        release_date: "2026-04-10",
-        last_updated: "2026-04-10",
+        release_date: "2026-07-28",
+        last_updated: "2026-07-28",
         modalities: { input: ["text", "image", "audio", "video", "pdf"], output: ["text"] },
         open_weights: false,
         cost: { input: 0.4, output: 1.6 },
         limit: { context: 196_608, output: 32_768 },
+        default: true,
+        group: "Kolbo",
+        sortOrder: 100,
       },
     },
   }
@@ -184,7 +207,19 @@ export namespace ModelsDev {
    * Mongo docs) without a CLI release. The local hardcoded entry above is
    * the offline-only fallback.
    */
+  let kolboRefresh: Promise<void> | undefined
+  let kolboRefreshAttemptedAt = 0
+
   export async function refreshKolboLimits() {
+    if (kolboRefresh) return kolboRefresh
+    kolboRefreshAttemptedAt = Date.now()
+    kolboRefresh = refreshKolboLimitsInner().finally(() => {
+      kolboRefresh = undefined
+    })
+    return kolboRefresh
+  }
+
+  async function refreshKolboLimitsInner() {
     try {
       const res = await fetch(`${Partner.apiBase}/kolbo/v1/models`, {
         headers: { "User-Agent": Installation.USER_AGENT },
@@ -204,6 +239,10 @@ export namespace ModelsDev {
           reasoning?: boolean
           context_length?: number
           output_length?: number
+          group?: string
+          sort_order?: number
+          typical_message_credits?: number
+          cost_tier?: "low" | "medium" | "high"
         }>
       }
       if (!Array.isArray(json.data) || json.data.length === 0) return // keep fallback
@@ -256,6 +295,15 @@ export namespace ModelsDev {
           // Picker pins default to top of Kolbo group + renders avatar.
           default: m.default === true,
           avatar: passAvatar(m.avatar),
+          // Family + ordering for the grouped picker. Fall back to a single
+          // "Kolbo" section on an older backend that doesn't send these, so the
+          // list degrades to today's flat behaviour instead of fragmenting into
+          // one section per model.
+          group: m.group ?? "Kolbo",
+          sortOrder: typeof m.sort_order === "number" ? m.sort_order : 1000,
+          description: m.description || undefined,
+          typicalMessageCredits: m.typical_message_credits,
+          costTier: m.cost_tier,
         }
       }
       // Atomic swap so the TUI never observes a half-empty map
@@ -264,6 +312,17 @@ export namespace ModelsDev {
     } catch {
       // offline or API down — hardcoded fallback stays in effect
     }
+  }
+
+  /**
+   * Recover quickly when Kolbo Code starts before the local API is ready.
+   * The normal hourly refresh remains the steady-state path; provider-list
+   * requests only retry while the catalog is still the offline fallback.
+   */
+  export async function ensureKolboLimits() {
+    if (Object.keys(KOLBO_PROVIDER.models).length > 1) return
+    if (Date.now() - kolboRefreshAttemptedAt < 5_000) return kolboRefresh
+    return refreshKolboLimits()
   }
 
   function injectKolbo(data: Record<string, any>) {

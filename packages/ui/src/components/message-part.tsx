@@ -38,14 +38,18 @@ import { useDialog } from "../context/dialog"
 import { type UiI18n, useI18n } from "../context/i18n"
 import { BasicTool, GenericTool } from "./basic-tool"
 import { setupPathLinks } from "./markdown"
-import { extractKolboUrls as extractKolboUrlsShared, isVideoUrl as isVideoUrlShared, openKolboLightbox } from "./kolbo-media"
+import {
+  extractKolboUrls as extractKolboUrlsShared,
+  isVideoUrl as isVideoUrlShared,
+  openKolboLightbox,
+} from "./kolbo-media"
 import { usePlatformOps } from "../context/platform-ops"
 import { useKolboModels } from "../context/kolbo-models"
 import { Accordion } from "./accordion"
 import { StickyAccordionHeader } from "./sticky-accordion-header"
 import { Card } from "./card"
 import { HtmlArtifactCard } from "./html-artifact-card"
-import { dispatchArtifact, isHtmlPath } from "../lib/artifact"
+import { dispatchArtifact, isHtmlPath, isMarkdownPath, type ArtifactLang } from "../lib/artifact"
 import { Collapsible } from "./collapsible"
 import { FileIcon } from "./file-icon"
 import { Icon } from "./icon"
@@ -518,6 +522,12 @@ type PartGroup =
       type: "context"
       refs: PartRef[]
     }
+  | {
+      key: string
+      type: "edits"
+      path: string
+      refs: PartRef[]
+    }
 
 function sameRef(a: PartRef, b: PartRef) {
   return a.messageID === b.messageID && a.partID === b.partID
@@ -530,6 +540,12 @@ function sameGroup(a: PartGroup, b: PartGroup) {
   if (a.type === "part") {
     if (b.type !== "part") return false
     return sameRef(a.ref, b.ref)
+  }
+  if (a.type === "edits") {
+    if (b.type !== "edits") return false
+    if (a.path !== b.path) return false
+    if (a.refs.length !== b.refs.length) return false
+    return a.refs.every((ref, i) => sameRef(ref, b.refs[i]!))
   }
   if (b.type !== "context") return false
   if (a.refs.length !== b.refs.length) return false
@@ -584,6 +600,66 @@ function groupParts(parts: { messageID: string; part: PartType }[]) {
   })
 
   flush(parts.length - 1)
+  return collapseEditRuns(result, parts)
+}
+
+/** Minimum consecutive edits to the same file before they collapse into one row. */
+const EDIT_RUN_MIN = 2
+
+/** Completed `edit` on a concrete file → its path; anything else → undefined. */
+function editRunPath(part: PartType): string | undefined {
+  if (part.type !== "tool" || part.tool !== "edit") return undefined
+  const state = part.state as { status?: string; input?: { filePath?: string }; metadata?: { filediff?: { file?: string } } }
+  // Still-running edits keep their own row — collapsing a live one would hide
+  // the spinner that tells you something is happening.
+  if (state.status !== "completed") return undefined
+  return state.input?.filePath || state.metadata?.filediff?.file || undefined
+}
+
+/**
+ * Fold consecutive completed edits to the SAME file into one group.
+ *
+ * The edit tool does targeted string replacements, so an agent reworking one
+ * file emits a call per hunk — eleven `Edit landing.html` rows for what the
+ * user experienced as a single action. Nothing is dropped: the group expands
+ * to the individual edits, each rendering exactly as it did before.
+ *
+ * Runs shorter than EDIT_RUN_MIN stay as plain rows — wrapping a single edit
+ * in a disclosure would add a click without removing any noise.
+ */
+function collapseEditRuns(groups: PartGroup[], parts: { messageID: string; part: PartType }[]): PartGroup[] {
+  const byID = new Map(parts.map((item) => [item.part.id, item.part] as const))
+  const result: PartGroup[] = []
+  let run: { path: string; refs: PartRef[] } | undefined
+
+  const flushRun = () => {
+    if (!run) return
+    if (run.refs.length >= EDIT_RUN_MIN) {
+      result.push({ key: `edits:${run.refs[0]!.partID}`, type: "edits", path: run.path, refs: run.refs })
+    } else {
+      for (const ref of run.refs) result.push({ key: `part:${ref.messageID}:${ref.partID}`, type: "part", ref })
+    }
+    run = undefined
+  }
+
+  for (const group of groups) {
+    if (group.type === "part") {
+      const part = byID.get(group.ref.partID)
+      const path = part ? editRunPath(part) : undefined
+      if (path) {
+        if (run?.path === path) run.refs.push(group.ref)
+        else {
+          flushRun()
+          run = { path, refs: [group.ref] }
+        }
+        continue
+      }
+    }
+    flushRun()
+    result.push(group)
+  }
+
+  flushRun()
   return result
 }
 
@@ -890,6 +966,36 @@ export function AssistantMessageDisplay(props: {
                 )
               })()}
             </Match>
+            <Match when={entryType() === "edits"}>
+              {(() => {
+                const editParts = createMemo(
+                  () => {
+                    const entry = entryAccessor()
+                    if (entry.type !== "edits") return emptyTools
+                    return entry.refs
+                      .map((ref) => part().get(ref.partID))
+                      .filter((item): item is ToolPart => !!item && item.type === "tool")
+                  },
+                  emptyTools,
+                  { equals: same },
+                )
+                const path = createMemo(() => {
+                  const entry = entryAccessor()
+                  return entry.type === "edits" ? entry.path : ""
+                })
+
+                return (
+                  <Show when={editParts().length > 0}>
+                    <EditRunGroup
+                      path={path()}
+                      parts={editParts()}
+                      message={props.message}
+                      showAssistantCopyPartID={props.showAssistantCopyPartID}
+                    />
+                  </Show>
+                )
+              })()}
+            </Match>
             <Match when={entryType() === "part"}>
               {(() => {
                 const item = createMemo(() => {
@@ -913,6 +1019,61 @@ export function AssistantMessageDisplay(props: {
         )
       }}
     </Index>
+  )
+}
+
+function EditRunGroup(props: {
+  path: string
+  parts: ToolPart[]
+  message: AssistantMessage
+  showAssistantCopyPartID?: string | null
+}) {
+  const i18n = useI18n()
+  const [open, setOpen] = createSignal(false)
+
+  const totals = createMemo(() => {
+    let additions = 0
+    let deletions = 0
+    for (const part of props.parts) {
+      const diff = (part.state as { metadata?: { filediff?: { additions?: number; deletions?: number } } }).metadata
+        ?.filediff
+      additions += diff?.additions ?? 0
+      deletions += diff?.deletions ?? 0
+    }
+    return { additions, deletions }
+  })
+
+  return (
+    <Collapsible open={open()} onOpenChange={setOpen} variant="ghost" class="tool-collapsible">
+      <Collapsible.Trigger>
+        <div data-component="edit-run-group-trigger">
+          <span data-slot="message-part-title">
+            <span data-slot="message-part-title-text">{i18n.t("ui.messagePart.title.edit")}</span>
+            <span data-slot="message-part-title-filename">{getFilename(props.path)}</span>
+            <span data-slot="edit-run-group-count" class="shrink-0 text-text-weak">
+              ×{props.parts.length}
+            </span>
+          </span>
+          <span data-slot="message-part-actions">
+            <DiffChanges changes={totals()} />
+          </span>
+          <Collapsible.Arrow />
+        </div>
+      </Collapsible.Trigger>
+      <Collapsible.Content>
+        <div data-component="edit-run-group-list">
+          <Index each={props.parts}>
+            {(partAccessor) => (
+              <Part
+                part={partAccessor()}
+                message={props.message}
+                showAssistantCopyPartID={props.showAssistantCopyPartID}
+              />
+            )}
+          </Index>
+        </div>
+      </Collapsible.Content>
+    </Collapsible>
   )
 }
 
@@ -1041,7 +1202,8 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
 
   // Parse embedded media notes like "[Video attached — public URL: https://... | local path: ...]"
   // so we can render inline players even after the server confirms the message (optimistic file parts are gone).
-  const MEDIA_NOTE_RE = /\[(Video|Audio) attached \u2014 public URL: (https?:\/\/[^\]|]+?)(?:\s*\|\s*local path:[^\]]+)?\]/g
+  const MEDIA_NOTE_RE =
+    /\[(Video|Audio) attached \u2014 public URL: (https?:\/\/[^\]|]+?)(?:\s*\|\s*local path:[^\]]+)?\]/g
   const mediaFromNotes = createMemo(() => {
     const t = rawText()
     const results: { kind: "video" | "audio"; url: string }[] = []
@@ -1166,7 +1328,9 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
                           // Just pause — see KolboVideoChipThumb for why
                           // we don't change preload after pause (WebKit
                           // evicts the decoded frame).
-                          try { e.currentTarget.pause() } catch {}
+                          try {
+                            e.currentTarget.pause()
+                          } catch {}
                         }}
                         style="max-width:100%;max-height:200px;border-radius:8px;display:block"
                       />
@@ -1224,7 +1388,9 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
                       preload="auto"
                       controls
                       onLoadedData={(e) => {
-                        try { e.currentTarget.pause() } catch {}
+                        try {
+                          e.currentTarget.pause()
+                        } catch {}
                       }}
                       style="max-width:100%;max-height:200px;border-radius:8px;display:block"
                     />
@@ -1637,9 +1803,7 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   const linkUrls = createMemo(() => {
     if (streaming()) return []
     return urls(text()).filter(
-      (u) =>
-        (u.startsWith("http://") || u.startsWith("https://")) &&
-        !mediaExtensionPattern.test(u),
+      (u) => (u.startsWith("http://") || u.startsWith("https://")) && !mediaExtensionPattern.test(u),
     )
   })
 
@@ -2073,7 +2237,12 @@ ToolRegistry.register({
     const filename = () => getFilename(props.input.filePath ?? "")
     const pending = () => props.status === "pending" || props.status === "running"
     const editPath = () => props.input.filePath || props.metadata?.filediff?.file || ""
-    const isHtmlFile = () => !pending() && isHtmlPath(editPath())
+    // Both types can be opened in the Artifacts panel by clicking the button on
+    // this row. Only HTML *auto*-opens (see the effect below): agents rewrite
+    // bookkeeping files (production.md, plans, notes) continuously, and popping
+    // the panel on every one of those edits hijacks the screen.
+    const previewLang = (): ArtifactLang | null =>
+      isHtmlPath(editPath()) ? "html" : isMarkdownPath(editPath()) ? "markdown" : null
     // opencode's edit-tool metadata only ships {file, patch, additions,
     // deletions} — no before/after — so we re-read the file off disk to
     // get the full updated HTML.
@@ -2082,7 +2251,7 @@ ToolRegistry.register({
       () => {
         if (props.status !== "completed") return null
         const p = editPath()
-        if (!isHtmlPath(p)) return null
+        if (!previewLang()) return null
         return `${p}:${checksum(props.metadata?.filediff?.patch ?? "") ?? ""}`
       },
       async () => {
@@ -2102,10 +2271,23 @@ ToolRegistry.register({
     let autoOpened = false
     createEffect(() => {
       const content = editedContent()
-      if (!content || !isHtmlFile()) return
+      if (!content || pending() || previewLang() !== "html") return
       dispatchArtifact(content, "html", !autoOpened)
       autoOpened = true
     })
+
+    // Expanding the row IS the "show me this file" gesture, so it opens the
+    // Artifacts panel too. Auto-opening on a user-initiated expand is fine;
+    // what had to stop was opening on every agent-driven write.
+    const showInArtifacts = () => {
+      const content = editedContent()
+      const lang = previewLang()
+      if (content && lang) dispatchArtifact(content, lang)
+    }
+    const openInArtifacts = (e: MouseEvent) => {
+      e.stopPropagation()
+      showInArtifacts()
+    }
 
     return (
       <div data-component="edit-tool">
@@ -2113,6 +2295,7 @@ ToolRegistry.register({
           {...props}
           icon="code-lines"
           defer
+          onOpenChange={(open) => open && showInArtifacts()}
           trigger={
             <div data-component="edit-trigger">
               <div data-slot="message-part-title-area">
@@ -2131,6 +2314,16 @@ ToolRegistry.register({
                 </Show>
               </div>
               <div data-slot="message-part-actions">
+                <Show when={!pending() && previewLang() && editedContent()}>
+                  <button
+                    type="button"
+                    data-slot="markdown-preview-button"
+                    onClick={openInArtifacts}
+                    title={i18n.t("ui.artifact.preview")}
+                  >
+                    {i18n.t("ui.artifact.preview")}
+                  </button>
+                </Show>
                 <Show when={!pending() && props.metadata.filediff}>
                   <DiffChanges changes={props.metadata.filediff} animated />
                 </Show>
@@ -2166,9 +2359,13 @@ ToolRegistry.register({
           <DiagnosticsDisplay diagnostics={diagnostics()} />
         </BasicTool>
 
-        <Show when={isHtmlFile() && editedContent()} keyed>
-          {(content) => <HtmlArtifactCard content={content} />}
-        </Show>
+        {/* No inline preview card on edit. Iterating on one HTML file emits an
+            edit per change, and each one used to stamp another full-size
+            preview into the transcript — ten tweaks to landing.html meant ten
+            near-identical iframes to scroll past. The Artifacts panel already
+            holds the live file and refreshes in place on every edit, so the
+            inline copies were duplicating it once per keystroke-sized diff.
+            Creation (the write tool) still renders one. */}
       </div>
     )
   },
@@ -2184,15 +2381,33 @@ ToolRegistry.register({
     const filename = () => getFilename(props.input.filePath ?? "")
     const pending = () => props.status === "pending" || props.status === "running"
     const isHtmlFile = () => !pending() && isHtmlPath(props.input.filePath)
+    const previewLang = (): ArtifactLang | null =>
+      pending()
+        ? null
+        : isHtmlPath(props.input.filePath)
+          ? "html"
+          : isMarkdownPath(props.input.filePath)
+            ? "markdown"
+            : null
 
+    const showInArtifacts = () => {
+      const content = props.input.content
+      const lang = previewLang()
+      if (content && lang) dispatchArtifact(content, lang)
+    }
+
+    // Only HTML auto-opens the panel. Markdown gets the Preview button above
+    // but never steals the screen: agents rewrite production.md / plans / notes
+    // continuously, and auto-opening on each write is pure interruption.
     createEffect(
       on(
         () => props.status,
         (status, prev) => {
           if (prev !== "running" || status !== "completed") return
           const content = props.input.content
-          if (!isHtmlFile() || !content) return
-          dispatchArtifact(content, "html")
+          const lang = previewLang() === "html" ? "html" : null
+          if (!lang || !content) return
+          dispatchArtifact(content, lang)
         },
         { defer: true },
       ),
@@ -2204,6 +2419,7 @@ ToolRegistry.register({
           {...props}
           icon="code-lines"
           defer
+          onOpenChange={(open) => open && showInArtifacts()}
           trigger={
             <div data-component="write-trigger">
               <div data-slot="message-part-title-area">
@@ -2222,14 +2438,15 @@ ToolRegistry.register({
                 </Show>
               </div>
               <div data-slot="message-part-actions">
-                <Show when={isHtmlFile()}>
+                <Show when={previewLang()}>
                   <button
                     type="button"
                     data-slot="markdown-preview-button"
                     onClick={(e) => {
                       e.stopPropagation()
                       const content = props.input.content
-                      if (content) dispatchArtifact(content, "html")
+                      const lang = previewLang()
+                      if (content && lang) dispatchArtifact(content, lang)
                     }}
                     title={i18n.t("ui.artifact.preview")}
                   >
@@ -2367,7 +2584,10 @@ ToolRegistry.register({
                                       </span>
                                     </Match>
                                     <Match when={true}>
-                                      <DiffChanges changes={{ additions: file.additions, deletions: file.deletions }} animated />
+                                      <DiffChanges
+                                        changes={{ additions: file.additions, deletions: file.deletions }}
+                                        animated
+                                      />
                                     </Match>
                                   </Switch>
                                   <Icon name="chevron-grabber-vertical" size="small" />
@@ -2416,7 +2636,10 @@ ToolRegistry.register({
                 </div>
                 <div data-slot="message-part-actions">
                   <Show when={!pending()}>
-                    <DiffChanges changes={{ additions: single()!.additions, deletions: single()!.deletions }} animated />
+                    <DiffChanges
+                      changes={{ additions: single()!.additions, deletions: single()!.deletions }}
+                      animated
+                    />
                   </Show>
                 </div>
               </div>
@@ -2442,7 +2665,10 @@ ToolRegistry.register({
                     </span>
                   </Match>
                   <Match when={true}>
-                    <DiffChanges changes={{ additions: single()!.additions, deletions: single()!.deletions }} animated />
+                    <DiffChanges
+                      changes={{ additions: single()!.additions, deletions: single()!.deletions }}
+                      animated
+                    />
                   </Match>
                 </Switch>
               }
@@ -2541,8 +2767,12 @@ ToolRegistry.register({
                 const answer = () => answers()[i()] ?? []
                 return (
                   <div data-slot="question-answer-item">
-                    <div data-slot="question-text" dir="auto">{q.question}</div>
-                    <div data-slot="answer-text" dir="auto">{answer().join(", ") || i18n.t("ui.question.answer.none")}</div>
+                    <div data-slot="question-text" dir="auto">
+                      {q.question}
+                    </div>
+                    <div data-slot="answer-text" dir="auto">
+                      {answer().join(", ") || i18n.t("ui.question.answer.none")}
+                    </div>
                   </div>
                 )
               }}
@@ -2568,9 +2798,7 @@ ToolRegistry.register({
       <div data-slot="skill-tooltip">
         <div data-slot="skill-tooltip-label">{i18n.t("ui.tool.skill")}</div>
         <div data-slot="skill-tooltip-name">{title()}</div>
-        <Show when={description()}>
-          {(d) => <div data-slot="skill-tooltip-description">{d()}</div>}
-        </Show>
+        <Show when={description()}>{(d) => <div data-slot="skill-tooltip-description">{d()}</div>}</Show>
       </div>
     )
 
@@ -2604,7 +2832,6 @@ ToolRegistry.register({
 
 const extractUrls = extractKolboUrlsShared
 
-
 const downloadIconSvg =
   '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13.9583 10.6257L10 14.584L6.04167 10.6257M10 2.08398V13.959M16.25 17.9173H3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>'
 
@@ -2628,16 +2855,20 @@ function useMediaSetup(getRef: () => HTMLDivElement | undefined) {
   onMount(() => {
     const el = getRef()
     if (!el) return
-    const cleanup = setupPathLinks(el as HTMLDivElement, () => ops, () => ({
-      download: i18n.t("ui.download.download"),
-      downloading: i18n.t("ui.download.downloading"),
-      downloaded: i18n.t("ui.download.downloaded"),
-      saved: i18n.t("ui.download.saved"),
-      failed: i18n.t("ui.download.failed"),
-      openInFolder: i18n.t("ui.download.openInFolder"),
-      changeFolder: i18n.t("ui.download.changeFolder"),
-      openingInBrowser: i18n.t("ui.download.openingInBrowser"),
-    }))
+    const cleanup = setupPathLinks(
+      el as HTMLDivElement,
+      () => ops,
+      () => ({
+        download: i18n.t("ui.download.download"),
+        downloading: i18n.t("ui.download.downloading"),
+        downloaded: i18n.t("ui.download.downloaded"),
+        saved: i18n.t("ui.download.saved"),
+        failed: i18n.t("ui.download.failed"),
+        openInFolder: i18n.t("ui.download.openInFolder"),
+        changeFolder: i18n.t("ui.download.changeFolder"),
+        openingInBrowser: i18n.t("ui.download.openingInBrowser"),
+      }),
+    )
     onCleanup(cleanup)
   })
 }
@@ -2694,12 +2925,7 @@ function pendingCount(tool: string, input?: Record<string, unknown>): number {
     return undefined
   }
   // Tool-specific count keys, in priority order.
-  const fromKey =
-    pick("num_images") ??
-    pick("scene_count") ??
-    pick("num_outputs") ??
-    pick("count") ??
-    pick("n")
+  const fromKey = pick("num_images") ?? pick("scene_count") ?? pick("num_outputs") ?? pick("count") ?? pick("n")
   if (fromKey) return Math.min(fromKey, 8)
   // generate_elements / first_last_frame accept arrays of scenes/files.
   const arr = input?.["scenes"] ?? input?.["elements"] ?? input?.["files"]
@@ -2713,9 +2939,7 @@ function KolboMediaPending(props: {
   input?: Record<string, unknown>
 }) {
   const count = createMemo(() => pendingCount(props.tool, props.input))
-  const layout = createMemo(() =>
-    props.kind === "audio" ? undefined : mediaLayout(count(), props.kind),
-  )
+  const layout = createMemo(() => (props.kind === "audio" ? undefined : mediaLayout(count(), props.kind)))
   const whitelabelLogo = import.meta.env.VITE_WHITELABEL_LOGO as string | undefined
   // Audio doesn't need the tile — render compact row.
   return (
@@ -2809,7 +3033,13 @@ function KolboChipIcon(props: { kind: KolboChipKind }) {
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
               <rect x="2.5" y="3.5" width="15" height="13" rx="2" stroke="currentColor" stroke-width="1.5" />
               <circle cx="7" cy="8" r="1.25" fill="currentColor" />
-              <path d="m3 14 4-4 3 3 3-3 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path
+                d="m3 14 4-4 3 3 3-3 4 4"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
             </svg>
           )
         if (kind === "video")
@@ -2822,13 +3052,23 @@ function KolboChipIcon(props: { kind: KolboChipKind }) {
         if (kind === "model3d")
           return (
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2.5 3 6v8l7 3.5L17 14V6l-7-3.5Zm0 0v15M3 6l7 4 7-4" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+              <path
+                d="M10 2.5 3 6v8l7 3.5L17 14V6l-7-3.5Zm0 0v15M3 6l7 4 7-4"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
             </svg>
           )
         // audio / music / speech / sound
         return (
           <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-            <path d="M10 3v12M6 6v6M14 6v6M3 9v2M17 9v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            <path
+              d="M10 3v12M6 6v6M14 6v6M3 9v2M17 9v2"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
           </svg>
         )
       }}
@@ -2855,7 +3095,9 @@ function KolboVideoChipThumb(props: { url: string }) {
       playsinline
       autoplay
       onLoadedData={(e) => {
-        try { e.currentTarget.pause() } catch {}
+        try {
+          e.currentTarget.pause()
+        } catch {}
       }}
       style="width:20px;height:20px;border-radius:4px;object-fit:cover;border:1px solid var(--border-weaker-base);background:#0b0b0c;pointer-events:none"
     />
@@ -2897,15 +3139,14 @@ function KolboBigPreview(props: { url: string }) {
           playsinline
           autoplay
           onLoadedData={(e) => {
-            try { e.currentTarget.pause() } catch {}
+            try {
+              e.currentTarget.pause()
+            } catch {}
           }}
           class="block"
           style="max-height:200px;max-width:min(100%,300px);width:auto;height:auto;object-fit:contain;pointer-events:none"
         />
-        <span
-          aria-hidden="true"
-          class="absolute inset-0 flex items-center justify-center"
-        >
+        <span aria-hidden="true" class="absolute inset-0 flex items-center justify-center">
           <span
             class="flex items-center justify-center transition-transform duration-150 group-hover/preview:scale-110"
             style="width:44px;height:44px;border-radius:50%;background:color-mix(in srgb, #000 55%, transparent);backdrop-filter:blur(4px);border:1px solid color-mix(in srgb, #fff 18%, transparent)"
@@ -2925,6 +3166,7 @@ function KolboCompactChip(props: {
   status?: string
   input?: Record<string, unknown>
   output?: string
+  metadata?: Record<string, unknown>
 }) {
   const i18n = useI18n()
   const kind = createMemo(() => kolboChipKindFor(props.tool))
@@ -2957,8 +3199,16 @@ function KolboCompactChip(props: {
   const kolboModels = useKolboModels()
   const prettifyModelId = (id: string): string => {
     const overrides: Record<string, string> = {
-      ai: "AI", sd: "SD", sdxl: "SDXL", xl: "XL", hd: "HD",
-      pro: "Pro", tts: "TTS", "3d": "3D", v2: "v2", v3: "v3",
+      ai: "AI",
+      sd: "SD",
+      sdxl: "SDXL",
+      xl: "XL",
+      hd: "HD",
+      pro: "Pro",
+      tts: "TTS",
+      "3d": "3D",
+      v2: "v2",
+      v3: "v3",
     }
     return id
       .split(/[-_\s]+/)
@@ -2983,6 +3233,23 @@ function KolboCompactChip(props: {
     return prettifyModelId(id)
   })
   const platformOps = usePlatformOps()
+  const [cancelling, setCancelling] = createSignal(false)
+  const generationId = createMemo(() => {
+    const id = props.metadata?.generationId
+    return typeof id === "string" ? id : ""
+  })
+  const cancel = async (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const id = generationId()
+    if (!id || !platformOps.cancelGeneration || cancelling()) return
+    setCancelling(true)
+    try {
+      await platformOps.cancelGeneration(id)
+    } finally {
+      setCancelling(false)
+    }
+  }
   const modelAvatar = createMemo<string | undefined>(() => {
     const id = modelId()
     if (!id) return undefined
@@ -3023,194 +3290,246 @@ function KolboCompactChip(props: {
 
   return (
     <div class="px-3 pb-2">
-      <Show when={isError()} fallback={
       <Show
-        when={thumbs().length > 0}
+        when={isError()}
         fallback={
-        <button
-          type="button"
-          onClick={openCanvas}
-          disabled={inFlight() && doneN() === 0}
-          class="group inline-flex items-center gap-2 max-w-full pl-2 pr-2.5 py-1 rounded-full border border-border-weaker-base bg-background-stronger hover:bg-surface-recess-base hover:border-border-weak-base text-text-base transition-colors disabled:cursor-default"
-          style="font-size:12px"
-        >
           <Show
-            when={inFlight()}
+            when={thumbs().length > 0}
             fallback={
-              <Show
-                when={thumbs().length > 0}
-                fallback={
-                  <span class="flex items-center justify-center size-5 rounded-md bg-surface-info-base text-text-strong">
-                    <KolboChipIcon kind={kind()} />
-                  </span>
-                }
+              <div
+                role={!inFlight() || doneN() > 0 ? "button" : undefined}
+                tabIndex={!inFlight() || doneN() > 0 ? 0 : undefined}
+                onClick={() => {
+                  if (!inFlight() || doneN() > 0) openCanvas()
+                }}
+                onKeyDown={(event) => {
+                  if (inFlight() && doneN() === 0) return
+                  if (event.key !== "Enter" && event.key !== " ") return
+                  event.preventDefault()
+                  openCanvas()
+                }}
+                class="group inline-flex items-center gap-2 max-w-full pl-2 pr-2.5 py-1 rounded-full border border-border-weaker-base bg-background-stronger hover:bg-surface-recess-base hover:border-border-weak-base text-text-base transition-colors"
+                style="font-size:12px"
               >
-                <span class="flex items-center gap-0.5">
-                  <For each={thumbs()}>
-                    {(src) => (
-                      <Show
-                        when={isVideoUrl(src)}
-                        fallback={
-                          <img
-                            src={src}
-                            alt=""
-                            loading="lazy"
-                            style="width:20px;height:20px;border-radius:4px;object-fit:cover;border:1px solid var(--border-weaker-base);background:#0b0b0c"
-                          />
-                        }
-                      >
-                        <KolboVideoChipThumb url={src} />
-                      </Show>
-                    )}
-                  </For>
-                  <Show when={overflowN() > 0}>
-                    <span
-                      class="flex items-center justify-center text-text-weak"
-                      style="width:20px;height:20px;border-radius:4px;border:1px solid var(--border-weaker-base);background:var(--background-stronger);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums"
-                      aria-label={`${overflowN()} more`}
+                <Show
+                  when={inFlight()}
+                  fallback={
+                    <Show
+                      when={thumbs().length > 0}
+                      fallback={
+                        <span class="flex items-center justify-center size-5 rounded-md bg-surface-info-base text-text-strong">
+                          <KolboChipIcon kind={kind()} />
+                        </span>
+                      }
                     >
-                      +{overflowN()}
-                    </span>
-                  </Show>
-                </span>
-              </Show>
+                      <span class="flex items-center gap-0.5">
+                        <For each={thumbs()}>
+                          {(src) => (
+                            <Show
+                              when={isVideoUrl(src)}
+                              fallback={
+                                <img
+                                  src={src}
+                                  alt=""
+                                  loading="lazy"
+                                  style="width:20px;height:20px;border-radius:4px;object-fit:cover;border:1px solid var(--border-weaker-base);background:#0b0b0c"
+                                />
+                              }
+                            >
+                              <KolboVideoChipThumb url={src} />
+                            </Show>
+                          )}
+                        </For>
+                        <Show when={overflowN() > 0}>
+                          <span
+                            class="flex items-center justify-center text-text-weak"
+                            style="width:20px;height:20px;border-radius:4px;border:1px solid var(--border-weaker-base);background:var(--background-stronger);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums"
+                            aria-label={`${overflowN()} more`}
+                          >
+                            +{overflowN()}
+                          </span>
+                        </Show>
+                      </span>
+                    </Show>
+                  }
+                >
+                  <span
+                    aria-hidden="true"
+                    style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid color-mix(in srgb, var(--text-base) 18%, transparent);border-top-color:var(--text-base);animation:kolbo-spin 0.9s linear infinite"
+                  />
+                </Show>
+                <span class="truncate text-text-base">{text()}</span>
+                <Show when={inFlight() && generationId() && platformOps.cancelGeneration}>
+                  <button
+                    type="button"
+                    disabled={cancelling()}
+                    onClick={cancel}
+                    class="shrink-0 text-text-weak hover:text-text-base disabled:opacity-50"
+                    aria-label={i18n.t("common.cancel")}
+                  >
+                    {i18n.t("common.cancel")}
+                  </button>
+                </Show>
+                <Show when={modelName()}>
+                  <span class="inline-flex items-center gap-1 shrink-0 text-text-weak" title={modelName()}>
+                    <span class="opacity-60">·</span>
+                    <Show when={modelAvatar()}>
+                      <img
+                        src={modelAvatar()}
+                        alt=""
+                        loading="lazy"
+                        width={14}
+                        height={14}
+                        // Cloudflare hotlink protection on api.kolbo.ai rejects
+                        // image fetches whose Referer isn't a kolbo.ai origin.
+                        // The Tauri webview sends tauri://localhost as Referer,
+                        // so suppress it (same trick used by dialog-select-model).
+                        referrerpolicy="no-referrer"
+                        style="width:14px;height:14px;border-radius:3px;object-fit:cover;background:var(--background-stronger);display:inline-block"
+                        onError={(e) => {
+                          ;(e.currentTarget as HTMLImageElement).style.display = "none"
+                        }}
+                      />
+                    </Show>
+                    <span style="font-variant-numeric:tabular-nums">{modelName()}</span>
+                  </span>
+                </Show>
+                <Show when={cost() !== undefined}>
+                  <span
+                    class="inline-flex items-center gap-0.5 shrink-0 text-text-weak"
+                    style="font-variant-numeric:tabular-nums"
+                    title={i18n.t("ui.kolbo.chip.creditCost", { count: cost()! })}
+                  >
+                    <span class="opacity-60">·</span>
+                    <span aria-hidden="true">✦</span>
+                    {cost()}
+                  </span>
+                </Show>
+                <Show when={!inFlight() && doneN() > 0}>
+                  <span class="text-text-weak group-hover:text-text-base transition-colors inline-flex items-center gap-0.5 pl-1 border-l border-border-weaker-base ml-0.5">
+                    {i18n.t("ui.kolbo.chip.viewInCanvas")}
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
+                      <path
+                        d="m8 5 5 5-5 5"
+                        stroke="currentColor"
+                        stroke-width="1.75"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </Show>
+              </div>
             }
           >
-            <span
-              aria-hidden="true"
-              style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid color-mix(in srgb, var(--text-base) 18%, transparent);border-top-color:var(--text-base);animation:kolbo-spin 0.9s linear infinite"
-            />
-          </Show>
-          <span class="truncate text-text-base">{text()}</span>
-          <Show when={modelName()}>
-            <span class="inline-flex items-center gap-1 shrink-0 text-text-weak" title={modelName()}>
-              <span class="opacity-60">·</span>
-              <Show when={modelAvatar()}>
-                <img
-                  src={modelAvatar()}
-                  alt=""
-                  loading="lazy"
-                  width={14}
-                  height={14}
-                  // Cloudflare hotlink protection on api.kolbo.ai rejects
-                  // image fetches whose Referer isn't a kolbo.ai origin.
-                  // The Tauri webview sends tauri://localhost as Referer,
-                  // so suppress it (same trick used by dialog-select-model).
-                  referrerpolicy="no-referrer"
-                  style="width:14px;height:14px;border-radius:3px;object-fit:cover;background:var(--background-stronger);display:inline-block"
-                  onError={(e) => {
-                    ;(e.currentTarget as HTMLImageElement).style.display = "none"
-                  }}
-                />
-              </Show>
-              <span style="font-variant-numeric:tabular-nums">{modelName()}</span>
-            </span>
-          </Show>
-          <Show when={cost() !== undefined}>
-            <span
-              class="inline-flex items-center gap-0.5 shrink-0 text-text-weak"
-              style="font-variant-numeric:tabular-nums"
-              title={i18n.t("ui.kolbo.chip.creditCost", { count: cost()! })}
-            >
-              <span class="opacity-60">·</span>
-              <span aria-hidden="true">✦</span>
-              {cost()}
-            </span>
-          </Show>
-          <Show when={!inFlight() && doneN() > 0}>
-            <span class="text-text-weak group-hover:text-text-base transition-colors inline-flex items-center gap-0.5 pl-1 border-l border-border-weaker-base ml-0.5">
-              {i18n.t("ui.kolbo.chip.viewInCanvas")}
-              <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
-                <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </span>
-          </Show>
-        </button>
-        }
-      >
-        {/* Completed image/video generation — show the actual result BIG so
+            {/* Completed image/video generation — show the actual result BIG so
             the user sees it in the chat, not a fingernail thumb. Clicking any
             preview enlarges it; the caption underneath carries the model,
             credit cost, and a "View in Canvas" jump. */}
-        <div class="flex flex-col gap-1.5">
-          <div class="flex flex-wrap gap-2">
-            <For each={thumbs()}>{(src) => <KolboBigPreview url={src} />}</For>
-            <Show when={overflowN() > 0}>
+            <div class="flex flex-col gap-1.5">
+              <div class="flex flex-wrap gap-2">
+                <For each={thumbs()}>{(src) => <KolboBigPreview url={src} />}</For>
+                <Show when={overflowN() > 0}>
+                  <button
+                    type="button"
+                    onClick={openCanvas}
+                    class="flex items-center justify-center rounded-xl border border-border-weaker-base bg-background-stronger text-text-weak hover:text-text-base hover:border-border-weak-base transition-colors cursor-pointer"
+                    style="width:80px;height:80px;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums"
+                    aria-label={i18n.t("ui.kolbo.chip.viewInCanvas")}
+                  >
+                    +{overflowN()}
+                  </button>
+                </Show>
+              </div>
               <button
                 type="button"
                 onClick={openCanvas}
-                class="flex items-center justify-center rounded-xl border border-border-weaker-base bg-background-stronger text-text-weak hover:text-text-base hover:border-border-weak-base transition-colors cursor-pointer"
-                style="width:80px;height:80px;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums"
-                aria-label={i18n.t("ui.kolbo.chip.viewInCanvas")}
+                class="group inline-flex items-center gap-1.5 self-start max-w-full text-text-weak hover:text-text-base transition-colors cursor-pointer"
+                style="font-size:12px"
               >
-                +{overflowN()}
-              </button>
-            </Show>
-          </div>
-          <button
-            type="button"
-            onClick={openCanvas}
-            class="group inline-flex items-center gap-1.5 self-start max-w-full text-text-weak hover:text-text-base transition-colors cursor-pointer"
-            style="font-size:12px"
-          >
-            <span class="text-text-base">{text()}</span>
-            <Show when={modelName()}>
-              <span class="inline-flex items-center gap-1 shrink-0" title={modelName()}>
-                <span class="opacity-60">·</span>
-                <Show when={modelAvatar()}>
-                  <img
-                    src={modelAvatar()}
-                    alt=""
-                    loading="lazy"
-                    width={14}
-                    height={14}
-                    referrerpolicy="no-referrer"
-                    style="width:14px;height:14px;border-radius:3px;object-fit:cover;background:var(--background-stronger);display:inline-block"
-                    onError={(e) => {
-                      ;(e.currentTarget as HTMLImageElement).style.display = "none"
-                    }}
-                  />
+                <span class="text-text-base">{text()}</span>
+                <Show when={modelName()}>
+                  <span class="inline-flex items-center gap-1 shrink-0" title={modelName()}>
+                    <span class="opacity-60">·</span>
+                    <Show when={modelAvatar()}>
+                      <img
+                        src={modelAvatar()}
+                        alt=""
+                        loading="lazy"
+                        width={14}
+                        height={14}
+                        referrerpolicy="no-referrer"
+                        style="width:14px;height:14px;border-radius:3px;object-fit:cover;background:var(--background-stronger);display:inline-block"
+                        onError={(e) => {
+                          ;(e.currentTarget as HTMLImageElement).style.display = "none"
+                        }}
+                      />
+                    </Show>
+                    <span style="font-variant-numeric:tabular-nums">{modelName()}</span>
+                  </span>
                 </Show>
-                <span style="font-variant-numeric:tabular-nums">{modelName()}</span>
-              </span>
-            </Show>
-            <Show when={cost() !== undefined}>
-              <span
-                class="inline-flex items-center gap-0.5 shrink-0"
-                style="font-variant-numeric:tabular-nums"
-                title={i18n.t("ui.kolbo.chip.creditCost", { count: cost()! })}
-              >
-                <span class="opacity-60">·</span>
-                <span aria-hidden="true">✦</span>
-                {cost()}
-              </span>
-            </Show>
-            <span class="inline-flex items-center gap-0.5 pl-1 border-l border-border-weaker-base ml-0.5 group-hover:text-text-base transition-colors">
-              {i18n.t("ui.kolbo.chip.viewInCanvas")}
-              <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
-                <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </span>
-          </button>
-        </div>
-      </Show>
-      }>
+                <Show when={cost() !== undefined}>
+                  <span
+                    class="inline-flex items-center gap-0.5 shrink-0"
+                    style="font-variant-numeric:tabular-nums"
+                    title={i18n.t("ui.kolbo.chip.creditCost", { count: cost()! })}
+                  >
+                    <span class="opacity-60">·</span>
+                    <span aria-hidden="true">✦</span>
+                    {cost()}
+                  </span>
+                </Show>
+                <span class="inline-flex items-center gap-0.5 pl-1 border-l border-border-weaker-base ml-0.5 group-hover:text-text-base transition-colors">
+                  {i18n.t("ui.kolbo.chip.viewInCanvas")}
+                  <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
+                    <path
+                      d="m8 5 5 5-5 5"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+              </button>
+            </div>
+          </Show>
+        }
+      >
         <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails />
       </Show>
     </div>
   )
 }
 
-function KolboImageTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
-  return <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />
+function KolboImageTool(props: {
+  tool: string
+  status?: string
+  input?: Record<string, unknown>
+  output?: string
+  hideDetails?: boolean
+}) {
+  return <KolboCompactChip {...props} />
 }
 
-function KolboVideoTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
-  return <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />
+function KolboVideoTool(props: {
+  tool: string
+  status?: string
+  input?: Record<string, unknown>
+  output?: string
+  hideDetails?: boolean
+}) {
+  return <KolboCompactChip {...props} />
 }
 
-function KolboAudioTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
-  return <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />
+function KolboAudioTool(props: {
+  tool: string
+  status?: string
+  input?: Record<string, unknown>
+  output?: string
+  hideDetails?: boolean
+}) {
+  return <KolboCompactChip {...props} />
 }
 
 const KOLBO_IMAGE_TOOLS = ["kolbo_generate_image", "kolbo_generate_image_edit", "kolbo_edit_image"]
@@ -3237,12 +3556,12 @@ for (const name of KOLBO_AUDIO_TOOLS) {
 
 ToolRegistry.register({
   name: "kolbo_generate_creative_director",
-  render: (props) => <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />,
+  render: (props) => <KolboCompactChip {...props} />,
 })
 
 ToolRegistry.register({
   name: "kolbo_generate_3d",
-  render: (props) => <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />,
+  render: (props) => <KolboCompactChip {...props} />,
 })
 
 // get_generation_status: when a generate_* call times out at 60s of polling,
@@ -3251,12 +3570,20 @@ ToolRegistry.register({
 // conversation (not just a bare "Called kolbo_get_generation_status" row).
 // When it's a plain status check with no media yet, fall back to the generic
 // tool row.
-function KolboStatusTool(props: { tool: string; status?: string; input?: Record<string, unknown>; output?: string; hideDetails?: boolean }) {
+function KolboStatusTool(props: {
+  tool: string
+  status?: string
+  input?: Record<string, unknown>
+  output?: string
+  hideDetails?: boolean
+}) {
   const hasMedia = createMemo(() => props.status === "completed" && extractUrls(props.output).length > 0)
   return (
     <Show
       when={hasMedia()}
-      fallback={<GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />}
+      fallback={
+        <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
+      }
     >
       <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />
     </Show>

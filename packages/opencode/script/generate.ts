@@ -15,8 +15,9 @@ const modelsData = process.env.MODELS_DEV_API_JSON
 
 // Kolbo.AI override: strip upstream opencode providers and inject our slim
 // Kolbo provider pointing at kolbo-api. Usage is billed against the user's
-// Kolbo.AI credit balance via the hidden kodu-default model in kolbo-api.
-// (Internal DB identifier stays "kodu-default"; public-facing id is "kolbo-default".)
+// Kolbo.AI credit balance. The real catalog is fetched from
+// /kolbo/v1/models at runtime; this baked entry is only the offline fallback,
+// so it holds the default slot rather than a full model list.
 const snapshot = JSON.parse(modelsData) as Record<string, any>
 delete snapshot.opencode
 delete snapshot["opencode-go"]
@@ -31,9 +32,10 @@ snapshot.kolbo = {
   name: "Kolbo",
   doc: "https://kolbo.ai/cli",
   models: {
-    "kolbo-default": {
-      id: "kolbo-default",
-      name: "Kolbo",
+    "kolbo-auto-smart": {
+      id: "kolbo-auto-smart",
+      name: "Auto Smart",
+      default: true,
       family: "kolbo",
       attachment: true,
       reasoning: false,

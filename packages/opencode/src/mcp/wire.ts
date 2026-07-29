@@ -61,13 +61,21 @@ function writeJsonAtomic(target: string, data: unknown, mode: number) {
 }
 
 
-export async function ensureKolboMcpWired(): Promise<void> {
+/**
+ * @returns `keyChanged` — whether the KOLBO_API_KEY written to kolbo.json
+ * differs from what was there before. Callers use this to decide whether a
+ * running MCP child is now holding a stale credential: the key is injected as
+ * a spawn-time env var, so rewriting the file alone does NOT reach a process
+ * that is already running. See healKolboMcpAuth below.
+ */
+export async function ensureKolboMcpWired(): Promise<{ keyChanged: boolean }> {
+  let keyChanged = false
   try {
     const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
-    if (!auth) return
+    if (!auth) return { keyChanged }
 
     const apiKey = auth.type === "api" ? auth.key : auth.type === "oauth" ? auth.access : undefined
-    if (!apiKey) return
+    if (!apiKey) return { keyChanged }
 
     // Resolve the API base: stored metadata → partner profile (env/file) → null
     // When null, the MCP runs against its own compiled-in default (production Kolbo).
@@ -122,6 +130,10 @@ export async function ensureKolboMcpWired(): Promise<void> {
     const currentCommand = existing.mcp?.kolbo?.command
     const commandDrift = JSON.stringify(currentCommand) !== JSON.stringify(expectedCommand)
     const currentTimeout = existing.mcp?.kolbo?.timeout
+    // Only meaningful when a key was already on file: the very first wiring
+    // (undefined → key) is a fresh install, not a rotation, and there is no
+    // running child holding a stale value to heal.
+    keyChanged = Boolean(currentKey) && currentKey !== apiKey
     let needsWrite =
       existing.mcp?.kolbo?.type !== "local" ||
       currentKey !== apiKey ||
@@ -189,4 +201,39 @@ export async function ensureKolboMcpWired(): Promise<void> {
   } catch {
     // Non-fatal
   }
+  return { keyChanged }
+}
+
+/**
+ * Self-heal a Kolbo MCP auth failure without bothering the user.
+ *
+ * THE FAILURE THIS FIXES: the Kolbo MCP is a *local* server, spawned once with
+ * KOLBO_API_KEY baked into its process environment. Inference, by contrast,
+ * reads the key live from auth.json on every request. So when the key rotates
+ * — a second machine signing in, a re-auth, a re-mint — inference keeps working
+ * while the already-running MCP child keeps the snapshot it was born with and
+ * 401s forever. The user is fully logged in; only one child process disagrees.
+ *
+ * Until now the ONLY thing that fixed this was the reconnect dialog, and not
+ * because it re-authenticated anything: its `dispose()` tore down MCP state, so
+ * the next request re-spawned the child from the updated file. Users were being
+ * asked to "reconnect" an account that was never disconnected.
+ *
+ * `connect()` re-reads the config from disk, so disconnect+connect is enough to
+ * hand the child the current key.
+ *
+ * @returns true if the key had rotated and the client was restarted — the
+ * caller should simply retry. False means the stored key is what the child is
+ * already using, i.e. the credential itself is genuinely dead and only a real
+ * re-auth will help.
+ */
+export async function healKolboMcpAuth(): Promise<boolean> {
+  const { keyChanged } = await ensureKolboMcpWired().catch(() => ({ keyChanged: false }))
+  if (!keyChanged) return false
+  // Imported lazily: mcp/index.ts pulls in the whole Effect service graph, and
+  // wire.ts is imported from server startup paths that must stay cheap.
+  const { MCP } = await import("./index.js")
+  await MCP.disconnect("kolbo").catch(() => {})
+  await MCP.connect("kolbo").catch(() => {})
+  return true
 }

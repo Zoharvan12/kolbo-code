@@ -6,7 +6,7 @@ import { Provider } from "../../provider/provider"
 import { ModelsDev } from "../../provider/models"
 import { ProviderAuth } from "../../provider/auth"
 import { ProviderID } from "../../provider/schema"
-import { ensureKolboMcpWired } from "../../mcp/wire"
+import { ensureKolboMcpWired, healKolboMcpAuth } from "../../mcp/wire"
 import { Partner } from "../../brand/partner"
 import { mapValues } from "remeda"
 import { errors } from "../error"
@@ -41,6 +41,7 @@ export const ProviderRoutes = lazy(() =>
         },
       }),
       async (c) => {
+        await ModelsDev.ensureKolboLimits()
         const config = await Config.get()
         const disabled = new Set(config.disabled_providers ?? [])
         const enabled = config.enabled_providers ? new Set(config.enabled_providers) : undefined
@@ -175,6 +176,30 @@ export const ProviderRoutes = lazy(() =>
           await ensureKolboMcpWired().catch(() => {})
         }
         return c.json(true)
+      },
+    )
+    .post(
+      "/kolbo/mcp/heal",
+      describeRoute({
+        summary: "Heal a stale Kolbo MCP credential",
+        description:
+          "Re-wires the Kolbo MCP config and, if the stored API key has rotated since the MCP child was spawned, restarts that client so it picks the new key up. The key is injected as a spawn-time env var, so a rotation leaves inference working (it reads the key live) while the running MCP child keeps 401ing with the snapshot it was born with. Returns healed=true when the client was restarted and the caller should just retry; healed=false means the child is already using the stored key, so the credential itself is dead and a real re-auth is required.",
+        operationId: "provider.kolbo.mcp.heal",
+        responses: {
+          200: {
+            description: "Heal attempt completed",
+            content: {
+              "application/json": {
+                schema: resolver(z.object({ healed: z.boolean() })),
+              },
+            },
+          },
+          ...errors(400),
+        },
+      }),
+      async (c) => {
+        const healed = await healKolboMcpAuth().catch(() => false)
+        return c.json({ healed })
       },
     ),
 )

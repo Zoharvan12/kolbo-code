@@ -9,7 +9,9 @@ import path from "path"
 
 import { createClient } from "@hey-api/openapi-ts"
 
-await $`bun dev generate > ${dir}/openapi.json`.cwd(path.resolve(dir, "../../kodu"))
+// The CLI package is `opencode` in this monorepo — `kodu` is a leftover from the
+// rebrand and made every SDK regeneration fail with ENOENT on packages/kodu.
+await $`bun dev generate > ${dir}/openapi.json`.cwd(path.resolve(dir, "../../opencode"))
 
 await createClient({
   input: "./openapi.json",

@@ -67,7 +67,9 @@ export function DialogModel(props: { providerID?: string }) {
   }
 
   const isDefaultKolbo = (providerID: string, modelID: string) =>
-    providerID === "kolbo" && modelID === "kolbo-default"
+    providerID === "kolbo" &&
+    (sync.data.provider.find((p) => p.id === "kolbo")?.models?.[modelID] as { default?: boolean } | undefined)
+      ?.default === true
 
   const decorateTitle = (providerID: string, modelID: string, name: string) =>
     isDefaultKolbo(providerID, modelID) ? `★ ${name}` : name

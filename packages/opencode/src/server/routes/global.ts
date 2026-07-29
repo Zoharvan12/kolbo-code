@@ -559,6 +559,47 @@ export const GlobalRoutes = lazy(() =>
         }
       },
     )
+    .post(
+      "/kolbo-generation-cancel",
+      describeRoute({
+        summary: "Cancel one Kolbo media generation",
+        description: "Forwards an exact generation id to Kolbo's existing stop-and-refund endpoint.",
+        operationId: "global.kolbo-generation-cancel",
+        responses: {
+          200: {
+            description: "Generation cancelled",
+            content: {
+              "application/json": {
+                schema: resolver(z.record(z.string(), z.any())),
+              },
+            },
+          },
+          ...errors(400, 401, 502),
+        },
+      }),
+      validator("json", z.object({ generationId: z.string().min(1).max(200) })),
+      async (c) => {
+        const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+        const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+        if (!apiKey) return c.json({ error: "Not authenticated with Kolbo" }, 401)
+        const { generationId } = c.req.valid("json")
+        try {
+          const res = await fetch(`${Partner.apiBase}/generation/stop`, {
+            method: "POST",
+            headers: {
+              "X-API-Key": apiKey,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ generationId }),
+          })
+          const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+          if (!res.ok) return c.json(data, 502)
+          return c.json(data)
+        } catch {
+          return c.json({ error: "Kolbo cancellation service is unavailable" }, 502)
+        }
+      },
+    )
     .get(
       "/kolbo-pricing",
       describeRoute({
@@ -1174,13 +1215,23 @@ export const GlobalRoutes = lazy(() =>
         return c.json({ error: "invalid url" }, 400)
       }
       const host = parsed.hostname.toLowerCase()
-      const allowed =
-        host === "api.kolbo.ai" ||
-        host === "kolbo.ai" ||
-        host === "app.kolbo.ai" ||
-        host === "media.kolbo.ai" ||
-        host.endsWith(".kolbo.ai")
-      if (!allowed || parsed.protocol !== "https:") return c.json({ error: "host not allowed" }, 403)
+      const allowedDomain =
+        (host === "api.kolbo.ai" ||
+          host === "kolbo.ai" ||
+          host === "app.kolbo.ai" ||
+          host === "media.kolbo.ai" ||
+          host.endsWith(".kolbo.ai")) &&
+        parsed.protocol === "https:"
+
+      // Also allow the backend this install is actually configured against.
+      // The hardcoded list above only covers production kolbo.ai, so model
+      // avatars silently 403'd on any dev/staging/custom-partner backend —
+      // every row fell back to its initial. Matching on the full ORIGIN (scheme
+      // + host + port) keeps this tight: it permits exactly the server the app
+      // already talks to and sends its token to, not localhost in general.
+      const allowedByPartner = partnerImageOrigins().has(parsed.origin)
+
+      if (!allowedDomain && !allowedByPartner) return c.json({ error: "host not allowed" }, 403)
 
       const now = Date.now()
       const cached = _proxyImageCache.get(remote)
@@ -1219,6 +1270,24 @@ export const GlobalRoutes = lazy(() =>
       }
     }),
 )
+
+/**
+ * Origins of the backend this install is configured against (production
+ * kolbo.ai, a whitelabel, or a local dev API via KOLBO_API_BASE). Computed once
+ * — Partner is resolved at startup and cannot change while the process runs.
+ */
+const partnerImageOrigins = lazy(() => {
+  const origins = new Set<string>()
+  for (const base of [Partner.apiBase, Partner.appBase]) {
+    try {
+      origins.add(new URL(base).origin)
+    } catch {
+      // A malformed profile shouldn't take the proxy down — it just means no
+      // extra origin is allowed beyond the kolbo.ai list.
+    }
+  }
+  return origins
+})
 
 const _proxyImageCache = new Map<string, { at: number; bytes: Uint8Array; contentType: string }>()
 const _proxyImageInflight = new Map<string, Promise<{ bytes: Uint8Array; contentType: string }>>()

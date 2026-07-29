@@ -239,12 +239,26 @@ export namespace Permission {
         yield* Deferred.succeed(existing.deferred, undefined)
         if (input.reply === "once") return
 
+        // Dedupe. A compound command ("rg foo | head -5") asks whenever ANY
+        // sub-command is new, and `always` carries a pattern for every
+        // sub-command — so re-approving re-appended rules that were already
+        // granted. Left unchecked the ruleset grew without bound (real
+        // sessions accumulated `git status *` three times over), and every
+        // copy is re-scanned on every later evaluate and rewritten to the DB
+        // in full on every grant.
+        let added = 0
         for (const pattern of existing.info.always) {
+          const duplicate = approved.some(
+            (rule) =>
+              rule.permission === existing.info.permission && rule.pattern === pattern && rule.action === "allow",
+          )
+          if (duplicate) continue
           approved.push({
             permission: existing.info.permission,
             pattern,
             action: "allow",
           })
+          added++
         }
 
         // Persist "always" grants so they survive a server restart. The
@@ -252,7 +266,7 @@ export namespace Permission {
         // without this every "Allow always" was forgotten — the approved
         // set lived only in memory. Written per-project, matching how the
         // state is loaded from PermissionTable on init.
-        if (existing.info.always.length > 0) {
+        if (added > 0) {
           const now = Date.now()
           Database.use((db) =>
             db

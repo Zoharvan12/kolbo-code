@@ -768,22 +768,55 @@ function PendingCellView(props: { cell: PendingCell }) {
   const now = useSharedTick()
   const elapsedLabel = createMemo(() => fmt(Math.max(0, (now() - props.cell.startedAt) / 1000)))
 
+  // Audio gets a dedicated row: a 72px-tall box with a 64px spinner centred in
+  // it left the elapsed counter overlapping the ring and acres of dead width.
+  // A left-aligned mark + equalizer + elapsed reads as an audio item instead.
+  if (props.cell.kind === "audio")
+    return (
+      <div
+        class="relative rounded-xl overflow-hidden flex items-center gap-3 px-4 kolbo-canvas-cell"
+        style={{
+          height: "72px",
+          background: "linear-gradient(135deg, var(--background-stronger) 0%, var(--surface-recess-base) 100%)",
+        }}
+        title={props.cell.tool}
+      >
+        <div
+          class="shrink-0 flex items-center justify-center"
+          style="width:32px;height:32px;border-radius:10px;background:color-mix(in srgb, var(--background-base) 92%, transparent)"
+        >
+          {whitelabelLogo ? (
+            <img src={whitelabelLogo} alt="" style="width:18px;height:18px;object-fit:contain;opacity:0.92" />
+          ) : (
+            <Mark class="w-4 h-4 opacity-90" />
+          )}
+        </div>
+        <div class="flex items-end gap-[3px] flex-1 min-w-0" style="height:24px" aria-hidden="true">
+          <For each={[0.55, 0.9, 0.35, 0.75, 1, 0.45, 0.85, 0.3, 0.65, 0.95, 0.4, 0.7]}>
+            {(scale, i) => (
+              <span
+                style={`flex:1;max-width:4px;height:${Math.round(scale * 24)}px;border-radius:2px;background:var(--text-base);opacity:0.35;transform-origin:bottom;animation:kolbo-eq ${0.9 + (i() % 4) * 0.15}s ease-in-out ${(i() % 5) * 0.11}s infinite`}
+              />
+            )}
+          </For>
+        </div>
+        <div
+          class="shrink-0 text-text-weak"
+          style="font-size:10px;font-variant-numeric:tabular-nums;opacity:0.7"
+          aria-live="polite"
+        >
+          {elapsedLabel()}
+        </div>
+      </div>
+    )
+
   return (
     <div
       class="relative rounded-xl overflow-hidden flex items-center justify-center kolbo-canvas-cell"
-      style={
-        props.cell.kind === "audio"
-          ? {
-              height: "72px",
-              background:
-                "linear-gradient(135deg, var(--background-stronger) 0%, var(--surface-recess-base) 100%)",
-            }
-          : {
-              "aspect-ratio": fallbackAspect().toString(),
-              background:
-                "linear-gradient(135deg, var(--background-stronger) 0%, var(--surface-recess-base) 100%)",
-            }
-      }
+      style={{
+        "aspect-ratio": fallbackAspect().toString(),
+        background: "linear-gradient(135deg, var(--background-stronger) 0%, var(--surface-recess-base) 100%)",
+      }}
       title={props.cell.tool}
     >
       <div class="relative" style="width:64px;height:64px;display:flex;align-items:center;justify-content:center">

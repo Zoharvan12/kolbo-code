@@ -44,11 +44,15 @@ export function creditsForMessage(tokens: TokenCounts, pricing: ModelPricing): n
 
 /**
  * Sum per-session credits across all assistant messages for the Kolbo
- * provider. Uses the pricing entry matching each message's `modelID`
- * (always "kolbo-default" under the two-step vision pipeline — the
- * backend combines vision + coding costs in one deduction under MiniMax
- * pricing). Slightly under-counts vision turns (~1-2 credits) but
- * accurate for the ~90% text-only case.
+ * provider, using the pricing entry matching each message's `modelID`.
+ * Slightly under-counts vision turns (~1-2 credits) but accurate for the
+ * ~90% text-only case.
+ *
+ * Two known drifts against the server's authoritative number, both display-only:
+ *  - cached reads are billed at 10% server-side (CACHE_READ_COST_FACTOR) but
+ *    counted at full input rate here, so this over-reports long sessions;
+ *  - an auto slot advertises its build-mode rate, so plan turns (which the
+ *    backend may serve free to subscribers) still show a cost here.
  *
  * Shared by subagent-footer, prompt/index.tsx, and sidebar/context.tsx
  * so the credit display is computed identically everywhere.
@@ -67,7 +71,7 @@ export function sessionCredits(
   for (const msg of messages) {
     if (msg.role !== "assistant") continue
     if (msg.providerID !== "kolbo") continue
-    const p = pricing[msg.modelID ?? "kolbo-default"]
+    const p = pricing[msg.modelID ?? "kolbo-auto-smart"]
     if (!p || !msg.tokens) continue
     total += creditsForMessage(msg.tokens, p)
   }

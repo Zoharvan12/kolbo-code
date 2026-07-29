@@ -17,7 +17,16 @@ import { useGlobalSync } from "@/context/global-sync"
 import { useLanguage } from "@/context/language"
 import { useProviders } from "@/hooks/use-providers"
 
-export function DialogConnectProvider(props: { provider: string }) {
+export function DialogConnectProvider(props: {
+  provider: string
+  /**
+   * Fired once auth has succeeded and the dialog has closed. Lets the opener
+   * resume whatever the expired credential interrupted — see session.tsx, which
+   * uses it to retry the Kolbo MCP tool call that triggered the reconnect
+   * instead of leaving the user to re-ask.
+   */
+  onConnected?: () => void
+}) {
   const dialog = useDialog()
   const globalSync = useGlobalSync()
   const globalSDK = useGlobalSDK()
@@ -348,6 +357,9 @@ export function DialogConnectProvider(props: { provider: string }) {
       title: language.t("provider.connect.toast.connected.title", { provider: provider().name }),
       description: language.t("provider.connect.toast.connected.description", { provider: provider().name }),
     })
+    // After dispose(), so the retry runs against a client that has picked up
+    // the new credential rather than the dead one.
+    props.onConnected?.()
   }
 
   function goBack() {

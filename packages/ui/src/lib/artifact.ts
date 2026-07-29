@@ -1,6 +1,6 @@
 import type { PlatformOps } from "../context/platform-ops"
 
-export type ArtifactLang = "html" | "svg" | "mermaid"
+export type ArtifactLang = "html" | "svg" | "mermaid" | "markdown"
 
 export function dispatchArtifact(content: string, lang: ArtifactLang, autoOpen = true): void {
   document.dispatchEvent(new CustomEvent("kolbo:artifact", { detail: { content, lang, autoOpen } }))
@@ -9,6 +9,11 @@ export function dispatchArtifact(content: string, lang: ArtifactLang, autoOpen =
 export function isHtmlPath(path: string | null | undefined): boolean {
   if (!path) return false
   return path.endsWith(".html") || path.endsWith(".htm")
+}
+
+export function isMarkdownPath(path: string | null | undefined): boolean {
+  if (!path) return false
+  return path.endsWith(".md") || path.endsWith(".markdown")
 }
 
 export type HtmlPreviewSource = { kind: "url"; url: string } | { kind: "srcdoc"; content: string }

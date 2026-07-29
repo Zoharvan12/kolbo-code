@@ -6,10 +6,11 @@ import { useServer } from "@/context/server"
 import { Dialog as KobalteDialog } from "@kobalte/core/dialog"
 import { Dialog } from "@opencode-ai/ui/dialog"
 import { Button } from "@opencode-ai/ui/button"
+import { Markdown } from "@opencode-ai/ui/markdown"
 
 export type ArtifactData = {
   content: string
-  lang: "html" | "svg" | "mermaid"
+  lang: "html" | "svg" | "mermaid" | "markdown"
 }
 
 function buildMermaidSrcdoc(code: string): string {
@@ -111,7 +112,7 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
   const needsBlobFallback = createMemo(
     () =>
       props.artifact.lang === "html" &&
-      ((!server.current?.http.url) || (htmlPreview.state === "ready" && htmlPreview() === null)),
+      (!server.current?.http.url || (htmlPreview.state === "ready" && htmlPreview() === null)),
   )
   const blobUrl = createMemo<string>((prev) => {
     if (!needsBlobFallback()) {
@@ -133,9 +134,7 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
     const b = blobUrl()
     return b || null
   })
-  const isLoadingPreview = createMemo(
-    () => props.artifact.lang === "html" && htmlPreview.loading && !blobUrl(),
-  )
+  const isLoadingPreview = createMemo(() => props.artifact.lang === "html" && htmlPreview.loading && !blobUrl())
 
   // ── Publish flow ─────────────────────────────────────────────────────────
   // POSTs the current artifact to the opencode server's /global/kolbo-artifact-publish
@@ -169,7 +168,10 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
           type: props.artifact.lang,
         }),
       })
-      const data = (await res.json().catch(() => ({}))) as { data?: { publicUrl?: string; shareableSlug?: string; siteUrl?: string; shareToken?: string }; error?: { message?: string } }
+      const data = (await res.json().catch(() => ({}))) as {
+        data?: { publicUrl?: string; shareableSlug?: string; siteUrl?: string; shareToken?: string }
+        error?: { message?: string }
+      }
       if (!res.ok) {
         setPublishError(data?.error?.message || `HTTP ${res.status}`)
         return
@@ -236,7 +238,9 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
 
         <div class="flex-1" />
 
-        <Show when={props.artifact.lang === "html" || props.artifact.lang === "svg" || props.artifact.lang === "mermaid"}>
+        <Show
+          when={props.artifact.lang === "html" || props.artifact.lang === "svg" || props.artifact.lang === "mermaid"}
+        >
           <button
             type="button"
             class="flex items-center gap-1.5 px-2.5 py-1 rounded text-12-medium border border-border-weak-base text-text-base hover:bg-surface-base-hover hover:text-text-strong transition-colors duration-100 disabled:opacity-50 disabled:cursor-wait"
@@ -246,7 +250,13 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
             onClick={publish}
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 1.5v6m0-6L3.5 4M6 1.5L8.5 4M1.5 8.5v1A1 1 0 0 0 2.5 10.5h7a1 1 0 0 0 1-1v-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path
+                d="M6 1.5v6m0-6L3.5 4M6 1.5L8.5 4M1.5 8.5v1A1 1 0 0 0 2.5 10.5h7a1 1 0 0 0 1-1v-1"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
             </svg>
             {language.t("artifact.publish")}
           </button>
@@ -273,7 +283,13 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
                 onClick={handleOpen}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M7 1h4v4M11 1L5.5 6.5M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path
+                    d="M7 1h4v4M11 1L5.5 6.5M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V8"
+                    stroke="currentColor"
+                    stroke-width="1.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
                 </svg>
                 {language.t("artifact.openInTab")}
               </button>
@@ -283,8 +299,12 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
       </div>
 
       {/* Content */}
-      <div ref={(el) => { contentDivRef = el }} class="flex-1 min-h-0 overflow-hidden relative">
-
+      <div
+        ref={(el) => {
+          contentDivRef = el
+        }}
+        class="flex-1 min-h-0 overflow-hidden relative"
+      >
         {/* HTML — wait for HTTP URL so WebView2 composites WebGL/Canvas correctly */}
         <Show when={props.artifact.lang === "html"}>
           {/* Loading spinner while sidecar is processing */}
@@ -332,6 +352,17 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
             // eslint-disable-next-line solid/no-innerhtml
             innerHTML={sanitizeSvg(props.artifact.content)}
           />
+        </Show>
+
+        {/* Markdown */}
+        <Show when={props.artifact.lang === "markdown" && view() === "preview"}>
+          <div class="absolute inset-0 overflow-auto px-6 py-5">
+            <Markdown
+              text={props.artifact.content}
+              cacheKey={checksum(props.artifact.content)}
+              class="text-14-regular max-w-[72ch] mx-auto select-text"
+            />
+          </div>
         </Show>
 
         {/* Mermaid */}
@@ -393,7 +424,10 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
                         class="text-12-medium text-text-interactive-base hover:underline self-start"
                         onClick={(e) => {
                           const url = publishUrl()
-                          if (!url) { e.preventDefault(); return }
+                          if (!url) {
+                            e.preventDefault()
+                            return
+                          }
                           if (platform.openLink) {
                             e.preventDefault()
                             platform.openLink(url)

@@ -74,7 +74,10 @@ type Part = {
 
 type Scan = {
   dirs: Set<string>
+  /** Env-stripped command text — what permission rules are matched against. */
   patterns: Set<string>
+  /** Verbatim command text — shown on the approval card so review sees it all. */
+  raw: Set<string>
   always: Set<string>
 }
 
@@ -117,6 +120,33 @@ function parts(node: Node) {
 
 function source(node: Node) {
   return (node.parent?.type === "redirected_statement" ? node.parent.text : node.text).trim()
+}
+
+/**
+ * `source()` minus any leading `VAR=value` assignments.
+ *
+ * `parts()` deliberately skips `variable_assignment` children, so the
+ * arity-derived "always" pattern is built from the env-stripped tokens
+ * (`python -c *`) while the pattern we actually MATCH was the raw source
+ * (`PYTHONIOENCODING=utf-8 python -c "…"`). The stored rule therefore could
+ * never match the very command that produced it, so "Allow always" re-asked
+ * forever for any env-prefixed command. Normalising the matched pattern the
+ * same way `parts()` normalises tokens keeps both sides in agreement.
+ *
+ * The full, unmodified command still reaches the approval card via
+ * `metadata.command`, so nothing is hidden from review.
+ */
+function matchSource(node: Node) {
+  const raw = source(node)
+  let out = raw
+  for (let i = 0; i < node.childCount; i++) {
+    const child = node.child(i)
+    if (!child) continue
+    if (child.type !== "variable_assignment") break
+    if (!out.startsWith(child.text)) break
+    out = out.slice(child.text.length).trimStart()
+  }
+  return out || raw
 }
 
 function commands(node: Node) {
@@ -243,6 +273,7 @@ async function collect(root: Node, cwd: string, ps: boolean, shell: string): Pro
   const scan: Scan = {
     dirs: new Set<string>(),
     patterns: new Set<string>(),
+    raw: new Set<string>(),
     always: new Set<string>(),
   }
 
@@ -262,7 +293,8 @@ async function collect(root: Node, cwd: string, ps: boolean, shell: string): Pro
     }
 
     if (tokens.length && (!cmd || !CWD.has(cmd))) {
-      scan.patterns.add(source(node))
+      scan.patterns.add(matchSource(node))
+      scan.raw.add(source(node))
       scan.always.add(BashArity.prefix(tokens).join(" ") + " *")
     }
   }
@@ -306,7 +338,10 @@ async function ask(ctx: Tool.Context, scan: Scan) {
     permission: "bash",
     patterns: Array.from(scan.patterns),
     always: Array.from(scan.always),
-    metadata: {},
+    // Verbatim commands (env assignments included) for the approval card —
+    // `patterns` is normalised for rule matching and must not be what review
+    // relies on. See matchSource().
+    metadata: { commands: Array.from(scan.raw) },
   })
 }
 

@@ -32,6 +32,8 @@ export type PlatformOps = {
    * Returns the original URL on web/no-sidecar builds.
    */
   imageProxyUrl?: (remoteUrl: string) => string
+  /** Cancel one in-flight Kolbo media generation and refund its credits. */
+  cancelGeneration?: (generationId: string) => Promise<void>
 }
 
 const PlatformOpsCtx = createContext<PlatformOps>({})
@@ -72,6 +74,9 @@ export function PlatformOpsProvider(props: ParentProps<PlatformOps>) {
     },
     get imageProxyUrl() {
       return props.imageProxyUrl ?? parent.imageProxyUrl
+    },
+    get cancelGeneration() {
+      return props.cancelGeneration ?? parent.cancelGeneration
     },
   }
   return <PlatformOpsCtx.Provider value={value}>{props.children}</PlatformOpsCtx.Provider>

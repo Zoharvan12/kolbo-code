@@ -1,5 +1,34 @@
-import { Show, type Component } from "solid-js"
+import { For, Show, type Component } from "solid-js"
 import { useLanguage } from "@/context/language"
+import { Icon, type IconName } from "@opencode-ai/ui/icon"
+
+/**
+ * Credit coin. Concentric rings rather than a "¢" glyph — a letterform inside a
+ * 14px circle turns to mush and reads as a typo. Sized in `em` so it tracks
+ * whatever text it sits beside.
+ */
+export const CreditCoin: Component<{ class?: string }> = (props) => (
+  <svg
+    viewBox="0 0 16 16"
+    class={props.class ?? "w-[1.05em] h-[1.05em]"}
+    fill="none"
+    aria-hidden="true"
+    style={{ "flex-shrink": 0 }}
+  >
+    <circle cx="8" cy="8" r="6.25" fill="currentColor" opacity="0.16" />
+    <circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.3" />
+    <circle cx="8" cy="8" r="2.6" stroke="currentColor" stroke-width="1.3" opacity="0.7" />
+  </svg>
+)
+
+// `text` is deliberately absent: every model accepts it, so an identical icon on
+// all 25 rows carries no information and just crowds the row.
+const MODALITY_ICONS: Array<{ key: Exclude<InputKey, "text">; icon: IconName }> = [
+  { key: "image", icon: "photo" },
+  { key: "audio", icon: "music" },
+  { key: "video", icon: "video" },
+  { key: "pdf", icon: "open-file" },
+]
 
 type InputKey = "text" | "image" | "audio" | "video" | "pdf"
 type InputMap = Record<InputKey, boolean>
@@ -115,34 +144,93 @@ export const ModelTooltip: Component<{
       : language.t("model.tooltip.reasoning.none")
   }
   const context = () => language.t("model.tooltip.context", { limit: props.model.limit.context.toLocaleString() })
+
+  // Which non-text modalities this model actually accepts, resolved from either
+  // the capabilities map or the raw modalities list depending on the source.
+  const acceptsModality = (key: Exclude<InputKey, "text">) => {
+    if (props.model.capabilities) return props.model.capabilities.input[key] === true
+    return props.model.modalities?.input?.includes(key) === true
+  }
+  const modalityIcons = () =>
+    MODALITY_ICONS.filter((m) => acceptsModality(m.key)).map((m) => ({
+      icon: m.icon,
+      label: language.t(`model.input.${m.key}`),
+    }))
+  const hasReasoning = () =>
+    props.model.capabilities ? props.model.capabilities.reasoning === true : props.model.reasoning === true
+  // "1M" / "200K" rather than "Context limit 1,000,000" — same fact, a third
+  // of the width, and it sits inline with the capability icons.
+  const contextShort = () => {
+    const n = props.model.limit.context
+    if (n >= 1_000_000) return `${Math.round(n / 100_000) / 10}M`
+    if (n >= 1_000) return `${Math.round(n / 1_000)}K`
+    return String(n)
+  }
   const pricing = () => formatPer1K(props.model.provider.id, props.model.cost, props.kolboPricing)
+  const typicalCredits = () => {
+    const v = (props.model as { typicalMessageCredits?: number }).typicalMessageCredits
+    if (typeof v !== "number" || v <= 0) return undefined
+    // Round to whole credits past 100 — "352.7" implies a precision an estimate
+    // does not have, and the extra glyph adds nothing at that magnitude.
+    if (v >= 100) return Math.round(v).toString()
+    return v >= 10 ? v.toFixed(1) : v.toFixed(2)
+  }
 
   return (
     <div class="flex flex-col gap-1 py-1">
       <div class="text-13-medium">{title()}</div>
-      <Show when={inputs()}>
+
+      {/* Capabilities as one dense row instead of three sentences. Modality
+          icons replace "Allows: text, image, audio, video, pdf" — the same
+          information in a glanceable form, with each icon titled for
+          screen readers and hover. Context sits alongside because it is the
+          other number people scan for; reasoning only appears when true,
+          since "No reasoning" was a line of text spent saying nothing. */}
+      <div class="flex items-center gap-2 text-12-regular text-text-invert-base">
+        <Show when={modalityIcons().length > 0}>
+          <span class="flex items-center gap-1">
+            <For each={modalityIcons()}>
+              {(mod) => (
+                <span title={mod.label} aria-label={mod.label} class="opacity-80">
+                  <Icon name={mod.icon} class="w-3.5 h-3.5" />
+                </span>
+              )}
+            </For>
+          </span>
+        </Show>
+        <span class="opacity-45">{contextShort()}</span>
+        <Show when={hasReasoning()}>
+          <span class="opacity-80">{language.t("model.tooltip.reasoning.allowed")}</span>
+        </Show>
+      </div>
+      {/* Cost. The headline is the per-message estimate, because that is the
+          unit people actually budget in — nobody converts a per-1K rate into
+          "what will this task cost me" in their head. The raw rate stays as
+          quiet secondary text for anyone who wants to check the arithmetic. */}
+      <Show when={typicalCredits()} fallback={
+        <Show when={pricing()}>
+          {(value) => (
+            <div class="text-12-regular text-text-invert-base/70">
+              {language.t("model.tooltip.pricing", { value: value() })}
+            </div>
+          )}
+        </Show>
+      }>
         {(value) => (
-          <div class="text-12-regular text-text-invert-base">
-            {language.t("model.tooltip.allows", { inputs: value() })}
-          </div>
-        )}
-      </Show>
-      <div class="text-12-regular text-text-invert-base">{reasoning()}</div>
-      <div class="text-12-regular text-text-invert-base">{context()}</div>
-      <Show when={pricing()}>
-        {(value) => (
-          <div class="flex items-center gap-1.5 text-12-regular text-text-invert-base">
-            <svg
-              viewBox="0 0 16 16"
-              class="w-3.5 h-3.5 shrink-0 opacity-80"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <circle cx="8" cy="8" r="6.5" fill="currentColor" opacity="0.18" />
-              <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.2" />
-              <text x="8" y="11" text-anchor="middle" font-size="8.5" font-weight="700" fill="currentColor">¢</text>
-            </svg>
-            <span>{language.t("model.tooltip.pricing", { value: value() })}</span>
+          <div class="mt-1 pt-2 border-t border-text-invert-base/12">
+            {/* The number is the point, so it gets size and weight; the coin
+                carries the unit visually and the word "credits" stays small.
+                tabular-nums keeps the digits from dancing between rows. */}
+            <div class="flex items-baseline gap-1.5">
+              <CreditCoin class="w-3.5 h-3.5 self-center text-text-invert-base/70" />
+              <span class="text-14-medium text-text-invert-base tabular-nums leading-none">{value()}</span>
+              <span class="text-11-regular text-text-invert-base/65 leading-none">
+                {language.t("model.tooltip.typicalCost.unit")}
+              </span>
+            </div>
+            <div class="mt-1 text-11-regular text-text-invert-base/55">
+              {language.t("model.tooltip.typicalCost.hint")}
+            </div>
           </div>
         )}
       </Show>

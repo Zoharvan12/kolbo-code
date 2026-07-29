@@ -100,7 +100,7 @@ function calcCredits(
   let total = 0
   for (const msg of messages) {
     if (msg.role !== "assistant" || msg.providerID !== "kolbo" || !msg.tokens) continue
-    const p = pricing[msg.modelID ?? "kolbo-default"]
+    const p = pricing[msg.modelID ?? "kolbo-auto-smart"]
     if (!p) continue
     const inT = msg.tokens.input + (msg.tokens.cache?.read ?? 0) + (msg.tokens.cache?.write ?? 0)
     const outT = msg.tokens.output + msg.tokens.reasoning

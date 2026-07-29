@@ -32,11 +32,39 @@ When you produce a media file LOCALLY — `ffmpeg` via the `video-production` sk
 
 5. **Files served via `file://` won't render inline** in the chat as `<video>` / `<img>` — the desktop WebView blocks file:// for security. Don't try to embed; just link.
 
+## Local files — pick by where the SERVER runs, not by which client you are
+
+A tool call executes on the Kolbo server. Handing it `C:\Users\...` or `/Users/...`
+gives it a *string*, not the bytes — so a local path only resolves when server and
+client share a filesystem. Choose by transport:
+
+| Situation | Call |
+|---|---|
+| **Local (stdio) install** — `npx @kolbo/mcp` on the same machine | `upload_media` with the absolute path |
+| **Remote connector + you can run shell commands** (Claude Code, Codex, Cursor, CI) | `create_upload_ticket`, then POST each file to `upload_url` |
+| **Remote connector, no filesystem** (claude.ai web/mobile) | `media_upload_widget` — the user picks the file |
+
+`create_upload_ticket` returns `upload_url` + a short-lived `token`. Upload with
+multipart field `file` and `Authorization: Bearer <token>`; the stable CDN URL comes
+back at `media.url`. One POST per file, ticket reusable for a batch. Then pass those
+URLs to any generation tool.
+
+```bash
+curl -X POST "<upload_url>" -H "Authorization: Bearer <token>" -F "file=@/abs/path/clip.mp3"
+```
+
+Do **not** fall back to `upload_media`'s `source_base64` for anything but a tiny file —
+it pushes the whole file through the model's context, twice. And do not reach for
+cloud credentials or a bucket of your own; the ticket is the sanctioned path.
+
+On Windows, give `curl` a native `C:/Users/...` path — a Git Bash `/c/Users/...` path
+fails to open (exit 26).
+
 ## Routing — user says → call
 
 | User says | Call |
 |---|---|
-| "Upload this file" / "host this" / "give me a public URL for this" | `upload_media` |
+| "Upload this file" / "host this" / "give me a public URL for this" | `upload_media` — but see "Local files" below if it's a path on the user's disk |
 | "Show my media" / "list my images/videos" / "what do I have?" | `list_media` (pass `type` / `category` / `project_id` / `folder_id` / `search`) |
 | "Show my favorites" / "list starred items" | `list_media` with `category=favorites` |
 | "List everything in project X" | `list_media` with `project_id=X` |

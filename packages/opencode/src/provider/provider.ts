@@ -884,6 +884,21 @@ export namespace Provider {
       // backend ships in /kolbo/v1/models.
       default: z.boolean().optional(),
       avatar: z.string().optional(),
+      // Model family ("Claude", "Gemini", "Kolbo"...) plus its position in the
+      // catalog, both owned by kolbo-api (set-code-model-groups.js). The picker
+      // renders one section per family ordered by sortOrder, matching
+      // kolbo-map's SharedModelSelector, so families can be rearranged from
+      // Mongo without a CLI release.
+      group: z.string().optional(),
+      sortOrder: z.number().optional(),
+      // Short picker blurb (kolbo-api caps these at 6 words), shown as the
+      // second line of a row.
+      description: z.string().optional(),
+      // Credits an average message costs on this model, plus its low/medium/high
+      // band. kolbo-api derives both from a measured token profile so the number
+      // matches what users are actually charged.
+      typicalMessageCredits: z.number().optional(),
+      costTier: z.enum(["low", "medium", "high"]).optional(),
     })
     .meta({
       ref: "Model",
@@ -996,6 +1011,11 @@ export namespace Provider {
       // Optional Kolbo-provider fields — Mongo-backed catalog ships these.
       default: model.default || undefined,
       avatar: model.avatar,
+      group: model.group,
+      sortOrder: model.sortOrder,
+      description: model.description,
+      typicalMessageCredits: model.typicalMessageCredits,
+      costTier: model.costTier,
     }
 
     m.variants = mapValues(ProviderTransform.variants(m), (v) => v)

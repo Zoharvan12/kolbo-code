@@ -241,7 +241,7 @@ function AutoMethod(props: AutoMethodProps) {
     // hasn't refreshed yet) re-opens the connect flow from scratch.
     markOnboardingConnected()
     if (props.providerID === "kolbo") {
-      local.model.set({ providerID: "kolbo", modelID: "kolbo-default" }, { recent: true })
+      local.model.set({ providerID: "kolbo", modelID: "kolbo-auto-smart" }, { recent: true })
       dialog.clear()
       return
     }

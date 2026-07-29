@@ -411,7 +411,12 @@ export default function Page() {
     if (desktopReviewOpen()) return `${layout.session.width()}px`
     return `calc(100% - ${layout.fileTree.width()}px)`
   })
-  const centered = createMemo(() => isDesktop() && !desktopReviewOpen())
+  // Stay centered even with the side panel open. Dropping the cap there let the
+  // conversation and composer run edge-to-edge across whatever width was left,
+  // which on a wide display is a worse read than the panel-closed layout. The
+  // caps are `md:max-w-*` so they simply stop binding once the remaining column
+  // is narrower than the cap — nothing to special-case.
+  const centered = createMemo(() => isDesktop())
 
   function normalizeTab(tab: string) {
     if (!tab.startsWith("file://")) return tab
@@ -442,7 +447,7 @@ export default function Page() {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ content: string; lang: string; autoOpen?: boolean }>).detail
       const lang = detail.lang as ArtifactData["lang"]
-      if (lang !== "html" && lang !== "svg" && lang !== "mermaid") return
+      if (lang !== "html" && lang !== "svg" && lang !== "mermaid" && lang !== "markdown") return
       setArtifact({ content: detail.content, lang })
       setArtifactsTabActive(true)
       // Explicit artifact request wins over any sticky canvas override.
@@ -469,36 +474,29 @@ export default function Page() {
     onCleanup(() => document.removeEventListener("kolbo:open-canvas", openCanvas))
   })
 
-  // Track media generation count. On every new media item we auto-open the
-  // Canvas tab so the user sees the result immediately — unless they've
-  // explicitly closed Canvas this session (canvas.dismissed=true), in which
-  // case we respect that and only flip the tab indicator when the panel is
-  // already open. The header Canvas button (kolbo:open-canvas) clears
-  // `dismissed` so the auto-open behavior returns.
-  const mediaPartCount = createMemo(() => {
+  // Number of Kolbo generations currently in flight. A completed assistant
+  // message can't produce further state updates, so a tool still "running"
+  // under one is stuck, not live — the same rule the canvas uses to decide
+  // which pending cards to draw.
+  const runningGenerations = createMemo(() => {
     const id = params.id
     if (!id) return 0
     const msgs = sync.data.message[id] ?? []
     let total = 0
     for (const message of msgs) {
+      if (message.role === "assistant" && typeof message.time?.completed === "number") continue
       const parts = sync.data.part[message.id] ?? []
       for (const part of parts) {
         if (part.type !== "tool") continue
         const tool = (part as { tool?: string }).tool
-        if (typeof tool !== "string") continue
-        if (isKolboGenerationTool(tool)) total++
+        if (typeof tool !== "string" || !isKolboGenerationTool(tool)) continue
+        const status = (part as { state?: { status?: string } }).state?.status
+        if (status === "completed" || status === "error") continue
+        total++
       }
     }
     return total
   })
-  // No auto-switching on new media generations. The agent producing an image
-  // mid-message used to force the review panel open AND override the user's
-  // active tab to canvas, making it feel like file tabs / the panel close
-  // button were broken (the next generation would re-open everything). The
-  // explicit Canvas button in the header is the only way to open canvas now.
-  // (mediaPartCount is still referenced — kept memoized for any future
-  // consumer; computing it is cheap.)
-  void mediaPartCount
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
   const isChildSession = createMemo(() => !!info()?.parentID)
@@ -518,6 +516,33 @@ export default function Page() {
   const openedTabs = tabState.openedTabs
   const activeTab = tabState.activeTab
   const activeFileTab = tabState.activeFileTab
+
+  // Auto-open Canvas when a generation STARTS — that's where the progress
+  // cards live, so it has to be visible while work is in flight. This fires
+  // on the rising edge of "something is running", NOT per finished media
+  // part: the old per-media version re-opened the panel and overrode the
+  // active tab on every completed image, which made file tabs and the panel
+  // close button feel broken. Two guards keep that from returning — closing
+  // Canvas (canvas.dismissed) mutes it for the session, and we never yank
+  // the user off a tab they chose themselves.
+  createEffect(
+    on(
+      runningGenerations,
+      (now, prev) => {
+        if (prev !== 0 || now === 0) return
+        if (view().canvas.dismissed()) return
+        const panelOpen = view().reviewPanel.opened()
+        if (panelOpen && (artifactsTabActive() || activeFileTab())) return
+        batch(() => {
+          setArtifactsTabActive(false)
+          setCanvasTabActive(true)
+          if (!panelOpen) view().reviewPanel.open()
+        })
+      },
+      { defer: true },
+    ),
+  )
+
   const revertMessageID = createMemo(() => info()?.revert?.messageID)
   const messages = createMemo(() => (params.id ? (sync.data.message[params.id] ?? []) : []))
   const messagesReady = createMemo(() => {
@@ -604,6 +629,42 @@ export default function Page() {
     return false
   }
 
+  // Self-healing: once the user reconnects, resume by itself.
+  //
+  // Without this the agent is instructed to stop and wait (see
+  // KOLBO_AUTH_SANITIZED_MESSAGE in session/message-v2.ts), so the user has to
+  // click Reconnect AND then re-ask — the tool call they were waiting on is
+  // simply abandoned. Sending a short continuation turn makes the credential
+  // failure a one-click interruption instead of a dead end.
+  //
+  // Deliberately a normal user turn rather than hidden plumbing: it is visible
+  // in the transcript, so it is obvious why the agent resumed, and it reuses
+  // the ordinary prompt path instead of inventing a second way to drive a
+  // session. Only fires for the MCP tool-call case — a ProviderAuthError means
+  // inference itself never ran, and the existing retry path already covers it.
+  const resumeAfterReconnect = async () => {
+    const sessionID = params.id
+    if (!sessionID) return
+    const previous = lastUserMessage()
+    try {
+      await sdk.client.session.promptAsync({
+        sessionID,
+        messageID: Identifier.ascending("message"),
+        agent: previous?.agent,
+        model: previous?.model,
+        parts: [
+          {
+            type: "text",
+            text: "Reconnected. Retry the Kolbo tool call that just failed, then carry on.",
+          },
+        ],
+      })
+    } catch {
+      // The user can always retry by hand; never let a failed auto-resume
+      // surface as an error on top of the one they just cleared.
+    }
+  }
+
   createEffect(() => {
     const last = lastAssistantMessage()
     if (!last) return
@@ -614,7 +675,39 @@ export default function Page() {
     if (last.id === handledAuthErrorId) return
     if (dialog.active) return
     handledAuthErrorId = last.id
-    dialog.show(() => <DialogConnectProvider provider="kolbo" />)
+
+    // Try to heal before asking for anything. A kolbo_* auth failure usually
+    // does NOT mean the account is disconnected — the MCP is a local child
+    // spawned with the API key in its environment, so when the key rotates
+    // (another machine signing in, a re-mint) inference keeps working off the
+    // live key while that child keeps 401ing with its stale copy. Restarting
+    // the child is the entire fix, and the user is already logged in.
+    //
+    // Only if the child is already using the stored key (healed === false) is
+    // the credential genuinely dead and a real re-auth warranted.
+    //
+    // ProviderAuthError skips this: inference itself failed, so no MCP child is
+    // involved and there is nothing to restart.
+    const showReconnect = () =>
+      dialog.show(() => (
+        <DialogConnectProvider provider="kolbo" onConnected={mcpAuth ? resumeAfterReconnect : undefined} />
+      ))
+
+    if (!mcpAuth) {
+      showReconnect()
+      return
+    }
+
+    sdk.client.provider.kolbo.mcp
+      .heal()
+      .then((res) => {
+        if (res.data?.healed) {
+          resumeAfterReconnect()
+          return
+        }
+        showReconnect()
+      })
+      .catch(() => showReconnect())
   })
 
   createEffect(() => {
@@ -2205,7 +2298,10 @@ export default function Page() {
           artifact={artifact}
           artifactsTabActive={artifactsTabActive}
           onArtifactsTabDeactivate={() => setArtifactsTabActive(false)}
-          onArtifactClose={() => { setArtifact(null); setArtifactsTabActive(false) }}
+          onArtifactClose={() => {
+            setArtifact(null)
+            setArtifactsTabActive(false)
+          }}
           canvasTabActive={canvasTabActive}
           onCanvasTabActivate={() => setCanvasTabActive(true)}
           onCanvasTabDeactivate={() => setCanvasTabActive(false)}

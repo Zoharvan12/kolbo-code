@@ -17,11 +17,17 @@ const koduRoot = Bun.file(path.join(monoroot, "packages/opencode/package.json"))
 
 const binaryPath = windowsify(`${koduRoot}/packages/opencode/dist/${sidecarConfig.ocBinary}/bin/kolbo`)
 
-// Skip the CLI rebuild if SKIP_CLI_BUILD is set or if the binary already exists
-if (!Bun.env.SKIP_CLI_BUILD && !Bun.file(binaryPath.replace(/\.exe$/, "") + (process.platform === "win32" ? ".exe" : "")).size) {
+// Dev launches rebuild the CLI sidecar so backend source changes are included.
+// Set SKIP_CLI_BUILD only for intentional frontend-only iteration.
+if (!Bun.env.SKIP_CLI_BUILD) {
+  // `build` is defined in packages/opencode, NOT at the workspace root — running
+  // it from koduRoot fails with `Script not found "build"`. This only bites on a
+  // clean tree (no prebuilt binary), which is why it went unnoticed: the branch
+  // is skipped entirely whenever dist/ already holds a binary.
+  const cliDir = path.join(koduRoot, "packages/opencode")
   const buildCmd = sidecarConfig.ocBinary.includes("-baseline")
-    ? $`cd ${koduRoot} && bun run build --single --baseline`
-    : $`cd ${koduRoot} && bun run build --single`
+    ? $`cd ${cliDir} && bun run build --single --baseline`
+    : $`cd ${cliDir} && bun run build --single`
   await buildCmd
 }
 

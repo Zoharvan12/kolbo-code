@@ -5,6 +5,7 @@ import { Shell } from "../../src/shell/shell"
 import { BashTool } from "../../src/tool/bash"
 import { Instance } from "../../src/project/instance"
 import { Filesystem } from "../../src/util/filesystem"
+import { Wildcard } from "../../src/util/wildcard"
 import { tmpdir } from "../fixture/fixture"
 import type { Permission } from "../../src/permission"
 import { Truncate } from "../../src/tool/truncate"
@@ -154,6 +155,42 @@ describe("tool.bash permissions", () => {
       },
     })
   })
+
+  // Regression: "Allow always" persists `always`, and the NEXT run of the same
+  // command matches `patterns` against it. `parts()` drops `VAR=value`
+  // assignments, so `always` was built from the env-stripped tokens while
+  // `patterns` kept the raw source — the stored rule could never match the
+  // command that produced it and the prompt came back every single time.
+  // The invariant that has to hold for any grant to be worth anything:
+  // every pattern must be matched by at least one of its own always-rules.
+  // Env-assignment prefixes are bash syntax, so this only runs where bash exists.
+  test.if(Boolean(bash))(
+    "a granted rule matches the command that produced it",
+    withShell({ label: "bash", shell: bash! }, async () => {
+      await using tmp = await tmpdir()
+      await Instance.provide({
+        directory: tmp.path,
+        fn: async () => {
+          const tool = await BashTool.init()
+          for (const command of ["echo hello", "FOO=bar echo hello", "FOO=bar BAZ=qux echo hello"]) {
+            const requests: Array<Omit<Permission.Request, "id" | "sessionID" | "tool">> = []
+            await tool.execute({ command, description: command }, capture(requests))
+            expect(requests.length).toBe(1)
+            const request = requests[0]
+            expect(request.patterns.length).toBeGreaterThan(0)
+            for (const pattern of request.patterns) {
+              expect({
+                command,
+                pattern,
+                always: request.always,
+                matched: request.always.some((rule) => Wildcard.match(pattern, rule)),
+              }).toMatchObject({ matched: true })
+            }
+          }
+        },
+      })
+    }),
+  )
 
   each("asks for bash permission with multiple commands", async () => {
     await using tmp = await tmpdir()

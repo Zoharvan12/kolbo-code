@@ -32,11 +32,39 @@ const KOLBO_BILLING_URL = "https://app.kolbo.ai/pricing"
 
 function isInsufficientCredits(error: { data?: { statusCode?: number; message?: unknown; responseBody?: string } } | undefined): boolean {
   if (!error?.data) return false
+  const body = error.data.responseBody ?? ""
+  // kolbo-api returns 402 for any refused reservation, not only a shortfall —
+  // an inactive subscription or a failed verification lands here too. Sending
+  // those users to the billing page is what made "buy more credits" look like
+  // the fix when it never was, so a declared non-credit reason wins over the
+  // bare status code.
+  if (body.includes("reservation_failed")) return false
   if (error.data.statusCode === 402) return true
   const msg = typeof error.data.message === "string" ? error.data.message.toLowerCase() : ""
   if (msg.includes("insufficient credit")) return true
-  const body = error.data.responseBody ?? ""
   return body.includes("InsufficientCredits") || body.includes("insufficient_credits") || body.includes("FreeUsageLimitError")
+}
+
+/**
+ * The server now reports how many credits a turn needs versus how many are
+ * spendable. Prefer that sentence over the generic localized one — "you have 25
+ * credits" next to "you're out of credits" is exactly the contradiction that
+ * sent users to buy credits they already had.
+ */
+function creditShortfallDetail(
+  error: { data?: { statusCode?: number; message?: unknown; responseBody?: string } } | undefined,
+): { required: number; available: number } | undefined {
+  const body = error?.data?.responseBody
+  if (!body) return undefined
+  try {
+    const parsed = JSON.parse(body) as { error?: { required?: unknown; available?: unknown } }
+    const required = parsed?.error?.required
+    const available = parsed?.error?.available
+    if (typeof required !== "number" || typeof available !== "number") return undefined
+    return { required, available }
+  } catch {
+    return undefined
+  }
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -551,6 +579,13 @@ export function SessionTurn(
                   <Card variant="error" class="error-card">
                     <div class="flex flex-col gap-2">
                       <div>{i18n.t("ui.sessionTurn.error.insufficientCredits")}</div>
+                      <Show when={creditShortfallDetail(error())}>
+                        {(detail) => (
+                          <div class="text-text-weak text-12-regular">
+                            {`This turn needs ${detail().required} credits — ${detail().available} available.`}
+                          </div>
+                        )}
+                      </Show>
                       <button
                         type="button"
                         class="self-start text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"

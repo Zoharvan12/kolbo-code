@@ -358,6 +358,12 @@ export namespace LLM {
               "x-opencode-session": input.sessionID,
               "x-opencode-request": input.user.id,
               "x-opencode-client": Flag.KOLBO_CLIENT,
+              // Lets the Kolbo backend route one picker entry to different
+              // models per mode — plan turns on a stronger model, build turns
+              // on a cheaper one — and is what makes plan-mode volume
+              // measurable at all. Raw agent name, so subagents can be routed
+              // later without another release.
+              "x-opencode-agent": input.agent.name,
             }
           : {
               "x-session-affinity": input.sessionID,

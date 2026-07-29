@@ -204,6 +204,9 @@ export const dict = {
 
   "model.tag.free": "Free",
   "model.tag.latest": "Latest",
+  "model.tag.cost.low": "Low cost",
+  "model.tag.cost.medium": "Medium cost",
+  "model.tag.cost.high": "High cost",
   "model.tag.default": "Default",
   "model.provider.anthropic": "Anthropic",
   "model.provider.openai": "OpenAI",
@@ -220,6 +223,8 @@ export const dict = {
   "model.tooltip.reasoning.none": "No reasoning",
   "model.tooltip.context": "Context limit {{limit}}",
   "model.tooltip.pricing": "Pricing: {{value}}",
+  "model.tooltip.typicalCost.unit": "credits per message",
+  "model.tooltip.typicalCost.hint": "Typical message. Longer chats use more.",
 
   "common.search.placeholder": "Search",
   "common.goBack": "Navigate back",

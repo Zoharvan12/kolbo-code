@@ -750,6 +750,47 @@
   }
 }
 
+/* Collapsed run of consecutive edits to one file — matches the edit row it
+   replaces so a group and a lone edit read as the same kind of thing. */
+[data-component="edit-run-group-trigger"] {
+  width: 100%;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+
+  [data-slot="message-part-title"] {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  [data-slot="edit-run-group-count"] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  [data-slot="message-part-actions"] {
+    margin-inline-start: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  [data-slot="collapsible-arrow"] {
+    color: var(--icon-weaker);
+    cursor: pointer;
+  }
+}
+
+[data-component="edit-run-group-list"] {
+  padding-top: 6px;
+  padding-bottom: 4px;
+  padding-inline-start: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 [data-component="context-tool-group-list"] {
   position: relative;
   padding-top: 6px;

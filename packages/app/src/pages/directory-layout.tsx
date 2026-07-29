@@ -86,6 +86,18 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
         if (!/^https?:\/\//i.test(remote)) return remote
         return `${url}/global/proxy-image?url=${encodeURIComponent(remote)}`
       }}
+      cancelGeneration={async (generationId) => {
+        const url = server.current?.http.url
+        if (!url) throw new Error("Kolbo server is unavailable")
+        const res = await fetch(`${url}/global/kolbo-generation-cancel`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ generationId }),
+        })
+        if (res.ok) return
+        const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string }
+        throw new Error(data.error || data.message || "Could not cancel generation")
+      }}
     >
       <DataProvider
         data={sync.data}

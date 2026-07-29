@@ -34,6 +34,8 @@ export interface BasicToolProps {
   locked?: boolean
   animated?: boolean
   onSubtitleClick?: () => void
+  /** Fires when the user expands/collapses the tool body. */
+  onOpenChange?: (open: boolean) => void
   onTriggerClick?: JSX.EventHandlerUnion<HTMLElement, MouseEvent>
   triggerHref?: string
   clickable?: boolean
@@ -88,6 +90,7 @@ export function BasicTool(props: BasicToolProps) {
     if (pending()) return
     if (props.locked && !value) return
     setState("open", value)
+    props.onOpenChange?.(value)
   }
 
   const trigger = () => (

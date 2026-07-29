@@ -398,6 +398,14 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         return input.messages
       })
 
+      // Throttle for the MCP self-heal below. `resolveTools` runs once per
+      // LOOP STEP, not once per turn, so an unhealable server used to cost
+      // every step up to the full 3s reconnect budget — a 20-step turn could
+      // stall for a minute on a server that is simply down. One attempt per
+      // minute still heals a mid-turn disconnect without taxing every step.
+      const MCP_HEAL_COOLDOWN_MS = 60_000
+      let lastMcpHeal = 0
+
       const resolveTools = Effect.fn("SessionPrompt.resolveTools")(function* (input: {
         agent: Agent.Info
         model: Provider.Model
@@ -437,22 +445,33 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           ask: (req) =>
             Effect.runPromise(
               Effect.gen(function* () {
-                // Re-read the session's CURRENT permission so a change made
-                // mid-run (e.g. flipping the approval mode, or a session-level
-                // grant) applies to the next tool call — not only the next
-                // message. `input.session` is a snapshot from turn start;
-                // fall back to it if the live read fails.
-                const live = yield* sessions
-                  .get(input.session.id)
-                  .pipe(
-                    Effect.map((s) => s.permission),
-                    Effect.orElseSucceed(() => input.session.permission),
-                  )
+                // Re-read the session's CURRENT permission *and* its current
+                // agent so a change made mid-run applies to the very next tool
+                // call — not only the next message or the next loop step.
+                //
+                // Reading `session.permission` alone was not enough: switching
+                // to auto-approve sets `session.runtimeAgent`, which swaps the
+                // AGENT's ruleset ({"*": "allow"}) and leaves session.permission
+                // untouched. The loop only re-resolves the agent between steps,
+                // so a flip made while a step was still issuing tool calls did
+                // nothing until the next step — which is why it looked like you
+                // had to start a new run. Both fall back to the turn-start
+                // snapshot if the live read fails.
+                const live = yield* sessions.get(input.session.id).pipe(
+                  Effect.map((s) => ({ permission: s.permission, runtimeAgent: s.runtimeAgent })),
+                  Effect.orElseSucceed(() => ({
+                    permission: input.session.permission,
+                    runtimeAgent: undefined as string | undefined,
+                  })),
+                )
+                const liveAgent = live.runtimeAgent
+                  ? yield* agents.get(live.runtimeAgent).pipe(Effect.orElseSucceed(() => undefined))
+                  : undefined
                 return yield* permission.ask({
                   ...req,
                   sessionID: input.session.id,
                   tool: { messageID: input.processor.message.id, callID: options.toolCallId },
-                  ruleset: Permission.merge(input.agent.permission, live ?? []),
+                  ruleset: Permission.merge((liveAgent ?? input.agent).permission, live.permission ?? []),
                 })
               }),
             ),
@@ -502,28 +521,35 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           })
         }
 
-        // Pre-turn self-heal: before we materialise the MCP tools the model
-        // gets to see, try to reconnect anything stuck in `failed`. This is
-        // what stops the "Run kolbo auth login" loop for desktop/web users —
-        // when the kolbo MCP came up dead earlier in the sidecar lifetime,
-        // we silently reconnect it instead of stranding the user with a
+        // Self-heal: before we materialise the MCP tools the model gets to
+        // see, try to reconnect anything stuck in `failed`. This is what
+        // stops the "Run kolbo auth login" loop for desktop/web users — when
+        // the kolbo MCP came up dead earlier in the sidecar lifetime, we
+        // silently reconnect it instead of stranding the user with a
         // missing-tools error. The reconnect is bounded (3s) so we never
-        // block a turn on a remote MCP that's genuinely down.
-        const statuses = yield* Effect.promise(() => MCP.status())
-        const stale = Object.entries(statuses).filter(
-          ([, s]) =>
-            s.status !== "connected" &&
-            s.status !== "disabled" &&
-            s.status !== "needs_auth" &&
-            s.status !== "needs_client_registration",
-        )
-        if (stale.length > 0) {
-          yield* Effect.promise(() =>
-            Promise.race([
-              Promise.all(stale.map(([name]) => MCP.connect(name).catch(() => undefined))),
-              new Promise((r) => setTimeout(r, 3000)),
-            ]),
+        // block a turn on a remote MCP that's genuinely down, and throttled
+        // (see MCP_HEAL_COOLDOWN_MS) so a down server costs that budget once
+        // a minute rather than once per loop step.
+        if (Date.now() - lastMcpHeal >= MCP_HEAL_COOLDOWN_MS) {
+          const statuses = yield* Effect.promise(() => MCP.status())
+          const stale = Object.entries(statuses).filter(
+            ([, s]) =>
+              s.status !== "connected" &&
+              s.status !== "disabled" &&
+              s.status !== "needs_auth" &&
+              s.status !== "needs_client_registration",
           )
+          if (stale.length > 0) {
+            // Stamp before awaiting so a hanging reconnect can't be re-entered
+            // by the next step while this one is still in flight.
+            lastMcpHeal = Date.now()
+            yield* Effect.promise(() =>
+              Promise.race([
+                Promise.all(stale.map(([name]) => MCP.connect(name).catch(() => undefined))),
+                new Promise((r) => setTimeout(r, 3000)),
+              ]),
+            )
+          }
         }
 
         for (const [key, item] of Object.entries(yield* mcp.tools())) {
@@ -552,8 +578,19 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                 yield* Effect.promise(() =>
                   ctx.ask({ permission: key, metadata: askMetadata, patterns: ["*"], always: ["*"] }),
                 )
+                const progress = (event: { message?: string }) => {
+                  if (!event.message) return
+                  try {
+                    const data = JSON.parse(event.message) as { generation_id?: unknown }
+                    if (typeof data.generation_id !== "string") return
+                    void ctx.metadata({
+                      title: "",
+                      metadata: { generationId: data.generation_id },
+                    })
+                  } catch {}
+                }
                 const result: Awaited<ReturnType<NonNullable<typeof execute>>> = yield* Effect.promise(() =>
-                  execute(args, opts),
+                  execute(args, { ...opts, onProgress: progress } as typeof opts & { onProgress: typeof progress }),
                 )
                 yield* plugin.trigger(
                   "tool.execute.after",
@@ -1691,6 +1728,24 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               model,
             })
 
+            // The assistant row is persisted above, but the processor only
+            // starts finalizing it (SessionProcessor.cleanup, via
+            // Effect.ensuring) once `handle.process` is running. An abort in
+            // the gap — tool resolution, message serialization — would leave
+            // the message with no `time.completed` forever, which downstream
+            // consumers read as "still generating" (the canvas draws ghost
+            // progress cards for it until a 10-minute stuck-timer expires).
+            // Idempotent: a no-op once cleanup has stamped the message.
+            const finalizeInterrupted = Effect.gen(function* () {
+              if (msg.time.completed) return
+              msg.error ??= MessageV2.fromError(new DOMException("Aborted", "AbortError"), {
+                providerID: msg.providerID,
+                aborted: true,
+              })
+              msg.time.completed = Date.now()
+              yield* sessions.updateMessage(msg)
+            })
+
             const outcome: "break" | "continue" = yield* Effect.gen(function* () {
               const lastUserMsg = msgs.findLast((m) => m.info.role === "user")
               const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
@@ -1797,7 +1852,10 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                 })
               }
               return "continue" as const
-            }).pipe(Effect.ensuring(instruction.clear(handle.message.id)))
+            }).pipe(
+              Effect.onInterrupt(() => finalizeInterrupted),
+              Effect.ensuring(instruction.clear(handle.message.id)),
+            )
             if (outcome === "break") break
             continue
           }

@@ -72,7 +72,7 @@ function calcCredits(
   let total = 0
   for (const msg of messages) {
     if (msg.role !== "assistant" || msg.providerID !== "kolbo" || !msg.tokens) continue
-    const p = pricing[msg.modelID ?? "kolbo-default"]
+    const p = pricing[msg.modelID ?? "kolbo-auto-smart"]
     if (!p) continue
     const inT = msg.tokens.input + (msg.tokens.cache?.read ?? 0) + (msg.tokens.cache?.write ?? 0)
     const outT = msg.tokens.output + msg.tokens.reasoning
@@ -1723,6 +1723,64 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
               }}
             />
 
+            {/* Approval mode sits with the send button, not with the model.
+                Picking a model is a setup choice; choosing Ask / Auto-Approve
+                is part of the act of sending, so it belongs where your eye and
+                cursor already are at that moment. Model stays bottom-left. */}
+            <div class="pointer-events-auto">
+            <div data-component="prompt-agent-control">
+              <TooltipKeybind
+                placement="top"
+                gutter={4}
+                title={language.t("command.agent.cycle")}
+                keybind={command.keybind("agent.cycle")}
+              >
+                {/* top-end, not top-start: the control now sits at the right
+                    edge, so a start-aligned menu would hang off the panel. */}
+                <DropdownMenu gutter={4} placement="top-end">
+                  <DropdownMenu.Trigger
+                    as={Button}
+                    variant="ghost"
+                    size="normal"
+                    class="capitalize max-w-[160px] text-text-base text-13-regular"
+                    style={control()}
+                    data-action="prompt-agent"
+                  >
+                    <Icon
+                      name={agentIcon(local.agent.current()?.name)}
+                      size="small"
+                      class="shrink-0"
+                    />
+                    <span class="truncate">{local.agent.current()?.name ?? ""}</span>
+                    <Icon name="chevron-down" size="small" class="shrink-0" />
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content class="min-w-[200px]">
+                      <DropdownMenu.RadioGroup
+                        value={local.agent.current()?.name ?? ""}
+                        onChange={(value) => {
+                          if (typeof value === "string") local.agent.set(value)
+                          restoreFocus()
+                        }}
+                      >
+                        <For each={agentNames()}>
+                          {(name) => (
+                            <DropdownMenu.RadioItem value={name} onSelect={restoreFocus}>
+                              <Icon name={agentIcon(name)} size="small" class="shrink-0 text-text-weak" />
+                              <DropdownMenu.ItemLabel class="capitalize">{name}</DropdownMenu.ItemLabel>
+                              <DropdownMenu.ItemIndicator>
+                                <Icon name="check-small" size="small" class="text-icon-weak" />
+                              </DropdownMenu.ItemIndicator>
+                            </DropdownMenu.RadioItem>
+                          )}
+                        </For>
+                      </DropdownMenu.RadioGroup>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu>
+              </TooltipKeybind>
+            </div>
+            </div>
             <div class="flex items-center gap-1 pointer-events-auto">
               <Tooltip
                 placement="top"
@@ -1885,56 +1943,6 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 <div class="size-4 shrink-0" />
               </div>
               <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                <div data-component="prompt-agent-control">
-                  <TooltipKeybind
-                    placement="top"
-                    gutter={4}
-                    title={language.t("command.agent.cycle")}
-                    keybind={command.keybind("agent.cycle")}
-                  >
-                    <DropdownMenu gutter={4} placement="top-start">
-                      <DropdownMenu.Trigger
-                        as={Button}
-                        variant="ghost"
-                        size="normal"
-                        class="capitalize max-w-[160px] text-text-base text-13-regular"
-                        style={control()}
-                        data-action="prompt-agent"
-                      >
-                        <Icon
-                          name={agentIcon(local.agent.current()?.name)}
-                          size="small"
-                          class="shrink-0"
-                        />
-                        <span class="truncate">{local.agent.current()?.name ?? ""}</span>
-                        <Icon name="chevron-down" size="small" class="shrink-0" />
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Portal>
-                        <DropdownMenu.Content class="min-w-[200px]">
-                          <DropdownMenu.RadioGroup
-                            value={local.agent.current()?.name ?? ""}
-                            onChange={(value) => {
-                              if (typeof value === "string") local.agent.set(value)
-                              restoreFocus()
-                            }}
-                          >
-                            <For each={agentNames()}>
-                              {(name) => (
-                                <DropdownMenu.RadioItem value={name} onSelect={restoreFocus}>
-                                  <Icon name={agentIcon(name)} size="small" class="shrink-0 text-text-weak" />
-                                  <DropdownMenu.ItemLabel class="capitalize">{name}</DropdownMenu.ItemLabel>
-                                  <DropdownMenu.ItemIndicator>
-                                    <Icon name="check-small" size="small" class="text-icon-weak" />
-                                  </DropdownMenu.ItemIndicator>
-                                </DropdownMenu.RadioItem>
-                              )}
-                            </For>
-                          </DropdownMenu.RadioGroup>
-                        </DropdownMenu.Content>
-                      </DropdownMenu.Portal>
-                    </DropdownMenu>
-                  </TooltipKeybind>
-                </div>
                 <Show when={store.mode !== "shell"}>
                   <div data-component="prompt-model-control">
                     <Show
