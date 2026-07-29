@@ -13,9 +13,9 @@ description: |
   Use when the user wants to generate, create, make, edit, animate, or
   transcribe media: images, video, music, voice/TTS, sound effects, 3D models,
   UGC or TV-spot ads, product / lifestyle / hero shots, Amazon or marketplace
-  listings, presentations, landing pages, dashboards, or 'build me an app';
+  listings, presentations, landing pages, or dashboards;
   to reuse a character or brand (Visual DNA, brand kits); or to save a written
-  plan / brief / script / research doc into their Kolbo project (AI Docs).
+  plan / brief / script / research into a Kolbo project (AI Docs).
 
   NOT for: video editing / FFmpeg (use video-production), motion graphics
   (use remotion-best-practices), code editing, or general chat.
