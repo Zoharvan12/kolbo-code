@@ -93,8 +93,8 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 ### Generation
 | Tool | Description |
 |------|-------------|
-| `generate_image` | Single image from a text prompt. Supports Visual DNA, moodboards, reference images, web-search grounding. |
-| `generate_image_edit` | Edit/transform an existing image. Pass `source_images` + edit prompt. |
+| `generate_image` | Single image from a text prompt. Supports Visual DNA, moodboards, image presets, reference images, web-search grounding. When a preset is requested, resolve it with `list_presets({ type: "image" })` and pass its exact id as `preset_id`. |
+| `generate_image_edit` | Edit/transform an existing image. Pass `source_images` + edit prompt. Image-editing presets are supported through `preset_id` from `list_presets({ type: "image_edit" })`. |
 | `generate_creative_director` | **2–8 related images or videos as one coherent set.** Use INSTEAD of multiple `generate_image` calls for any related multi-output. |
 | `generate_video` | Text-to-video. Does **not** support Visual DNA — use `generate_elements` for character-consistent video. |
 | `generate_video_from_image` | Animate a still. Prompt describes motion, not subject. |
@@ -113,7 +113,7 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 | `list_models` / `list_voices` / `check_credits` / `get_generation_status` / `cancel_generation` / `get_session_usage` | Discovery + status. `list_models` with no args returns the recommended shortlist out of ~428 — pass `type` for a full category with per-model caps. `cancel_generation` stops an in-flight job and refunds what it can: use it when the user changes their mind mid-generation instead of letting it run. |
 | `upload_media` / `create_upload_ticket` / `list_media` / `get_media` / `get_media_stats` / `favorite_media` / `unfavorite_media` / `delete_media` / `restore_media` / `permanently_delete_media` / `move_media` / `bulk_*_media` / `*_media_folder` | Media library — see `workflows/media-library.md`. Getting a LOCAL file in depends on where the server runs: `upload_media` with a path only works on a local (stdio) install; over a remote connector use `create_upload_ticket` and POST the file yourself. |
 | `create_visual_dna` / `generate_character_sheet` / `list_visual_dnas` / `get_visual_dna` / `delete_visual_dna` / `*_visual_dna_folder` (5 folder tools) | Visual DNA (+ character sheet, character folders) — see `workflows/visual-dna.md` |
-| `list_moodboards` / `get_moodboard` / `list_presets` | Style overlays |
+| `list_moodboards` / `get_moodboard` / `list_presets` | Style overlays. A preset request is binding: resolve the requested or closest matching preset in the correct catalog, then pass its exact returned `id` as `preset_id`. Never say a preset was used if the generation call omitted it. |
 | `list_color_palettes` / `analyze_color_palette` / `create_color_palette` / `update_color_palette` / `delete_color_palette` / `activate_color_palette` / `deactivate_color_palette` | **Color DNA — sticky and account-wide.** At most one palette is active at a time; while it is, it strict-grades **every** image and video generation automatically, with no per-call argument. `analyze_color_palette` pulls colors out of 1-5 image URLs for free and does NOT save. `create_color_palette` defaults `is_active: true`, which activates it and deactivates any other. Per-generation opt-out: `skip_color_palette: true` on `generate_image` / `generate_image_edit` / `generate_video` / `generate_video_from_image`. |
 | `list_agents` / `create_agent` / `update_agent` / `delete_agent` | Custom chat agents — reusable named personas for `chat_send_message`. The agent's `description` IS the system instruction. Resolve a name the user mentions ("use my SEO agent") to an id with `list_agents`, then pass `agent_id`. Global/preset agents are read-only; only the user's own can be updated or deleted. |
 | `search_stock_media` / `get_stock_sources` / `get_stock_categories` / `get_stock_collections` / `get_stock_asset` / `analyze_script_for_stock` / `import_stock_asset` | Stock library (free, no credits) — EXISTING photos / videos / 3D / SFX / music. For stock **music** use `search_stock_media` with `mediaType: "music"` (semantic vibe query, e.g. "uplifting corporate background") → `get_stock_asset` for downloads. The older `*_music_library` tools are deprecated adapters over this — prefer the stock tools, except for the licensed-catalog tools in the next row. |
@@ -157,6 +157,8 @@ A user-named tool — in any language — overrides every other rule. Recognized
 
 ## Core Workflow
 
+**Preset contract:** if the user asks for a preset, names one, or says to use one of their/Kolbo presets, call `list_presets` with the matching type before generation and pass the selected exact `id` as `preset_id`. Use `image` for `generate_image` and `image_edit` for `generate_image_edit`. Never invent an id or silently continue without the requested preset.
+
 1. **Check credits** ONCE per conversation (Step 0). Skip if already checked.
 2. **Discover models** with `list_models` using a `type` filter — but **skip when the user names a specific model**.
 3. **Pick the model**:
@@ -174,7 +176,7 @@ Model types for `list_models`: `text_to_img`, `image_editing`, `text_to_video`, 
 
 Everything in Kolbo — sessions, generations, media, docs — lives inside a PROJECT. Getting this wrong is the #1 user complaint ("my work went to the wrong project").
 
-1. **User names a project** ("in my Acme project", "for the film") → call `list_projects` ONCE to resolve the name to an ObjectId, then pass that id as `project_id` on **EVERY** subsequent `generate_*` / `upload_media` / `create_doc` / `chat_send_message` call in the conversation. It is **per-call, NOT sticky** — any call that omits it silently lands in the default "API Generations" bucket (`is_default: true`).
+1. **User names a project** ("in my Acme project", "for the film") → call `list_projects` ONCE to resolve the name to an ObjectId, then pass that id as `project_id` on **EVERY** subsequent `generate_*` / `upload_media` / `create_doc` / `chat_send_message` call in the conversation. It is **per-call, NOT sticky** — any call that omits it silently lands in the default "API Generations" bucket (`is_default: true`). Accounts often hold hundreds of projects, so pass `list_projects({ search: "acme" })` rather than listing everything; the list is paginated (50/page) and hides archived projects unless you pass `include_archived: true`.
 2. **No project mentioned** → omit `project_id`; the default bucket is correct. Don't ask unless intent is ambiguous.
 3. **Work landed in the wrong project? MOVE it, never regenerate**: `move_session` relocates a whole session + all its media (works for any session type — the `session_id` from generation responses, chats, transcriptions); `move_media` / `bulk_move_media` / `move_folder_contents` relocate individual media items.
 

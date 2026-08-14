@@ -56,12 +56,16 @@ function create(prefix: Prefix, descending: boolean, timestamp?: number): string
     now = ~now
   }
 
-  const timeBytes = new Uint8Array(6)
-  for (let i = 0; i < 6; i += 1) {
-    timeBytes[i] = Number((now >> BigInt(40 - 8 * i)) & BigInt(0xff))
+  // The legacy six-byte clock wraps roughly every 2.18 years. Use a marker
+  // that sorts after every legacy ascending ID (and before every legacy
+  // descending ID) plus seven time bytes so old sessions remain appendable.
+  const marker = descending ? "-" : "g"
+  const timeBytes = new Uint8Array(7)
+  for (let i = 0; i < 7; i += 1) {
+    timeBytes[i] = Number((now >> BigInt(48 - 8 * i)) & BigInt(0xff))
   }
 
-  return prefixes[prefix] + "_" + bytesToHex(timeBytes) + randomBase62(LENGTH - 12)
+  return prefixes[prefix] + "_" + marker + bytesToHex(timeBytes) + randomBase62(LENGTH - 15)
 }
 
 function bytesToHex(bytes: Uint8Array): string {

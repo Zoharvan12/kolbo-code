@@ -330,7 +330,8 @@ jobs:
           Write-Host "Installer: $($exe.FullName)"
 
       - name: Sign Windows installer (SSL.com eSigner)
-        if: matrix.platform == 'windows-latest' && (inputs.sign == 'true' || github.event.inputs.sign == 'true')
+        # Temporarily disabled to prevent SSL.com eSigner overage charges.
+        if: ${{ false }}
         uses: SSLcom/esigner-codesign@v1.3.2
         with:
           command: sign

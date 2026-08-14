@@ -13,6 +13,7 @@ import {
   ImageAttachmentPart,
   AgentPart,
   FileAttachmentPart,
+  MediaMentionPart,
 } from "@/context/prompt"
 import { useLayout } from "@/context/layout"
 import { useSDK } from "@/context/sdk"
@@ -868,10 +869,28 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   )
   const agentNames = createMemo(() => local.agent.list().map((agent) => agent.name))
 
+  // Media already sitting in the composer, offered at the top of the @ menu so the
+  // user can point at one of several attachments ("crop @shot.png").
+  const attachmentOptions = createMemo(() =>
+    imageAttachments().map(
+      (attachment): AtOption => ({
+        type: "image",
+        id: attachment.id,
+        display: attachment.filename,
+        mime: attachment.mime,
+        url: attachment.publicUrl ?? attachment.dataUrl,
+      }),
+    ),
+  )
+
   const handleAtSelect = (option: AtOption | undefined) => {
     if (!option) return
     if (option.type === "agent") {
       addPart({ type: "agent", name: option.name, content: "@" + option.name, start: 0, end: 0 })
+    } else if (option.type === "image") {
+      // Reference only — the attachment itself is already being sent, so this must not
+      // become a file part (the backend would try to read it as text from disk).
+      addPart({ type: "media", id: option.id, content: "@" + option.display, start: 0, end: 0 })
     } else {
       addPart({ type: "file", path: option.path, content: "@" + option.path, start: 0, end: 0 })
     }
@@ -879,7 +898,9 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   const atKey = (x: AtOption | undefined) => {
     if (!x) return ""
-    return x.type === "agent" ? `agent:${x.name}` : `file:${x.path}`
+    if (x.type === "agent") return `agent:${x.name}`
+    if (x.type === "image") return `image:${x.id}`
+    return `file:${x.path}`
   }
 
   const {
@@ -890,29 +911,32 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     onKeyDown: atOnKeyDown,
   } = useFilteredList<AtOption>({
     items: async (query) => {
+      const attachments = attachmentOptions()
       const agents = agentList()
       const open = recent()
       const seen = new Set(open)
       const pinned: AtOption[] = open.map((path) => ({ type: "file", path, display: path, recent: true }))
-      if (!query.trim()) return [...agents, ...pinned]
+      if (!query.trim()) return [...attachments, ...agents, ...pinned]
       const paths = await files.searchFilesAndDirectories(query)
       const fileOptions: AtOption[] = paths
         .filter((path) => !seen.has(path))
         .map((path) => ({ type: "file", path, display: path }))
-      return [...agents, ...pinned, ...fileOptions]
+      return [...attachments, ...agents, ...pinned, ...fileOptions]
     },
     key: atKey,
     filterKeys: ["display"],
     groupBy: (item) => {
+      if (item.type === "image") return "image"
       if (item.type === "agent") return "agent"
       if (item.recent) return "recent"
       return "file"
     },
     sortGroupsBy: (a, b) => {
       const rank = (category: string) => {
-        if (category === "agent") return 0
-        if (category === "recent") return 1
-        return 2
+        if (category === "image") return 0
+        if (category === "agent") return 1
+        if (category === "recent") return 2
+        return 3
       }
       return rank(a.category) - rank(b.category)
     },
@@ -975,12 +999,13 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     onSelect: handleSlashSelect,
   })
 
-  const createPill = (part: FileAttachmentPart | AgentPart) => {
+  const createPill = (part: FileAttachmentPart | AgentPart | MediaMentionPart) => {
     const pill = document.createElement("span")
     pill.textContent = part.content
     pill.setAttribute("data-type", part.type)
     if (part.type === "file") pill.setAttribute("data-path", part.path)
     if (part.type === "agent") pill.setAttribute("data-name", part.name)
+    if (part.type === "media") pill.setAttribute("data-id", part.id)
     pill.setAttribute("contenteditable", "false")
     pill.style.userSelect = "text"
     pill.style.cursor = "default"
@@ -1003,6 +1028,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       const el = node as HTMLElement
       if (el.dataset.type === "file") return true
       if (el.dataset.type === "agent") return true
+      if (el.dataset.type === "media") return true
       return el.tagName === "BR"
     })
 
@@ -1013,7 +1039,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         editorRef.appendChild(createTextFragment(part.content))
         continue
       }
-      if (part.type === "file" || part.type === "agent") {
+      if (part.type === "file" || part.type === "agent" || part.type === "media") {
         editorRef.appendChild(createPill(part))
       }
     }
@@ -1132,6 +1158,18 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       position += content.length
     }
 
+    const pushMedia = (media: HTMLElement) => {
+      const content = media.textContent ?? ""
+      parts.push({
+        type: "media",
+        id: media.dataset.id!,
+        content,
+        start: position,
+        end: position + content.length,
+      })
+      position += content.length
+    }
+
     const visit = (node: Node) => {
       if (node.nodeType === Node.TEXT_NODE) {
         buffer += node.textContent ?? ""
@@ -1148,6 +1186,11 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       if (el.dataset.type === "agent") {
         flushText()
         pushAgent(el)
+        return
+      }
+      if (el.dataset.type === "media") {
+        flushText()
+        pushMedia(el)
         return
       }
       if (el.tagName === "BR") {
@@ -1246,22 +1289,24 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     const range = selection.getRangeAt(0)
     if (!editorRef.contains(range.startContainer)) return false
 
-    if (part.type === "file" || part.type === "agent") {
+    const selectMention = () => {
       const cursorPosition = getCursorPosition(editorRef)
       const rawText = prompt
         .current()
         .map((p) => ("content" in p ? p.content : ""))
         .join("")
-      const textBeforeCursor = rawText.substring(0, cursorPosition)
-      const atMatch = textBeforeCursor.match(/@(\S*)$/)
+      const atMatch = rawText.substring(0, cursorPosition).match(/@(\S*)$/)
+      if (!atMatch) return
+      const start = atMatch.index ?? cursorPosition - atMatch[0].length
+      setRangeEdge(editorRef, range, "start", start)
+      setRangeEdge(editorRef, range, "end", cursorPosition)
+    }
+
+    if (part.type === "file" || part.type === "agent" || part.type === "media") {
       const pill = createPill(part)
       const gap = document.createTextNode(" ")
 
-      if (atMatch) {
-        const start = atMatch.index ?? cursorPosition - atMatch[0].length
-        setRangeEdge(editorRef, range, "start", start)
-        setRangeEdge(editorRef, range, "end", cursorPosition)
-      }
+      selectMention()
 
       range.deleteContents()
       range.insertNode(gap)
@@ -1684,6 +1729,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 "w-full pl-3 pr-2 pt-2 text-14-regular text-text-strong focus:outline-none whitespace-pre-wrap": true,
                 "[&_[data-type=file]]:text-syntax-property": true,
                 "[&_[data-type=agent]]:text-syntax-type": true,
+                "[&_[data-type=media]]:text-syntax-string": true,
                 "font-mono!": store.mode === "shell",
               }}
               style={{ "padding-bottom": space }}
@@ -1709,7 +1755,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             }}
           />
 
-          <div class="pointer-events-none absolute bottom-2 right-2 flex items-center gap-2">
+          <div dir="ltr" class="pointer-events-none absolute bottom-2 right-2 flex items-center gap-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -1864,7 +1910,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             </div>
           </div>
 
-          <div class="pointer-events-none absolute bottom-2 left-2">
+          <div dir="ltr" class="pointer-events-none absolute bottom-2 left-2">
             <div
               aria-hidden={store.mode !== "normal"}
               class="pointer-events-auto flex items-center gap-1"
@@ -1930,7 +1976,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       </DockShellForm>
       <Show when={store.mode === "normal" || store.mode === "shell"}>
         <DockTray attach="top">
-          <div class="px-1.75 pt-5.5 pb-2 flex items-center gap-2 min-w-0">
+          <div dir="ltr" class="px-1.75 pt-5.5 pb-2 flex items-center gap-2 min-w-0">
             <div class="flex items-center gap-1.5 min-w-0 flex-1 relative">
               <div
                 class="h-7 flex items-center gap-1.5 max-w-[160px] min-w-0 absolute inset-y-0 left-0"

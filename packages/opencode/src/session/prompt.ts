@@ -3,6 +3,7 @@ import os from "os"
 import z from "zod"
 import { SessionID, MessageID, PartID } from "./schema"
 import { MessageV2 } from "./message-v2"
+import { messageCreatedBefore } from "./message-order"
 import { Log } from "../util/log"
 import { SessionRevert } from "./revert"
 import { Session } from "."
@@ -1607,7 +1608,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               !["tool-calls"].includes(lastAssistant.finish) &&
               !hasToolCalls &&
               !hitOutputLimit &&
-              lastUser.id < lastAssistant.id
+              messageCreatedBefore(lastUser, lastAssistant)
             ) {
               log.info("exiting loop", { sessionID })
               break
@@ -1773,7 +1774,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
               if (step > 1 && lastFinished) {
                 for (const m of msgs) {
-                  if (m.info.role !== "user" || m.info.id <= lastFinished.id) continue
+                  if (m.info.role !== "user" || !messageCreatedBefore(lastFinished, m.info)) continue
                   for (const p of m.parts) {
                     if (p.type !== "text" || p.ignored || p.synthetic) continue
                     if (!p.text.trim()) continue

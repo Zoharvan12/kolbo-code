@@ -67,18 +67,27 @@ export namespace Identifier {
 
     now = descending ? ~now : now
 
-    const timeBytes = Buffer.alloc(6)
-    for (let i = 0; i < 6; i++) {
-      timeBytes[i] = Number((now >> BigInt(40 - 8 * i)) & BigInt(0xff))
+    // The legacy format stored timestamp * 4096 in six bytes. That value
+    // wraps roughly every 2.18 years, which made fresh IDs sort before old
+    // IDs and could cause an existing chat to ignore new messages. Version
+    // the format with a direction-aware marker and keep enough time bits to
+    // avoid another rollover for centuries.
+    const marker = descending ? "-" : "g"
+    const timeBytes = Buffer.alloc(7)
+    for (let i = 0; i < 7; i++) {
+      timeBytes[i] = Number((now >> BigInt(48 - 8 * i)) & BigInt(0xff))
     }
 
-    return prefixes[prefix] + "_" + timeBytes.toString("hex") + randomBase62(LENGTH - 12)
+    return prefixes[prefix] + "_" + marker + timeBytes.toString("hex") + randomBase62(LENGTH - 15)
   }
 
   /** Extract timestamp from an ascending ID. Does not work with descending IDs. */
   export function timestamp(id: string): number {
     const prefix = id.split("_")[0]
-    const hex = id.slice(prefix.length + 1, prefix.length + 13)
+    const offset = prefix.length + 1
+    const versioned = id[offset] === "g"
+    const start = offset + (versioned ? 1 : 0)
+    const hex = id.slice(start, start + (versioned ? 14 : 12))
     const encoded = BigInt("0x" + hex)
     return Number(encoded / BigInt(0x1000))
   }

@@ -27,6 +27,14 @@ export interface AgentPart extends PartBase {
   name: string
 }
 
+// An inline reference to an attachment that is already in the composer — pure text
+// on the wire (`@photo.png`), but a pill in the editor so it can be styled and deleted
+// as one unit. The attachment itself still travels as an ImageAttachmentPart.
+export interface MediaMentionPart extends PartBase {
+  type: "media"
+  id: string
+}
+
 export interface ImageAttachmentPart {
   type: "image"
   id: string
@@ -39,7 +47,7 @@ export interface ImageAttachmentPart {
   uploadError?: string
 }
 
-export type ContentPart = TextPart | FileAttachmentPart | AgentPart | ImageAttachmentPart
+export type ContentPart = TextPart | FileAttachmentPart | AgentPart | MediaMentionPart | ImageAttachmentPart
 export type Prompt = ContentPart[]
 
 export type FileContextItem = {
@@ -72,6 +80,8 @@ function isPartEqual(partA: ContentPart, partB: ContentPart) {
       return partB.type === "file" && partA.path === partB.path && isSelectionEqual(partA.selection, partB.selection)
     case "agent":
       return partB.type === "agent" && partA.name === partB.name
+    case "media":
+      return partB.type === "media" && partA.id === partB.id && partA.content === partB.content
     case "image":
       return partB.type === "image" && partA.id === partB.id
   }
@@ -95,7 +105,7 @@ function clonePart(part: ContentPart): ContentPart {
   // Shared by ref so Solid <For> doesn't remount <img>/<video> on every
   // keystroke. Mutations flow through updateImageAttachment + produce().
   if (part.type === "image") return part
-  if (part.type === "agent") return { ...part }
+  if (part.type === "agent" || part.type === "media") return { ...part }
   return {
     ...part,
     selection: cloneSelection(part.selection),

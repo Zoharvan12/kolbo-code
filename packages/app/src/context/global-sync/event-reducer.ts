@@ -1,4 +1,5 @@
 import { Binary } from "@opencode-ai/util/binary"
+import { findMessageIndex, insertMessageIndex } from "@/utils/message-order"
 import { produce, reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type {
   Message,
@@ -181,16 +182,16 @@ export function applyDirectoryEvent(input: {
         input.setStore("message", info.sessionID, [info])
         break
       }
-      const result = Binary.search(messages, info.id, (m) => m.id)
-      if (result.found) {
-        input.setStore("message", info.sessionID, result.index, reconcile(info))
+      const index = findMessageIndex(messages, info.id)
+      if (index >= 0) {
+        input.setStore("message", info.sessionID, index, reconcile(info))
         break
       }
       input.setStore(
         "message",
         info.sessionID,
         produce((draft) => {
-          draft.splice(result.index, 0, info)
+          draft.splice(insertMessageIndex(draft, info), 0, info)
         }),
       )
       break
@@ -201,8 +202,8 @@ export function applyDirectoryEvent(input: {
         produce((draft) => {
           const messages = draft.message[props.sessionID]
           if (messages) {
-            const result = Binary.search(messages, props.messageID, (m) => m.id)
-            if (result.found) messages.splice(result.index, 1)
+            const index = findMessageIndex(messages, props.messageID)
+            if (index >= 0) messages.splice(index, 1)
           }
           delete draft.part[props.messageID]
         }),

@@ -6,6 +6,7 @@ import { getDirectory, getFilename } from "@opencode-ai/util/path"
 export type AtOption =
   | { type: "agent"; name: string; display: string }
   | { type: "file"; path: string; display: string; recent?: boolean }
+  | { type: "image"; id: string; display: string; mime: string; url: string }
 
 export interface SlashCommand {
   id: string
@@ -52,14 +53,39 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
               fallback={<div class="text-text-weak px-2 py-1">{props.t("prompt.popover.emptyResults")}</div>}
             >
               <For each={props.atFlat.slice(0, 10)}>
-                {(item) => {
+                {(item, index) => {
                   const key = props.atKey(item)
+
+                  if (item.type === "image") {
+                    return (
+                      <button
+                        class="w-full flex items-center gap-x-2 rounded-md px-2 py-0.5"
+                        classList={{ "bg-surface-raised-base-hover": props.atActive === key }}
+                        onClick={() => props.onAtSelect(item)}
+                        onMouseEnter={() => props.setAtActive(key)}
+                      >
+                        <Show
+                          when={item.mime.startsWith("image/")}
+                          fallback={<FileIcon node={{ path: item.display, type: "file" }} class="shrink-0 size-4" />}
+                        >
+                          <img src={item.url} alt="" class="shrink-0 size-6 rounded-[3px] object-cover" />
+                        </Show>
+                        <span class="text-14-regular text-text-strong truncate min-w-0">{item.display}</span>
+                      </button>
+                    )
+                  }
+
+                  // Attachments are their own group at the top — separate them from files/agents.
+                  const divider = index() > 0 && props.atFlat[index() - 1]?.type === "image"
 
                   if (item.type === "agent") {
                     return (
                       <button
                         class="w-full flex items-center gap-x-2 rounded-md px-2 py-0.5"
-                        classList={{ "bg-surface-raised-base-hover": props.atActive === key }}
+                        classList={{
+                          "bg-surface-raised-base-hover": props.atActive === key,
+                          "mt-1 pt-1 border-t border-border-weaker-base rounded-t-none": divider,
+                        }}
                         onClick={() => props.onAtSelect(item)}
                         onMouseEnter={() => props.setAtActive(key)}
                       >
@@ -76,7 +102,10 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
                   return (
                     <button
                       class="w-full flex items-center gap-x-2 rounded-md px-2 py-0.5"
-                      classList={{ "bg-surface-raised-base-hover": props.atActive === key }}
+                      classList={{
+                        "bg-surface-raised-base-hover": props.atActive === key,
+                        "mt-1 pt-1 border-t border-border-weaker-base rounded-t-none": divider,
+                      }}
                       onClick={() => props.onAtSelect(item)}
                       onMouseEnter={() => props.setAtActive(key)}
                     >
