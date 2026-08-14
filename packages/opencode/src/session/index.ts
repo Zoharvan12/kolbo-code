@@ -520,7 +520,7 @@ export namespace Session {
         const idMap = new Map<string, MessageID>()
 
         for (const msg of msgs) {
-          if (input.messageID && msg.info.id >= input.messageID) break
+          if (input.messageID && msg.info.id === input.messageID) break
           const newID = MessageID.ascending()
           idMap.set(msg.info.id, newID)
 

@@ -21,6 +21,7 @@ import type {
 import { createStore, produce, reconcile } from "solid-js/store"
 import { useSDK } from "@tui/context/sdk"
 import { Binary } from "@opencode-ai/util/binary"
+import { insertChronologicalIndex } from "@/session/message-order"
 import { createSimpleContext } from "./helper"
 import type { Snapshot } from "@/snapshot"
 import { useExit } from "./exit"
@@ -206,27 +207,27 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           break
 
         case "session.deleted": {
-          const result = Binary.search(store.session, event.properties.info.id, (s) => s.id)
-          if (result.found) {
+          const index = store.session.findIndex((session) => session.id === event.properties.info.id)
+          if (index >= 0) {
             setStore(
               "session",
               produce((draft) => {
-                draft.splice(result.index, 1)
+                draft.splice(index, 1)
               }),
             )
           }
           break
         }
         case "session.updated": {
-          const result = Binary.search(store.session, event.properties.info.id, (s) => s.id)
-          if (result.found) {
-            setStore("session", result.index, reconcile(event.properties.info))
+          const index = store.session.findIndex((session) => session.id === event.properties.info.id)
+          if (index >= 0) {
+            setStore("session", index, reconcile(event.properties.info))
             break
           }
           setStore(
             "session",
             produce((draft) => {
-              draft.splice(result.index, 0, event.properties.info)
+              draft.unshift(event.properties.info)
             }),
           )
           break
@@ -243,16 +244,16 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             setStore("message", event.properties.info.sessionID, [event.properties.info])
             break
           }
-          const result = Binary.search(messages, event.properties.info.id, (m) => m.id)
-          if (result.found) {
-            setStore("message", event.properties.info.sessionID, result.index, reconcile(event.properties.info))
+          const index = messages.findIndex((message) => message.id === event.properties.info.id)
+          if (index >= 0) {
+            setStore("message", event.properties.info.sessionID, index, reconcile(event.properties.info))
             break
           }
           setStore(
             "message",
             event.properties.info.sessionID,
             produce((draft) => {
-              draft.splice(result.index, 0, event.properties.info)
+              draft.splice(insertChronologicalIndex(draft, event.properties.info), 0, event.properties.info)
             }),
           )
           const updated = store.message[event.properties.info.sessionID]
@@ -278,13 +279,13 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         }
         case "message.removed": {
           const messages = store.message[event.properties.sessionID]
-          const result = Binary.search(messages, event.properties.messageID, (m) => m.id)
-          if (result.found) {
+          const index = messages.findIndex((message) => message.id === event.properties.messageID)
+          if (index >= 0) {
             setStore(
               "message",
               event.properties.sessionID,
               produce((draft) => {
-                draft.splice(result.index, 1)
+                draft.splice(index, 1)
               }),
             )
           }
@@ -465,9 +466,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
       },
       session: {
         get(sessionID: string) {
-          const match = Binary.search(store.session, sessionID, (s) => s.id)
-          if (match.found) return store.session[match.index]
-          return undefined
+          return store.session.find((session) => session.id === sessionID)
         },
         status(sessionID: string) {
           const session = result.session.get(sessionID)
@@ -489,9 +488,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           ])
           setStore(
             produce((draft) => {
-              const match = Binary.search(draft.session, sessionID, (s) => s.id)
-              if (match.found) draft.session[match.index] = session.data!
-              if (!match.found) draft.session.splice(match.index, 0, session.data!)
+              const index = draft.session.findIndex((item) => item.id === sessionID)
+              if (index >= 0) draft.session[index] = session.data!
+              if (index < 0) draft.session.unshift(session.data!)
               draft.todo[sessionID] = todo.data ?? []
               draft.message[sessionID] = messages.data!.map((x) => x.info)
               for (const message of messages.data!) {

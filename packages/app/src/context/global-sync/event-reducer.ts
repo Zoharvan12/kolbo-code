@@ -1,5 +1,6 @@
 import { Binary } from "@opencode-ai/util/binary"
 import { findMessageIndex, insertMessageIndex } from "@/utils/message-order"
+import { findSessionIndex } from "./session-trim"
 import { produce, reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type {
   Message,
@@ -105,39 +106,33 @@ export function applyDirectoryEvent(input: {
     }
     case "session.created": {
       const info = (event.properties as { info: Session }).info
-      const result = Binary.search(input.store.session, info.id, (s) => s.id)
-      if (result.found) {
-        input.setStore("session", result.index, reconcile(info))
-        break
-      }
       const next = input.store.session.slice()
-      next.splice(result.index, 0, info)
+      const existing = findSessionIndex(next, info.id)
+      if (existing >= 0) next.splice(existing, 1)
+      next.push(info)
       const trimmed = trimSessions(next, { limit: input.store.limit, permission: input.store.permission })
       input.setStore("session", reconcile(trimmed, { key: "id" }))
       cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo)
-      if (!info.parentID) input.setStore("sessionTotal", (value) => value + 1)
+      if (existing < 0 && !info.parentID) input.setStore("sessionTotal", (value) => value + 1)
       break
     }
     case "session.updated": {
       const info = (event.properties as { info: Session }).info
-      const result = Binary.search(input.store.session, info.id, (s) => s.id)
+      const index = findSessionIndex(input.store.session, info.id)
       // Archive transitions: keep the session in the store and just update
       // its `time.archived` field via the regular update path below. The
       // sidebar filter parameter controls visibility. `sessionTotal` still
       // tracks the non-archived count for pagination math.
-      const wasArchived = result.found && !!input.store.session[result.index].time?.archived
+      const wasArchived = index >= 0 && !!input.store.session[index].time?.archived
       const isArchived = !!info.time.archived
       if (!info.parentID && wasArchived !== isArchived) {
         const delta = isArchived ? -1 : 1
         input.setStore("sessionTotal", (value) => Math.max(0, value + delta))
       }
       if (isArchived) cleanupSessionCaches(input.setStore, info.id, input.setSessionTodo)
-      if (result.found) {
-        input.setStore("session", result.index, reconcile(info))
-        break
-      }
       const next = input.store.session.slice()
-      next.splice(result.index, 0, info)
+      if (index >= 0) next.splice(index, 1)
+      next.push(info)
       const trimmed = trimSessions(next, { limit: input.store.limit, permission: input.store.permission })
       input.setStore("session", reconcile(trimmed, { key: "id" }))
       cleanupDroppedSessionCaches(input.store, input.setStore, trimmed, input.setSessionTodo)
@@ -145,12 +140,12 @@ export function applyDirectoryEvent(input: {
     }
     case "session.deleted": {
       const info = (event.properties as { info: Session }).info
-      const result = Binary.search(input.store.session, info.id, (s) => s.id)
-      if (result.found) {
+      const index = findSessionIndex(input.store.session, info.id)
+      if (index >= 0) {
         input.setStore(
           "session",
           produce((draft) => {
-            draft.splice(result.index, 1)
+            draft.splice(index, 1)
           }),
         )
       }

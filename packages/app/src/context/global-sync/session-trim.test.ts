@@ -25,7 +25,7 @@ describe("trimSessions", () => {
     ]
 
     const result = trimSessions(list, { limit: 2, permission: {}, now })
-    expect(result.map((x) => x.id)).toEqual(["a", "b", "c", "d"])
+    expect(result.map((x) => x.id)).toEqual(["a", "b", "c", "d", "e"])
   })
 
   test("keeps children when root is kept, permission exists, or child is recent", () => {

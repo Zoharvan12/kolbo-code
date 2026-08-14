@@ -4,6 +4,7 @@ import { useSync } from "@/context/sync"
 import { checksum } from "@opencode-ai/util/encode"
 import { findLast } from "@opencode-ai/util/array"
 import { same } from "@/utils/same"
+import { messagesBefore } from "@/utils/message-order"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Accordion } from "@opencode-ai/ui/accordion"
 import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
@@ -150,7 +151,7 @@ export function SessionContextTab() {
     () => {
       const revert = info()?.revert?.messageID
       if (!revert) return userMessages()
-      return userMessages().filter((m) => m.id < revert)
+      return messagesBefore(userMessages(), revert)
     },
     emptyUserMessages,
     { equals: same },

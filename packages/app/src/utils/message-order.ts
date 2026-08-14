@@ -6,6 +6,26 @@ export const compareMessages = (a: Message, b: Message) =>
 export const findMessageIndex = (messages: readonly Message[], id: string) =>
   messages.findIndex((message) => message.id === id)
 
+export const messagesBefore = <T extends Message>(messages: readonly T[], id: string) => {
+  const index = findMessageIndex(messages, id)
+  return index < 0 ? [...messages] : messages.slice(0, index)
+}
+
+export const messagesFrom = <T extends Message>(messages: readonly T[], id: string) => {
+  const index = findMessageIndex(messages, id)
+  return index < 0 ? [] : messages.slice(index)
+}
+
+export const messageBefore = <T extends Message>(messages: readonly T[], id: string) => {
+  const index = findMessageIndex(messages, id)
+  return index <= 0 ? undefined : messages[index - 1]
+}
+
+export const messageAfter = <T extends Message>(messages: readonly T[], id: string) => {
+  const index = findMessageIndex(messages, id)
+  return index < 0 ? undefined : messages[index + 1]
+}
+
 export function insertMessageIndex(messages: readonly Message[], message: Message) {
   let left = 0
   let right = messages.length

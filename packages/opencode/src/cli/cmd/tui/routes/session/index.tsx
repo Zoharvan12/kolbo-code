@@ -77,6 +77,7 @@ import { Filesystem } from "@/util/filesystem"
 import { Global } from "@/global"
 import { PermissionPrompt } from "./permission"
 import { QuestionPrompt } from "./question"
+import { itemsBeforeID, itemsFromID } from "@/session/message-order"
 import { DialogExportOptions } from "../../ui/dialog-export-options"
 import * as Model from "../../util/model"
 import { formatTranscript } from "../../util/transcript"
@@ -131,7 +132,7 @@ export function Session() {
     const parentID = session()?.parentID ?? session()?.id
     return sync.data.session
       .filter((x) => x.parentID === parentID || x.id === parentID)
-      .toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .toSorted((a, b) => b.time.created - a.time.created || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   })
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
   const permissions = createMemo(() => {
@@ -147,6 +148,12 @@ export function Session() {
 
   const pending = createMemo(() => {
     return messages().findLast((x) => x.role === "assistant" && !x.time.completed)?.id
+  })
+  const pendingIndex = createMemo(() => {
+    const id = pending()
+    if (!id) return
+    const index = messages().findIndex((message) => message.id === id)
+    return index < 0 ? undefined : index
   })
 
   const lastAssistant = createMemo(() => {
@@ -606,7 +613,8 @@ export function Session() {
         const status = sync.data.session_status?.[route.sessionID]
         if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
         const revert = session()?.revert?.messageID
-        const message = messages().findLast((x) => (!revert || x.id < revert) && x.role === "user")
+        const history = revert ? itemsBeforeID(messages(), revert) : messages()
+        const message = history.findLast((x) => x.role === "user")
         if (!message) return
         sdk.client.session
           .revert({
@@ -645,7 +653,9 @@ export function Session() {
         dialog.clear()
         const messageID = session()?.revert?.messageID
         if (!messageID) return
-        const message = messages().find((x) => x.role === "user" && x.id > messageID)
+        const message = itemsFromID(messages(), messageID)
+          .slice(1)
+          .find((x) => x.role === "user")
         if (!message) {
           sdk.client.session.unrevert({
             sessionID: route.sessionID,
@@ -882,9 +892,8 @@ export function Session() {
       category: t("commands.categories.session"),
       onSelect: (dialog) => {
         const revertID = session()?.revert?.messageID
-        const lastAssistantMessage = messages().findLast(
-          (msg) => msg.role === "assistant" && (!revertID || msg.id < revertID),
-        )
+        const history = revertID ? itemsBeforeID(messages(), revertID) : messages()
+        const lastAssistantMessage = history.findLast((msg) => msg.role === "assistant")
         if (!lastAssistantMessage) {
           toast.show({ message: t("toast.noAssistantMessages"), variant: "error" })
           dialog.clear()
@@ -1073,7 +1082,13 @@ export function Session() {
   const revertRevertedMessages = createMemo(() => {
     const messageID = revertMessageID()
     if (!messageID) return []
-    return messages().filter((x) => x.id >= messageID && x.role === "user")
+    return itemsFromID(messages(), messageID).filter((x) => x.role === "user")
+  })
+
+  const revertedMessageIDs = createMemo(() => {
+    const messageID = revertMessageID()
+    if (!messageID) return new Set<string>()
+    return new Set(itemsFromID(messages(), messageID).map((message) => message.id))
   })
 
   const revert = createMemo(() => {
@@ -1195,7 +1210,7 @@ export function Session() {
                         )
                       })()}
                     </Match>
-                    <Match when={revert()?.messageID && message.id >= revert()!.messageID}>
+                    <Match when={revertedMessageIDs().has(message.id)}>
                       <></>
                     </Match>
                     <Match when={message.role === "user"}>
@@ -1213,7 +1228,7 @@ export function Session() {
                         }}
                         message={message as UserMessage}
                         parts={sync.data.part[message.id] ?? []}
-                        pending={pending()}
+                        pendingIndex={pendingIndex()}
                       />
                     </Match>
                     <Match when={message.role === "assistant"}>
@@ -1314,7 +1329,7 @@ function UserMessage(props: {
   parts: Part[]
   onMouseUp: () => void
   index: number
-  pending?: string
+  pendingIndex?: number
 }) {
   const ctx = use()
   const local = useLocal()
@@ -1322,7 +1337,7 @@ function UserMessage(props: {
   const files = createMemo(() => props.parts.flatMap((x) => (x.type === "file" ? [x] : [])))
   const { theme } = useTheme()
   const [hover, setHover] = createSignal(false)
-  const queued = createMemo(() => props.pending && props.message.id > props.pending)
+  const queued = createMemo(() => props.pendingIndex !== undefined && props.index > props.pendingIndex)
   const color = createMemo(() => local.agent.color(props.message.agent))
   const queuedFg = createMemo(() => selectedForeground(theme, color()))
   const metadataVisible = createMemo(() => queued() || ctx.showTimestamps())

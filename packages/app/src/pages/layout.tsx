@@ -49,13 +49,14 @@ import {
 } from "@/context/global-sync/session-prefetch"
 import { useNotification } from "@/context/notification"
 import { usePermission } from "@/context/permission"
-import { Binary } from "@opencode-ai/util/binary"
 import { retry } from "@opencode-ai/util/retry"
 import { playSoundById } from "@/utils/sound"
 import { createAim } from "@/utils/aim"
 import { setNavigate } from "@/utils/notification-click"
 import { Worktree as WorktreeState } from "@/utils/worktree"
 import { setSessionHandoff } from "@/pages/session/handoff"
+import { findSessionIndex } from "@/context/global-sync/session-trim"
+import { mergeMessages } from "@/utils/message-order"
 
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme/context"
@@ -789,7 +790,7 @@ export default function Layout(props: ParentProps) {
 
             const items = (messages.data ?? []).filter((x) => !!x?.info?.id)
             const next = items.map((x) => x.info).filter((m): m is Message => !!m?.id)
-            const sorted = mergeByID([], next)
+            const sorted = mergeMessages([], next)
             const stale = markPrefetched(directory, sessionID)
             const cursor = messages.response.headers.get("x-next-cursor") ?? undefined
             const meta = {
@@ -807,7 +808,7 @@ export default function Layout(props: ParentProps) {
             }
 
             const current = store.message[sessionID] ?? []
-            const merged = mergeByID(
+            const merged = mergeMessages(
               current.filter((item): item is Message => !!item?.id),
               sorted,
             )
@@ -1013,8 +1014,8 @@ export default function Layout(props: ParentProps) {
     })
     setStore(
       produce((draft) => {
-        const match = Binary.search(draft.session, session.id, (s) => s.id)
-        if (match.found) draft.session.splice(match.index, 1)
+        const index = findSessionIndex(draft.session, session.id)
+        if (index >= 0) draft.session.splice(index, 1)
       }),
     )
     if (session.id === params.id) {

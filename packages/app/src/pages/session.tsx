@@ -62,6 +62,7 @@ import { TerminalPanel } from "@/pages/session/terminal-panel"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
 import { useSessionHashScroll } from "@/pages/session/use-session-hash-scroll"
 import { Identifier } from "@/utils/id"
+import { messageAfter, messagesBefore, messagesFrom } from "@/utils/message-order"
 import { diffs as list } from "@/utils/diffs"
 import { Persist, persisted } from "@/utils/persist"
 import { extractPromptFromParts } from "@/utils/prompt"
@@ -569,7 +570,7 @@ export default function Page() {
     () => {
       const revert = revertMessageID()
       if (!revert) return userMessages()
-      return userMessages().filter((m) => m.id < revert)
+      return messagesBefore(userMessages(), revert)
     },
     emptyUserMessages,
     {
@@ -1968,7 +1969,7 @@ export default function Page() {
       const sessionID = params.id
       if (!sessionID) return
 
-      const next = userMessages().find((item) => item.id > id)
+      const next = messageAfter(userMessages(), id)
       const prev = prompt.current().slice()
       const last = info()?.revert
 
@@ -2020,9 +2021,7 @@ export default function Page() {
   const rolled = createMemo(() => {
     const id = revertMessageID()
     if (!id) return []
-    return userMessages()
-      .filter((item) => item.id >= id)
-      .map((item) => ({ id: item.id, text: line(item.id) }))
+    return messagesFrom(userMessages(), id).map((item) => ({ id: item.id, text: line(item.id) }))
   })
 
   const actions = { revert }

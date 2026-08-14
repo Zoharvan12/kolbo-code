@@ -13,6 +13,14 @@ export function compareSessionRecent(a: Session, b: Session) {
   return cmp(a.id, b.id)
 }
 
+export const findSessionIndex = (sessions: readonly Session[], id: string) =>
+  sessions.findIndex((session) => session.id === id)
+
+export function insertSessionIndex(sessions: readonly Session[], session: Session) {
+  const index = sessions.findIndex((item) => item.id >= session.id)
+  return index < 0 ? sessions.length : index
+}
+
 export function takeRecentSessions(sessions: Session[], limit: number, cutoff: number) {
   if (limit <= 0) return [] as Session[]
   const selected: Session[] = []

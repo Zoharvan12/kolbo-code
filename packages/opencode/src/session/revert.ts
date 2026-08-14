@@ -77,7 +77,8 @@ export namespace SessionRevert {
         if (session.revert?.snapshot) yield* snap.restore(session.revert.snapshot)
         yield* snap.revert(patches)
         if (rev.snapshot) rev.diff = yield* snap.diff(rev.snapshot as string)
-        const range = all.filter((msg) => msg.info.id >= rev!.messageID)
+        const revertIndex = all.findIndex((msg) => msg.info.id === rev!.messageID)
+        const range = revertIndex < 0 ? [] : all.slice(revertIndex)
         const diffs = yield* summary.computeDiff({ messages: range })
         yield* storage.write(["session_diff", input.sessionID], diffs).pipe(Effect.ignore)
         yield* bus.publish(Session.Event.Diff, { sessionID: input.sessionID, diff: diffs })
@@ -110,9 +111,14 @@ export namespace SessionRevert {
         const messageID = session.revert.messageID
         const remove = [] as MessageV2.WithParts[]
         let target: MessageV2.WithParts | undefined
-        for (const msg of msgs) {
-          if (msg.info.id < messageID) continue
-          if (msg.info.id > messageID) {
+        const targetIndex = msgs.findIndex((msg) => msg.info.id === messageID)
+        if (targetIndex < 0) {
+          yield* sessions.clearRevert(sessionID)
+          return
+        }
+        for (let index = targetIndex; index < msgs.length; index++) {
+          const msg = msgs[index]
+          if (index > targetIndex) {
             remove.push(msg)
             continue
           }

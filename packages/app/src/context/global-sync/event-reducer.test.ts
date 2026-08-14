@@ -190,7 +190,8 @@ describe("applyDirectoryEvent", () => {
       loadLsp() {},
     })
 
-    expect(store.session.map((x) => x.id)).toEqual(["ses_2"])
+    expect(store.session.map((x) => x.id)).toEqual(["ses_1", "ses_2"])
+    expect(store.session[0].time.archived).toBe(10)
     expect(store.sessionTotal).toBe(1)
     expect(store.message.ses_1).toBeUndefined()
     expect(store.part[message.id]).toBeUndefined()

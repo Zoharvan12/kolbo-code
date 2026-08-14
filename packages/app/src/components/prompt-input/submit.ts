@@ -1,7 +1,6 @@
 import type { Message, Session, TextPartInput, FilePartInput } from "@opencode-ai/sdk/v2/client"
 import { showToast } from "@opencode-ai/ui/toast"
 import { base64Encode } from "@opencode-ai/util/encode"
-import { Binary } from "@opencode-ai/util/binary"
 import { useNavigate, useParams } from "@solidjs/router"
 import type { Accessor } from "solid-js"
 import type { FileSelection } from "@/context/file"
@@ -20,6 +19,7 @@ import { buildRequestParts } from "./build-request-parts"
 import { setCursorPosition } from "./editor-dom"
 import { inFlightAttachments } from "./attachments"
 import { formatServerError } from "@/utils/server-errors"
+import { findSessionIndex, insertSessionIndex } from "@/context/global-sync/session-trim"
 
 type PendingPrompt = {
   abort: AbortController
@@ -280,13 +280,10 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const seed = (dir: string, info: Session) => {
     const [, setStore] = globalSync.child(dir)
     setStore("session", (list: Session[]) => {
-      const result = Binary.search(list, info.id, (item) => item.id)
       const next = [...list]
-      if (result.found) {
-        next[result.index] = info
-        return next
-      }
-      next.splice(result.index, 0, info)
+      const index = findSessionIndex(next, info.id)
+      if (index >= 0) next.splice(index, 1)
+      next.splice(insertSessionIndex(next, info), 0, info)
       return next
     })
   }

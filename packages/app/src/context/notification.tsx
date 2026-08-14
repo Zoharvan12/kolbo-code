@@ -7,7 +7,7 @@ import { useGlobalSync } from "./global-sync"
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
 import { useSettings } from "@/context/settings"
-import { Binary } from "@opencode-ai/util/binary"
+import { findSessionIndex } from "./global-sync/session-trim"
 import { base64Encode } from "@opencode-ai/util/encode"
 import { decode64 } from "@/utils/base64"
 import { EventSessionError } from "@opencode-ai/sdk/v2"
@@ -208,8 +208,8 @@ export const { use: useNotification, provider: NotificationProvider } = createSi
     const lookup = async (directory: string, sessionID?: string) => {
       if (!sessionID) return undefined
       const [syncStore] = globalSync.child(directory, { bootstrap: false })
-      const match = Binary.search(syncStore.session, sessionID, (s) => s.id)
-      if (match.found) return syncStore.session[match.index]
+      const index = findSessionIndex(syncStore.session, sessionID)
+      if (index >= 0) return syncStore.session[index]
       return globalSDK.client.session
         .get({ directory, sessionID })
         .then((x) => x.data)

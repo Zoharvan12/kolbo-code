@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test"
 import type { MessageV2 } from "../../src/session/message-v2"
-import { messageCreatedBefore } from "../../src/session/message-order"
+import { itemAfterID, itemsBeforeID, itemsFromID, messageCreatedBefore } from "../../src/session/message-order"
 
 const message = (id: string, created: number) =>
   ({ id, sessionID: "ses_test", role: "user", agent: "build", model: {}, time: { created } }) as MessageV2.Info
@@ -13,5 +13,8 @@ describe("message chronology", () => {
     expect(fresh.id < old.id).toBe(true)
     expect(messageCreatedBefore(old, fresh)).toBe(true)
     expect(messageCreatedBefore(fresh, old)).toBe(false)
+    expect(itemsBeforeID([old, fresh], fresh.id)).toEqual([old])
+    expect(itemsFromID([old, fresh], fresh.id)).toEqual([fresh])
+    expect(itemAfterID([old, fresh], old.id)).toBe(fresh)
   })
 })

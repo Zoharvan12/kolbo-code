@@ -294,7 +294,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         input.client.session.messages({ sessionID: input.sessionID, limit: input.limit, before: input.before }),
       )
       const items = (messages.data ?? []).filter((x) => !!x?.info?.id)
-      const session = items.map((x) => clean(x.info)).sort((a, b) => cmp(a.id, b.id))
+      const session = items.map((x) => clean(x.info)).sort((a, b) =>
+        a.time.created - b.time.created || cmp(a.id, b.id),
+      )
       const part = items.map((message) => ({ id: message.info.id, part: sortParts(message.parts) }))
       const cursor = messages.response.headers.get("x-next-cursor") ?? undefined
       return {
