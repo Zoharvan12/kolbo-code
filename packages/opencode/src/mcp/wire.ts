@@ -14,43 +14,10 @@ import os from "os"
 import path from "path"
 // @ts-ignore — Bun text-import attribute syntax
 import KOLBO_MCP_RUNNER from "./runner.ts" with { type: "text" }
-// Single source of truth for the Kolbo skill: the canonical SKILL.md is
-// inlined at build time via Bun's `with { type: "text" }` import. There is
-// only ONE place to edit — packages/opencode/skills/kolbo/SKILL.md — and the
-// compiled binary always carries that exact content. No separate condensed
-// fallback, no drift between source and embedded copy.
-// @ts-ignore — Bun text-import attribute syntax
-import KOLBO_SKILL_MD_BUNDLED from "../../skills/kolbo/SKILL.md" with { type: "text" }
+import { syncKolboSkillTree } from "./skill-tree"
 import { Auth } from "../auth"
 import { Partner } from "../brand/partner"
 import { Global } from "../global"
-
-// Build-time integrity guard: catches a botched build where the text-import
-// silently returns an empty string or has lost a canonical section. If the
-// `with { type: "text" }` attribute ever regresses (toolchain change, bundler
-// swap, accidental refactor), this fails loudly at module load instead of
-// shipping users a binary that writes an empty SKILL.md to disk and breaks
-// every MCP session afterwards. The markers are stable anchors picked from
-// distinct sections of the current SKILL.md (post v0.4.0 progressive-disclosure
-// restructure) — touching any one is intentional, dropping all is not.
-//
-// When you trim/move a section out of SKILL.md, update the marker list here
-// to a still-present anchor from the same conceptual area.
-const KOLBO_SKILL_MARKERS = [
-  "Routing Index — Read These Files on Demand", // core: the progressive-disclosure index
-  "Step 0 — Bootstrap",                          // core: auth/MCP wiring check
-  "Rate Limiting & Batch Generation",            // core: still in SKILL.md
-  "Runaway-Loop Guard",                          // core: still in SKILL.md
-] as const
-for (const marker of KOLBO_SKILL_MARKERS) {
-  if (!KOLBO_SKILL_MD_BUNDLED.includes(marker)) {
-    throw new Error(
-      `wire.ts: bundled SKILL.md is missing required marker "${marker}" — ` +
-        `the text-import may have failed or the canonical SKILL.md was over-trimmed. ` +
-        `Fix packages/opencode/skills/kolbo/SKILL.md, then rebuild.`,
-    )
-  }
-}
 
 function writeJsonAtomic(target: string, data: unknown, mode: number) {
   const content = JSON.stringify(data, null, 2)
@@ -166,38 +133,13 @@ export async function ensureKolboMcpWired(): Promise<{ keyChanged: boolean }> {
       writeJsonAtomic(configFile, existing, 0o600)
     }
 
-    // Single source of truth: the canonical SKILL.md is inlined into the
-    // compiled binary at build time (see KOLBO_SKILL_MD_BUNDLED import at
-    // the top of this file). There is exactly ONE place to edit the skill
-    // — packages/opencode/skills/kolbo/SKILL.md — and the binary always
-    // ships that exact content. No remote fetch (the kolbo-docs repo is
-    // private, the raw URL 404s anyway), no condensed-fallback drift, no
-    // bundle-path resolution gymnastics.
-    //
-    // We do still write the skill to BOTH ~/.config/kolbo/skills/ AND
-    // ~/.kolbo/skills/ because opencode's loader scans both and the
-    // first-seen copy wins. A stale ~/.kolbo/ copy from a previous CLI
-    // version would otherwise silently shadow the new bundled content.
-    // Keeping both locations byte-identical with the embedded canonical
-    // means the agent always reads the same SKILL the binary was built
-    // with — no drift possible.
-    const skillContent = KOLBO_SKILL_MD_BUNDLED
-    const skillDests = [
-      path.join(configDir, "skills", "kolbo", "SKILL.md"),
-      path.join(os.homedir(), ".kolbo", "skills", "kolbo", "SKILL.md"),
-    ]
-    for (const skillDest of skillDests) {
-      try {
-        fs.mkdirSync(path.dirname(skillDest), { recursive: true })
-        let currentSkill: string | null = null
-        try { currentSkill = fs.readFileSync(skillDest, "utf8") } catch {}
-        if (currentSkill !== skillContent) {
-          fs.writeFileSync(skillDest, skillContent)
-        }
-      } catch {
-        // Continue to the next location even if one write fails
-      }
-    }
+    // Install the complete progressive-disclosure tree. A config-level
+    // SKILL.md shadows the built-in copy, so writing only that entry file makes
+    // every references/ route point at a file that does not exist.
+    syncKolboSkillTree([
+      path.join(configDir, "skills", "kolbo"),
+      path.join(os.homedir(), ".kolbo", "skills", "kolbo"),
+    ])
   } catch {
     // Non-fatal
   }

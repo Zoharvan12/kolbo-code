@@ -19,30 +19,8 @@ import { Partner } from "../../brand/partner"
 import { assertPublicUrl } from "../../util/safe-url"
 export { ensureKolboMcpWired } from "../../mcp/wire"
 import { ensureKolboMcpWired } from "../../mcp/wire"
-// Single source of truth: the canonical Kolbo skill markdown lives at
-// packages/opencode/skills/kolbo/SKILL.md and is bundled into the binary
-// at build time. Importing it here (same pattern as mcp/wire.ts) so that
-// providers.ts and wire.ts both write IDENTICAL content to disk — no more
-// drift between the trimmed inline stub this file used to define and the
-// real ~1500-line SKILL the agent loads at runtime.
-import KOLBO_SKILL_MD from "../../../skills/kolbo/SKILL.md" with { type: "text" }
 
 const KOLBO_API_BASE = Partner.apiBase
-
-/**
- * Atomic JSON write: serialize to a sibling .tmp, set permissions on the
- * temp file BEFORE it becomes the real file, then rename. Prevents torn
- * reads and world-readable windows. Mode is a no-op on Windows but is
- * still applied for cross-platform hygiene.
- */
-function writeJsonAtomic(target: string, data: unknown, mode: number) {
-  const content = JSON.stringify(data, null, 2)
-  const tmp = `${target}.tmp.${process.pid}.${Math.random().toString(36).slice(2, 10)}`
-  fs.writeFileSync(tmp, content, { mode })
-  try { fs.chmodSync(tmp, mode) } catch {}
-  fs.renameSync(tmp, target)
-}
-
 
 async function kolboDeviceLogin(): Promise<string | null> {
   // 1. Request a device code from kolbo-api
@@ -631,41 +609,9 @@ export const ProvidersLoginCommand = cmd({
           await Auth.set("kolbo", { type: "api", key, metadata })
           prompts.log.success(`Logged into ${Partner.name}`)
 
-          // Auto-inject Kolbo MCP + skill into global config (idempotent)
+          // Auto-inject Kolbo MCP + the complete progressive-disclosure skill tree.
           try {
-            const configDir = Global.Path.config
-            fs.mkdirSync(configDir, { recursive: true })
-
-            // 1. Write MCP entry to kolbo.json
-            const configFile = path.join(configDir, "kolbo.json")
-            let existing: Record<string, any> = {}
-            if (fs.existsSync(configFile)) {
-              try { existing = JSON.parse(fs.readFileSync(configFile, "utf8")) } catch {}
-            }
-            const mcpEnv: Record<string, string> = { KOLBO_API_KEY: key }
-            if (Partner.isWhitelabel) mcpEnv.KOLBO_API_URL = Partner.apiBase
-            if (existing.mcp?.kolbo?.environment?.KOLBO_API_KEY !== key) {
-              existing.mcp = {
-                ...existing.mcp,
-                kolbo: {
-                  type: "local",
-                  command: ["npx", "-y", "@kolbo/mcp@latest"],
-                  environment: mcpEnv,
-                  timeout: 1800000,
-                },
-              }
-              // Atomic write — file contains the Kolbo API key.
-              writeJsonAtomic(configFile, existing, 0o600)
-            }
-
-            // 2. Write the Kolbo skill file so the agent knows how to use the MCP tools
-            const skillDir = path.join(configDir, "skills", "kolbo")
-            fs.mkdirSync(skillDir, { recursive: true })
-            const skillDest = path.join(skillDir, "SKILL.md")
-            if (!fs.existsSync(skillDest)) {
-              fs.writeFileSync(skillDest, KOLBO_SKILL_MD)
-            }
-
+            await ensureKolboMcpWired()
             prompts.log.info("Kolbo MCP tools connected — image, video, music and more are now available as tools")
           } catch {
             // Non-fatal: MCP wiring is a nice-to-have, don't block login
