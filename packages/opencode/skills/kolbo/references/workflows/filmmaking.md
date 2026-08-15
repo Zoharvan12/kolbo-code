@@ -91,7 +91,7 @@ Before writing, establish:
 8. Audio ownership, exact words/lyrics, and whether music is native, source-driven, or reserved for post.
 9. Model capability limits and target generation mode.
 
-Prompt-length limits apply to the entire compiled generation prompt as one string, including whitespace, headers, timecodes, dialogue, audio, and locks. Count after compilation. For the current Seedance 2.5 adapter snapshot, the hard ceiling is 10,000 characters; never borrow that number for another model.
+Prompt-length limits apply to the entire compiled generation prompt as one string, including whitespace, headers, timecodes, dialogue, audio, and locks. Count after compilation. For the current Seedance 2.5 adapter snapshot, the hard ceiling is 30,000 characters; never borrow that number for another model.
 
 For a serious controlled shot, prefer this logical order, omitting irrelevant blocks:
 

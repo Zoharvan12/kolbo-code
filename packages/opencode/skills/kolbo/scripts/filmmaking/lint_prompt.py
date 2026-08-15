@@ -76,10 +76,10 @@ def check_adapter(
 ) -> None:
     if model != "seedance-2.5":
         return
-    if len(prompt) > 10_000:
+    if len(prompt) > 30_000:
         report.error(
             "seedance_prompt_length",
-            f"Prompt has {len(prompt)} characters; Seedance 2.5 adapter ceiling is 10,000.",
+            f"Prompt has {len(prompt)} characters; Seedance 2.5 adapter ceiling is 30,000.",
         )
     shot_numbers = [int(value) for value in SHOT_RE.findall(prompt)]
     if len(shot_numbers) > 30:

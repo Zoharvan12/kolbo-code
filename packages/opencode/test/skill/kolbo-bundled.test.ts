@@ -53,7 +53,7 @@ const GUARDRAILS = [
   "30-minute hard cap",
   "Read-before-Edit",
   "Default to the full approved prior video",
-  "10,000 characters",
+  "30,000 characters",
 ]
 test.each(GUARDRAILS)("skill tree retains guardrail: %s", (guardrail) => {
   expect(docs).toContain(guardrail)

@@ -13,7 +13,7 @@ Load this file when the user wants a **Seedance 2.5** video (they said "2.5" / "
 
 - **Duration 4–30 seconds**, whole seconds. 30s IS supported.
 - **Up to 30 shots/cuts in ONE generation.** Deliver exactly N if N ≤ 30.
-- **Prompt cap 10,000 characters** for the entire prompt as one string.
+- **Prompt cap 30,000 characters** for the entire prompt as one string.
 - **Up to 50 reference medias / Visual DNA mentions** (`@Name`, `@ImageN`, `#Moodboard`). Every referenced asset must be tagged in the prompt text.
 - **Multimodal refs:** images + video clips + audio can all anchor one generation.
 
@@ -35,11 +35,11 @@ UGC / phone vertical: NEVER write "cinematic". GLOBAL LOOK is phone-native. Use 
 
 ## Prompt length
 
-Simple ≤15s ~120–280 words. Locked-intro cinematic 15s typically 400–900 words. Full 30s / 15+ shots typically 700–1200 words / ~4k–9k chars. Hard cap 10,000. Never split into part 1 / part 2.
+Simple ≤15s ~120–280 words. Locked-intro cinematic 15s typically 400–900 words. Full 30s / 15+ shots typically 700–1200 words / ~4k–9k chars. Hard cap 30,000. Never split into part 1 / part 2.
 
 ## Feature-Block (optional, UNDER the Locked Intro)
 
-Reach for extra department passes only when the user wants "their best possible 30 seconds" AND the 10k budget still has room after GLOBAL LOOK / CAST / LOCATION. Never replace the Locked Intro.
+Reach for extra department passes only when the user wants "their best possible 30 seconds" AND the 30k budget still has room after GLOBAL LOOK / CAST / LOCATION. Never replace the Locked Intro.
 
 May add above GLOBAL LOOK: **EMOTIONAL INTENT** + **SIGNATURE MOMENT**.
 May add under the shot list: CAMERA timecode pass, SOUND timestamps, PHYSICS contract, EDITING/CONTINUITY, DIRECTORIAL NOTES.
