@@ -1,21 +1,14 @@
 ---
-version: 0.7.5
+version: 0.8.0
 name: kolbo
 description: |
-  Generate, edit, or analyze creative media via the Kolbo AI MCP server:
-  images (GPT Image, Nano Banana, Flux), video (Seedance, Veo, Kling, Hailuo),
-  music (Suno), TTS (ElevenLabs), 3D, transcription, Visual DNA (character
-  consistency), Marketing Studio (UGC + DTC ads + product photoshoot +
-  marketplace cards), Creative Director (multi-scene batches), HTML artifact
-  publishing (presentations, landing pages, dashboards), AI Docs (project
-  documents you author and share).
-
-  Use when the user wants to generate, create, make, edit, animate, or
-  transcribe media: images, video, music, voice/TTS, sound effects, 3D models,
-  UGC or TV-spot ads, product / lifestyle / hero shots, Amazon or marketplace
-  listings, presentations, landing pages, or dashboards;
-  to reuse a character or brand (Visual DNA, brand kits); or to save a written
-  plan / brief / script / research into a Kolbo project (AI Docs).
+  Generate, edit, analyze, and direct creative media through Kolbo AI: images,
+  video (Seedance, Veo, Kling, Hailuo), music, speech, sound, 3D, transcription,
+  Visual DNA, Creative Director batches, marketing assets, HTML artifacts, and
+  AI Docs. Use for sophisticated AI filmmaking as well as individual media:
+  scripts, production bibles, recurring characters and locations, acting,
+  dialogue, music performance, blocking, physics, multi-shot continuity,
+  connected scenes, prompt audits, and feature-length production planning.
 
   NOT for: video editing / FFmpeg (use video-production), motion graphics
   (use remotion-best-practices), code editing, or general chat.
@@ -64,7 +57,9 @@ For multi-scene / batch work this pairs with `generate_creative_director` (see b
 
 | If the user wants to… | Read first |
 |---|---|
-| Generate a **Seedance 2** video | `references/models/seedance.md` |
+| Direct, develop, audit, or continue a **film / episode / connected scene / complex performance** with continuity, acting, dialogue, music, blocking, or physics | `references/workflows/filmmaking.md` |
+| Generate a **Seedance 2.5** video | `references/models/seedance25.md`; also load `references/workflows/filmmaking.md` for narrative, performance, or cross-shot continuity |
+| Generate a **Seedance 2 / 2.0** video | `references/models/seedance.md` |
 | Generate a **GPT Image 2** image | `references/models/gpt-image.md` |
 | Generate a **Nano Banana / Gemini** image | `references/models/nano-banana.md` |
 | Generate a **Veo 3 / 3.1** video | `references/models/veo.md` |

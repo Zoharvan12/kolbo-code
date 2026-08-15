@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0",
+  "project_id": "EXAMPLE",
+  "title": "Example Film",
+  "format": {
+    "type": "short",
+    "runtime_target_minutes": 3,
+    "primary_aspect_ratio": "16:9",
+    "delivery_fps": 24
+  },
+  "story": {
+    "logline": "A courier must cross a flooded city before the last evacuation train leaves.",
+    "story_goal": "Deliver the medicine and escape before dawn.",
+    "genre": [
+      "survival drama"
+    ],
+    "tone": [
+      "intimate",
+      "urgent",
+      "grounded"
+    ]
+  },
+  "world_rules": [
+    "Water obeys realistic mass, drag, and buoyancy.",
+    "Technology is contemporary and visibly weathered."
+  ],
+  "visual_worlds": [
+    {
+      "id": "world_flooded_dawn",
+      "palette": "cool blue-grey with warm emergency-light accents",
+      "texture": "wet concrete, rain, practical haze",
+      "capture_language": "large-format naturalism, restrained handheld"
+    }
+  ],
+  "characters": [
+    {
+      "id": "char_mara",
+      "canonical_tag": "@char_EXAMPLE_mara_base_v1",
+      "identity_anchors": [
+        "short black curls",
+        "scar through left eyebrow",
+        "yellow rain shell"
+      ],
+      "performance_profile": "Contained urgency; she masks fear by solving practical problems.",
+      "voice_lock": "Low mezzo, clipped phrasing under stress, never theatrical.",
+      "states": [
+        {
+          "id": "mara_soaked",
+          "tag": "@char_EXAMPLE_mara_soaked_v1",
+          "changes": [
+            "rain shell soaked and darker",
+            "small cut on right palm"
+          ]
+        }
+      ]
+    }
+  ],
+  "locations": [
+    {
+      "id": "loc_station_concourse",
+      "canonical_tag": "@loc_EXAMPLE_station_concourse_v1",
+      "geography": "Entrance south, ticket hall center, platforms north, service stairs east.",
+      "light_lock": "Pre-dawn blue through broken roof; amber emergency fixtures.",
+      "states": []
+    }
+  ],
+  "assets": [
+    {
+      "id": "prop_medicine_case",
+      "tag": "@prop_EXAMPLE_medicine_case_v1",
+      "type": "hero_prop",
+      "continuity_lock": "Silver hard case, black handle, red medical seal intact until scene 08."
+    }
+  ],
+  "audio_policy": {
+    "dialogue": "Generate performance dialogue in-shot when model capability is verified.",
+    "music": "Use post-score by default; native source music only when it drives visible timing.",
+    "ambience": "Rain, distant alarms, water movement, structural creaks.",
+    "subtitle_policy": "No generated subtitles or on-screen text."
+  },
+  "model_adapters": {
+    "default": "seedance-2.5",
+    "verified_at": "2026-08-15",
+    "notes": "Re-verify live limits before a costly production batch."
+  },
+  "naming_policy": {
+    "shot_id_pattern": "EXAMPLE_SC###_SH###",
+    "asset_tag_pattern": "@type_PROJECT_subject_state_v#",
+    "prompt_version_pattern": "p###"
+  },
+  "approval": {
+    "story_locked": false,
+    "visual_world_locked": false,
+    "character_assets_locked": false,
+    "production_ready": false
+  }
+}

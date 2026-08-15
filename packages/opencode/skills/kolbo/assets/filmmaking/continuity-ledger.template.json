@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "project_id": "EXAMPLE",
+  "sequence_id": "EXAMPLE_SEQ001",
+  "global_locks": {
+    "screen_direction": "Movement toward the north platform is screen-left to screen-right.",
+    "time_and_light": "Continuous pre-dawn; blue ambient light slowly increases.",
+    "weather": "Heavy rain continues without interruption.",
+    "base_ambience": "Rain, current, distant station alarms."
+  },
+  "entries": [
+    {
+      "shot_id": "EXAMPLE_SC001_SH001",
+      "entering": {
+        "character_state": "Mara base state; dry above knees; no hand injury.",
+        "prop_state": "Medicine case sealed in left hand.",
+        "positions": "Mara at south entrance, platform ahead frame right."
+      },
+      "leaving": {
+        "character_state": "Mara waist-down soaked, stopped mid-concourse.",
+        "prop_state": "Medicine case sealed in left hand.",
+        "positions": "Mara body aimed right, looking left toward kiosk."
+      },
+      "handoff_proof": "Final selected frame must preserve body direction, gaze, hand ownership, and case seal."
+    }
+  ]
+}

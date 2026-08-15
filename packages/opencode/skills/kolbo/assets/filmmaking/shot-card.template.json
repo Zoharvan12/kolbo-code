@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "project_id": "EXAMPLE",
+  "scene_id": "EXAMPLE_SC001",
+  "shot_id": "EXAMPLE_SC001_SH001",
+  "editorial_job": "Establish the flooded geography and Mara's route to the platform.",
+  "dramatic_beat": "Mara sees the stranded child but initially keeps moving.",
+  "model": "seedance-2.5",
+  "generation_mode": "reference-to-video",
+  "control_density": "anchored",
+  "duration_seconds": 8,
+  "aspect_ratio": "16:9",
+  "active_assets": [
+    {
+      "tag": "@char_EXAMPLE_mara_base_v1",
+      "role": "Mara",
+      "state": "base"
+    },
+    {
+      "tag": "@loc_EXAMPLE_station_concourse_v1",
+      "role": "station concourse",
+      "state": "flooded pre-dawn"
+    },
+    {
+      "tag": "@prop_EXAMPLE_medicine_case_v1",
+      "role": "medicine case",
+      "state": "sealed"
+    }
+  ],
+  "first_frame": "Wide at waist height. Mara enters frame left, medicine case in her left hand; north platform signs sit deep frame right.",
+  "blocking": "Mara pushes left-to-right through waist-high water. She notices the child off-screen west, checks the platform clock, and takes one more step before stopping.",
+  "camera": {
+    "framing": "wide moving master",
+    "movement": "slow lateral tracking move matching Mara",
+    "lens_language": "natural wide perspective, rectilinear",
+    "camera_side": "east side of the south-north axis"
+  },
+  "eyelines": {
+    "mara": "first toward platform frame right, then sharply off-screen left toward the child"
+  },
+  "action_timing": [
+    {
+      "start_seconds": 0,
+      "end_seconds": 4,
+      "beat": "Mara advances toward the platform."
+    },
+    {
+      "start_seconds": 4,
+      "end_seconds": 8,
+      "beat": "She hears the child, looks left, hesitates, and stops."
+    }
+  ],
+  "acting_tasks": {
+    "mara": "Reach the train without acknowledging the plea; when it becomes impossible to ignore, hide the cost of stopping."
+  },
+  "dialogue": [],
+  "audio_lane": {
+    "dialogue": "none",
+    "source_music": "none",
+    "ambience": "rain, moving floodwater, distant departure alarm",
+    "post_music": "optional restrained pulse added in edit"
+  },
+  "physics": "Water resistance slows each step and pushes fabric westward. The medicine case has visible weight and remains above water.",
+  "lighting": "Pre-dawn blue roof light with warm amber practicals; wet reflections remain physically motivated.",
+  "final_state": "Mara is stationary mid-concourse, body aimed right but eyes and head turned left; case still sealed in left hand.",
+  "edit": {
+    "in": "Hard cut from exterior rain.",
+    "out": "Cut on Mara's look toward the child."
+  },
+  "prompt_version": "p001",
+  "status": "draft"
+}

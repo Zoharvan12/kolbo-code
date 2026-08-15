@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "project_id": "EXAMPLE",
+  "scene_id": "EXAMPLE_SC001",
+  "title": "The Last Platform",
+  "slugline": "INT. FLOODED STATION CONCOURSE - PRE-DAWN",
+  "story_job": "Force Mara to choose between speed and helping a stranded child.",
+  "structure": {
+    "goal": "Reach the north platform before the evacuation train departs.",
+    "obstacle": "Floodwater blocks the direct route and a child is trapped on a kiosk.",
+    "tactic": "Use a floating bench as a bridge while pulling the child across.",
+    "reversal": "The medicine case slips into the current.",
+    "audience_value_shift": "Efficient escape becomes a costly moral commitment."
+  },
+  "shared_event": "Mara rescues the child and loses control of the medicine case.",
+  "acting_direction": {
+    "mara": "Keep the child calm while privately calculating whether the rescue will cost both lives."
+  },
+  "location_tag": "@loc_EXAMPLE_station_concourse_v1",
+  "entering_state": {
+    "mara": "Dry above the knees; right palm uninjured; medicine case sealed in left hand.",
+    "environment": "Water waist-high at the center aisle, flowing east to west."
+  },
+  "geography": {
+    "screen_direction": "Mara advances screen-left to screen-right toward the north platform.",
+    "axis": "Primary axis runs south entrance to north platforms.",
+    "fixed_landmarks": [
+      "kiosk on west wall",
+      "service stairs on east wall"
+    ]
+  },
+  "audio_bed": "Rain on broken roof, waist-deep current, distant departure alarm.",
+  "coverage_plan": [
+    "wide geography master",
+    "Mara-child performance two-shot",
+    "case-loss action insert",
+    "reaction close-up"
+  ],
+  "unresolved_questions": []
+}

@@ -1,0 +1,2 @@
+project_id,scene_id,shot_id,prompt_version,attempt,model,generation_mode,control_density,change_owner,change_summary,expected_proof,result_uri,verdict,selected_take,qc_notes,timestamp_utc
+EXAMPLE,EXAMPLE_SC001,EXAMPLE_SC001_SH001,p001,1,seedance-2.5,reference-to-video,anchored,baseline,initial compiled prompt,"geography readable; Mara ends looking left; case remains sealed",,pending,false,,
