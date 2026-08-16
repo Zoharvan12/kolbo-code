@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { generative } from "./kolbo-mcp-widget"
 import { advertised, card, costOf, parse, player, read, SCHEMA } from "./kolbo-operation"
 
 const SMELL = "https://cdn.example/never-seen.mp3"
@@ -79,6 +80,17 @@ describe("kolbo.operation/1 host contract", () => {
     expect(advertised(env)).toBe(true)
   })
 
+  test("session generation inventory is not a generation operation", () => {
+    expect(
+      read(
+        JSON.stringify({
+          session: { name: "Clip A" },
+          generations: [{ id: "g1", prompt: "harbor", status: "completed", output_count: 2 }],
+        }),
+      ),
+    ).toBeUndefined()
+  })
+
   test("list widget structuredContent is not a generation operation", () => {
     expect(
       read(undefined, {
@@ -106,6 +118,37 @@ describe("kolbo.operation/1 host contract", () => {
     })
     expect(env?.id).toBe("gen_1")
     expect(env?.outputs[0]?.url).toBe("https://cdn.example/out.png")
+  })
+
+  test("a chat reply is never a generation, however many credits it burned", () => {
+    // chat_send_message analysing an image: credits + a model id, no media out.
+    // This used to lift into { kind: "image", phase: "running" } and spin forever.
+    expect(
+      read(
+        JSON.stringify({
+          credits_used: 1,
+          session_id: "c1",
+          message_id: "m1",
+          model: "deepseek/deepseek-v4-pro-0813",
+          content: "The frame shows a wide shot of two men at a desk.",
+          image_urls: null,
+          video_urls: null,
+          audio_urls: null,
+        }),
+      ),
+    ).toBeUndefined()
+  })
+
+  test("a record with an id but no media is not a generation", () => {
+    expect(read(JSON.stringify({ id: "doc_1", title: "Brief", credits_used: 0 }))).toBeUndefined()
+  })
+
+  test("generative() gates the generation-card fallback", () => {
+    expect(generative("mcp__kolbo__generate_video")).toBe(true)
+    expect(generative("kolbo_edit_image")).toBe(true)
+    expect(generative("chat_send_message")).toBe(false)
+    expect(generative("get_media")).toBe(false)
+    expect(generative(undefined)).toBe(false)
   })
 
   test("plain json with a url but no generation markers is ignored", () => {

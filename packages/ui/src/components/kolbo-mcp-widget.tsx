@@ -42,7 +42,7 @@ function appUri(value: unknown): string | undefined {
   return typeof value === "string" && value.startsWith("ui://kolbo/") ? value : undefined
 }
 
-function uri(meta?: Record<string, unknown>, tool?: string) {
+function uri(meta?: Record<string, unknown>, tool?: string, data?: unknown) {
   const ui = rec(meta?.ui)
   const fromMeta =
     appUri(ui?.["ui/resourceUri"]) ||
@@ -50,12 +50,17 @@ function uri(meta?: Record<string, unknown>, tool?: string) {
     appUri(rec(ui?.ui)?.resourceUri) ||
     appUri(rec(ui?.ui)?.["ui/resourceUri"])
   if (fromMeta) return fromMeta
-  const widget = rec(meta?.structuredContent)?.widget
+  const widget = rec(meta?.structuredContent)?.widget ?? rec(data)?.widget
   if (typeof widget === "string" && BY_WIDGET[widget]) return BY_WIDGET[widget]
   const toolName = bare(tool)
   if (BY_TOOL[toolName]) return BY_TOOL[toolName]
   if (toolName.startsWith("list_")) return BY_WIDGET.list
-  return GEN
+  // Nothing else falls back to the generation card. generation.html boots as a
+  // "Generating" spinner and only leaves it once an operation payload arrives,
+  // so mounting it for a tool that will never produce one (chat_send_message,
+  // get_media, upload_media…) pins a spinner on a result that is already final.
+  if (generative(toolName)) return GEN
+  return undefined
 }
 
 function bare(tool?: string) {
@@ -65,37 +70,61 @@ function bare(tool?: string) {
   return name
 }
 
+/**
+ * Tools that produce media, and so warrant a generation card before any result
+ * exists. Tool-name routing lives here — the envelope reader stays name-free.
+ */
+export function generative(tool?: string): boolean {
+  const name = bare(tool)
+  return name.startsWith("generate_") || name === "edit_image" || name === "edit_video"
+}
+
 function listed(output?: string) {
   if (!output) return
   try {
     const obj = JSON.parse(output) as Record<string, unknown>
     if (Array.isArray(obj.items)) return obj
-    if (!Array.isArray(obj.sessions)) return
-    const sessions = obj.sessions as Record<string, unknown>[]
+    const key = (["sessions", "projects", "generations", "agents", "docs", "folders", "sources"] as const).find((name) =>
+      Array.isArray(obj[name]),
+    )
+    if (!key) return
+    const rows = obj[key] as Record<string, unknown>[]
+    const titles: Record<string, string> = {
+      sessions: "Sessions",
+      projects: "Projects",
+      generations: "Generations",
+      agents: "Agents",
+      docs: "Docs",
+      folders: "Folders",
+      sources: "Knowledge Base",
+    }
     return {
       widget: "list",
-      title: "Sessions",
-      items: sessions.map((row) => {
+      title: typeof obj.title === "string" ? obj.title : titles[key],
+      items: rows.map((row) => {
         const types = Array.isArray(row.types)
           ? (row.types as unknown[]).filter((x): x is string => typeof x === "string")
           : String(row.type || "")
               .split("|")
               .filter(Boolean)
+        const id = row.session_id || row.id || row.generation_id || row.file_key
+        const prompt = typeof row.prompt === "string" ? row.prompt.slice(0, 80) : ""
         return {
-          id: row.session_id || row.id,
-          title: row.name || types[0] || "Session",
+          id,
+          title: row.name || row.title || prompt || types[0] || "Item",
           subtitle: [
-            types.join(", "),
-            row.session_id || row.id,
+            types.join(", ") || row.role || row.status || row.description,
+            id,
             row.project_id ? "project " + row.project_id : null,
             row.updated_at ? String(row.updated_at).slice(0, 10) : null,
+            row.output_count ? String(row.output_count) + " outputs" : null,
           ]
             .filter(Boolean)
             .join(" · "),
-          badge: types[0],
+          badge: types[0] || row.role || row.status,
         }
       }),
-      total: sessions.length,
+      total: rows.length,
     }
   } catch {
     return
@@ -142,15 +171,33 @@ export function KolboMcpWidget(props: {
   const ops = usePlatformOps()
   const [src, setSrc] = createSignal<string>()
   const [h, setH] = createSignal(280)
+  const [live, setLive] = createSignal(false)
   let frame: HTMLIFrameElement | undefined
 
   const payload = () => structured(props.output, props.metadata, props.input, props.tool)
 
+  const push = () => {
+    const win = frame?.contentWindow
+    const data = payload()
+    if (!win || !data) return
+    win.postMessage(
+      {
+        jsonrpc: "2.0",
+        method: "ui/notifications/tool-result",
+        params: {
+          structuredContent: data,
+          content: [{ type: "text", text: props.output || "" }],
+        },
+      },
+      "*",
+    )
+  }
+
   createEffect(() => {
     const htmlFn = ops.mcpWidget
     const preview = ops.htmlPreviewUrl
-    const target = uri(props.metadata, props.tool)
-    if (!htmlFn || !preview) return
+    const target = uri(props.metadata, props.tool, payload())
+    if (!htmlFn || !preview || !target) return
     let gone = false
     void htmlFn(target).then(async (html) => {
       if (gone || !html) return
@@ -186,17 +233,8 @@ export function KolboMcpWidget(props: {
       return
     }
     if (msg.method === "ui/notifications/initialized") {
-      win.postMessage(
-        {
-          jsonrpc: "2.0",
-          method: "ui/notifications/tool-result",
-          params: {
-            structuredContent: payload(),
-            content: [{ type: "text", text: props.output || "" }],
-          },
-        },
-        "*",
-      )
+      setLive(true)
+      push()
       return
     }
     if (msg.method === "ui/notifications/size-changed") {
@@ -216,6 +254,14 @@ export function KolboMcpWidget(props: {
   createEffect(() => {
     window.addEventListener("message", onMsg)
     onCleanup(() => window.removeEventListener("message", onMsg))
+  })
+
+  createEffect(() => {
+    if (!live()) return
+    payload()
+    props.output
+    props.metadata
+    push()
   })
 
   return (

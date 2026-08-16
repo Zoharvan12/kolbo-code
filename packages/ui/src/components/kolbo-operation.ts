@@ -87,13 +87,17 @@ function kindOf(obj: Record<string, unknown>, urls: string[]): string {
   return "image"
 }
 
-function marked(obj: Record<string, unknown>, urls: string[], cost: number | undefined, id: string) {
+// Evidence that this result IS a generation. `credits_used` and a bare `id` are
+// NOT evidence: every billed Kolbo tool returns credits (chat_send_message most
+// of all) and every doc/agent/folder carries an id. Accepting them turned a
+// vision-analysis chat reply into a kind:"image" phase:"running" operation, and
+// a chat result never gets a completion follow-up — so the card spun forever.
+function marked(obj: Record<string, unknown>, urls: string[]) {
   if (obj.schema === SCHEMA) return true
-  if (cost !== undefined) return true
-  if (id) return true
   if (typeof obj.widget === "string") return obj.widget === "generation" || obj.widget === "transcript"
   if (["review", "running", "generating", "completed", "failed"].includes(str(obj.phase))) return true
   if (Array.isArray(obj.outputs) && obj.outputs.length > 0) return true
+  if (str(obj.generation_id)) return true
   return urls.length > 0 && typeof obj.model === "string"
 }
 
@@ -107,7 +111,7 @@ function lift(obj: Record<string, unknown>): Record<string, unknown> | undefined
   const urls = mediaUrls(obj)
   const cost = num(obj.cost) ?? num(obj.cost_credits) ?? num(obj.credits_used)
   const id = str(obj.id) || str(obj.generation_id)
-  if (!marked(obj, urls, cost, id)) return
+  if (!marked(obj, urls)) return
 
   const modelRaw = obj.model
   const model = typeof modelRaw === "string" ? { id: modelRaw } : (record(modelRaw) ?? {})

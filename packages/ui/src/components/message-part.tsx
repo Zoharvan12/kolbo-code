@@ -45,7 +45,7 @@ import {
   startMediaDrag,
 } from "./kolbo-media"
 import { card, costOf, player, read, urlsOf } from "./kolbo-operation"
-import { KolboMcpWidget } from "./kolbo-mcp-widget"
+import { generative, KolboMcpWidget } from "./kolbo-mcp-widget"
 import { usePlatformOps } from "../context/platform-ops"
 import { useKolboModels } from "../context/kolbo-models"
 import { Accordion } from "./accordion"
@@ -1673,7 +1673,7 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
     if (extractKolboUrlsShared(state.output).length > 0) return KolboOperationCard
     const name = tool.replace(/^kolbo_/, "").replace(/^mcp__kolbo__/, "")
     if (name.startsWith("list_")) return KolboOperationCard
-    if (name.startsWith("generate_") || name === "edit_image" || name === "edit_video") return KolboOperationCard
+    if (generative(name)) return KolboOperationCard
     return ToolRegistry.render(tool) ?? GenericTool
   })
 
