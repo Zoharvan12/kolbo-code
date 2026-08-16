@@ -202,8 +202,8 @@ type PromptSubmitInput = {
   setPopover: (popover: "at" | "slash" | null) => void
   newSessionWorktree?: Accessor<string | undefined>
   onNewSessionWorktreeReset?: () => void
-  shouldQueue?: Accessor<boolean>
-  onQueue?: (draft: FollowupDraft) => void
+  /** The agent is mid-turn. Sending now interrupts it instead of waiting. */
+  busy?: Accessor<boolean>
   onAbort?: () => void
   onSubmit?: () => void
 }
@@ -450,11 +450,20 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       })
     }
 
-    if (!isNewSession && mode === "normal" && input.shouldQueue?.()) {
-      input.onQueue?.(draft)
-      clearContext()
-      clearInput()
-      return
+    // Sending while the agent is working interrupts it and hands it this
+    // message. The aborted turn stays in history, so it continues with the
+    // whole conversation plus the new instruction. Kolbo media generations
+    // already submitted are deliberately left running — they are paid for and
+    // still land in the library.
+    if (!isNewSession && mode === "normal" && input.busy?.()) {
+      await abort()
+      // The server has to actually leave the busy state before the next prompt
+      // is accepted; without this the new message races the abort and is
+      // silently dropped. Bounded so a stuck status can never block sending.
+      for (let i = 0; i < 60; i++) {
+        if ((sync.data.session_status?.[session.id] ?? { type: "idle" }).type === "idle") break
+        await new Promise((done) => setTimeout(done, 50))
+      }
     }
 
     promptProbe.submit({ sessionID: session.id, directory: sessionDirectory })

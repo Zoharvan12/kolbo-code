@@ -10,11 +10,9 @@ import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { SessionPermissionDock } from "@/pages/session/composer/session-permission-dock"
 import { SessionQuestionDock } from "@/pages/session/composer/session-question-dock"
-import { SessionFollowupDock } from "@/pages/session/composer/session-followup-dock"
 import { SessionRevertDock } from "@/pages/session/composer/session-revert-dock"
 import type { SessionComposerState } from "@/pages/session/composer/session-composer-state"
 import { SessionTodoDock } from "@/pages/session/composer/session-todo-dock"
-import type { FollowupDraft } from "@/components/prompt-input/submit"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 
 export function SessionComposerRegion(props: {
@@ -26,18 +24,8 @@ export function SessionComposerRegion(props: {
   onNewSessionWorktreeReset: () => void
   onSubmit: () => void
   onResponseSubmit: () => void
-  followup?: {
-    queue: () => boolean
-    items: { id: string; text: string }[]
-    sending?: string
-    edit?: { id: string; prompt: FollowupDraft["prompt"]; context: FollowupDraft["context"] }
-    onQueue: (draft: FollowupDraft) => void
-    onAbort: () => void
-    onSend: (id: string) => void
-    onEdit: (id: string) => void
-    onDelete: (id: string) => void
-    onEditLoaded: () => void
-  }
+  /** The agent is mid-turn, so sending interrupts it instead of waiting. */
+  agentBusy?: () => boolean
   revert?: {
     items: { id: string; text: string }[]
     restoring?: string
@@ -246,15 +234,6 @@ export function SessionComposerRegion(props: {
                 "margin-top": `${-lift()}px`,
               }}
             >
-              <Show when={props.followup?.items.length}>
-                <SessionFollowupDock
-                  items={props.followup!.items}
-                  sending={props.followup!.sending}
-                  onSend={props.followup!.onSend}
-                  onEdit={props.followup!.onEdit}
-                  onDelete={props.followup!.onDelete}
-                />
-              </Show>
               <Show
                 when={child()}
                 fallback={
@@ -263,11 +242,7 @@ export function SessionComposerRegion(props: {
                       ref={props.inputRef}
                       newSessionWorktree={props.newSessionWorktree}
                       onNewSessionWorktreeReset={props.onNewSessionWorktreeReset}
-                      edit={props.followup?.edit}
-                      onEditLoaded={props.followup?.onEditLoaded}
-                      shouldQueue={props.followup?.queue}
-                      onQueue={props.followup?.onQueue}
-                      onAbort={props.followup?.onAbort}
+                      busy={props.agentBusy}
                       onSubmit={props.onSubmit}
                     />
                   </Show>

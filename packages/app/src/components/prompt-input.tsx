@@ -90,8 +90,7 @@ interface PromptInputProps {
   onNewSessionWorktreeReset?: () => void
   edit?: { id: string; prompt: Prompt; context: FollowupDraft["context"] }
   onEditLoaded?: () => void
-  shouldQueue?: () => boolean
-  onQueue?: (draft: FollowupDraft) => void
+  busy?: () => boolean
   onAbort?: () => void
   onSubmit?: () => void
 }
@@ -1457,8 +1456,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     setPopover: (popover) => setStore("popover", popover),
     newSessionWorktree: () => props.newSessionWorktree,
     onNewSessionWorktreeReset: props.onNewSessionWorktreeReset,
-    shouldQueue: props.shouldQueue,
-    onQueue: props.onQueue,
+    busy: props.busy,
     onAbort: props.onAbort,
     onSubmit: props.onSubmit,
   })

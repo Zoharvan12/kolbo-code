@@ -17,6 +17,7 @@ const optimistic: Array<{
 }> = []
 const optimisticSeeded: boolean[] = []
 const storedSessions: Record<string, Array<{ id: string; title?: string }>> = {}
+const abortedSessions: string[] = []
 const promoted: Array<{ directory: string; sessionID: string }> = []
 const sentShell: string[] = []
 const syncedDirectories: string[] = []
@@ -47,7 +48,10 @@ const clientFor = (directory: string) => {
       prompt: async () => ({ data: undefined }),
       promptAsync: async () => ({ data: undefined }),
       command: async () => ({ data: undefined }),
-      abort: async () => ({ data: undefined }),
+      abort: async () => {
+        abortedSessions.push(directory)
+        return { data: undefined }
+      },
     },
     worktree: {
       create: async () => ({ data: { directory: `${directory}/new` } }),
@@ -164,6 +168,7 @@ beforeAll(async () => {
 
   mock.module("@/context/global-sync", () => ({
     useGlobalSync: () => ({
+      todo: { set: () => undefined },
       child: (directory: string) => {
         syncedDirectories.push(directory)
         storedSessions[directory] ??= []
@@ -210,6 +215,7 @@ beforeEach(() => {
   promoted.length = 0
   params = {}
   sentShell.length = 0
+  abortedSessions.length = 0
   syncedDirectories.length = 0
   selected = "/repo/worktree-a"
   variant = undefined
@@ -341,5 +347,36 @@ describe("prompt submit worktree selection", () => {
 
     expect(storedSessions["/repo/worktree-a"]).toEqual([{ id: "session-1", title: "New session 1" }])
     expect(optimisticSeeded).toEqual([true])
+  })
+
+  test("sending while the agent is working interrupts it instead of queueing", async () => {
+    // Option A (Zohar, 2026-08-16): no message parking. A send while busy
+    // aborts the current turn; the aborted turn stays in history so the agent
+    // continues with the full conversation plus the new instruction.
+    params = { id: "session-1" }
+    storedSessions["/repo/main"] = [{ id: "session-1", title: "Existing" }]
+    const submit = createPromptSubmit({
+      info: () => ({ id: "session-1" }),
+      imageAttachments: () => [],
+      commentCount: () => 0,
+      autoAccept: () => false,
+      mode: () => "normal",
+      working: () => true,
+      editor: () => undefined,
+      queueScroll: () => undefined,
+      promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
+      addToHistory: () => undefined,
+      resetHistoryNavigation: () => undefined,
+      setMode: () => undefined,
+      setPopover: () => undefined,
+      busy: () => true,
+      onSubmit: () => undefined,
+    })
+
+    await submit.handleSubmit({ preventDefault: () => undefined } as unknown as Event)
+
+    // The send itself reached the server, and it was preceded by an abort —
+    // proving the message interrupted rather than being parked.
+    expect(abortedSessions).toEqual(["/repo/main"])
   })
 })
