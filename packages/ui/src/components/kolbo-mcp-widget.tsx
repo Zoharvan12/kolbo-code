@@ -1,4 +1,5 @@
 import { Show, createEffect, createSignal, onCleanup, untrack } from "solid-js"
+import { useKolboModels } from "../context/kolbo-models"
 import { usePlatformOps } from "../context/platform-ops"
 import { read, type Operation } from "./kolbo-operation"
 
@@ -175,12 +176,38 @@ export function KolboMcpWidget(props: {
   onReady?: () => void
 }) {
   const ops = usePlatformOps()
+  const kolboModels = useKolboModels()
   const [src, setSrc] = createSignal<string>()
   const [h, setH] = createSignal(280)
   const [live, setLive] = createSignal(false)
   let frame: HTMLIFrameElement | undefined
 
-  const payload = () => structured(props.output, props.metadata, props.input, props.tool, props.resolved)
+  /**
+   * The widget draws its model chip from `model_name` + `model_icon`, which an
+   * MCP Apps host gets from the server. We build the payload ourselves, so
+   * without this the chip shows a raw identifier ("gpt-image-2/edit") next to a
+   * first-letter circle instead of the model's name and avatar. The catalog is
+   * already loaded for the fallback chip; the icon goes through the same proxy,
+   * because WebView2 cannot fetch api.kolbo.ai avatars directly.
+   */
+  const withModelChip = (data: Record<string, unknown>) => {
+    if (data.widget !== "generation" || data.model_icon || data.model_name) return data
+    const id = typeof data.model === "string" ? data.model : ""
+    if (!id) return data
+    const info = kolboModels.lookup(id)
+    const icon = info.avatar ? (ops.imageProxyUrl?.(info.avatar) ?? info.avatar) : undefined
+    if (!info.name && !icon) return data
+    return {
+      ...data,
+      ...(info.name ? { model_name: info.name } : {}),
+      ...(icon ? { model_icon: icon } : {}),
+    }
+  }
+
+  const payload = () => {
+    const data = structured(props.output, props.metadata, props.input, props.tool, props.resolved)
+    return data && typeof data === "object" ? withModelChip(data as Record<string, unknown>) : data
+  }
 
   const push = () => {
     const win = frame?.contentWindow
