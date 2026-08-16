@@ -50,12 +50,82 @@ export type Operation = {
 }
 
 function json(value: string): unknown {
-  return JSON.parse(value)
+  try {
+    return JSON.parse(value)
+  } catch {
+    return
+  }
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {
   if (!value || typeof value !== "object") return
   return value as Record<string, unknown>
+}
+
+function http(value: unknown): string[] {
+  if (typeof value === "string" && /^https?:\/\//.test(value)) return [value]
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === "string" && /^https?:\/\//.test(item))
+}
+
+function mediaUrls(obj: Record<string, unknown>): string[] {
+  for (const key of ["urls", "image_urls", "video_urls", "audio_urls", "model_urls"]) {
+    const found = http(obj[key])
+    if (found.length) return found
+  }
+  const nested = record(obj.result)
+  return nested ? mediaUrls(nested) : []
+}
+
+function kindOf(obj: Record<string, unknown>, urls: string[]): string {
+  const kind = str(obj.kind)
+  if (kind) return kind
+  const first = (urls[0] || "").split("?")[0].toLowerCase()
+  if (/\.(mp4|mov|webm|mkv)$/.test(first)) return "video"
+  if (/\.(mp3|wav|m4a|aac|ogg|flac)$/.test(first)) return "audio"
+  if (/\.(glb|gltf|fbx|obj|usdz)$/.test(first)) return "model3d"
+  return "image"
+}
+
+function marked(obj: Record<string, unknown>, urls: string[], cost: number | undefined, id: string) {
+  if (obj.schema === SCHEMA) return true
+  if (cost !== undefined) return true
+  if (id) return true
+  if (typeof obj.widget === "string") return true
+  if (["review", "running", "generating", "completed", "failed"].includes(str(obj.phase))) return true
+  if (Array.isArray(obj.outputs) && obj.outputs.length > 0) return true
+  return urls.length > 0 && typeof obj.model === "string"
+}
+
+function lift(obj: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (obj.schema === SCHEMA) return obj
+  const inner = record(obj.operation)
+  if (inner) return lift(inner)
+  const sc = record(obj.structuredContent)
+  if (sc) return lift(sc)
+
+  const urls = mediaUrls(obj)
+  const cost = num(obj.cost) ?? num(obj.cost_credits) ?? num(obj.credits_used)
+  const id = str(obj.id) || str(obj.generation_id)
+  if (!marked(obj, urls, cost, id)) return
+
+  const modelRaw = obj.model
+  const model = typeof modelRaw === "string" ? { id: modelRaw } : (record(modelRaw) ?? {})
+  const prompt = typeof obj.prompt === "string" ? obj.prompt : str(obj.prompt_used)
+  return {
+    schema: SCHEMA,
+    id,
+    kind: kindOf(obj, urls),
+    route: str(obj.route) || str(obj.tool),
+    phase: str(obj.phase) === "generating" ? "running" : str(obj.phase) || (urls.length ? "completed" : "running"),
+    title: str(obj.title) || "Generation",
+    model,
+    ...(prompt ? { prompt } : {}),
+    ...(cost !== undefined ? { cost } : {}),
+    params: Array.isArray(obj.params) ? obj.params : [],
+    outputs: urls.length ? urls.map((url) => ({ url, kind: kindOf(obj, urls) })) : obj.outputs,
+    actions: Array.isArray(obj.actions) ? obj.actions : [],
+  }
 }
 
 function unwrap(value: unknown): Record<string, unknown> | undefined {
@@ -66,8 +136,7 @@ function unwrap(value: unknown): Record<string, unknown> | undefined {
   }
   const obj = record(value)
   if (!obj) return
-  if (obj.schema === SCHEMA) return obj
-  return unwrap(obj.operation)
+  return lift(obj)
 }
 
 function str(value: unknown): string {
@@ -162,7 +231,7 @@ export function parse(value: unknown): Operation | undefined {
 }
 
 export function read(output?: string, metadata?: Record<string, unknown>): Operation | undefined {
-  return parse(output) ?? parse(metadata)
+  return parse(output) ?? parse(metadata?.structuredContent) ?? parse(metadata)
 }
 
 export function costOf(op: Operation | undefined, raw?: unknown): number | undefined {

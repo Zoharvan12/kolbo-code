@@ -17,7 +17,7 @@ import { Identifier } from "@/utils/id"
 import { Worktree as WorktreeState } from "@/utils/worktree"
 import { buildRequestParts } from "./build-request-parts"
 import { setCursorPosition } from "./editor-dom"
-import { inFlightAttachments } from "./attachments"
+import { hydratePromptUrls, inFlightAttachments } from "./attachments"
 import { formatServerError } from "@/utils/server-errors"
 import { findSessionIndex, insertSessionIndex } from "@/context/global-sync/session-trim"
 
@@ -77,6 +77,17 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
     if (inFlightAttachments.size > 0) {
       await Promise.allSettled(inFlightAttachments)
     }
+    input.draft.prompt = hydratePromptUrls(input.draft.prompt)
+    const pending = draftImages(input.draft.prompt).filter(
+      (item) => !item.publicUrl || !/^https?:\/\//.test(item.publicUrl),
+    )
+    if (pending.length > 0) {
+      showToast({
+        title: "Attachment still uploading",
+        description: "Wait for the CDN upload to finish, then send again. Images are never sent as base64.",
+      })
+      return false
+    }
     return true
   }
 
@@ -98,12 +109,12 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
         model: `${input.draft.model.providerID}/${input.draft.model.modelID}`,
         variant: input.draft.variant,
         parts: images
-          .filter((a) => a.mime.startsWith("image/"))
+          .filter((a) => a.mime.startsWith("image/") && a.publicUrl)
           .map((attachment) => ({
             id: Identifier.ascending("part"),
             type: "file" as const,
             mime: attachment.mime,
-            url: attachment.publicUrl ?? attachment.dataUrl,
+            url: attachment.publicUrl!,
             filename: attachment.localPath ?? attachment.filename,
           })),
       })
@@ -291,6 +302,10 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const handleSubmit = async (event: Event) => {
     event.preventDefault()
 
+    if (inFlightAttachments.size > 0) {
+      await Promise.allSettled(inFlightAttachments)
+    }
+
     const currentPrompt = prompt.current()
     const text = currentPrompt.map((part) => ("content" in part ? part.content : "")).join("")
     const images = input.imageAttachments().slice()
@@ -298,6 +313,14 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
     if (text.trim().length === 0 && images.length === 0 && input.commentCount() === 0) {
       if (input.working()) abort()
+      return
+    }
+
+    if (images.some((item) => !item.publicUrl || !/^https?:\/\//.test(item.publicUrl))) {
+      showToast({
+        title: "Attachment still uploading",
+        description: "Wait for the CDN upload to finish, then send again. Images are never sent as base64.",
+      })
       return
     }
 
@@ -475,13 +498,15 @@ export function createPromptSubmit(input: PromptSubmitInput) {
             agent,
             model: `${model.providerID}/${model.modelID}`,
             variant,
-            parts: images.map((attachment) => ({
-              id: Identifier.ascending("part"),
-              type: "file" as const,
-              mime: attachment.mime,
-              url: attachment.publicUrl ?? attachment.dataUrl,
-              filename: attachment.filename,
-            })),
+            parts: images
+              .filter((attachment) => attachment.publicUrl)
+              .map((attachment) => ({
+                id: Identifier.ascending("part"),
+                type: "file" as const,
+                mime: attachment.mime,
+                url: attachment.publicUrl!,
+                filename: attachment.filename,
+              })),
           })
           .catch((err) => {
             showToast({

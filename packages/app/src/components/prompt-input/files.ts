@@ -32,6 +32,7 @@ const VIDEO_EXTS = new Map([
   ["avi", "video/x-msvideo"],
   ["mkv", "video/x-matroska"],
   ["m4v", "video/mp4"],
+  ["ogv", "video/ogg"],
 ])
 const TEXT_MIMES = new Set([
   "application/json",

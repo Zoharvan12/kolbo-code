@@ -86,6 +86,14 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
         if (!/^https?:\/\//i.test(remote)) return remote
         return `${url}/global/proxy-image?url=${encodeURIComponent(remote)}`
       }}
+      mcpWidget={async (uri) => {
+        const url = server.current?.http.url
+        if (!url) return null
+        const res = await fetch(`${url}/mcp/kolbo/resource?uri=${encodeURIComponent(uri)}`)
+        if (!res.ok) return null
+        const data = (await res.json().catch(() => ({}))) as { html?: string }
+        return typeof data.html === "string" && data.html ? data.html : null
+      }}
       cancelGeneration={async (generationId) => {
         const url = server.current?.http.url
         if (!url) throw new Error("Kolbo server is unavailable")

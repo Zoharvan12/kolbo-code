@@ -1,7 +1,6 @@
 import { Component, For, Show } from "solid-js"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
-import { firstFramePosterSrc, pauseOnFirstFrame } from "@opencode-ai/ui/kolbo-media"
 import type { ImageAttachmentPart } from "@/context/prompt"
 
 type PromptImageAttachmentsProps = {
@@ -59,14 +58,14 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
                         </Show>
                       }
                     >
-                      {/* Video — first-frame poster (no live decode). */}
+                      {/* Video — muted loop so the chip shows motion, not a still. */}
                       <video
-                        src={firstFramePosterSrc(attachment.publicUrl ?? attachment.dataUrl)}
-                        ref={pauseOnFirstFrame}
+                        src={attachment.publicUrl ?? attachment.dataUrl}
                         autoplay
                         muted
+                        loop
                         playsinline
-                        preload="auto"
+                        preload="metadata"
                         disablepictureinpicture
                         controlslist="nodownload nofullscreen noremoteplayback noplaybackrate"
                         class={imageClass}

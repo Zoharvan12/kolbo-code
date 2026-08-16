@@ -10,29 +10,11 @@ import { Mark } from "@opencode-ai/ui/logo"
 import { showToast } from "@opencode-ai/ui/toast"
 import { useTheme } from "@opencode-ai/ui/theme/context"
 import type { Part, ToolPart, ToolStateCompleted, ToolStateRunning } from "@opencode-ai/sdk/v2"
-import {
-  extractKolboUrls as extractUrls,
-  isVideoUrl,
-  mediaKey,
-  openKolboLightbox,
-} from "@opencode-ai/ui/kolbo-media"
-import { costOf, read, urlsOf, type Operation } from "@opencode-ai/ui/kolbo-operation"
+import { isVideoUrl, mediaKey, openKolboLightbox, startMediaDrag } from "@opencode-ai/ui/kolbo-media"
+import { type Operation } from "@opencode-ai/ui/kolbo-operation"
+import { isGenerationPart, partOp, urlsFromPart } from "./session-canvas-media"
 
-function partOp(part: ToolPart): Operation | undefined {
-  const state = part.state as { output?: string; metadata?: Record<string, unknown> }
-  return read(state.output, state.metadata)
-}
-
-function legacyOutput(output?: string): boolean {
-  if (!output) return false
-  return costOf(undefined, output) !== undefined && extractUrls(output).length > 0
-}
-
-export function isGenerationPart(part: ToolPart): boolean {
-  if (partOp(part)) return true
-  const state = part.state as { status?: string; output?: string }
-  return state.status === "completed" && legacyOutput(state.output)
-}
+export { isGenerationPart, urlsFromPart }
 
 type MediaKind = "image" | "video" | "audio" | "model"
 
@@ -128,7 +110,7 @@ function collectCanvasCells(
       const op = partOp(tool)
       if (state.status === "completed") {
         const completed = state as ToolStateCompleted
-        const urls = op ? urlsOf(op) : extractUrls(completed.output)
+        const urls = urlsFromPart(tool)
         if (urls.length === 0) continue
         urls.forEach((url, idx) => {
           // Cross-call dedupe keyed on the filename so the same asset from a
@@ -402,11 +384,8 @@ function CanvasCellView(props: { cell: CanvasCell; onHide?: (url: string) => voi
       // without round-tripping through file bytes.
       draggable={true}
       onDragStart={(e) => {
-        const url = current()?.url
-        if (!url || !e.dataTransfer) return
-        e.dataTransfer.setData("text/uri-list", url)
-        e.dataTransfer.setData("text/plain", url)
-        e.dataTransfer.effectAllowed = "copy"
+        e.stopPropagation()
+        startMediaDrag(e.dataTransfer, current()?.url ?? "")
       }}
       // Right-click → copy the public CDN URL. Audio cells in particular
       // had no other way to grab the link (image/video use the browser's

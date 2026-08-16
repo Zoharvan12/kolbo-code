@@ -192,8 +192,16 @@ The summary that you construct will be used so that another agent can read it an
 Do not call any tools. Respond only with the summary text.
 Respond in the same language as the user's messages in the conversation.
 
+LOCKED CHOICES (hard rule): if the user named a model, tool, preset, project, duration, or aspect ratio, copy those names verbatim into ## Locked choices. Do not rewrite a named model to a cheaper / faster / "best balance" alternative. Do not invent instructions like "defaults can be applied" that would let the next agent swap the named model. A modality change (text-to-video → image-to-video) stays in the same named family.
+
 When constructing the summary, try to stick to this template:
 ---
+## Locked choices
+
+- Model: [verbatim user-named model, or None]
+- Tool: [verbatim user-named tool, or None]
+- Preset / project / duration / aspect: [verbatim, or None]
+
 ## Goal
 
 [What goal(s) is the user trying to accomplish?]
@@ -202,6 +210,7 @@ When constructing the summary, try to stick to this template:
 
 - [What important instructions did the user give you that are relevant]
 - [If there is a plan or spec, include information about it so next agent can continue using it]
+- [Never authorize substituting a different model than ## Locked choices]
 
 ## Discoveries
 

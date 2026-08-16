@@ -10,7 +10,7 @@ import {
   type KeyEvent,
 } from "@opentui/core"
 import { PushToTalk } from "../../util/push-to-talk"
-import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, Switch, Match } from "solid-js"
+import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, Switch, Match, For } from "solid-js"
 import "opentui-spinner/solid"
 import path from "path"
 import { fileURLToPath } from "url"
@@ -273,6 +273,7 @@ export function Prompt(props: PromptProps) {
     placeholder: number
     escPressedAt: number | null
     ctrlCPressedAt: number | null
+    queued: { id: string; input: string; parts: PromptInfo["parts"] }[]
   }>({
     placeholder: randomIndex(list().length),
     prompt: {
@@ -284,6 +285,7 @@ export function Prompt(props: PromptProps) {
     interrupt: 0,
     escPressedAt: null,
     ctrlCPressedAt: null,
+    queued: [],
   })
 
   createEffect(
@@ -291,10 +293,37 @@ export function Prompt(props: PromptProps) {
       () => props.sessionID,
       () => {
         setStore("placeholder", randomIndex(list().length))
+        setStore("queued", [])
       },
       { defer: true },
     ),
   )
+
+  let flushOn = false
+  const editQueued = (id: string) => {
+    const item = store.queued.find((entry) => entry.id === id)
+    if (!item) return
+    setStore("queued", (list) => list.filter((entry) => entry.id !== id))
+    setStore("prompt", { input: item.input, parts: item.parts.slice() })
+    input.setText(item.input)
+    restoreExtmarksFromParts(item.parts)
+  }
+  const deleteQueued = (id: string) => {
+    setStore("queued", (list) => list.filter((entry) => entry.id !== id))
+  }
+  createEffect(() => {
+    if (status().type !== "idle") return
+    if (store.queued.length === 0 || flushOn) return
+    const next = store.queued[0]
+    flushOn = true
+    setStore("queued", (list) => list.slice(1))
+    setStore("prompt", { input: next.input, parts: next.parts.slice() })
+    input.setText(next.input)
+    restoreExtmarksFromParts(next.parts)
+    void submit().finally(() => {
+      flushOn = false
+    })
+  })
 
   // ==========================================================================
   // Push-to-talk (hold Ctrl+Y → realtime transcription)
@@ -532,6 +561,28 @@ export function Prompt(props: PromptProps) {
         hidden: true,
         onSelect: async () => {
           await pasteClipboard()
+        },
+      },
+      {
+        title: "Edit queued message",
+        value: "prompt.queue.edit",
+        category: tI18n("commands.categories.prompt"),
+        enabled: store.queued.length > 0,
+        onSelect: (dialog) => {
+          const first = store.queued[0]
+          if (first) editQueued(first.id)
+          dialog.clear()
+        },
+      },
+      {
+        title: "Delete queued message",
+        value: "prompt.queue.delete",
+        category: tI18n("commands.categories.prompt"),
+        enabled: store.queued.length > 0,
+        onSelect: (dialog) => {
+          const first = store.queued[0]
+          if (first) deleteQueued(first.id)
+          dialog.clear()
         },
       },
       {
@@ -946,9 +997,33 @@ export function Prompt(props: PromptProps) {
 
     // Filter out text parts (pasted content) since they're now expanded inline
     const nonTextParts = store.prompt.parts.filter((part) => part.type !== "text")
+    if (nonTextParts.some((part) => part.type === "file" && part.url.startsWith("data:"))) {
+      toast.show({
+        variant: "error",
+        message: "Attachment still uploading — wait for the CDN URL. Images are never sent as base64.",
+        duration: 4000,
+      })
+      return
+    }
 
     // Capture mode before it gets reset
     const currentMode = store.mode
+    const working = status().type === "busy" || status().type === "retry"
+    if (working && props.sessionID) {
+      setStore("queued", (list) => [
+        ...list,
+        { id: MessageID.ascending(), input: store.prompt.input, parts: store.prompt.parts.slice() },
+      ])
+      history.append({
+        ...store.prompt,
+        mode: currentMode,
+      })
+      input.extmarks.clear()
+      input.setText("")
+      setStore("prompt", { input: "", parts: [] })
+      setStore("extmarkToPartIndex", new Map())
+      return
+    }
     const variant = local.model.variant.current()
 
     if (store.mode === "shell") {
@@ -1459,6 +1534,21 @@ export function Prompt(props: PromptProps) {
               <text fg={theme.primary}>
                 {`\u25cf ${tI18n("voice.recording")}`}
               </text>
+            </Show>
+            <Show when={store.queued.length > 0}>
+              <box flexDirection="column" paddingBottom={1} gap={0}>
+                <text fg={theme.textMuted}>
+                  {store.queued.length === 1 ? "1 queued message" : `${store.queued.length} queued messages`}
+                </text>
+                <For each={store.queued}>
+                  {(item) => (
+                    <text fg={theme.text}>
+                      {`• ${item.input.replace(/\s+/g, " ").trim().slice(0, 60) || "[attachment]"}`}
+                    </text>
+                  )}
+                </For>
+                <text fg={theme.textMuted}>command palette: Edit/Delete queued message</text>
+              </box>
             </Show>
             <textarea
               placeholder={placeholderText()}

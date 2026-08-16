@@ -21,7 +21,14 @@ describe("buildRequestParts", () => {
       prompt,
       context: [{ key: "ctx:1", type: "file", path: "src/bar.ts", comment: "check this" }],
       images: [
-        { type: "image", id: "img_1", filename: "a.png", mime: "image/png", dataUrl: "data:image/png;base64,AAA" },
+        {
+          type: "image",
+          id: "img_1",
+          filename: "a.png",
+          mime: "image/png",
+          dataUrl: "data:image/png;base64,AAA",
+          publicUrl: "https://media.kolbo.ai/a.png",
+        },
       ],
       text: "hello @src/foo.ts @planner",
       messageID: "msg_1",
@@ -54,13 +61,21 @@ describe("buildRequestParts", () => {
       prompt: [{ type: "text", content: "check these", start: 0, end: 11 }],
       context: [],
       images: [
-        { type: "image", id: "img_1", filename: "a.png", mime: "image/png", dataUrl: "data:image/png;base64,AAA" },
+        {
+          type: "image",
+          id: "img_1",
+          filename: "a.png",
+          mime: "image/png",
+          dataUrl: "data:image/png;base64,AAA",
+          publicUrl: "https://media.kolbo.ai/a.png",
+        },
         {
           type: "image",
           id: "img_2",
           filename: "b.pdf",
           mime: "application/pdf",
           dataUrl: "data:application/pdf;base64,BBB",
+          publicUrl: "https://media.kolbo.ai/b.pdf",
         },
       ],
       text: "check these",
@@ -69,10 +84,26 @@ describe("buildRequestParts", () => {
       sessionDirectory: "/repo",
     })
 
-    const files = result.requestParts.filter((part) => part.type === "file" && part.url.startsWith("data:"))
+    const files = result.requestParts.filter((part) => part.type === "file" && part.url.startsWith("https://"))
 
     expect(files).toHaveLength(2)
+    expect(files.every((part) => part.type === "file" && !part.url.startsWith("data:"))).toBe(true)
     expect(files.map((part) => (part.type === "file" ? part.filename : ""))).toEqual(["a.png", "b.pdf"])
+  })
+
+  test("omits attachments that only have a base64 dataUrl", () => {
+    const result = buildRequestParts({
+      prompt: [{ type: "text", content: "look", start: 0, end: 4 }],
+      context: [],
+      images: [
+        { type: "image", id: "img_1", filename: "a.png", mime: "image/png", dataUrl: "data:image/png;base64,AAA" },
+      ],
+      text: "look",
+      messageID: "msg_b64",
+      sessionID: "ses_b64",
+      sessionDirectory: "/repo",
+    })
+    expect(result.requestParts.some((part) => part.type === "file" && part.url.startsWith("data:"))).toBe(false)
   })
 
   test("deduplicates context files when prompt already includes same path", () => {

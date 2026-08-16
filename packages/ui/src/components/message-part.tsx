@@ -42,8 +42,10 @@ import {
   extractKolboUrls as extractKolboUrlsShared,
   isVideoUrl as isVideoUrlShared,
   openKolboLightbox,
+  startMediaDrag,
 } from "./kolbo-media"
 import { card, costOf, player, read, urlsOf } from "./kolbo-operation"
+import { KolboMcpWidget } from "./kolbo-mcp-widget"
 import { usePlatformOps } from "../context/platform-ops"
 import { useKolboModels } from "../context/kolbo-models"
 import { Accordion } from "./accordion"
@@ -1664,8 +1666,12 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
 
   const render = createMemo(() => {
     const state = part().state as { output?: string; metadata?: Record<string, unknown> }
+    const tool = part().tool
     if (read(state.output, state.metadata)) return KolboOperationCard
-    return ToolRegistry.render(part().tool) ?? GenericTool
+    if (extractKolboUrlsShared(state.output).length > 0) return KolboOperationCard
+    const name = tool.replace(/^kolbo_/, "").replace(/^mcp__kolbo__/, "")
+    if (name.startsWith("generate_") || name === "edit_image" || name === "edit_video") return KolboOperationCard
+    return ToolRegistry.render(tool) ?? GenericTool
   })
 
   return (
@@ -3103,6 +3109,11 @@ function KolboBigPreview(props: { url: string }) {
   return (
     <button
       type="button"
+      draggable={true}
+      onDragStart={(e) => {
+        e.stopPropagation()
+        startMediaDrag(e.dataTransfer, props.url)
+      }}
       onClick={() => openKolboLightbox(props.url)}
       class="group/preview relative block overflow-hidden rounded-xl border border-border-weaker-base bg-[#0b0b0c] transition-all duration-200 hover:border-border-base cursor-zoom-in"
       style="line-height:0"
@@ -3114,6 +3125,7 @@ function KolboBigPreview(props: { url: string }) {
           <img
             src={props.url}
             alt=""
+            draggable={false}
             loading="lazy"
             class="block transition-transform duration-300 ease-out group-hover/preview:scale-[1.03]"
             style="max-height:200px;max-width:min(100%,300px);width:auto;height:auto;object-fit:contain"
@@ -3157,6 +3169,7 @@ function KolboOperationCard(props: {
   metadata?: Record<string, unknown>
 }) {
   const i18n = useI18n()
+  const [widgetOn, setWidgetOn] = createSignal(false)
   const op = createMemo(() => read(props.output, props.metadata))
   const view = createMemo(() => {
     const env = op()
@@ -3170,8 +3183,8 @@ function KolboOperationCard(props: {
     return "image"
   })
   const urls = createMemo(() => {
-    const env = op()
-    if (env) return urlsOf(env)
+    const fromOp = urlsOf(op())
+    if (fromOp.length) return fromOp
     return props.status === "completed" ? extractUrls(props.output) : []
   })
   const inFlight = createMemo(() => props.status !== "completed" && props.status !== "error")
@@ -3292,6 +3305,14 @@ function KolboOperationCard(props: {
 
   return (
     <div class="px-3 pb-2">
+      <KolboMcpWidget
+        tool={props.tool}
+        output={props.output}
+        metadata={props.metadata}
+        input={props.input}
+        onReady={() => setWidgetOn(true)}
+      />
+      <Show when={!widgetOn()}>
       <Show
         when={isError()}
         fallback={
@@ -3521,6 +3542,7 @@ function KolboOperationCard(props: {
             )}
           </For>
         </div>
+      </Show>
       </Show>
     </div>
   )

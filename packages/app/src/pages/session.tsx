@@ -1815,12 +1815,12 @@ export default function Page() {
       return out
     })
 
-  const busy = (sessionID: string) => {
-    if ((sync.data.session_status[sessionID] ?? { type: "idle" as const }).type !== "idle") return true
-    return (sync.data.message[sessionID] ?? []).some(
-      (item) => item.role === "assistant" && typeof item.time.completed !== "number",
-    )
-  }
+  // Same signal the composer / send button uses. Do NOT also scan for
+  // assistant messages missing `time.completed` — a leftover incomplete
+  // row (compaction, a dropped stream) would keep queueEnabled true and
+  // block the idle flush forever while the UI looks idle.
+  const busy = (sessionID: string) =>
+    (sync.data.session_status[sessionID] ?? { type: "idle" as const }).type !== "idle"
 
   const queuedFollowups = createMemo(() => {
     const id = params.id
@@ -1853,7 +1853,10 @@ export default function Page() {
         fail(err)
         return false
       })
-      if (!ok) return
+      if (!ok) {
+        setFollowup("failed", input.sessionID, input.id)
+        return
+      }
 
       setFollowup("items", input.sessionID, (items) => (items ?? []).filter((entry) => entry.id !== input.id))
       if (input.manual) resumeScroll()
@@ -1873,7 +1876,7 @@ export default function Page() {
   const queueEnabled = createMemo(() => {
     const id = params.id
     if (!id) return false
-    return settings.general.followup() === "queue" && busy(id) && !composer.blocked() && !isChildSession()
+    return busy(id) && !composer.blocked() && !isChildSession()
   })
 
   const followupText = (item: FollowupDraft) => {
@@ -1928,6 +1931,14 @@ export default function Page() {
       prompt: item.prompt,
       context: item.context,
     })
+  }
+
+  const deleteFollowup = (id: string) => {
+    const sessionID = params.id
+    if (!sessionID) return
+    if (followupBusy(sessionID)) return
+    setFollowup("items", sessionID, (items) => (items ?? []).filter((entry) => entry.id !== id))
+    setFollowup("failed", sessionID, (value) => (value === id ? undefined : value))
   }
 
   const clearFollowupEdit = () => {
@@ -2245,6 +2256,7 @@ export default function Page() {
                       void sendFollowup(params.id!, id, { manual: true })
                     },
                     onEdit: editFollowup,
+                    onDelete: deleteFollowup,
                     onEditLoaded: clearFollowupEdit,
                   }
                 : undefined

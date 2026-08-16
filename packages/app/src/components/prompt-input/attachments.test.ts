@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { attachmentMime } from "./files"
+import { hydratePromptUrls, rememberAttachmentUrl, resetAttachmentUrls } from "./attachment-urls"
+import { attachmentMime, mimeFromUrl } from "./files"
 import { pasteMode } from "./paste"
 
 describe("attachmentMime", () => {
@@ -21,6 +22,35 @@ describe("attachmentMime", () => {
   test("rejects binary files", async () => {
     const file = new File([Uint8Array.of(0, 255, 1, 2)], "blob.bin", { type: "application/octet-stream" })
     expect(await attachmentMime(file)).toBeUndefined()
+  })
+
+  test("accepts video files by mime and by extension", async () => {
+    const file = new File(["fake"], "clip.mp4", { type: "video/mp4" })
+    expect(await attachmentMime(file)).toBe("video/mp4")
+    expect(mimeFromUrl("https://media.kolbo.ai/generated-videos/shot.mp4")).toBe("video/mp4")
+    expect(mimeFromUrl("https://cdn.example/clip.webm?sig=1")).toBe("video/webm")
+  })
+})
+
+describe("hydratePromptUrls", () => {
+  test("fills a queued snapshot from a later CDN upload", () => {
+    resetAttachmentUrls()
+    rememberAttachmentUrl("att_1", "https://media.kolbo.ai/clip.mp4")
+    const next = hydratePromptUrls([
+      { type: "image", id: "att_1", filename: "clip.mp4", mime: "video/mp4" },
+      { type: "text", content: "what you see here?" },
+    ])
+    expect(next[0]).toMatchObject({ publicUrl: "https://media.kolbo.ai/clip.mp4", uploading: false })
+    expect(next[1]).toEqual({ type: "text", content: "what you see here?" })
+  })
+
+  test("leaves an already-public URL untouched", () => {
+    resetAttachmentUrls()
+    rememberAttachmentUrl("att_1", "https://media.kolbo.ai/new.mp4")
+    const next = hydratePromptUrls([
+      { type: "image", id: "att_1", publicUrl: "https://media.kolbo.ai/old.mp4" },
+    ])
+    expect(next[0].publicUrl).toBe("https://media.kolbo.ai/old.mp4")
   })
 })
 

@@ -7,6 +7,7 @@ Focus on information that would be helpful for continuing the conversation, incl
 - Which files are being modified
 - What needs to be done next
 - Key user requests, constraints, or preferences that should persist
+- Named models / tools / presets copied verbatim (never rewrite to a cheaper or "better" alternative)
 - Important technical decisions and why they were made
 
 Your summary should be comprehensive enough to provide context but concise enough to be quickly understood.

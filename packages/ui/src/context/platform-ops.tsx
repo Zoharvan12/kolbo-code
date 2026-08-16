@@ -34,6 +34,8 @@ export type PlatformOps = {
   imageProxyUrl?: (remoteUrl: string) => string
   /** Cancel one in-flight Kolbo media generation and refund its credits. */
   cancelGeneration?: (generationId: string) => Promise<void>
+  /** Fetch a Kolbo MCP Apps widget HTML document by resource URI. */
+  mcpWidget?: (uri: string) => Promise<string | null>
 }
 
 const PlatformOpsCtx = createContext<PlatformOps>({})
@@ -77,6 +79,9 @@ export function PlatformOpsProvider(props: ParentProps<PlatformOps>) {
     },
     get cancelGeneration() {
       return props.cancelGeneration ?? parent.cancelGeneration
+    },
+    get mcpWidget() {
+      return props.mcpWidget ?? parent.mcpWidget
     },
   }
   return <PlatformOpsCtx.Provider value={value}>{props.children}</PlatformOpsCtx.Provider>

@@ -8,7 +8,7 @@ import { checksum } from "@opencode-ai/util/encode"
 import { ComponentProps, createEffect, createMemo, createResource, createSignal, on, onCleanup, splitProps } from "solid-js"
 import { isServer } from "solid-js/web"
 import { stream } from "./markdown-stream"
-import { openKolboLightbox as openLightbox, isVideoUrl as isKolboVideoUrl, firstFramePosterSrc, pauseOnFirstFrame } from "./kolbo-media"
+import { openKolboLightbox as openLightbox, isVideoUrl as isKolboVideoUrl, firstFramePosterSrc, pauseOnFirstFrame, startMediaDrag } from "./kolbo-media"
 import { dispatchArtifact, resolveHtmlPreviewSource } from "../lib/artifact"
 
 /**
@@ -601,10 +601,8 @@ const imageExtPattern = /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)(?=$|[?#])/i
 function makeDraggable(el: HTMLElement, url: string) {
   el.draggable = true
   el.addEventListener("dragstart", (e) => {
-    if (!e.dataTransfer) return
-    e.dataTransfer.setData("text/uri-list", url)
-    e.dataTransfer.setData("text/plain", url)
-    e.dataTransfer.effectAllowed = "copy"
+    e.stopPropagation()
+    startMediaDrag(e.dataTransfer, url)
   })
 }
 

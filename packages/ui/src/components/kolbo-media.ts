@@ -138,6 +138,14 @@ export function isVideoUrl(url: string): boolean {
   return KOLBO_VIDEO_EXT_RE.test(url)
 }
 
+/** Put a public media URL on a drag so dropping on the prompt attaches by reference. */
+export function startMediaDrag(transfer: DataTransfer | null | undefined, url: string) {
+  if (!transfer || !url) return
+  transfer.setData("text/uri-list", url)
+  transfer.setData("text/plain", url)
+  transfer.effectAllowed = "copy"
+}
+
 /**
  * Append `#t=0.05` to a video URL so a `<video preload="auto"
  * autoplay muted playsinline>` decodes the first frame instead of

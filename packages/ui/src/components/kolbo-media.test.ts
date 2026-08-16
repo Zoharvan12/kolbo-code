@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { extractKolboUrls } from "./kolbo-media"
+import { extractKolboUrls, startMediaDrag } from "./kolbo-media"
 
 const IMG = "https://kolboai-production.ams3.digitaloceanspaces.com/kolboai-media/generated-images/a/b/one.png"
 const IMG2 = "https://kolboai-production.ams3.digitaloceanspaces.com/kolboai-media/generated-images/a/b/two.png"
@@ -73,5 +73,27 @@ describe("extractKolboUrls", () => {
       outputs: [{ url: IMG, kind: "image" }, { url: IMG2, kind: "image" }],
     })
     expect(extractKolboUrls(out)).toEqual([IMG, IMG2])
+  })
+})
+
+describe("startMediaDrag", () => {
+  test("writes uri-list and plain text so the prompt can attach by reference", () => {
+    const url = "https://media.kolbo.ai/kolboai-media/generated-videos/a/b/shot.mp4"
+    const data: Record<string, string> = {}
+    const transfer = {
+      setData: (type: string, value: string) => {
+        data[type] = value
+      },
+      effectAllowed: "none",
+    }
+    startMediaDrag(transfer as unknown as DataTransfer, url)
+    expect(data["text/uri-list"]).toBe(url)
+    expect(data["text/plain"]).toBe(url)
+    expect(transfer.effectAllowed).toBe("copy")
+  })
+
+  test("no-ops without a transfer or url", () => {
+    expect(() => startMediaDrag(null, "https://x/a.mp4")).not.toThrow()
+    expect(() => startMediaDrag({} as DataTransfer, "")).not.toThrow()
   })
 })

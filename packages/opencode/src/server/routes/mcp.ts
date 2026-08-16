@@ -221,5 +221,41 @@ export const McpRoutes = lazy(() =>
         await MCP.disconnect(name)
         return c.json(true)
       },
+    )
+    .get(
+      "/:name/resource",
+      describeRoute({
+        summary: "Read MCP resource",
+        description: "Read a resource from a connected Model Context Protocol server (used for Kolbo MCP Apps widgets).",
+        operationId: "mcp.resource",
+        responses: {
+          200: {
+            description: "Resource contents",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    html: z.string().optional(),
+                    uri: z.string(),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(404),
+        },
+      }),
+      validator("param", z.object({ name: z.string() })),
+      validator("query", z.object({ uri: z.string() })),
+      async (c) => {
+        const { name } = c.req.valid("param")
+        const { uri } = c.req.valid("query")
+        const result = await MCP.readResource(name, uri)
+        const text = result?.contents?.flatMap((item) =>
+          "text" in item && typeof item.text === "string" ? [item.text] : [],
+        )[0]
+        if (!text) return c.json({ uri }, 404)
+        return c.json({ uri, html: text })
+      },
     ),
 )

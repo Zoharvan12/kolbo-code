@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { advertised, card, parse, player, read, SCHEMA } from "./kolbo-operation"
+import { advertised, card, costOf, parse, player, read, SCHEMA } from "./kolbo-operation"
 
 const SMELL = "https://cdn.example/never-seen.mp3"
 
@@ -59,6 +59,53 @@ describe("kolbo.operation/1 host contract", () => {
     expect(env?.preview).toBe("https://cdn.example/preview.png")
     expect(env?.params).toHaveLength(2)
     expect(advertised(env)).toBe(true)
+  })
+
+  test("published MCP text result still renders a card", () => {
+    const env = read(
+      JSON.stringify({
+        urls: ["https://cdn.example/cat-1.png", "https://cdn.example/cat-2.png", "https://cdn.example/cat-3.png"],
+        credits_used: 3,
+        model: "z-image/turbo",
+        prompt_used: "orange tabby on a sunny windowsill",
+      }),
+    )
+    expect(env).toBeDefined()
+    expect(env?.phase).toBe("completed")
+    expect(env?.model.id).toBe("z-image/turbo")
+    expect(env?.cost).toBe(3)
+    expect(env?.outputs).toHaveLength(3)
+    expect(player(env!)).toBe("image")
+    expect(advertised(env)).toBe(true)
+  })
+
+  test("widget structuredContent in metadata still renders", () => {
+    const env = read(undefined, {
+      structuredContent: {
+        widget: "generation",
+        phase: "completed",
+        kind: "image",
+        generation_id: "gen_1",
+        urls: ["https://cdn.example/out.png"],
+        model: "z-image/turbo",
+        credits_used: 1,
+      },
+    })
+    expect(env?.id).toBe("gen_1")
+    expect(env?.outputs[0]?.url).toBe("https://cdn.example/out.png")
+  })
+
+  test("plain json with a url but no generation markers is ignored", () => {
+    expect(read(JSON.stringify({ url: "https://example.com", name: "readme" }))).toBeUndefined()
+  })
+
+  test("invalid JSON that starts with { does not throw", () => {
+    const junk = '{ "aspect": 21:9, "ver": 1.2.3, "n": 148236 }'
+    expect(read(junk)).toBeUndefined()
+    expect(parse(junk)).toBeUndefined()
+    expect(advertised(junk)).toBe(false)
+    expect(read(undefined, { operation: junk })).toBeUndefined()
+    expect(costOf(undefined, junk)).toBeUndefined()
   })
 
   test("read prefers output envelope over metadata", () => {

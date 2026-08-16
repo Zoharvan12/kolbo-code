@@ -602,8 +602,16 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                 }
 
                 const truncated = yield* truncate.output(textParts.join("\n\n"), {}, input.agent)
+                const extra = result as {
+                  metadata?: Record<string, unknown>
+                  structuredContent?: unknown
+                  _meta?: Record<string, unknown>
+                }
                 const metadata = {
-                  ...(result.metadata ?? {}),
+                  ...askMetadata,
+                  ...(extra.metadata ?? {}),
+                  ...(extra.structuredContent ? { structuredContent: extra.structuredContent } : {}),
+                  ...(extra._meta ? { ui: extra._meta } : {}),
                   truncated: truncated.truncated,
                   ...(truncated.truncated && { outputPath: truncated.outputPath }),
                 }
@@ -1137,77 +1145,20 @@ NOTE: At any point in time through this workflow you should feel free to ask the
             switch (url.protocol) {
               case "https:":
               case "http:": {
-                // The kolbo CDN bucket is public — vision providers fetch the URL
-                // directly. Embedding base64 here previously blew past kolbo-api's
-                // request-body limit (413 Payload Too Large) for any non-trivial image.
-                // For auth-gated/non-kolbo URLs we still fall back to base64.
+                // Keep the HTTPS URL on the file part. Never persist base64 —
+                // those bytes stay in the session and fill the context window
+                // on every later turn. Vision providers fetch the URL; Kolbo
+                // tools get the same URL from the reminder.
                 const label = part.filename ? `'${part.filename}'` : "the attached file"
                 const mcpUrlReminder =
-                  `[User-attached ${part.mime} ${label} is hosted at: ${part.url}\n` +
-                  `Pass this exact URL to the appropriate Kolbo MCP tool arg. ` +
-                  `Image-edit args take ARRAYS — when the user attaches multiple images and asks to edit ` +
-                  `using all of them, collect every attached URL into the array, do NOT just pass one.\n` +
-                  `  • generate_image_edit.source_images (array — multi-image composite/edit)\n` +
-                  `  • generate_elements.reference_images (array)\n` +
-                  `  • generate_3d.reference_images (array)\n` +
-                  `  • generate_video.reference_images (array)\n` +
-                  `  • generate_video_from_image.image_url (single)\n` +
-                  `  • generate_video_from_video.source_video (single)\n` +
-                  `  • edit_image.image_url (single — targeted ops: upscale/reframe/etc.)\n` +
-                  `  • edit_video.video_url (single, or image_url for face_swap)\n` +
-                  `  • transcribe_audio.source (single)\n` +
-                  `Do NOT re-upload — it's already on the Kolbo CDN.]`
-                const isKolboPublicCdn = /(^|\.)(kolboai-production|digitaloceanspaces)\.com$/.test(url.hostname)
+                  MessageV2.isImageOrPdf(part.mime)
+                    ? `[Attached ${part.mime} ${label} is also at ${part.url}. Examine the attached file. For Kolbo tools, pass this exact URL (image-edit/elements/3d/video reference args take arrays — include every attached URL). Do not re-upload.]`
+                    : MessageV2.isMedia(part.mime)
+                      ? `[Attached ${part.mime} ${label} at ${part.url}. You cannot play this inline — use a Kolbo tool (transcribe_audio, generate_video_from_video, edit_video) with this exact URL. Do not re-upload.]`
+                      : `[Attached ${part.mime} ${label} at ${part.url}]`
                 if (MessageV2.isMedia(part.mime)) {
-                  if (MessageV2.isImageOrPdf(part.mime)) {
-                    if (isKolboPublicCdn) {
-                      return [
-                        { ...part, messageID: info.id, sessionID: input.sessionID },
-                        {
-                          messageID: info.id,
-                          sessionID: input.sessionID,
-                          type: "text" as const,
-                          synthetic: true,
-                          text: mcpUrlReminder,
-                        },
-                      ]
-                    }
-                    const fetchExit = yield* Effect.tryPromise(async () => {
-                      const res = await fetch(part.url, {
-                        headers: { Accept: `${part.mime},${part.mime.split("/")[0]}/*;q=0.9,*/*;q=0.5` },
-                      })
-                      if (!res.ok) throw new Error(`CDN fetch failed: ${res.status}`)
-                      // The URL's file extension lied — server returned HTML
-                      // (paywall, login page, anti-bot, 200-OK error). Encoding
-                      // those bytes as data:image/jpeg;base64,… ships HTML text
-                      // to the vision model, which reconstructs nonsense. Bail
-                      // out and let the caller emit the text-only mcpUrlReminder.
-                      const resType = (res.headers.get("content-type") || "").toLowerCase().split(";")[0].trim()
-                      const expectedFamily = part.mime.split("/")[0]
-                      if (resType && !resType.startsWith(expectedFamily + "/") && resType !== part.mime) {
-                        throw new Error(`URL returned ${resType}, expected ${part.mime}`)
-                      }
-                      return res.arrayBuffer()
-                    }).pipe(Effect.exit)
-                    if (Exit.isSuccess(fetchExit)) {
-                      return [
-                        {
-                          ...part,
-                          url: `data:${part.mime};base64,${Buffer.from(fetchExit.value).toString("base64")}`,
-                          messageID: info.id,
-                          sessionID: input.sessionID,
-                        },
-                        {
-                          messageID: info.id,
-                          sessionID: input.sessionID,
-                          type: "text" as const,
-                          synthetic: true,
-                          text: mcpUrlReminder,
-                        },
-                      ]
-                    }
-                  }
                   return [
+                    { ...part, messageID: info.id, sessionID: input.sessionID },
                     {
                       messageID: info.id,
                       sessionID: input.sessionID,
@@ -1237,6 +1188,17 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                       text: decodeDataUrl(part.url),
                     },
                     { ...part, messageID: info.id, sessionID: input.sessionID },
+                  ]
+                }
+                if (MessageV2.isMedia(part.mime)) {
+                  return [
+                    {
+                      messageID: info.id,
+                      sessionID: input.sessionID,
+                      type: "text" as const,
+                      synthetic: true,
+                      text: `[Dropped inline ${part.mime} '${part.filename ?? "file"}' — re-attach so it uploads to the CDN. Base64 is never stored in the session.]`,
+                    },
                   ]
                 }
                 break
@@ -1381,31 +1343,17 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                   ]
                 }
 
-                // Media files (image/video/audio): file:// URLs can't be fetched by external
-                // LLM providers. Read the bytes locally and convert to a base64 data URL so
-                // the model can actually see the content. This handles both the race condition
-                // where the user sends before the async CDN upload completes, and the case
-                // where no upload was started (e.g. drag-from-file-tree via attachFromUrl).
+                // Never inline file:// media as base64 — that persists in the
+                // session and fills context. The desktop/TUI must upload to
+                // the CDN first and send an https URL.
                 if (MessageV2.isMedia(part.mime)) {
-                  const fileExit = yield* fsys.readFile(filepath).pipe(Effect.exit)
-                  if (Exit.isSuccess(fileExit)) {
-                    return [
-                      {
-                        ...part,
-                        url: `data:${part.mime};base64,${Buffer.from(fileExit.value).toString("base64")}`,
-                        messageID: info.id,
-                        sessionID: input.sessionID,
-                      },
-                    ]
-                  }
-                  log.warn("media file not readable, using placeholder", { filepath, mime: part.mime })
                   return [
                     {
                       messageID: info.id,
                       sessionID: input.sessionID,
                       type: "text" as const,
                       synthetic: true,
-                      text: `[Attached media not accessible: ${part.filename ?? filepath}]`,
+                      text: `[Local ${part.mime} '${part.filename ?? filepath}' was not uploaded. Re-attach the file so it goes to the Kolbo CDN, then send again.]`,
                     },
                   ]
                 }

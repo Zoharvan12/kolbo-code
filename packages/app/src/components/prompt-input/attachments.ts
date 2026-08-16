@@ -5,7 +5,10 @@ import { useLanguage } from "@/context/language"
 import { uuid } from "@/utils/uuid"
 import { getCursorPosition } from "./editor-dom"
 import { attachmentMime, mimeFromUrl, MAX_MEDIA_BYTES } from "./files"
+import { rememberAttachmentUrl } from "./attachment-urls"
 import { normalizePaste, pasteMode } from "./paste"
+
+export { hydratePromptUrls, rememberAttachmentUrl } from "./attachment-urls"
 
 // Client-side upload dedup cache (SHA-256 → CDN URL) and the in-flight upload
 // tracker the submit-side awaits before reading prompt parts. Mirrors the TUI's
@@ -131,7 +134,7 @@ type PromptAttachmentsInput = {
   serverUrl?: () => string | undefined
 }
 
-const inAppMediaPattern = /\.(png|jpe?g|gif|webp|avif|bmp|svg|mp4|webm|mov|avi|mkv|m4v|mp3|wav|ogg|m4a|aac|flac|opus)(\?.*)?$/i
+const inAppMediaPattern = /\.(png|jpe?g|gif|webp|avif|bmp|svg|mp4|webm|mov|avi|mkv|m4v|ogv|mp3|wav|ogg|m4a|aac|flac|opus)(\?.*)?$/i
 
 // Probe an upload-endpoint JSON body for a usable HTTPS URL. kolbo-api's
 // `/kolbo/v1/files` returns `{url}` on first upload but has been observed to
@@ -247,6 +250,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
         const cached = uploadCache.get(hash)
         if (cached) {
           uploadAborts.delete(id)
+          rememberAttachmentUrl(id, cached)
           prompt.updateImageAttachment(id, { uploading: false, publicUrl: cached })
           // Keep video/audio blob preview alive — it's used by the optimistic
           // message bubble (which reads `dataUrl`, not `publicUrl`). Revoked on
@@ -265,6 +269,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
             if (result.url) {
               cachePut(hash, result.url)
               uploadAborts.delete(id)
+              rememberAttachmentUrl(id, result.url)
               prompt.updateImageAttachment(id, {
                 uploading: false,
                 publicUrl: result.url,
@@ -287,6 +292,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
         }
 
         cachePut(hash, result.url)
+        rememberAttachmentUrl(id, result.url)
         prompt.updateImageAttachment(id, { uploading: false, publicUrl: result.url })
       } catch (e) {
         uploadAborts.delete(id)
@@ -447,6 +453,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       }
       const cached = pathUploadCache.get(filePath)
       if (cached) {
+        rememberAttachmentUrl(id, cached)
         prompt.updateImageAttachment(id, { uploading: false, publicUrl: cached })
         return true
       }
@@ -468,6 +475,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
           const url = extractUploadUrl(data)
           if (url) {
             pathCachePut(filePath, url)
+            rememberAttachmentUrl(id, url)
             prompt.updateImageAttachment(id, { uploading: false, publicUrl: url })
           } else {
             console.warn("[kolbo-files-upload-from-path] 200 OK but no URL in response", data)
@@ -600,6 +608,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     const id = uuid()
 
     if (url.startsWith("http://") || url.startsWith("https://")) {
+      rememberAttachmentUrl(id, url)
       return {
         kind: "chip",
         attachment: { type: "image", id, filename, mime, dataUrl: url, publicUrl: url, uploading: false },

@@ -1,5 +1,5 @@
 ---
-version: 0.8.1
+version: 0.8.2
 name: kolbo
 description: |
   Generate, edit, analyze, and direct creative media through Kolbo AI: images,
@@ -155,10 +155,11 @@ A user-named tool — in any language — overrides every other rule. Recognized
 **Preset contract:** if the user asks for a preset, names one, or says to use one of their/Kolbo presets, call `list_presets` with the matching type before generation and pass the selected exact `id` as `preset_id`. Use `image` for `generate_image` and `image_edit` for `generate_image_edit`. Never invent an id or silently continue without the requested preset.
 
 1. **Check credits** ONCE per conversation (Step 0). Skip if already checked.
-2. **Discover models** with `list_models` using a `type` filter — but **skip when the user names a specific model**.
+2. **Discover models** with `list_models` using a `type` filter — but **skip when the user names a specific model** (this turn **or** earlier in the conversation / compaction `## Locked choices`).
 3. **Pick the model**:
-   - User named one → use it. Model identifiers resolve leniently — shorthand like `"z-image"` or `"nano banana 2"` auto-resolves to the exact identifier, so don't over-engineer exact-id lookups (`list_models` is still authoritative for constraints, caps, and pricing).
-   - Auto-select → only from "Auto-selectable" section (models with a `summary`). Cheapest fit. Prefer `[RECOMMENDED]` when cost is similar.
+   - User named one → that name is a **family lock**, not a single catalog row. Use it. Identifiers resolve leniently — `"z-image"` / `"nano banana 2"` / `"grok imagine"` auto-resolve, including to the sibling for the tool you are calling (`grok-imagine-text-to-video` on `generate_video_from_image` becomes `grok-imagine-image-to-video`). `list_models` is still authoritative for constraints, caps, and pricing — not for swapping brands.
+   - **Never cheapest-swap a named family.** After compaction, "animate those images" is still Grok if the user said Grok. Seedance / Kling / Veo are not a "best balance" substitute. If the named family has no variant for this modality, ASK — do not silently switch.
+   - Auto-select → **only when no model was named on this task**. Then pick from "Auto-selectable" (models with a `summary`). Cheapest fit. Prefer `[RECOMMENDED]` when cost is similar.
    - Never auto-select from "Named-only" section.
 4. **Validate inputs** against model caps — see `references/workflows/cost-and-validation.md`.
 5. **How calls work**: each tool blocks until generation is fully complete. Images: seconds. Video: minutes. Multiple tool calls in one response run concurrently. On hosts with live widgets the tool instead returns `submitted` instantly — the card updates on its own; you only need `get_generation_status` when a follow-up step needs the output URLs.

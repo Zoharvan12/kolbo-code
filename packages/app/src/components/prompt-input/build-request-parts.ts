@@ -190,7 +190,10 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
   const imageOptimisticParts: PromptRequestPart[] = []
 
   for (const attachment of input.images) {
-    const url = attachment.publicUrl ?? attachment.dataUrl
+    // Never ship data:/blob: into the session — those bytes stay in every
+    // later turn and blow the context window. Wait for the CDN URL.
+    const url = attachment.publicUrl
+    if (!url || !/^https?:\/\//.test(url)) continue
     const label = attachment.localPath ?? attachment.filename
     const partId = Identifier.ascending("part")
     const filePart: PromptRequestPart = {
@@ -201,11 +204,7 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
       filename: label,
     }
     imageParts.push(filePart)
-    // Optimistic part prefers publicUrl (durable CDN URL — survives page reload
-    // and blob URL revocation), falling back to dataUrl for the brief window
-    // before upload finishes. For images dataUrl is base64; for video/audio
-    // it's a blob: URL that only stays valid while the chip is mounted.
-    imageOptimisticParts.push({ ...filePart, url: attachment.publicUrl ?? attachment.dataUrl })
+    imageOptimisticParts.push(filePart)
 
     const kind = attachment.mime.startsWith("image/")
       ? "Image"

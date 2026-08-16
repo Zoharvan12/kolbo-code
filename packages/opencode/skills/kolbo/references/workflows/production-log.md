@@ -4,7 +4,7 @@ Load this file when starting a multi-step production, or before any continuation
 
 ## Why It Exists
 
-Every URL, id, and brief produced by a Kolbo MCP tool MUST be recorded in `.kolbo/production.md` in the user's workspace. This file — not chat history — is your source of truth for prior artifacts: URLs scattered across `tool_result` blobs are unreliable to re-scan and disappear entirely on context compaction.
+Every URL, id, and brief produced by a Kolbo MCP tool MUST be recorded in `.kolbo/production.md` in the user's workspace. This file — not chat history — is your source of truth for prior artifacts: URLs scattered across `tool_result` blobs are unreliable to re-scan and disappear entirely on context compaction. If the user named a model, write that name into `## 🎯 Now` and keep using that family on every follow-up — compaction is not permission to cheapest-swap.
 
 ## When to READ it
 
