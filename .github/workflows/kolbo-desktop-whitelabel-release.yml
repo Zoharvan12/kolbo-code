@@ -66,7 +66,7 @@ jobs:
             rust-target: x86_64-pc-windows-msvc
             bundle: nsis
             artifact-suffix: windows-x64
-          - platform: macos-14
+          - platform: macos-14-xlarge
             rust-target: universal-apple-darwin
             bundle: dmg
             artifact-suffix: darwin-universal
@@ -201,7 +201,7 @@ jobs:
           "
 
       - name: Import Apple signing certificate
-        if: matrix.platform == 'macos-14'
+        if: startsWith(matrix.platform, 'macos')
         env:
           APPLE_CERT_DATA: ${{ secrets.DEVELOPER_ID_APPLICATION_CERT }}
           APPLE_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_CERT_PASSWORD }}
@@ -223,7 +223,7 @@ jobs:
           mkdir -p /tmp/kolbo-cli-install
           cd /tmp/kolbo-cli-install
           npm install "@kolbo/kolbo-code@${KOLBO_VERSION}"
-          if [ "${{ matrix.platform }}" == "macos-14" ]; then
+          if [[ "${{ matrix.platform }}" == macos-* ]]; then
             ARM_TGZ=$(npm pack "@kolbo/kolbo-code-darwin-arm64@${KOLBO_VERSION}" --silent)
             X64_TGZ=$(npm pack "@kolbo/kolbo-code-darwin-x64@${KOLBO_VERSION}" --silent)
             mkdir -p /tmp/kolbo-cli-arm64 /tmp/kolbo-cli-x64
@@ -243,7 +243,7 @@ jobs:
               echo "✓ CLI sidecar copied from $KOLBO_BIN"
               SKILLS_SRC="$(dirname "$(dirname "$KOLBO_BIN")")/skills"
             fi
-          elif [ "$PLATFORM" == "macos-14" ]; then
+          elif [[ "$PLATFORM" == macos-* ]]; then
             ARM_BIN="/tmp/kolbo-cli-arm64/bin/kolbo"
             X64_BIN="/tmp/kolbo-cli-x64/bin/kolbo"
             ARM_DEST="packages/desktop/src-tauri/sidecars/opencode-cli-aarch64-apple-darwin"
@@ -288,7 +288,7 @@ jobs:
           fi
 
       - name: Smoke MCP updater (macOS)
-        if: matrix.platform == 'macos-14'
+        if: startsWith(matrix.platform, 'macos')
         shell: bash
         run: |
           TMP=$(mktemp -d)
@@ -337,7 +337,9 @@ jobs:
         with:
           projectPath: packages/desktop
           tauriScript: bunx tauri
-          args: --target ${{ matrix.rust-target }} --bundles ${{ matrix.bundle }}
+          # See kolbo-desktop-release.yml — tauri prints bundle_dmg.sh's
+          # output only under --verbose, so a DMG failure is otherwise blind.
+          args: --target ${{ matrix.rust-target }} --bundles ${{ matrix.bundle }}${{ startsWith(matrix.platform, 'macos') && ' --verbose' || '' }}
           tagName: ${{ env.WHITELABEL }}-desktop-v${{ env.KOLBO_VERSION }}
           releaseName: "${{ steps.wl.outputs.product_name }} v${{ env.KOLBO_VERSION }}"
           releaseBody: |
@@ -375,7 +377,7 @@ jobs:
           override: "true"
 
       - name: Notarize macOS DMG
-        if: matrix.platform == 'macos-14'
+        if: startsWith(matrix.platform, 'macos')
         shell: bash
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -448,7 +450,7 @@ jobs:
           Write-Host "✓ Uploaded update bundle"
 
       - name: Upload update bundles to release (macOS)
-        if: matrix.platform == 'macos-14'
+        if: startsWith(matrix.platform, 'macos')
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
