@@ -15,13 +15,21 @@ const msg = (tokens: Partial<{ input: number; output: number; reasoning: number;
 })
 
 describe("agent credit maths", () => {
-  test("bills cached tokens as input and reasoning as output", () => {
-    // 1M in (500k fresh + 300k cache read + 200k cache write) = 1000 credits,
-    // 1M out (600k output + 400k reasoning) = 2000. Dropping either cache
-    // field or reasoning silently under-bills a long session.
+  test("discounts cached reads the way kolbo-api does, and counts reasoning as output", () => {
+    // 500k fresh + 200k cache WRITE bill at full input = 700k; 300k cache READ
+    // bills at 0.1x = 30k. So 730k in = 730 credits, and 1M out (600k output +
+    // 400k reasoning) = 2000. Charging cache reads at full rate was the bug:
+    // it read 1000 + 2000 here, and 62 instead of 36 on a real session.
     expect(
       calcAgentCredits([msg({ input: 500_000, read: 300_000, write: 200_000, output: 600_000, reasoning: 400_000 })], pricing),
-    ).toBe(3000)
+    ).toBe(2730)
+  })
+
+  test("a cache-heavy turn costs a fraction of the same volume sent fresh", () => {
+    const cached = calcAgentCredits([msg({ input: 0, read: 1_000_000 })], pricing)
+    const fresh = calcAgentCredits([msg({ input: 1_000_000 })], pricing)
+    expect(cached).toBe(100)
+    expect(fresh).toBe(1000)
   })
 
   test("a billed turn never rounds down to zero", () => {
