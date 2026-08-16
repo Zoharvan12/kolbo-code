@@ -19,7 +19,7 @@ import { showToast } from "@opencode-ai/ui/toast"
 import { getFilename } from "@opencode-ai/util/path"
 import { Popover as KobaltePopover } from "@kobalte/core/popover"
 import { shouldMarkBoundaryGesture, normalizeWheelDelta } from "@/pages/session/message-gesture"
-import { SessionContextUsage } from "@/components/session-context-usage"
+import { SessionUsageMenu } from "@/components/session-usage-menu"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useLanguage } from "@/context/language"
@@ -940,7 +940,7 @@ export function MessageTimeline(props: {
                             </KobaltePopover.Portal>
                           </KobaltePopover>
                         </Show>
-                        <SessionContextUsage placement="bottom" />
+                        <SessionUsageMenu />
                         <Show when={!parentID()}>
                           <DropdownMenu
                             gutter={4}

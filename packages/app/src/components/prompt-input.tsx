@@ -40,6 +40,7 @@ import { usePlatform } from "@/context/platform"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { useGlobalSDK } from "@/context/global-sdk"
 import { useServer } from "@/context/server"
+import { useSessionUsage } from "@/hooks/use-session-usage"
 import { createSessionTabs } from "@/pages/session/helpers"
 import { promptEnabled, promptProbe } from "@/testing/prompt"
 import { detectTextDirection } from "@/utils/rtl"
@@ -63,25 +64,6 @@ import { PromptDragOverlay } from "./prompt-input/drag-overlay"
 import { promptPlaceholder } from "./prompt-input/placeholder"
 import { createVoiceDictation, type DictationErrorCode } from "./prompt-input/voice-dictation"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
-
-type KolboPricing = Record<string, { input: number; output: number }>
-
-function calcCredits(
-  messages: ReadonlyArray<{ role: string; modelID?: string; providerID?: string; tokens?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } } }>,
-  pricing: KolboPricing,
-): number {
-  let total = 0
-  for (const msg of messages) {
-    if (msg.role !== "assistant" || msg.providerID !== "kolbo" || !msg.tokens) continue
-    const p = pricing[msg.modelID ?? "kolbo-auto-smart"]
-    if (!p) continue
-    const inT = msg.tokens.input + (msg.tokens.cache?.read ?? 0) + (msg.tokens.cache?.write ?? 0)
-    const outT = msg.tokens.output + msg.tokens.reasoning
-    if (inT <= 0 && outT <= 0) continue
-    total += Math.max(1, Math.ceil((inT / 1_000_000) * p.input + (outT / 1_000_000) * p.output))
-  }
-  return total
-}
 
 interface PromptInputProps {
   class?: string
@@ -216,20 +198,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const { params, tabs, view } = useSessionLayout()
   const globalSDK = useGlobalSDK()
   const server = useServer()
-
-  const [kolboPricing, setKolboPricing] = createSignal<KolboPricing>({})
-  const [kolboBalance, setKolboBalance] = createSignal<number | null>(null)
-  const refreshKolboBalance = () => {
-    globalSDK.client.global.kolboBalance()
-      .then((res) => { if (res.data != null) setKolboBalance((res.data as { available: number }).available) })
-      .catch(() => {})
-  }
-  onMount(() => {
-    globalSDK.client.global.kolboPricing()
-      .then((res) => { if (res.data) setKolboPricing(res.data as KolboPricing) })
-      .catch(() => {})
-    refreshKolboBalance()
-  })
+  const usage = useSessionUsage()
 
   // ── Voice dictation (realtime Scribe) ──────────────────────────────────
   // Streams the mic to kolbo-api's realtime transcription and types the text
@@ -340,70 +309,9 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (prev !== undefined && current > prev) {
       // A new Kolbo tool just completed — refresh both the global balance
       // and the per-session media spend (kolbo-api source of truth).
-      refreshKolboBalance()
-      void refreshSessionMediaSpend()
+      usage.refresh()
     }
     return current
-  })
-
-  const sessionMessages = createMemo(() => {
-    const id = params.id
-    if (!id) return []
-    return (sync.data.message[id] ?? []) as Array<{ role: string; modelID?: string; providerID?: string; tokens?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } } }>
-  })
-
-  const sessionCreditsUsed = createMemo(() => calcCredits(sessionMessages(), kolboPricing()))
-
-  // Per-chat-session media spend — fetched from the authoritative kolbo-api
-  // `/credit-usage/by-caller-session` endpoint via the sidecar proxy. This
-  // is the SAME data kolbo-api uses for billing, so resolution multipliers
-  // (2K image = 2 credits, 4K = 4, etc.) are already applied. The old
-  // client-side sum of per-tool `credits_used` fields under-reported when
-  // those fields hadn't been resolution-adjusted by the backend.
-  //
-  // Scope: window the query to this chat session's start time so the
-  // counter reflects credits spent IN THIS CHAT (not across all chats in
-  // this app launch — caller_session_id is per-app-install, not per-chat).
-  const sessionStartIso = createMemo(() => {
-    const id = params.id
-    if (!id) return undefined
-    const sess = sync.session.get?.(id) as { time?: { created?: number } } | undefined
-    const created = sess?.time?.created
-    return typeof created === "number" ? new Date(created).toISOString() : undefined
-  })
-  const [sessionMediaSpend, setSessionMediaSpend] = createSignal<{
-    total: number
-    byTool: Array<{ generation_type: string | null; amount: number; count: number }>
-  } | null>(null)
-  const refreshSessionMediaSpend = async () => {
-    const base = server.current?.http.url
-    const start = sessionStartIso()
-    if (!base || !start) {
-      setSessionMediaSpend(null)
-      return
-    }
-    try {
-      const url = `${base}/global/kolbo-session-usage?startDate=${encodeURIComponent(start)}`
-      const res = await fetch(url, { headers: { Accept: "application/json" } })
-      if (!res.ok) return
-      const data = (await res.json()) as {
-        total?: number
-        by_tool?: Array<{ generation_type: string | null; amount: number; count: number }>
-      }
-      const total = data.total ?? 0
-      if (total <= 0) {
-        setSessionMediaSpend(null)
-        return
-      }
-      setSessionMediaSpend({ total, byTool: data.by_tool ?? [] })
-    } catch {
-      // Best-effort — keep the prior value on transient failure.
-    }
-  }
-  // Initial fetch when the session id (and therefore startDate) changes.
-  createEffect(() => {
-    sessionStartIso() // track
-    void refreshSessionMediaSpend()
   })
 
   let editorRef!: HTMLDivElement
@@ -2073,15 +1981,12 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
             </div>
             <Show when={local.model.current()?.provider?.id === "kolbo"}>
               <div class="shrink-0 flex items-center gap-2 text-11-regular pr-1">
-                <Show when={kolboBalance() !== null}>
-                  <span class="text-text-weak">{kolboBalance()!.toLocaleString(language.intl())} credits</span>
-                  <span class="text-border-base">|</span>
+                {/* Balance only. What this chat SPENT lives in the top-bar
+                    Usage menu, where agent and media credits sit side by side
+                    against the authoritative kolbo-api figures. */}
+                <Show when={usage.balance() !== null}>
+                  <span class="text-text-weak">{usage.balance()!.toLocaleString(language.intl())} credits</span>
                 </Show>
-                <span class="text-text-weaker">{sessionCreditsUsed().toLocaleString(language.intl())} used</span>
-                {/* "{N} used media" hidden — current client-side tally under-
-                    reports resolution multipliers (2K = 2 credits shown as 1).
-                    Restore once the backend fetch path (kolbo-session-usage
-                    with startDate) is verified end-to-end. */}
               </div>
             </Show>
           </div>

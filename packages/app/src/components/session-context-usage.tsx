@@ -8,7 +8,6 @@ import { useLayout } from "@/context/layout"
 import { useSync } from "@/context/sync"
 import { useLanguage } from "@/context/language"
 import { useProviders } from "@/hooks/use-providers"
-import { costOf, read } from "@opencode-ai/ui/kolbo-operation"
 import { getSessionContextMetrics } from "@/components/session/session-context-metrics"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { createSessionTabs } from "@/pages/session/helpers"
@@ -16,13 +15,6 @@ import { createSessionTabs } from "@/pages/session/helpers"
 interface SessionContextUsageProps {
   variant?: "button" | "indicator"
   placement?: TooltipProps["placement"]
-}
-
-type KolboMediaKind = "image" | "video" | "audio" | "threeD"
-
-function bucket(kind: string | undefined): KolboMediaKind | undefined {
-  if (kind === "model3d") return "threeD"
-  if (kind === "image" || kind === "video" || kind === "audio") return kind
 }
 
 function openSessionContext(args: {
@@ -66,32 +58,6 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
     return usd().format(metrics().totalCost)
   })
 
-  // Per-session Kolbo credit spend broken down by media type (Image / Video /
-  // Audio / 3D) — parsed from each generation tool's result. Beats the
-  // Higgsfield reference by including 3D, which theirs omits.
-  const creditsByType = createMemo(() => {
-    const buckets: Record<KolboMediaKind, number> = { image: 0, video: 0, audio: 0, threeD: 0 }
-    const id = params.id
-    if (!id) return buckets
-    for (const message of sync.data.message[id] ?? []) {
-      for (const part of sync.data.part[message.id] ?? []) {
-        if (part.type !== "tool" || part.state.status !== "completed") continue
-        const out = (part.state as { output?: string }).output
-        if (!out) continue
-        const env = read(out)
-        const credits = costOf(env, out)
-        if (!credits) continue
-        const kind = bucket(env?.kind)
-        if (kind) buckets[kind] += credits
-      }
-    }
-    return buckets
-  })
-  const totalCredits = createMemo(() => {
-    const b = creditsByType()
-    return b.image + b.video + b.audio + b.threeD
-  })
-
   const openContext = () => {
     if (!params.id) return
 
@@ -132,38 +98,6 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
         <span class="text-text-invert-strong">{cost()}</span>
         <span class="text-text-invert-base">{language.t("context.usage.cost")}</span>
       </div>
-      <Show when={totalCredits() > 0}>
-        <div class="mt-1.5 pt-1.5 border-t border-border-weak-base flex flex-col gap-0.5">
-          <div class="flex items-center gap-2">
-            <span class="text-text-invert-strong">✦ {totalCredits().toLocaleString(language.intl())}</span>
-            <span class="text-text-invert-base">{language.t("context.usage.credits")}</span>
-          </div>
-          <Show when={creditsByType().image > 0}>
-            <div class="flex items-center justify-between gap-3">
-              <span class="text-text-invert-base">{language.t("context.usage.credits.image")}</span>
-              <span class="text-text-invert-strong tabular-nums">{creditsByType().image}</span>
-            </div>
-          </Show>
-          <Show when={creditsByType().video > 0}>
-            <div class="flex items-center justify-between gap-3">
-              <span class="text-text-invert-base">{language.t("context.usage.credits.video")}</span>
-              <span class="text-text-invert-strong tabular-nums">{creditsByType().video}</span>
-            </div>
-          </Show>
-          <Show when={creditsByType().audio > 0}>
-            <div class="flex items-center justify-between gap-3">
-              <span class="text-text-invert-base">{language.t("context.usage.credits.audio")}</span>
-              <span class="text-text-invert-strong tabular-nums">{creditsByType().audio}</span>
-            </div>
-          </Show>
-          <Show when={creditsByType().threeD > 0}>
-            <div class="flex items-center justify-between gap-3">
-              <span class="text-text-invert-base">{language.t("context.usage.credits.threeD")}</span>
-              <span class="text-text-invert-strong tabular-nums">{creditsByType().threeD}</span>
-            </div>
-          </Show>
-        </div>
-      </Show>
     </div>
   )
 
