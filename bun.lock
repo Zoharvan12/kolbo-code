@@ -195,7 +195,7 @@
     },
     "packages/desktop": {
       "name": "@opencode-ai/desktop",
-      "version": "2.4.3",
+      "version": "2.4.6",
       "dependencies": {
         "@opencode-ai/app": "workspace:*",
         "@opencode-ai/ui": "workspace:*",
@@ -318,7 +318,7 @@
     },
     "packages/kolbo-mcp": {
       "name": "@kolbo/mcp",
-      "version": "1.16.4",
+      "version": "1.17.0",
       "bin": {
         "kolbo-mcp": "./bin/kolbo-mcp.js",
       },
@@ -330,7 +330,7 @@
     },
     "packages/opencode": {
       "name": "@kolbo/kolbo-code",
-      "version": "2.4.3",
+      "version": "2.4.6",
       "bin": {
         "kolbo": "./bin/kolbo",
       },
