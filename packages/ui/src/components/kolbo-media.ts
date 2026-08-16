@@ -76,7 +76,17 @@ export function extractKolboUrls(output: string | undefined): string[] {
     const obj = JSON.parse(output)
     if (obj && typeof obj === "object") {
       // 1. Direct output fields on the root (generate_image → { urls: [...] }).
-      const direct = urlsFromFields(obj as Record<string, unknown>)
+      const rec = obj as Record<string, unknown>
+      if (rec.schema === "kolbo.operation/1" && Array.isArray(rec.outputs)) {
+        const fromOp = rec.outputs.flatMap((item) => {
+          if (!item || typeof item !== "object") return []
+          const url = (item as { url?: unknown }).url
+          return typeof url === "string" && /^https?:\/\//.test(url) ? [url] : []
+        })
+        if (fromOp.length > 0) return unique(fromOp)
+      }
+
+      const direct = urlsFromFields(rec)
       if (direct.length > 0) return direct
 
       // 2. Nested `result` object. get_generation_status recovers a timed-out

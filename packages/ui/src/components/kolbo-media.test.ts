@@ -66,4 +66,12 @@ describe("extractKolboUrls", () => {
     const out = JSON.stringify({ urls: [IMG, IMG2] })
     expect(extractKolboUrls(out)).toEqual([IMG, IMG2])
   })
+
+  test("reads urls from a kolbo.operation/1 envelope", () => {
+    const out = JSON.stringify({
+      schema: "kolbo.operation/1",
+      outputs: [{ url: IMG, kind: "image" }, { url: IMG2, kind: "image" }],
+    })
+    expect(extractKolboUrls(out)).toEqual([IMG, IMG2])
+  })
 })

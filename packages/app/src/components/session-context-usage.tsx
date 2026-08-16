@@ -8,6 +8,7 @@ import { useLayout } from "@/context/layout"
 import { useSync } from "@/context/sync"
 import { useLanguage } from "@/context/language"
 import { useProviders } from "@/hooks/use-providers"
+import { costOf, read } from "@opencode-ai/ui/kolbo-operation"
 import { getSessionContextMetrics } from "@/components/session/session-context-metrics"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { createSessionTabs } from "@/pages/session/helpers"
@@ -19,16 +20,9 @@ interface SessionContextUsageProps {
 
 type KolboMediaKind = "image" | "video" | "audio" | "threeD"
 
-// Map a Kolbo generation tool to the media bucket it bills to. Text/chat cost
-// is tracked separately (LLM tokens → USD), so it's not here.
-function kolboMediaKind(tool: string): KolboMediaKind | undefined {
-  const t = tool.toLowerCase()
-  if (t.includes("3d")) return "threeD"
-  if (t.includes("music") || t.includes("speech") || t.includes("sound") || t.includes("voice")) return "audio"
-  if (t.includes("video") || t.includes("elements") || t.includes("creative_director") || t.includes("lipsync"))
-    return "video"
-  if (t.includes("image")) return "image"
-  return undefined
+function bucket(kind: string | undefined): KolboMediaKind | undefined {
+  if (kind === "model3d") return "threeD"
+  if (kind === "image" || kind === "video" || kind === "audio") return kind
 }
 
 function openSessionContext(args: {
@@ -84,15 +78,10 @@ export function SessionContextUsage(props: SessionContextUsageProps) {
         if (part.type !== "tool" || part.state.status !== "completed") continue
         const out = (part.state as { output?: string }).output
         if (!out) continue
-        let credits: number | undefined
-        try {
-          const parsed = JSON.parse(out) as { cost_credits?: unknown }
-          if (typeof parsed.cost_credits === "number") credits = parsed.cost_credits
-        } catch {
-          continue
-        }
+        const env = read(out)
+        const credits = costOf(env, out)
         if (!credits) continue
-        const kind = kolboMediaKind(part.tool)
+        const kind = bucket(env?.kind)
         if (kind) buckets[kind] += credits
       }
     }

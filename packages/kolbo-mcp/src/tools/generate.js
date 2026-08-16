@@ -7,8 +7,10 @@ const { z } = require('zod');
 const FormData = require('form-data');
 const { pollUntilDone, PollingTimeoutError } = require('../polling');
 const { resolveToBuffer, creditFields } = require('./_shared');
+const { wrap, reply } = require('../tool-ctx');
 
 function registerGenerateTools(server, client) {
+  wrap(server);
   // ─── generate_image ────────────────────────────────────────
   server.tool(
     'generate_image',
@@ -42,18 +44,13 @@ function registerGenerateTools(server, client) {
         timeout: 60000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result.urls,
             model: result.result.model,
             prompt_used: result.result.prompt_used,
             _followup_hint: 'If the user asks to edit/change/modify this image next, pass urls[0] to generate_image_edit (free-form edits) or edit_image (upscale/reframe/removebg/enhance_skin/magic_edit). Do NOT call generate_image again.'
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -91,18 +88,13 @@ function registerGenerateTools(server, client) {
         timeout: heavy ? 480000 : 360000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result.urls,
             model: result.result.model,
             prompt_used: result.result.prompt_used,
             _followup_hint: 'If the user asks for another edit on this output, pass urls[0] back into generate_image_edit as source_images. For targeted ops (upscale/reframe/removebg/enhance_skin) use edit_image instead. Do NOT call generate_image from scratch.'
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -146,18 +138,13 @@ function registerGenerateTools(server, client) {
           video_urls: s.video_urls
         }));
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             scenes,
             total_scenes: result.scenes?.length || 0,
             completed_scenes: scenes.length,
             _followup_hint: 'Each scene is a separate asset. If the user asks to edit one scene, find that scene by scene_number/title and pass its image_urls[0] (or video_urls[0]) to generate_image_edit / edit_image / edit_video / generate_video_from_video. Do NOT re-run generate_creative_director unless the user explicitly wants a brand-new set.'
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -190,10 +177,7 @@ function registerGenerateTools(server, client) {
         timeout: 300000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result.urls,
             model: result.result.model,
@@ -201,9 +185,7 @@ function registerGenerateTools(server, client) {
             thumbnail_url: result.result.thumbnail_url,
             prompt_used: result.result.prompt_used,
             _followup_hint: 'If the user asks to edit/restyle/extend this video next, pass urls[0] to edit_video (upscale/reframe/face_swap/extend/generate_audio/lipsync/magic_edit) or generate_video_from_video (restyle). Do NOT call generate_video from scratch.'
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -232,19 +214,14 @@ function registerGenerateTools(server, client) {
         timeout: 300000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result.urls,
             model: result.result.model,
             duration: result.result.duration,
             thumbnail_url: result.result.thumbnail_url,
             _followup_hint: 'If the user asks to edit/restyle/extend this video next, pass urls[0] to edit_video or generate_video_from_video. Do NOT re-run generate_video_from_image unless they want a fresh animation from a different source image.'
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -272,18 +249,13 @@ function registerGenerateTools(server, client) {
         timeout: 300000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result.urls,
             title: result.result.title,
             duration: result.result.duration,
             lyrics: result.result.lyrics
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -307,17 +279,12 @@ function registerGenerateTools(server, client) {
         timeout: 120000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result.urls,
             voice: result.result.voice,
             duration: result.result.duration
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -341,16 +308,11 @@ function registerGenerateTools(server, client) {
         timeout: 120000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result.urls,
             duration: result.result.duration
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -441,28 +403,20 @@ function registerGenerateTools(server, client) {
         // If the generation actually finished in the meantime, surface it.
         if (current?.state === 'completed') {
           statusPollHistory.delete(generation_id);
-          return {
-            content: [{ type: 'text', text: JSON.stringify(current, null, 2) }],
-          };
+          return reply(current, { ...current, result: current.result });
         }
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  generation_id,
-                  state: current?.state ?? 'unknown',
-                  abandoned: true,
-                  poll_attempts: count,
-                  _note: `This generation has been polled ${count} consecutive times in this turn and is still not done. ABANDONED — do NOT call get_generation_status for this id again. Tell the user the generation is taking unusually long and ask them to check back later.`,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
+        return reply(
+          { generation_id, state: current?.state ?? 'unknown', error: 'abandoned' },
+          {
+            generation_id,
+            state: current?.state ?? 'unknown',
+            abandoned: true,
+            poll_attempts: count,
+            result: current?.result,
+            _note: `This generation has been polled ${count} consecutive times in this turn and is still not done. ABANDONED — do NOT call get_generation_status for this id again. Tell the user the generation is taking unusually long and ask them to check back later.`,
+          },
+          'failed',
+        );
       }
 
       let result;
@@ -475,31 +429,26 @@ function registerGenerateTools(server, client) {
         if (err instanceof PollingTimeoutError) {
           const current = await client.get(`/v1/generate/${encodeURIComponent(generation_id)}/status`).catch(() => null);
           const minutes = Math.round(timeoutMs / 60000);
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                generation_id,
-                state: current?.state ?? 'unknown',
-                still_pending: true,
-                waited_seconds: Math.round(timeoutMs / 1000),
-                poll_attempts: count,
-                _note: `Polled for ${minutes} minute(s) — generation is taking longer than usual. STOP calling get_generation_status now. Tell the user the generation is still running and ask them to prompt you to check again later. Do NOT loop — one more consecutive call for this id will be hard-abandoned.`,
-              }, null, 2),
-            }],
-          };
+          return reply(
+            { generation_id, state: current?.state ?? 'unknown' },
+            {
+              generation_id,
+              state: current?.state ?? 'unknown',
+              still_pending: true,
+              waited_seconds: Math.round(timeoutMs / 1000),
+              poll_attempts: count,
+              result: current?.result,
+              _note: `Polled for ${minutes} minute(s) — generation is taking longer than usual. STOP calling get_generation_status now. Tell the user the generation is still running and ask them to prompt you to check again later. Do NOT loop — one more consecutive call for this id will be hard-abandoned.`,
+            },
+            'running',
+          );
         }
         throw err;
       }
       // Completed cleanly — clear the counter so a future generation reusing
       // the id (theoretically possible) starts fresh.
       statusPollHistory.delete(generation_id);
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify(result, null, 2)
-        }]
-      };
+      return reply(result, { ...result, result: result.result });
     }
   );
 
@@ -564,18 +513,13 @@ function registerGenerateTools(server, client) {
         timeout: 600000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result?.urls || [],
             thumbnail_url: result.result?.thumbnail_url || null,
             duration: result.result?.duration || null,
             model: result.result?.model || null
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -636,18 +580,13 @@ function registerGenerateTools(server, client) {
         timeout: 300000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result?.urls || [],
             thumbnail_url: result.result?.thumbnail_url || null,
             duration: result.result?.duration || null,
             model: result.result?.model || null
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -707,18 +646,13 @@ function registerGenerateTools(server, client) {
         timeout: 600000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result?.urls || [],
             thumbnail_url: result.result?.thumbnail_url || null,
             duration: result.result?.duration || null,
             model: result.result?.model || null
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -774,18 +708,13 @@ function registerGenerateTools(server, client) {
         timeout: 600000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result?.urls || [],
             thumbnail_url: result.result?.thumbnail_url || null,
             duration: result.result?.duration || null,
             model: result.result?.model || null
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -868,18 +797,13 @@ function registerGenerateTools(server, client) {
         timeout: 900000 // 15 minutes — 3D generation is slow
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result?.urls || [],
             thumbnail_url: result.result?.thumbnail_url || null,
             mode: result.result?.mode || null,
             prompt_used: result.result?.prompt_used || null
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
   // ─── edit_image ────────────────────────────────────────────
@@ -910,17 +834,12 @@ function registerGenerateTools(server, client) {
         timeout: 180000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result?.urls || [],
             edit_type: result.result?.edit_type || null,
             model: result.result?.model || null
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 
@@ -959,19 +878,14 @@ function registerGenerateTools(server, client) {
         timeout: 600000
       });
 
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
+      return reply(result, {
             ...creditFields(result),
             urls: result.result?.urls || [],
             download_url: result.result?.download_url || null,
             edit_type: result.result?.edit_type || null,
             duration: result.result?.duration || null,
             model: result.result?.model || null
-          }, null, 2)
-        }]
-      };
+          });
     }
   );
 }

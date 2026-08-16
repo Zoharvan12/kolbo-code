@@ -6,47 +6,14 @@ import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
 import { Icon } from "@opencode-ai/ui/icon"
 import { useKolboModels } from "@opencode-ai/ui/context"
 import { usePlatformOps } from "@opencode-ai/ui/context/platform-ops"
+import { costOf, parse, type Param } from "@opencode-ai/ui/kolbo-operation"
 import { useLanguage } from "@/context/language"
-
-type GenField = { key: string; value: string; type: "string" | "number" | "boolean" }
-
-// Non-restrictive suggestions for common knobs (still free-editable).
-const SUGGEST: Record<string, string[]> = {
-  aspect_ratio: ["1:1", "9:16", "16:9", "4:5", "3:2", "2:3", "3:4", "21:9"],
-  resolution: ["1K", "2K", "3K", "4K", "480p", "720p", "1080p"],
-  num_images: ["1", "2", "3", "4"],
-  scene_count: ["1", "2", "3", "4", "5", "6", "7", "8"],
-  duration: ["5", "8", "10", "15"],
-}
-
-// Knobs to always OFFER for a generation type, even if the model didn't set
-// them, so the user can dial in resolution / count / duration up front.
-function offerableKnobs(tool: string | undefined): string[] {
-  const t = (tool ?? "").toLowerCase()
-  if (t.includes("music") || t.includes("speech") || t.includes("sound")) return []
-  if (t.includes("3d")) return ["resolution"]
-  if (t.includes("video") || t.includes("elements") || t.includes("lipsync")) return ["aspect_ratio", "resolution", "duration"]
-  return ["aspect_ratio", "num_images", "resolution"] // image family
-}
 
 const humanizeLabel = (k: string) => k.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase())
 
-// Map the gated generation tool → the kolbo-api generation type, so the model
-// picker only lists models valid for THIS generation (not the chat models).
-function generationTypeForTool(tool: string | undefined): string | undefined {
-  const t = (tool ?? "").toLowerCase()
-  if (t.includes("generate_image_edit") || t.includes("edit_image")) return "image_editing"
-  if (t.includes("creative_director") || t.includes("generate_image")) return "text_to_img"
-  if (t.includes("video_from_image")) return "img_to_video"
-  if (t.includes("video_from_video") || t.includes("edit_video")) return "video_to_video"
-  if (t.includes("generate_video")) return "text_to_video"
-  if (t.includes("elements")) return "elements"
-  if (t.includes("lipsync")) return "lipsync-video"
-  if (t.includes("music")) return "music_gen"
-  if (t.includes("speech")) return "text_to_speech"
-  if (t.includes("sound")) return "text_to_sound"
-  if (t.includes("3d")) return "3d_text_to_model"
-  return undefined
+function fieldType(param: Param): "string" | "number" | "boolean" {
+  if (param.type === "number" || param.type === "boolean") return param.type
+  return "string"
 }
 
 export function SessionPermissionDock(props: {
@@ -63,45 +30,10 @@ export function SessionPermissionDock(props: {
     url ? (platformOps.imageProxyUrl?.(url) ?? url) : undefined
 
   const meta = () => (props.request.metadata ?? {}) as Record<string, unknown>
-  const str = (v: unknown) => (typeof v === "string" || typeof v === "number" ? String(v) : undefined)
-
-  const gen = createMemo(() => {
-    const m = meta()
-    const raw = Array.isArray(m.fields) ? (m.fields as unknown[]) : []
-    const fields: GenField[] = raw
-      .filter((f): f is Record<string, unknown> => !!f && typeof f === "object" && typeof (f as any).key === "string")
-      .map((f) => ({
-        key: String(f.key),
-        value: String(f.value ?? ""),
-        type: f.type === "number" || f.type === "boolean" ? f.type : "string",
-      }))
-    return {
-      tool: str(m.tool),
-      prompt: typeof m.prompt === "string" ? m.prompt : undefined,
-      fields,
-    }
-  })
-  const isGeneration = () => gen().fields.length > 0 || !!gen().prompt
-
-  const passedByKey = createMemo(() => Object.fromEntries(gen().fields.map((f) => [f.key, f] as const)))
-  const knobKeys = createMemo(() => offerableKnobs(gen().tool))
-  // Editable knob fields: offered set (with passed value or empty) — resolution
-  // etc. always show up.
-  const knobFields = createMemo<GenField[]>(() =>
-    knobKeys().map(
-      (k) =>
-        passedByKey()[k] ?? {
-          key: k,
-          value: "",
-          type: k === "num_images" || k === "scene_count" || k === "duration" ? "number" : "string",
-        },
-    ),
-  )
-  const modelField = createMemo(() => passedByKey()["model"])
-  // Any other scalar params the model set that aren't the model or a knob.
-  const extraFields = createMemo(() =>
-    gen().fields.filter((f) => f.key !== "model" && !knobKeys().includes(f.key)),
-  )
+  const op = createMemo(() => parse(meta()))
+  const isGeneration = () => !!op()
+  const knobs = createMemo(() => (op()?.params ?? []).filter((item) => item.id !== "model"))
+  const modelField = createMemo(() => op()?.model.id || knobs().find((item) => item.id === "model")?.value)
 
   // Editable overrides, keyed by field name.
   const [edits, setEdits] = createSignal<Record<string, string>>({})
@@ -111,7 +43,11 @@ export function SessionPermissionDock(props: {
     setEdits({})
     setCorrection("")
   })
-  const originalOf = (key: string) => passedByKey()[key]?.value ?? ""
+  const originalOf = (key: string) => {
+    if (key === "model") return String(op()?.model.id ?? "")
+    const param = knobs().find((item) => item.id === key)
+    return param?.value === undefined || param?.value === null ? "" : String(param.value)
+  }
   const valueOf = (key: string) => edits()[key] ?? originalOf(key)
   const setField = (key: string, value: string) => setEdits({ ...edits(), [key]: value })
 
@@ -133,9 +69,7 @@ export function SessionPermissionDock(props: {
 
   // Model dropdown data.
   const modelId = () => valueOf("model")
-  // Type-filtered generation models for this tool. Falls back to the full
-  // catalog only if the type is unknown / not yet loaded.
-  const genType = createMemo(() => generationTypeForTool(gen().tool))
+  const genType = createMemo(() => op()?.route)
   const typedModels = createMemo(() => (genType() ? kolboModels.byType(genType()!) : []))
   const modelOptions = createMemo<Array<{ id: string; name: string; avatar?: string }>>(() => {
     const typed = typedModels()
@@ -151,14 +85,8 @@ export function SessionPermissionDock(props: {
     return fromTyped ?? kolboModels.lookup(modelId()).avatar
   }
 
-  const cost = () => {
-    const value = meta().cost_credits
-    return typeof value === "number" ? value : undefined
-  }
-  const thumbnail = () => {
-    const value = meta().source_image ?? meta().thumbnail ?? meta().image_url
-    return typeof value === "string" ? value : undefined
-  }
+  const cost = () => costOf(op(), meta())
+  const thumbnail = () => op()?.preview
 
   const toolDescription = () => {
     const key = `settings.permissions.tool.${props.request.permission}.description`
@@ -252,10 +180,10 @@ export function SessionPermissionDock(props: {
           </div>
         </Show>
 
-        <Show when={gen().prompt}>
+        <Show when={op()?.prompt}>
           <div data-slot="permission-row">
             <span data-slot="permission-spacer" aria-hidden="true" />
-            <div data-slot="permission-gen-prompt">{gen().prompt}</div>
+            <div data-slot="permission-gen-prompt">{op()?.prompt}</div>
           </div>
         </Show>
 
@@ -318,41 +246,16 @@ export function SessionPermissionDock(props: {
                 </div>
               </Show>
 
-              {/* Offered knobs (aspect / resolution / count / duration). */}
-              <For each={knobFields()}>
-                {(f) => (
-                  <label data-slot="permission-param" data-changed={changedKeys().includes(f.key) ? "true" : undefined}>
-                    <span data-slot="permission-param-label">{humanizeLabel(f.key)}</span>
-                    <input
-                      type={f.type === "number" ? "number" : "text"}
-                      disabled={props.responding}
-                      value={valueOf(f.key)}
-                      placeholder="—"
-                      list={SUGGEST[f.key] ? `perm-sugg-${f.key}` : undefined}
-                      size={Math.max(3, valueOf(f.key).length + 1)}
-                      onInput={(e) => setField(f.key, e.currentTarget.value)}
-                      onKeyDown={(e) => e.stopPropagation()}
-                    />
-                    <Show when={SUGGEST[f.key]}>
-                      <datalist id={`perm-sugg-${f.key}`}>
-                        <For each={SUGGEST[f.key]}>{(o) => <option value={o} />}</For>
-                      </datalist>
-                    </Show>
-                  </label>
-                )}
-              </For>
-
-              {/* Any other scalar params the model set. */}
-              <For each={extraFields()}>
-                {(f) => (
-                  <label data-slot="permission-param" data-changed={changedKeys().includes(f.key) ? "true" : undefined}>
-                    <span data-slot="permission-param-label">{humanizeLabel(f.key)}</span>
+              <For each={knobs()}>
+                {(item) => (
+                  <label data-slot="permission-param" data-changed={changedKeys().includes(item.id) ? "true" : undefined}>
+                    <span data-slot="permission-param-label">{humanizeLabel(item.id)}</span>
                     <Switch>
-                      <Match when={f.type === "boolean"}>
+                      <Match when={item.type === "boolean"}>
                         <select
                           disabled={props.responding}
-                          value={valueOf(f.key)}
-                          onChange={(e) => setField(f.key, e.currentTarget.value)}
+                          value={valueOf(item.id)}
+                          onChange={(e) => setField(item.id, e.currentTarget.value)}
                         >
                           <option value="true">{language.t("ui.permission.param.on")}</option>
                           <option value="false">{language.t("ui.permission.param.off")}</option>
@@ -360,15 +263,22 @@ export function SessionPermissionDock(props: {
                       </Match>
                       <Match when={true}>
                         <input
-                          type={f.type === "number" ? "number" : "text"}
+                          type={fieldType(item) === "number" ? "number" : "text"}
                           disabled={props.responding}
-                          value={valueOf(f.key)}
-                          size={Math.max(3, valueOf(f.key).length + 1)}
-                          onInput={(e) => setField(f.key, e.currentTarget.value)}
+                          value={valueOf(item.id)}
+                          placeholder="—"
+                          list={item.options?.length ? `perm-sugg-${item.id}` : undefined}
+                          size={Math.max(3, valueOf(item.id).length + 1)}
+                          onInput={(e) => setField(item.id, e.currentTarget.value)}
                           onKeyDown={(e) => e.stopPropagation()}
                         />
                       </Match>
                     </Switch>
+                    <Show when={item.options?.length}>
+                      <datalist id={`perm-sugg-${item.id}`}>
+                        <For each={item.options}>{(opt) => <option value={opt} />}</For>
+                      </datalist>
+                    </Show>
                   </label>
                 )}
               </For>
