@@ -209,16 +209,19 @@ export function KolboMcpWidget(props: {
     return data && typeof data === "object" ? withModelChip(data as Record<string, unknown>) : data
   }
 
+  // Push even with no structuredContent. A widget that never receives a
+  // tool-result sits on its initial "Loading…" forever with no way out; one
+  // that receives an empty result can fall back to the text or collapse. That
+  // silence is what stranded the models catalog on every non-Apps host.
   const push = () => {
     const win = frame?.contentWindow
-    const data = payload()
-    if (!win || !data) return
+    if (!win) return
     win.postMessage(
       {
         jsonrpc: "2.0",
         method: "ui/notifications/tool-result",
         params: {
-          structuredContent: data,
+          ...(payload() ? { structuredContent: payload() } : {}),
           content: [{ type: "text", text: props.output || "" }],
         },
       },

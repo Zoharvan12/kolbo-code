@@ -1,4 +1,4 @@
-import { For, Show, createMemo } from "solid-js"
+import { Show, createMemo } from "solid-js"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
 import { ProgressCircle } from "@opencode-ai/ui/progress-circle"
 
@@ -13,32 +13,15 @@ import { useSessionLayout } from "@/pages/session/session-layout"
 
 /**
  * The one usage surface. Replaces an unlabelled 16px progress circle whose
- * numbers only appeared on hover — nobody could tell it was the usage control,
- * and the credits it showed were tallied client-side, under-reporting anything
- * with a resolution multiplier. Everything here comes from useSessionUsage.
+ * numbers only appeared on hover.
+ *
+ * AGENT SPEND ONLY, deliberately. Media credits are tagged with a
+ * caller_session_id that identifies the app INSTALL, not the chat, so the only
+ * narrowing available is a start date — which reports "everything this install
+ * generated since this chat began" and reads as all-time on a long-lived chat.
+ * A wrong number is worse than no number. Restore it when kolbo-api can total
+ * by the generation ids that actually belong to this session.
  */
-
-const TYPE_LABELS: Record<string, string> = {
-  text_to_img: "Images",
-  image_generation: "Images",
-  img_to_video: "Video",
-  text_to_video: "Video",
-  video_generation: "Video",
-  music: "Music",
-  speech: "Speech",
-  sound: "Sound",
-  lipsync: "Lipsync",
-  transcription: "Transcription",
-}
-
-function labelFor(type: string) {
-  if (TYPE_LABELS[type]) return TYPE_LABELS[type]
-  return type
-    .split(/[-_\s]+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ")
-}
 
 function Row(props: { label: string; value: string; strong?: boolean }) {
   return (
@@ -71,7 +54,7 @@ export function SessionUsageMenu() {
   const messages = createMemo(() => (params.id ? (sync.data.message[params.id] ?? []) : []))
   const context = createMemo(() => getSessionContextMetrics(messages(), providers.all()).context)
   const num = (value: number) => value.toLocaleString(language.intl())
-  const total = createMemo(() => usage.agentCredits() + (usage.media()?.total ?? 0))
+  const total = createMemo(() => usage.agentCredits())
 
   const openDetails = () => {
     if (!params.id) return
@@ -108,23 +91,6 @@ export function SessionUsageMenu() {
                   </>
                 )}
               </Show>
-
-              <div class="mt-1.5 pt-1.5 border-t border-border-weak-base">
-                <div class="px-3 pb-1 text-11-medium text-text-weaker uppercase tracking-wide">Media creation</div>
-                <Show
-                  when={usage.media()}
-                  fallback={<div class="px-3 py-1 text-12-regular text-text-weaker">Nothing generated yet</div>}
-                >
-                  {(spend) => (
-                    <>
-                      <For each={spend().byType}>
-                        {(row) => <Row label={`${labelFor(row.type)} (${row.count})`} value={num(row.amount)} />}
-                      </For>
-                      <Row label="Total" value={num(spend().total)} strong />
-                    </>
-                  )}
-                </Show>
-              </div>
 
               <div class="mt-1.5 pt-1.5 border-t border-border-weak-base">
                 <Show when={usage.balance() !== null}>
