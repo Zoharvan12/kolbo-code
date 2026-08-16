@@ -277,7 +277,11 @@ jobs:
         with:
           projectPath: packages/desktop
           tauriScript: bunx tauri
-          args: --target ${{ matrix.rust-target }} --bundles ${{ matrix.bundle }}
+          # --verbose on macOS only: tauri-bundler pipes bundle_dmg.sh's output
+          # and prints it ONLY in verbose mode, so a DMG packaging failure
+          # otherwise reads as a bare "error running bundle_dmg.sh" with no
+          # cause. Cost is a noisier log on one platform.
+          args: --target ${{ matrix.rust-target }} --bundles ${{ matrix.bundle }}${{ startsWith(matrix.platform, 'macos') && ' --verbose' || '' }}
           tagName: desktop-v${{ env.KOLBO_VERSION }}
           releaseName: "Kolbo Code v${{ env.KOLBO_VERSION }}"
           releaseBody: |
