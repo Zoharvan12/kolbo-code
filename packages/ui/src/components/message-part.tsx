@@ -1578,7 +1578,14 @@ export function registerTool(input: { name: string; render?: ToolComponent }) {
 }
 
 export function getTool(name: string) {
-  return state[name]?.render
+  if (state[name]?.render) return state[name].render
+  const base = name.startsWith("kolbo_")
+    ? name.slice("kolbo_".length)
+    : name.startsWith("mcp__kolbo__")
+      ? name.slice("mcp__kolbo__".length)
+      : ""
+  if (!base) return
+  return state[`kolbo_${base}`]?.render ?? state[`mcp__kolbo__${base}`]?.render
 }
 
 export const ToolRegistry = {

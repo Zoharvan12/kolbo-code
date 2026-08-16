@@ -13,6 +13,7 @@ import type { Part, ToolPart, ToolStateCompleted, ToolStateRunning } from "@open
 import {
   extractKolboUrls as extractUrls,
   isVideoUrl,
+  mediaKey,
   openKolboLightbox,
 } from "@opencode-ai/ui/kolbo-media"
 
@@ -57,22 +58,6 @@ export function isKolboGenerationTool(tool: string): boolean {
 }
 
 type MediaKind = "image" | "video" | "audio" | "model"
-
-// Content-identity key for a media URL: the path basename minus query string.
-// Generated filenames carry a per-generation hash, so this is unique per asset
-// while collapsing the same file served from different hosts / with different
-// signed query params into one canvas cell. Falls back to the raw URL if it
-// can't be parsed.
-function mediaDedupeKey(url: string): string {
-  try {
-    const u = new URL(url)
-    const base = u.pathname.split("/").filter(Boolean).pop()
-    return base || url
-  } catch {
-    const noQuery = url.split("?")[0]
-    return noQuery.split("/").filter(Boolean).pop() || url
-  }
-}
 
 function classifyUrl(url: string): MediaKind {
   if (isVideoUrl(url)) return "video"
@@ -178,7 +163,7 @@ function collectCanvasCells(
           // different host / query / tool (e.g. a generated image fed into
           // `generate_video_from_image`, or a video echoed by its
           // get_generation_status recovery) only earns one cell.
-          const key = mediaDedupeKey(url)
+          const key = mediaKey(url)
           if (seenKeys.has(key)) return
           seenKeys.add(key)
           cells.push({

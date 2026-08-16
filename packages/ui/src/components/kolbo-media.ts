@@ -21,12 +21,31 @@ export const KOLBO_OUTPUT_FIELDS = [
   "downloadUrl",
 ] as const
 
-/**
- * Pull the real generated URLs from a Kolbo MCP tool result. Prefers
- * structured output fields (so echoed input URLs / poster URLs /
- * `_followup_hint` text don't pollute the result), falls back to a
- * regex scan of the raw text only when the output isn't JSON.
- */
+// Content-identity key for a media URL: path basename, query/hash stripped.
+// The same generated file can come back as CDN + origin, or with different
+// signed query params. Exact-string matching would keep both and the
+// completion chip would render two identical thumbs for one asset.
+export function mediaKey(url: string): string {
+  try {
+    const base = new URL(url).pathname.split("/").filter(Boolean).pop()
+    return (base || url).toLowerCase()
+  } catch {
+    const path = url.split("?")[0].split("#")[0]
+    const base = path.split("/").filter(Boolean).pop()
+    return (base || url).toLowerCase()
+  }
+}
+
+function unique(urls: string[]): string[] {
+  const seen = new Set<string>()
+  return urls.filter((url) => {
+    const key = mediaKey(url)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 // Pull generated URLs from one object using the known output fields (first
 // match wins, so echoed input URLs from a later field don't fold in), with a
 // final fallback to a singular `url` for per-item media records.
@@ -35,7 +54,7 @@ function urlsFromFields(obj: Record<string, unknown>): string[] {
     const value = obj[field]
     if (Array.isArray(value)) {
       const urls = value.filter((v): v is string => typeof v === "string" && /^https?:\/\//.test(v))
-      if (urls.length > 0) return urls
+      if (urls.length > 0) return unique(urls)
     } else if (typeof value === "string" && /^https?:\/\//.test(value)) {
       return [value]
     }
@@ -45,6 +64,12 @@ function urlsFromFields(obj: Record<string, unknown>): string[] {
   return []
 }
 
+/**
+ * Pull the real generated URLs from a Kolbo MCP tool result. Prefers
+ * structured output fields (so echoed input URLs / poster URLs /
+ * `_followup_hint` text don't pollute the result), falls back to a
+ * regex scan of the raw text only when the output isn't JSON.
+ */
 export function extractKolboUrls(output: string | undefined): string[] {
   if (!output) return []
   try {
@@ -52,7 +77,7 @@ export function extractKolboUrls(output: string | undefined): string[] {
     if (obj && typeof obj === "object") {
       // 1. Direct output fields on the root (generate_image → { urls: [...] }).
       const direct = urlsFromFields(obj as Record<string, unknown>)
-      if (direct.length > 0) return [...new Set(direct)]
+      if (direct.length > 0) return direct
 
       // 2. Nested `result` object. get_generation_status recovers a timed-out
       //    generation as { state, result: { urls: [...] } } — the urls live one
@@ -60,7 +85,7 @@ export function extractKolboUrls(output: string | undefined): string[] {
       const result = (obj as Record<string, unknown>).result
       if (result && typeof result === "object") {
         const nested = urlsFromFields(result as Record<string, unknown>)
-        if (nested.length > 0) return [...new Set(nested)]
+        if (nested.length > 0) return nested
       }
 
       // 3. Batch / multi-item shapes: an array of per-item objects, each with
@@ -79,7 +104,7 @@ export function extractKolboUrls(output: string | undefined): string[] {
             collected.push(...urlsFromFields(itemResult as Record<string, unknown>))
           }
         }
-        if (collected.length > 0) return [...new Set(collected)]
+        if (collected.length > 0) return unique(collected)
       }
     }
   } catch {
@@ -91,7 +116,7 @@ export function extractKolboUrls(output: string | undefined): string[] {
   while ((m = mdRe.exec(output)) !== null) all.push(m[2].trim())
   const bareRe = /(?<!\()(https?:\/\/[^\s"'<>)]+)/g
   while ((m = bareRe.exec(output)) !== null) all.push(m[1].trim())
-  return [...new Set(all)]
+  return unique(all)
 }
 
 // Single canonical video extension regex. Includes `ogv` (canvas's old
