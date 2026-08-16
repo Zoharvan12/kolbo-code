@@ -1,6 +1,6 @@
-import { Show, createEffect, createSignal, onCleanup } from "solid-js"
+import { Show, createEffect, createSignal, onCleanup, untrack } from "solid-js"
 import { usePlatformOps } from "../context/platform-ops"
-import { read } from "./kolbo-operation"
+import { read, type Operation } from "./kolbo-operation"
 
 const GEN = "ui://kolbo/generation.html"
 
@@ -136,12 +136,17 @@ function structured(
   metadata?: Record<string, unknown>,
   input?: Record<string, unknown>,
   tool?: string,
+  // A generation the card resolved by polling after the tool call gave up
+  // waiting. It is newer than anything in output/metadata, so it wins.
+  resolved?: Operation,
 ) {
-  const fromMeta = metadata?.structuredContent
-  if (fromMeta && typeof fromMeta === "object") return fromMeta
-  const fromText = listed(output)
-  if (fromText) return fromText
-  const op = read(output, metadata)
+  if (!resolved) {
+    const fromMeta = metadata?.structuredContent
+    if (fromMeta && typeof fromMeta === "object") return fromMeta
+    const fromText = listed(output)
+    if (fromText) return fromText
+  }
+  const op = resolved ?? read(output, metadata)
   if (!op) return
   return {
     widget: "generation",
@@ -166,6 +171,7 @@ export function KolboMcpWidget(props: {
   output?: string
   metadata?: Record<string, unknown>
   input?: Record<string, unknown>
+  resolved?: Operation
   onReady?: () => void
 }) {
   const ops = usePlatformOps()
@@ -174,7 +180,7 @@ export function KolboMcpWidget(props: {
   const [live, setLive] = createSignal(false)
   let frame: HTMLIFrameElement | undefined
 
-  const payload = () => structured(props.output, props.metadata, props.input, props.tool)
+  const payload = () => structured(props.output, props.metadata, props.input, props.tool, props.resolved)
 
   const push = () => {
     const win = frame?.contentWindow
@@ -196,7 +202,7 @@ export function KolboMcpWidget(props: {
   createEffect(() => {
     const htmlFn = ops.mcpWidget
     const preview = ops.htmlPreviewUrl
-    const target = uri(props.metadata, props.tool, payload())
+    const target = uri(props.metadata, props.tool, untrack(payload))
     if (!htmlFn || !preview || !target) return
     let gone = false
     void htmlFn(target).then(async (html) => {

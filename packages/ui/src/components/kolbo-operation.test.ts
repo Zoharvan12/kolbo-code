@@ -139,6 +139,24 @@ describe("kolbo.operation/1 host contract", () => {
     ).toBeUndefined()
   })
 
+  test("a timed-out poll stays a running generation the card can watch", () => {
+    // generate_* gives up after its poll window and returns this. The card
+    // keys its status polling on exactly this shape — running, no outputs, a
+    // generation_id to poll. If any of the three stops holding, the card goes
+    // back to spinning forever with nothing to resolve it.
+    const env = read(
+      JSON.stringify({
+        state: "processing",
+        generation_id: "gen_abc",
+        _timed_out: true,
+        _hint: "Still running on the server after the poll window…",
+      }),
+    )
+    expect(env?.phase).toBe("running")
+    expect(env?.outputs).toHaveLength(0)
+    expect(env?.id).toBe("gen_abc")
+  })
+
   test("a record with an id but no media is not a generation", () => {
     expect(read(JSON.stringify({ id: "doc_1", title: "Brief", credits_used: 0 }))).toBeUndefined()
   })

@@ -601,6 +601,43 @@ export const GlobalRoutes = lazy(() =>
       },
     )
     .get(
+      "/kolbo-generation-status",
+      describeRoute({
+        summary: "Check one Kolbo media generation",
+        description:
+          "Forwards a generation id to Kolbo's status endpoint. The MCP's generate_* tools give up waiting after their poll window and return `state: \"processing\"`; without this the card that result renders has no way to ever learn the generation finished.",
+        operationId: "global.kolbo-generation-status",
+        responses: {
+          200: {
+            description: "Generation status",
+            content: {
+              "application/json": {
+                schema: resolver(z.record(z.string(), z.any())),
+              },
+            },
+          },
+          ...errors(400, 401, 502),
+        },
+      }),
+      validator("query", z.object({ generationId: z.string().min(1).max(200) })),
+      async (c) => {
+        const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+        const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+        if (!apiKey) return c.json({ error: "Not authenticated with Kolbo" }, 401)
+        const { generationId } = c.req.valid("query")
+        try {
+          const res = await fetch(`${Partner.apiBase}/v1/generate/${encodeURIComponent(generationId)}/status`, {
+            headers: { "X-API-Key": apiKey },
+          })
+          const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+          if (!res.ok) return c.json(data, 502)
+          return c.json(data)
+        } catch {
+          return c.json({ error: "Kolbo status service is unavailable" }, 502)
+        }
+      },
+    )
+    .get(
       "/kolbo-pricing",
       describeRoute({
         summary: "Get Kolbo model pricing",

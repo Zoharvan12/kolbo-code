@@ -94,6 +94,26 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
         const data = (await res.json().catch(() => ({}))) as { html?: string }
         return typeof data.html === "string" && data.html ? data.html : null
       }}
+      generationStatus={async (generationId) => {
+        const url = server.current?.http.url
+        if (!url) return undefined
+        const res = await fetch(`${url}/global/kolbo-generation-status?generationId=${encodeURIComponent(generationId)}`)
+        if (!res.ok) return undefined
+        const data = (await res.json().catch(() => ({}))) as {
+          state?: string
+          error?: string
+          credits_used?: unknown
+          result?: { urls?: unknown }
+        }
+        if (typeof data.state !== "string") return undefined
+        const raw = data.result?.urls
+        return {
+          state: data.state,
+          urls: Array.isArray(raw) ? raw.filter((u): u is string => typeof u === "string") : [],
+          ...(typeof data.credits_used === "number" ? { credits: data.credits_used } : {}),
+          ...(typeof data.error === "string" ? { error: data.error } : {}),
+        }
+      }}
       cancelGeneration={async (generationId) => {
         const url = server.current?.http.url
         if (!url) throw new Error("Kolbo server is unavailable")

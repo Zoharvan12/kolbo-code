@@ -44,7 +44,7 @@ import {
   openKolboLightbox,
   startMediaDrag,
 } from "./kolbo-media"
-import { card, costOf, player, read, urlsOf } from "./kolbo-operation"
+import { card, costOf, player, read, urlsOf, type Operation } from "./kolbo-operation"
 import { generative, KolboMcpWidget } from "./kolbo-mcp-widget"
 import { usePlatformOps } from "../context/platform-ops"
 import { useKolboModels } from "../context/kolbo-models"
@@ -3173,7 +3173,13 @@ function KolboOperationCard(props: {
 }) {
   const i18n = useI18n()
   const [widgetOn, setWidgetOn] = createSignal(false)
-  const op = createMemo(() => read(props.output, props.metadata))
+  const reported = createMemo(() => read(props.output, props.metadata))
+  // A generation that outlived its tool call. generate_* stops waiting after
+  // its poll window and returns `state: "processing"`, which reads back as a
+  // running operation with no outputs — and nothing would ever update it,
+  // because the tool call is already over. Watch it to the finish here.
+  const [resolved, setResolved] = createSignal<Operation | undefined>()
+  const op = createMemo(() => resolved() ?? reported())
   const view = createMemo(() => {
     const env = op()
     return env ? card(env) : undefined
@@ -3261,6 +3267,46 @@ function KolboOperationCard(props: {
     const id = props.metadata?.generationId
     return typeof id === "string" ? id : ""
   })
+  // Watch a generation the tool call abandoned. 15s cadence keeps this well
+  // under Kolbo's per-controller rate limit even with several cards open; the
+  // hour ceiling is there so a job that dies server-side can't poll forever.
+  const POLL_MS = 15_000
+  const POLL_MAX = 240
+  createEffect(() => {
+    const env = reported()
+    const check = platformOps.generationStatus
+    if (!check || !env || env.phase !== "running" || env.outputs.length > 0) return
+    // Still inside the tool call — its own result will arrive. Only an already
+    // returned, still-running generation is orphaned.
+    if (props.status !== "completed") return
+    const id = env.id
+    if (!id) return
+    let stopped = false
+    onCleanup(() => {
+      stopped = true
+    })
+    void (async () => {
+      for (let i = 0; i < POLL_MAX && !stopped; i++) {
+        await new Promise((done) => setTimeout(done, POLL_MS))
+        if (stopped) return
+        const status = await check(id).catch(() => undefined)
+        if (!status || stopped) continue
+        if (status.state === "completed") {
+          setResolved({
+            ...env,
+            phase: "completed",
+            outputs: status.urls.map((url) => ({ url, kind: env.kind })),
+            ...(status.credits !== undefined ? { cost: status.credits } : {}),
+          })
+          return
+        }
+        if (status.state === "failed" || status.state === "cancelled") {
+          setResolved({ ...env, phase: "failed", error: status.error || status.state })
+          return
+        }
+      }
+    })()
+  })
   const cancel = async (event: MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
@@ -3313,6 +3359,7 @@ function KolboOperationCard(props: {
         output={props.output}
         metadata={props.metadata}
         input={props.input}
+        resolved={resolved()}
         onReady={() => setWidgetOn(true)}
       />
       <Show when={!widgetOn()}>

@@ -1,5 +1,13 @@
 import { createContext, useContext, type ParentProps } from "solid-js"
 
+/** One poll of Kolbo's generation status endpoint. */
+export type GenerationStatus = {
+  state: "processing" | "completed" | "failed" | "cancelled" | string
+  urls: string[]
+  credits?: number
+  error?: string
+}
+
 export type PlatformOps = {
   openPath?: (path: string) => Promise<void> | void
   openLink?: (url: string) => void
@@ -34,6 +42,13 @@ export type PlatformOps = {
   imageProxyUrl?: (remoteUrl: string) => string
   /** Cancel one in-flight Kolbo media generation and refund its credits. */
   cancelGeneration?: (generationId: string) => Promise<void>
+  /**
+   * Check one Kolbo media generation that outlived its tool call. The MCP's
+   * generate_* tools stop waiting after their poll window and return
+   * `state: "processing"`; the card that renders keeps spinning forever unless
+   * something finishes the job of watching it.
+   */
+  generationStatus?: (generationId: string) => Promise<GenerationStatus | undefined>
   /** Fetch a Kolbo MCP Apps widget HTML document by resource URI. */
   mcpWidget?: (uri: string) => Promise<string | null>
 }
@@ -79,6 +94,9 @@ export function PlatformOpsProvider(props: ParentProps<PlatformOps>) {
     },
     get cancelGeneration() {
       return props.cancelGeneration ?? parent.cancelGeneration
+    },
+    get generationStatus() {
+      return props.generationStatus ?? parent.generationStatus
     },
     get mcpWidget() {
       return props.mcpWidget ?? parent.mcpWidget
