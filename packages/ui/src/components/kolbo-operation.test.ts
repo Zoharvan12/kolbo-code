@@ -79,6 +79,19 @@ describe("kolbo.operation/1 host contract", () => {
     expect(advertised(env)).toBe(true)
   })
 
+  test("list widget structuredContent is not a generation operation", () => {
+    expect(
+      read(undefined, {
+        structuredContent: {
+          widget: "list",
+          title: "Sessions",
+          items: [{ id: "s1", title: "Hero", subtitle: "elements" }],
+          total: 1,
+        },
+      }),
+    ).toBeUndefined()
+  })
+
   test("widget structuredContent in metadata still renders", () => {
     const env = read(undefined, {
       structuredContent: {

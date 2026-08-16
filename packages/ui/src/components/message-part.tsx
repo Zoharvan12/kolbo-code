@@ -1667,9 +1667,12 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
   const render = createMemo(() => {
     const state = part().state as { output?: string; metadata?: Record<string, unknown> }
     const tool = part().tool
+    const widget = (state.metadata?.structuredContent as { widget?: unknown } | undefined)?.widget
+    if (typeof widget === "string" && widget !== "generation") return KolboOperationCard
     if (read(state.output, state.metadata)) return KolboOperationCard
     if (extractKolboUrlsShared(state.output).length > 0) return KolboOperationCard
     const name = tool.replace(/^kolbo_/, "").replace(/^mcp__kolbo__/, "")
+    if (name.startsWith("list_")) return KolboOperationCard
     if (name.startsWith("generate_") || name === "edit_image" || name === "edit_video") return KolboOperationCard
     return ToolRegistry.render(tool) ?? GenericTool
   })

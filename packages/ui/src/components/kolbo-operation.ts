@@ -91,7 +91,7 @@ function marked(obj: Record<string, unknown>, urls: string[], cost: number | und
   if (obj.schema === SCHEMA) return true
   if (cost !== undefined) return true
   if (id) return true
-  if (typeof obj.widget === "string") return true
+  if (typeof obj.widget === "string") return obj.widget === "generation" || obj.widget === "transcript"
   if (["review", "running", "generating", "completed", "failed"].includes(str(obj.phase))) return true
   if (Array.isArray(obj.outputs) && obj.outputs.length > 0) return true
   return urls.length > 0 && typeof obj.model === "string"

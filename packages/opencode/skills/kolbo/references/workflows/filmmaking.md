@@ -93,27 +93,19 @@ Before writing, establish:
 
 Prompt-length limits apply to the entire compiled generation prompt as one string, including whitespace, headers, timecodes, dialogue, audio, and locks. Count after compilation. For the current Seedance 2.5 adapter snapshot, the hard ceiling is 30,000 characters; never borrow that number for another model.
 
-For a serious controlled shot, prefer this logical order, omitting irrelevant blocks:
+**Seedance 2 / Seedance 2.5 / `generate_elements` — Locked Intro is the only compile shape.** Read `references/models/seedance.md` (and `seedance25.md` for 2.5 caps). Do not emit the SCENE CONTEXT / OPTICS / ACTION department pack below as the generation prompt. Every Visual DNA in play must be `@ExactName` in CAST and in each shot — never "the left man" or a possessive.
 
 ```text
-SCENE CONTEXT
-ACTIVE REFERENCES
-LOCATION MAP
-FIRST FRAME AND SPATIAL BLOCKING
-FORMAT MODE
-OPTICS
-CAMERA
-ACTION TIMING / SHOTS
-PHYSICS
-LIGHTING
-ACTING TASKS
-DIALOGUE
-AUDIO / MUSIC
-STYLE
-POSITIVE LOCKS
+Total: Xs / N shots / AR
+[GLOBAL LOOK – LOCKED, APPLIES TO EVERY SHOT]
+[CAST – IDENTICAL IN EVERY SHOT]   ← @DNAName per person
+[LOCATION]
+SHOT N — 0:00–0:02 — …
 ```
 
-For anchored or exploratory work, collapse compatible blocks and protect only non-negotiables. Never manufacture a rigid skeleton when a looser model-native prompt is more likely to succeed.
+The SCENE CONTEXT pack in `prompt-contracts.md` is an **audit / pre-compile checklist** for non-Seedance models and Workbench diagnosis — not the default Elements prompt.
+
+For anchored or exploratory work on other models, collapse compatible blocks and protect only non-negotiables. Never manufacture a rigid skeleton when a looser model-native prompt is more likely to succeed.
 
 ## Preserve continuity
 

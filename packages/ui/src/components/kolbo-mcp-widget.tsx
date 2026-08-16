@@ -4,25 +4,57 @@ import { read } from "./kolbo-operation"
 
 const GEN = "ui://kolbo/generation.html"
 
-function uri(meta?: Record<string, unknown>) {
-  const ui = meta?.ui
-  if (ui && typeof ui === "object") {
-    const rec = ui as Record<string, unknown>
-    if (typeof rec["ui/resourceUri"] === "string") return rec["ui/resourceUri"]
-    const nested = rec.ui
-    if (nested && typeof nested === "object" && typeof (nested as { resourceUri?: unknown }).resourceUri === "string") {
-      return (nested as { resourceUri: string }).resourceUri
-    }
-  }
-  const sc = meta?.structuredContent
-  if (sc && typeof sc === "object" && typeof (sc as { widget?: unknown }).widget === "string") {
-    const name = (sc as { widget: string }).widget
-    if (name === "media-grid") return "ui://kolbo/media-grid.html"
-    if (name === "catalog") return "ui://kolbo/catalog.html"
-    if (name === "transcript") return "ui://kolbo/transcript.html"
-    if (name === "list") return "ui://kolbo/list.html"
-    if (name === "upload") return "ui://kolbo/upload.html"
-  }
+const BY_WIDGET: Record<string, string> = {
+  generation: GEN,
+  "media-grid": "ui://kolbo/media-grid.html",
+  catalog: "ui://kolbo/catalog.html",
+  transcript: "ui://kolbo/transcript.html",
+  list: "ui://kolbo/list.html",
+  upload: "ui://kolbo/upload.html",
+}
+
+const BY_TOOL: Record<string, string> = {
+  list_sessions: BY_WIDGET.list,
+  list_session_generations: BY_WIDGET.list,
+  list_projects: BY_WIDGET.list,
+  list_project_context: BY_WIDGET.list,
+  list_agents: BY_WIDGET.list,
+  list_docs: BY_WIDGET.list,
+  list_media_folders: BY_WIDGET.list,
+  list_visual_dna_folders: BY_WIDGET.list,
+  list_models: BY_WIDGET.catalog,
+  list_media: BY_WIDGET["media-grid"],
+  list_presets: BY_WIDGET["media-grid"],
+  list_voices: BY_WIDGET["media-grid"],
+  list_visual_dnas: BY_WIDGET["media-grid"],
+  list_moodboards: BY_WIDGET["media-grid"],
+  list_color_palettes: BY_WIDGET["media-grid"],
+  transcribe_audio: BY_WIDGET.transcript,
+  media_upload_widget: BY_WIDGET.upload,
+}
+
+function rec(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object") return
+  return value as Record<string, unknown>
+}
+
+function appUri(value: unknown): string | undefined {
+  return typeof value === "string" && value.startsWith("ui://kolbo/") ? value : undefined
+}
+
+function uri(meta?: Record<string, unknown>, tool?: string) {
+  const ui = rec(meta?.ui)
+  const fromMeta =
+    appUri(ui?.["ui/resourceUri"]) ||
+    appUri(ui?.resourceUri) ||
+    appUri(rec(ui?.ui)?.resourceUri) ||
+    appUri(rec(ui?.ui)?.["ui/resourceUri"])
+  if (fromMeta) return fromMeta
+  const widget = rec(meta?.structuredContent)?.widget
+  if (typeof widget === "string" && BY_WIDGET[widget]) return BY_WIDGET[widget]
+  const toolName = bare(tool)
+  if (BY_TOOL[toolName]) return BY_TOOL[toolName]
+  if (toolName.startsWith("list_")) return BY_WIDGET.list
   return GEN
 }
 
@@ -33,6 +65,43 @@ function bare(tool?: string) {
   return name
 }
 
+function listed(output?: string) {
+  if (!output) return
+  try {
+    const obj = JSON.parse(output) as Record<string, unknown>
+    if (Array.isArray(obj.items)) return obj
+    if (!Array.isArray(obj.sessions)) return
+    const sessions = obj.sessions as Record<string, unknown>[]
+    return {
+      widget: "list",
+      title: "Sessions",
+      items: sessions.map((row) => {
+        const types = Array.isArray(row.types)
+          ? (row.types as unknown[]).filter((x): x is string => typeof x === "string")
+          : String(row.type || "")
+              .split("|")
+              .filter(Boolean)
+        return {
+          id: row.session_id || row.id,
+          title: row.name || types[0] || "Session",
+          subtitle: [
+            types.join(", "),
+            row.session_id || row.id,
+            row.project_id ? "project " + row.project_id : null,
+            row.updated_at ? String(row.updated_at).slice(0, 10) : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          badge: types[0],
+        }
+      }),
+      total: sessions.length,
+    }
+  } catch {
+    return
+  }
+}
+
 function structured(
   output?: string,
   metadata?: Record<string, unknown>,
@@ -41,6 +110,8 @@ function structured(
 ) {
   const fromMeta = metadata?.structuredContent
   if (fromMeta && typeof fromMeta === "object") return fromMeta
+  const fromText = listed(output)
+  if (fromText) return fromText
   const op = read(output, metadata)
   if (!op) return
   return {
@@ -78,7 +149,7 @@ export function KolboMcpWidget(props: {
   createEffect(() => {
     const htmlFn = ops.mcpWidget
     const preview = ops.htmlPreviewUrl
-    const target = uri(props.metadata)
+    const target = uri(props.metadata, props.tool)
     if (!htmlFn || !preview) return
     let gone = false
     void htmlFn(target).then(async (html) => {

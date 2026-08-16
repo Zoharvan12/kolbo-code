@@ -9,6 +9,8 @@ Load this file when the user wants a **Seedance 2.5** video (they said "2.5" / "
 
 **Kolbo MCP routing:** `generate_video` or `generate_elements` (refs / Visual DNA / first-last). Run `list_models({ type: "text_to_video" })` and pick the Seedance 2.5 variant by name.
 
+**Audio:** Seedance 2.5 still emits real synced audio. `list_models` may show `sound_generation_type: none` because there is no in-app toggle (`sound_baked_in: true`). Do not tell the user the model is silent.
+
 ## What's NEW in 2.5 (verified — never hedge)
 
 - **Duration 4–30 seconds**, whole seconds. 30s IS supported.
@@ -62,4 +64,4 @@ Skip CORE STYLE / SUBJECT / ENVIRONMENT — the three locked blocks already own 
 
 ## Where to run in Kolbo
 
-Same routing as Seedance 2 (`first_last_frame` / `elements` / `image_to_video` / `text_to_video`). Pair Visual DNA with `generate_elements` and tag `@<dna-name>` inside the prompt.
+Same routing as Seedance 2 (`first_last_frame` / `elements` / `image_to_video` / `text_to_video`). Pair Visual DNA with `generate_elements` and write the exact `@DNA_name` in CAST and every shot — never "Zohar's" / "the left man" / an untagged "Visual DNA anchors" paragraph. Elements uses this same Locked Intro; do not compile SCENE CONTEXT / OPTICS / ACTION packs.

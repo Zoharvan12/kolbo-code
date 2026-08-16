@@ -81,7 +81,8 @@ Whenever a generation call passes `visual_dna_ids` (even just one), the prompt M
 **Use the actual stored name, programmatically.** When you call `list_visual_dnas` (or `create_visual_dna`), read the `name` field off the response and use that exact string after the `@`. Do NOT:
 
 - Translate the name into another language ("אסתר" / "esther" / "אסתי" — pick whichever string is in `name` and use ONLY that one).
-- Invent a friendlier alias ("the model", "המודל", "her").
+- Invent a friendlier alias ("the model", "המודל", "her", "Zohar's", "the left man", "the man on the LEFT").
+- Write a "Visual DNA anchors:" prose block that describes position/wardrobe but never writes `@ExactName`.
 - Write the character's name in plain text without the `@` prefix.
 - Drop the `@name` when only one DNA is passed — the engine still needs the binding so it knows the DNA is the *subject* and not a passive style.
 

@@ -1,5 +1,5 @@
 ---
-version: 0.8.2
+version: 0.8.4
 name: kolbo
 description: |
   Generate, edit, analyze, and direct creative media through Kolbo AI: images,
@@ -58,8 +58,8 @@ For multi-scene / batch work this pairs with `generate_creative_director` (see b
 | If the user wants to… | Read first |
 |---|---|
 | Direct, develop, audit, or continue a **film / episode / connected scene / complex performance** with continuity, acting, dialogue, music, blocking, or physics | `references/workflows/filmmaking.md` |
-| Generate a **Seedance 2.5** video | `references/models/seedance25.md`; also load `references/workflows/filmmaking.md` for narrative, performance, or cross-shot continuity |
-| Generate a **Seedance 2 / 2.0** video | `references/models/seedance.md` |
+| Generate a **Seedance 2.5** video | `references/models/seedance25.md` + Locked Intro in `references/models/seedance.md`. For narrative/continuity also load `references/workflows/filmmaking.md` — but compile the prompt as Locked Intro, NOT the SCENE CONTEXT / OPTICS / ACTION pack |
+| Generate a **Seedance 2 / 2.0** video **or Elements** (`generate_elements`) | `references/models/seedance.md` — same Locked Intro. Elements is NOT a different prompt language |
 | Generate a **GPT Image 2** image | `references/models/gpt-image.md` |
 | Generate a **Nano Banana / Gemini** image | `references/models/nano-banana.md` |
 | Generate a **Veo 3 / 3.1** video | `references/models/veo.md` |
@@ -94,7 +94,7 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 | `generate_video` | Text-to-video. Does **not** support Visual DNA — use `generate_elements` for character-consistent video. |
 | `generate_video_from_image` | Animate a still. Prompt describes motion, not subject. |
 | `generate_video_from_video` | Restyle/transform an existing video. Keeps original motion. |
-| `generate_elements` | Reference-driven video. **Primary route for DNA → video.** |
+| `generate_elements` | Reference-driven video. **Primary route for DNA → video.** Prompt = Seedance Locked Intro (`Total` + `[GLOBAL LOOK]` / `[CAST]` / `[LOCATION]` + `SHOT N`). Every DNA in `visual_dna_ids` must also be `@Name` in that prompt. |
 | `generate_first_last_frame` | Keyframe interpolation between two frames. |
 | `generate_lipsync` | Lipsync audio to an image or video face. |
 | `generate_music` | Music generation (Suno + variants). |
@@ -114,7 +114,8 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 | `search_stock_media` / `get_stock_sources` / `get_stock_categories` / `get_stock_collections` / `get_stock_asset` / `analyze_script_for_stock` / `import_stock_asset` | Stock library (free, no credits) — EXISTING photos / videos / 3D / SFX / music. For stock **music** use `search_stock_media` with `mediaType: "music"` (semantic vibe query, e.g. "uplifting corporate background") → `get_stock_asset` for downloads. The older `*_music_library` tools are deprecated adapters over this — prefer the stock tools, except for the licensed-catalog tools in the next row. |
 | `search_music_library` / `browse_music_library` / `get_music_library_facets` / `get_music_track_audio` / `get_music_track_lyrics` / `get_music_track_related` / `analyze_script_for_music` / `acquire_clean_music_track` / `import_music_track_to_library` | **SYNCI licensed music** — a commercially licensed catalog, not free stock. Discovery and previews are free but **watermarked**; there is no unwatermarked URL until you pay. `acquire_clean_music_track` (or `import_music_track_to_library`, which also copies it to the media library) **CHARGES CREDITS** for the clean master — confirm with the user first, and pass a stable `requestId` so a retry doesn't buy it twice. `analyze_script_for_music` turns a script into search terms for `search_music_library`. Use this family when the user needs music cleared for commercial use; use `search_stock_media` with `mediaType: "music"` when free stock will do. |
 | `list_projects` / `move_session` | Projects: resolve a project NAME → the `project_id` you pass on generation/upload/doc calls; `move_session` relocates a whole session + its media when work landed in the wrong project. See "Projects — Where Work Lands" below. |
-| `create_project` / `update_project` / `archive_project` / `unarchive_project` / `list_sessions` | Project lifecycle + session inventory (deletion stays in-app). Create a project when the user starts new work, then pass its id on EVERY call. |
+| `create_project` / `update_project` / `archive_project` / `unarchive_project` / `list_sessions` / `rename_session` / `delete_session` / `restore_session` | Project lifecycle + session inventory. `list_sessions` returns `project_id` + `types[]` on every row. Soft-delete leftover empty sessions after a move; `restore_session` undoes trash. Create a project when the user starts new work, then pass its id on EVERY call. |
+| `bulk_move_sessions` / `list_session_generations` / `move_generations_to_session` / `split_session` / `undo_session_organization` | Reorganize many sessions or generations. `list_session_generations` is an inventory (not a live generation card). |
 | `add_project_context` / `list_project_context` / `delete_project_context` / `get_project_profile` / `regenerate_project_profile` | Project knowledge base (RAG): feed scripts/URLs/notes; `get_project_profile` = the living brief — read it to ground work in the project |
 | `create_moodboard` / `update_moodboard` / `delete_moodboard` | Moodboards from image URLs → AI master style prompt → pass `moodboard_id` to generation tools |
 | `clone_voice` / `import_elevenlabs_voice` / `delete_voice` | Custom voices (clone CHARGES CREDITS — confirm first; new voices show in `list_voices`) |
@@ -122,6 +123,25 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 | `create_doc` / `list_docs` / `get_doc` / `update_doc` / `share_doc` / `delete_doc` | AI Docs (Magic Pad): YOU author full HTML documents (plans, briefs, scripts, research) saved into the user's project, editable in the Kolbo app. `share_doc` returns a public link. `update_doc` content replaces the WHOLE doc — `get_doc` first. |
 | `chat_send_message` / `chat_list_conversations` / `chat_get_messages` | Kolbo chat with optional `media_urls` (up to 10 per call) |
 | `publish_html_artifact` | Publish HTML / SVG / Mermaid to `sites.kolbo.ai`. Server dedupes by content hash. Strict CSP. |
+
+## ⚠️ Visual DNA `@Name` in the prompt (HARD RULE — always on)
+
+Passing `visual_dna_ids` is **not enough**. For every DNA in that array you MUST also write `@ExactStoredName` in the prompt text (the `name` from `list_visual_dnas` / `create_visual_dna`). The engine binds identity by parsing `@tags`. No `@tag` → the DNA is wasted.
+
+- Right: `visual_dna_ids: ["vdna_…"]` + prompt `@Zohar walks into frame`
+- Wrong: `Zohar's`, `Zohar`, `the left man`, `the man on the LEFT`, `Visual DNA anchors: the man on the LEFT…` — none of these bind
+- Never invent a role label or possessive as a substitute for `@Name`
+- Same rule for moodboards: `#ExactBoardName`
+
+Resolve names with `list_visual_dnas` first. Full binding rules: `references/workflows/visual-dna.md`.
+
+## ⚠️ Seedance / Elements prompt contract (HARD RULE)
+
+`generate_elements`, Seedance 2, and Seedance 2.5 share **one** compile shape — the Locked Intro in `references/models/seedance.md`:
+
+`Total: Xs / N shots / AR` → `[GLOBAL LOOK – LOCKED, APPLIES TO EVERY SHOT]` → `[CAST – IDENTICAL IN EVERY SHOT]` (each person is `@DNAName`) → `[LOCATION]` → `SHOT N — 0:00–0:02 — …`
+
+Do **not** default Elements to `SCENE CONTEXT` / `OPTICS` / `ACTION` / `ACTIVE REFERENCES` department packs (those live in filmmaking audit/contracts for other models). Do not load `seedance-2-prompting` SCENE CONTEXT as the Elements format.
 
 ## ⚠️ If the User Names a Tool, USE THAT TOOL (HARD RULE)
 
@@ -172,9 +192,9 @@ Model types for `list_models`: `text_to_img`, `image_editing`, `text_to_video`, 
 
 Everything in Kolbo — sessions, generations, media, docs — lives inside a PROJECT. Getting this wrong is the #1 user complaint ("my work went to the wrong project").
 
-1. **User names a project** ("in my Acme project", "for the film") → call `list_projects` ONCE to resolve the name to an ObjectId, then pass that id as `project_id` on **EVERY** subsequent `generate_*` / `upload_media` / `create_doc` / `chat_send_message` call in the conversation. It is **per-call, NOT sticky** — any call that omits it silently lands in the default "API Generations" bucket (`is_default: true`). Accounts often hold hundreds of projects, so pass `list_projects({ search: "acme" })` rather than listing everything; the list is paginated (50/page) and hides archived projects unless you pass `include_archived: true`.
-2. **No project mentioned** → omit `project_id`; the default bucket is correct. Don't ask unless intent is ambiguous.
-3. **Work landed in the wrong project? MOVE it, never regenerate**: `move_session` relocates a whole session + all its media (works for any session type — the `session_id` from generation responses, chats, transcriptions); `move_media` / `bulk_move_media` / `move_folder_contents` relocate individual media items.
+1. **User names a project** ("in my Acme project", "for the film") → call `list_projects` ONCE to resolve the name to an ObjectId, then pass that **same** id as `project_id` on **EVERY** subsequent `generate_*` / `upload_media` / `create_doc` / `chat_send_message` call in **this conversation**. There is no server-side sticky store — omitting it on any later call silently lands in the default "API Generations" bucket (`is_default: true`). Once resolved, treat that id as required for the rest of the conversation. Accounts often hold hundreds of projects, so pass `list_projects({ search: "acme" })` rather than listing everything; the list is paginated (50/page) and hides archived projects unless you pass `include_archived: true`.
+2. **No project mentioned** → omit `project_id`; the default bucket is correct. Don't ask unless intent is ambiguous. If `list_sessions` already returned a `project_id` for the work you are continuing, keep passing that id.
+3. **Work landed in the wrong project? MOVE it, never regenerate**: `move_session` relocates a whole session + all its media (works for any session type — the `session_id` from generation responses, chats, transcriptions); `move_media` / `bulk_move_media` / `move_folder_contents` relocate individual media items. Empty leftover sessions after a move: `delete_session` (soft-delete; `restore_session` undoes it). `rename_session` only changes the sidebar title.
 
 
 ## Cost Awareness — Quick Rules
