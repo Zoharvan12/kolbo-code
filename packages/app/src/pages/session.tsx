@@ -1,4 +1,4 @@
-import type { Project, UserMessage, VcsFileDiff } from "@opencode-ai/sdk/v2"
+import type { Project, ToolPart, UserMessage, VcsFileDiff } from "@opencode-ai/sdk/v2"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useMutation } from "@tanstack/solid-query"
 import {
@@ -56,7 +56,7 @@ import { MessageTimeline } from "@/pages/session/message-timeline"
 import { type DiffStyle, SessionReviewTab, type SessionReviewTabProps } from "@/pages/session/review-tab"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { syncSessionModel } from "@/pages/session/session-model-helpers"
-import { isKolboGenerationTool } from "@/pages/session/session-canvas"
+import { isGenerationPart } from "@/pages/session/session-canvas"
 import { SessionSidePanel } from "@/pages/session/session-side-panel"
 import { TerminalPanel } from "@/pages/session/terminal-panel"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
@@ -489,8 +489,7 @@ export default function Page() {
       const parts = sync.data.part[message.id] ?? []
       for (const part of parts) {
         if (part.type !== "tool") continue
-        const tool = (part as { tool?: string }).tool
-        if (typeof tool !== "string" || !isKolboGenerationTool(tool)) continue
+        if (!isGenerationPart(part as ToolPart)) continue
         const status = (part as { state?: { status?: string } }).state?.status
         if (status === "completed" || status === "error") continue
         total++

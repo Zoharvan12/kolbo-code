@@ -2,6 +2,9 @@
  * Poll a generation until it reaches a terminal state
  */
 
+const { notify } = require('./progress');
+const { extra: extraOf } = require('./tool-ctx');
+
 class PollingTimeoutError extends Error {
   constructor(generationId, timeoutMs) {
     const seconds = Math.round(timeoutMs / 1000);
@@ -45,12 +48,15 @@ function isTransientPollError(err) {
   return false;
 }
 
-async function pollUntilDone(client, generationId, options = {}) {
+async function pollUntilDone(client, generationId, options = {}, extra) {
   const {
     interval = 5000,
     timeout = 300000, // 5 minutes default
     statusUrl
   } = options;
+  const progress = extra || options.extra || extraOf();
+
+  await notify(progress, generationId, 'running', 0);
 
   const startTime = Date.now();
   const url = statusUrl || `/v1/generate/${encodeURIComponent(generationId)}/status`;
@@ -86,16 +92,25 @@ async function pollUntilDone(client, generationId, options = {}) {
     }
 
     if (result.state === 'completed') {
+      await notify(progress, generationId, 'completed', 100);
       return result;
     }
 
     if (result.state === 'failed') {
+      await notify(progress, generationId, 'failed');
       throw new GenerationFailedError(generationId, result.error);
     }
 
     if (result.state === 'cancelled') {
       throw new GenerationFailedError(generationId, 'generation was cancelled');
     }
+
+    const pct = typeof result.progress === 'number'
+      ? result.progress
+      : typeof result.percent === 'number'
+        ? result.percent
+        : undefined;
+    await notify(progress, generationId, 'running', pct);
 
     // Wait before next poll
     await new Promise(resolve => setTimeout(resolve, interval));

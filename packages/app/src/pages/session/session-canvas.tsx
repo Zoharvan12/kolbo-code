@@ -13,66 +13,28 @@ import type { Part, ToolPart, ToolStateCompleted, ToolStateRunning } from "@open
 import {
   extractKolboUrls as extractUrls,
   isVideoUrl,
+  mediaKey,
   openKolboLightbox,
 } from "@opencode-ai/ui/kolbo-media"
+import { costOf, read, urlsOf, type Operation } from "@opencode-ai/ui/kolbo-operation"
 
-// Kolbo MCP generation tool basenames that the canvas tracks. ONLY tools
-// that produce NEWLY-GENERATED media belong here. `upload_media` and
-// `create_visual_dna` operate on user-supplied source material, not new
-// generations — their URLs are the user's own uploads echoed back, and
-// surfacing them in the canvas falsely advertises them as Kolbo outputs
-// (and clutters the gallery with input frames the user is just trying to
-// process).
-const KOLBO_GENERATION_TOOL_NAMES = new Set([
-  "generate_image",
-  "generate_image_edit",
-  "generate_video",
-  "generate_video_from_image",
-  "generate_video_from_video",
-  "edit_image",
-  "edit_video",
-  "generate_elements",
-  "generate_first_last_frame",
-  "generate_lipsync",
-  "generate_music",
-  "generate_sound",
-  "generate_speech",
-  "generate_3d",
-  "generate_creative_director",
-  // Recovered generations: when a generate_* call times out at 60s of MCP
-  // polling, its own tool output carries NO urls — only a "still running,
-  // call get_generation_status" message. The URLs land later in the
-  // get_generation_status result instead. Without this, timed-out
-  // generations never appear in the canvas even though they succeeded.
-  // extractKolboUrls reads the nested result.urls shape; the per-URL dedupe
-  // in collectCanvasCells prevents a double cell when the original
-  // generate_* call ALSO returned the same url.
-  "get_generation_status",
-])
+function partOp(part: ToolPart): Operation | undefined {
+  const state = part.state as { output?: string; metadata?: Record<string, unknown> }
+  return read(state.output, state.metadata)
+}
 
-export function isKolboGenerationTool(tool: string): boolean {
-  if (tool.startsWith("kolbo_")) return KOLBO_GENERATION_TOOL_NAMES.has(tool.slice("kolbo_".length))
-  if (tool.startsWith("mcp__kolbo__")) return KOLBO_GENERATION_TOOL_NAMES.has(tool.slice("mcp__kolbo__".length))
-  return false
+function legacyOutput(output?: string): boolean {
+  if (!output) return false
+  return costOf(undefined, output) !== undefined && extractUrls(output).length > 0
+}
+
+export function isGenerationPart(part: ToolPart): boolean {
+  if (partOp(part)) return true
+  const state = part.state as { status?: string; output?: string }
+  return state.status === "completed" && legacyOutput(state.output)
 }
 
 type MediaKind = "image" | "video" | "audio" | "model"
-
-// Content-identity key for a media URL: the path basename minus query string.
-// Generated filenames carry a per-generation hash, so this is unique per asset
-// while collapsing the same file served from different hosts / with different
-// signed query params into one canvas cell. Falls back to the raw URL if it
-// can't be parsed.
-function mediaDedupeKey(url: string): string {
-  try {
-    const u = new URL(url)
-    const base = u.pathname.split("/").filter(Boolean).pop()
-    return base || url
-  } catch {
-    const noQuery = url.split("?")[0]
-    return noQuery.split("/").filter(Boolean).pop() || url
-  }
-}
 
 function classifyUrl(url: string): MediaKind {
   if (isVideoUrl(url)) return "video"
@@ -102,32 +64,26 @@ type PendingCell = {
   startedAt: number
 }
 
-function pendingKind(tool: string): PendingCell["kind"] {
-  const base = tool.startsWith("kolbo_")
-    ? tool.slice("kolbo_".length)
-    : tool.startsWith("mcp__kolbo__")
-      ? tool.slice("mcp__kolbo__".length)
-      : tool
-  if (base.startsWith("generate_music") || base.startsWith("generate_sound") || base.startsWith("generate_speech"))
-    return "audio"
-  if (
-    base.includes("video") ||
-    base.includes("lipsync") ||
-    base.startsWith("generate_elements") ||
-    base.startsWith("generate_first_last_frame")
-  )
-    return "video"
-  if (base.startsWith("generate_3d")) return "model"
+function pendingKind(op?: Operation): PendingCell["kind"] {
+  if (op?.kind === "audio") return "audio"
+  if (op?.kind === "video") return "video"
+  if (op?.kind === "model3d") return "model"
   return "image"
 }
 
+function mediaKind(op: Operation | undefined, url: string): MediaKind {
+  if (op?.kind === "audio") return "audio"
+  if (op?.kind === "video") return "video"
+  if (op?.kind === "model3d") return "model"
+  return classifyUrl(url)
+}
 
 export function hasKolboMediaInSession(parts: Part[][]): boolean {
   for (const list of parts) {
     if (!list) continue
     for (const part of list) {
       if (part.type !== "tool") continue
-      if (!isKolboGenerationTool((part as ToolPart).tool)) continue
+      if (!isGenerationPart(part as ToolPart)) continue
       return true
     }
   }
@@ -167,18 +123,19 @@ function collectCanvasCells(
     for (const part of parts) {
       if (part.type !== "tool") continue
       const tool = part as ToolPart
-      if (!isKolboGenerationTool(tool.tool)) continue
+      if (!isGenerationPart(tool)) continue
       const state = tool.state
+      const op = partOp(tool)
       if (state.status === "completed") {
         const completed = state as ToolStateCompleted
-        const urls = extractUrls(completed.output)
+        const urls = op ? urlsOf(op) : extractUrls(completed.output)
         if (urls.length === 0) continue
         urls.forEach((url, idx) => {
           // Cross-call dedupe keyed on the filename so the same asset from a
           // different host / query / tool (e.g. a generated image fed into
           // `generate_video_from_image`, or a video echoed by its
           // get_generation_status recovery) only earns one cell.
-          const key = mediaDedupeKey(url)
+          const key = mediaKey(url)
           if (seenKeys.has(key)) return
           seenKeys.add(key)
           cells.push({
@@ -187,7 +144,7 @@ function collectCanvasCells(
             partID: tool.id,
             tool: tool.tool,
             completedAt: completed.time.end,
-            media: [{ url, kind: classifyUrl(url) }],
+            media: [{ url, kind: mediaKind(op, url) }],
           })
         })
       } else if (state.status === "error") {
@@ -204,7 +161,7 @@ function collectCanvasCells(
         pending.push({
           key: tool.id,
           tool: tool.tool,
-          kind: pendingKind(tool.tool),
+          kind: pendingKind(op),
           messageID: message.id,
           partID: tool.id,
           startedAt,

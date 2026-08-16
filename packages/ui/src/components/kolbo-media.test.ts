@@ -47,4 +47,31 @@ describe("extractKolboUrls", () => {
     const out = JSON.stringify({ urls: [IMG], image_url: IMG2 })
     expect(extractKolboUrls(out)).toEqual([IMG])
   })
+
+  test("collapses the same asset served from CDN and origin", () => {
+    const cdn = "https://media.kolbo.ai/kolboai-media/generated-videos/a/b/shot.mp4"
+    const origin = "https://kolboai-production.ams3.digitaloceanspaces.com/kolboai-media/generated-videos/a/b/shot.mp4"
+    const out = JSON.stringify({ urls: [cdn, origin] })
+    expect(extractKolboUrls(out)).toEqual([cdn])
+  })
+
+  test("collapses the same asset with different signed query params", () => {
+    const a = `${IMG}?X-Amz-Signature=one`
+    const b = `${IMG}?X-Amz-Signature=two`
+    const out = JSON.stringify({ urls: [a, b] })
+    expect(extractKolboUrls(out)).toEqual([a])
+  })
+
+  test("keeps distinct assets that share a host", () => {
+    const out = JSON.stringify({ urls: [IMG, IMG2] })
+    expect(extractKolboUrls(out)).toEqual([IMG, IMG2])
+  })
+
+  test("reads urls from a kolbo.operation/1 envelope", () => {
+    const out = JSON.stringify({
+      schema: "kolbo.operation/1",
+      outputs: [{ url: IMG, kind: "image" }, { url: IMG2, kind: "image" }],
+    })
+    expect(extractKolboUrls(out)).toEqual([IMG, IMG2])
+  })
 })

@@ -6,6 +6,7 @@
   "exports": {
     "./package.json": "./package.json",
     "./kolbo-media": "./src/components/kolbo-media.ts",
+    "./kolbo-operation": "./src/components/kolbo-operation.ts",
     "./*": "./src/components/*.tsx",
     "./i18n/*": "./src/i18n/*.ts",
     "./pierre": "./src/pierre/index.ts",

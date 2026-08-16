@@ -43,6 +43,7 @@ import {
   isVideoUrl as isVideoUrlShared,
   openKolboLightbox,
 } from "./kolbo-media"
+import { card, costOf, player, read, urlsOf } from "./kolbo-operation"
 import { usePlatformOps } from "../context/platform-ops"
 import { useKolboModels } from "../context/kolbo-models"
 import { Accordion } from "./accordion"
@@ -1578,7 +1579,14 @@ export function registerTool(input: { name: string; render?: ToolComponent }) {
 }
 
 export function getTool(name: string) {
-  return state[name]?.render
+  if (state[name]?.render) return state[name].render
+  const base = name.startsWith("kolbo_")
+    ? name.slice("kolbo_".length)
+    : name.startsWith("mcp__kolbo__")
+      ? name.slice("mcp__kolbo__".length)
+      : ""
+  if (!base) return
+  return state[`kolbo_${base}`]?.render ?? state[`mcp__kolbo__${base}`]?.render
 }
 
 export const ToolRegistry = {
@@ -1654,7 +1662,11 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
     return taskId()
   })
 
-  const render = createMemo(() => ToolRegistry.render(part().tool) ?? GenericTool)
+  const render = createMemo(() => {
+    const state = part().state as { output?: string; metadata?: Record<string, unknown> }
+    if (read(state.output, state.metadata)) return KolboOperationCard
+    return ToolRegistry.render(part().tool) ?? GenericTool
+  })
 
   return (
     <Show when={!hideQuestion()}>
@@ -2989,30 +3001,6 @@ function KolboMediaPending(props: {
 
 type KolboChipKind = "image" | "video" | "audio" | "music" | "speech" | "sound" | "model3d" | "asset"
 
-function kolboChipKindFor(tool: string): KolboChipKind {
-  const base = tool.startsWith("kolbo_")
-    ? tool.slice("kolbo_".length)
-    : tool.startsWith("mcp__kolbo__")
-      ? tool.slice("mcp__kolbo__".length)
-      : tool
-  if (base === "generate_music") return "music"
-  if (base === "generate_speech") return "speech"
-  if (base === "generate_sound") return "sound"
-  if (base === "generate_3d") return "model3d"
-  if (base === "generate_creative_director") return "asset"
-  if (base === "create_visual_dna") return "asset"
-  if (base === "upload_media") return "asset"
-  if (
-    base.includes("video") ||
-    base === "generate_lipsync" ||
-    base === "generate_elements" ||
-    base === "generate_first_last_frame" ||
-    base === "edit_video"
-  )
-    return "video"
-  return "image"
-}
-
 function kolboChipLabelKey(kind: KolboChipKind, count: number): string {
   if (kind === "image") return count === 1 ? "ui.kolbo.chip.label.image" : "ui.kolbo.chip.label.images"
   if (kind === "video") return count === 1 ? "ui.kolbo.chip.label.video" : "ui.kolbo.chip.label.videos"
@@ -3161,7 +3149,7 @@ function KolboBigPreview(props: { url: string }) {
   )
 }
 
-function KolboCompactChip(props: {
+function KolboOperationCard(props: {
   tool: string
   status?: string
   input?: Record<string, unknown>
@@ -3169,10 +3157,25 @@ function KolboCompactChip(props: {
   metadata?: Record<string, unknown>
 }) {
   const i18n = useI18n()
-  const kind = createMemo(() => kolboChipKindFor(props.tool))
-  const urls = createMemo(() => (props.status === "completed" ? extractUrls(props.output) : []))
+  const op = createMemo(() => read(props.output, props.metadata))
+  const view = createMemo(() => {
+    const env = op()
+    return env ? card(env) : undefined
+  })
+  const kind = createMemo<KolboChipKind>(() => {
+    const play = view() ? player(op()!) : "image"
+    if (play === "audio") return "audio"
+    if (play === "video") return "video"
+    if (play === "model3d") return "model3d"
+    return "image"
+  })
+  const urls = createMemo(() => {
+    const env = op()
+    if (env) return urlsOf(env)
+    return props.status === "completed" ? extractUrls(props.output) : []
+  })
   const inFlight = createMemo(() => props.status !== "completed" && props.status !== "error")
-  const isError = createMemo(() => props.status === "error")
+  const isError = createMemo(() => props.status === "error" || view()?.phase === "failed")
   const pendN = createMemo(() => pendingCount(props.tool, props.input))
   const doneN = createMemo(() => urls().length)
   const count = createMemo(() => (inFlight() ? pendN() : doneN()))
@@ -3222,6 +3225,8 @@ function KolboCompactChip(props: {
       .join(" ")
   }
   const modelId = createMemo<string>(() => {
+    const fromOp = view()?.model.id
+    if (fromOp) return fromOp
     const raw = props.input?.model
     return typeof raw === "string" ? raw.trim() : ""
   })
@@ -3235,6 +3240,8 @@ function KolboCompactChip(props: {
   const platformOps = usePlatformOps()
   const [cancelling, setCancelling] = createSignal(false)
   const generationId = createMemo(() => {
+    const fromOp = view()?.id
+    if (fromOp) return fromOp
     const id = props.metadata?.generationId
     return typeof id === "string" ? id : ""
   })
@@ -3268,19 +3275,14 @@ function KolboCompactChip(props: {
     if (kind() !== "image" && kind() !== "asset" && kind() !== "video") return []
     return urls().slice(0, MAX_CHIP_THUMBS)
   })
+  const audioUrl = createMemo(() => (kind() === "audio" && !inFlight() && !isError() ? urls()[0] : undefined))
+  const actions = createMemo(() => (!inFlight() && !isError() ? (view()?.actions ?? []) : []))
   // Credit cost for this generation, parsed from the tool result. Kolbo's
   // cost transparency is a deliberate edge over tools that hide it, so surface
   // it on every completed generation chip.
   const cost = createMemo<number | undefined>(() => {
     if (inFlight() || isError()) return undefined
-    const out = props.output
-    if (!out) return undefined
-    try {
-      const parsed = JSON.parse(out) as { cost_credits?: unknown }
-      return typeof parsed.cost_credits === "number" ? parsed.cost_credits : undefined
-    } catch {
-      return undefined
-    }
+    return costOf(op(), props.output)
   })
   const overflowN = createMemo(() => {
     const total = urls().length
@@ -3498,98 +3500,28 @@ function KolboCompactChip(props: {
       >
         <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails />
       </Show>
+      <Show when={audioUrl()}>
+        <audio controls src={audioUrl()} class="mt-2 max-w-full" preload="metadata" />
+      </Show>
+      <Show when={actions().length > 0}>
+        <div class="flex flex-wrap gap-1.5 pt-1.5">
+          <For each={actions()}>
+            {(item) => (
+              <button
+                type="button"
+                class="px-2 py-1 rounded-md border border-border-weaker-base bg-background-stronger text-text-base hover:border-border-weak-base"
+                style="font-size:12px"
+                onClick={() => {
+                  if (typeof document === "undefined") return
+                  document.dispatchEvent(new CustomEvent("kolbo:operation-action", { detail: item }))
+                }}
+              >
+                {item.label}
+              </button>
+            )}
+          </For>
+        </div>
+      </Show>
     </div>
   )
-}
-
-function KolboImageTool(props: {
-  tool: string
-  status?: string
-  input?: Record<string, unknown>
-  output?: string
-  hideDetails?: boolean
-}) {
-  return <KolboCompactChip {...props} />
-}
-
-function KolboVideoTool(props: {
-  tool: string
-  status?: string
-  input?: Record<string, unknown>
-  output?: string
-  hideDetails?: boolean
-}) {
-  return <KolboCompactChip {...props} />
-}
-
-function KolboAudioTool(props: {
-  tool: string
-  status?: string
-  input?: Record<string, unknown>
-  output?: string
-  hideDetails?: boolean
-}) {
-  return <KolboCompactChip {...props} />
-}
-
-const KOLBO_IMAGE_TOOLS = ["kolbo_generate_image", "kolbo_generate_image_edit", "kolbo_edit_image"]
-const KOLBO_VIDEO_TOOLS = [
-  "kolbo_generate_video",
-  "kolbo_generate_video_from_image",
-  "kolbo_generate_video_from_video",
-  "kolbo_generate_elements",
-  "kolbo_generate_first_last_frame",
-  "kolbo_generate_lipsync",
-  "kolbo_edit_video",
-]
-const KOLBO_AUDIO_TOOLS = ["kolbo_generate_music", "kolbo_generate_speech", "kolbo_generate_sound"]
-
-for (const name of KOLBO_IMAGE_TOOLS) {
-  ToolRegistry.register({ name, render: (props) => <KolboImageTool {...props} tool={props.tool} /> })
-}
-for (const name of KOLBO_VIDEO_TOOLS) {
-  ToolRegistry.register({ name, render: (props) => <KolboVideoTool {...props} tool={props.tool} /> })
-}
-for (const name of KOLBO_AUDIO_TOOLS) {
-  ToolRegistry.register({ name, render: (props) => <KolboAudioTool {...props} tool={props.tool} /> })
-}
-
-ToolRegistry.register({
-  name: "kolbo_generate_creative_director",
-  render: (props) => <KolboCompactChip {...props} />,
-})
-
-ToolRegistry.register({
-  name: "kolbo_generate_3d",
-  render: (props) => <KolboCompactChip {...props} />,
-})
-
-// get_generation_status: when a generate_* call times out at 60s of polling,
-// the model recovers the finished media here. If this status result carries
-// generated URLs, render it as a media chip so the images appear inline in the
-// conversation (not just a bare "Called kolbo_get_generation_status" row).
-// When it's a plain status check with no media yet, fall back to the generic
-// tool row.
-function KolboStatusTool(props: {
-  tool: string
-  status?: string
-  input?: Record<string, unknown>
-  output?: string
-  hideDetails?: boolean
-}) {
-  const hasMedia = createMemo(() => props.status === "completed" && extractUrls(props.output).length > 0)
-  return (
-    <Show
-      when={hasMedia()}
-      fallback={
-        <GenericTool tool={props.tool} status={props.status} input={props.input} hideDetails={props.hideDetails} />
-      }
-    >
-      <KolboCompactChip tool={props.tool} status={props.status} input={props.input} output={props.output} />
-    </Show>
-  )
-}
-
-for (const name of ["kolbo_get_generation_status", "mcp__kolbo__get_generation_status"]) {
-  ToolRegistry.register({ name, render: (props) => <KolboStatusTool {...props} tool={props.tool} /> })
 }

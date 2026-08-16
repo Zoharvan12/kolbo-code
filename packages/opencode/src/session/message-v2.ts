@@ -33,29 +33,11 @@ interface FetchDecompressionError extends Error {
 // Match both. The previous regex matched only the latter, so the nudge silently
 // never fired in production — which is why .kolbo/production.md wasn't getting
 // created on real media generations.
-const KOLBO_GENERATION_TOOL_NAMES = new Set([
-  "generate_image",
-  "generate_image_edit",
-  "generate_video",
-  "generate_video_from_image",
-  "generate_video_from_video",
-  "edit_image",
-  "edit_video",
-  "generate_elements",
-  "generate_first_last_frame",
-  "generate_lipsync",
-  "generate_music",
-  "generate_sound",
-  "generate_speech",
-  "generate_3d",
-  "generate_creative_director",
-  "create_visual_dna",
-  "upload_media",
-])
-function isKolboGenerationToolName(tool: string): boolean {
-  if (tool.startsWith("kolbo_")) return KOLBO_GENERATION_TOOL_NAMES.has(tool.slice("kolbo_".length))
-  if (tool.startsWith("mcp__kolbo__")) return KOLBO_GENERATION_TOOL_NAMES.has(tool.slice("mcp__kolbo__".length))
-  return false
+const OPERATION_SCHEMA = "kolbo.operation/1"
+
+function isKolboGenerationOutput(output: string): boolean {
+  if (output.includes(OPERATION_SCHEMA)) return true
+  return /"credits_used"\s*:\s*\d+/.test(output) && /"urls"\s*:\s*\[/.test(output)
 }
 
 function isKolboTool(tool: string): boolean {
@@ -96,7 +78,7 @@ const KOLBO_AUTH_SANITIZED_MESSAGE =
 
 // Self-contained nudge: includes the full stub so the model can act on it
 // without having loaded the kolbo SKILL.md. Fires only after a successful
-// kolbo_* generation tool call (see KOLBO_GENERATION_TOOL_NAMES), so non-media
+// kolbo_* generation tool call (envelope or credits+urls), so non-media
 // sessions pay zero token cost.
 const PRODUCTION_LOG_REMINDER =
   "\n\n<system-reminder>" +
@@ -865,16 +847,15 @@ export namespace MessageV2 {
               // Nudge: after every successful Kolbo media-generation MCP tool call, append a
               // system-reminder to the tool result so the model logs the artifact to
               // .kolbo/production.md before its next tool call. See SKILL.md "Production Log".
-              const isKolboGenerationTool = isKolboGenerationToolName(part.tool)
+              const raw = typeof part.state.output === "string" ? part.state.output : ""
+              const isKolboGenerationTool = isKolboTool(part.tool) && isKolboGenerationOutput(raw)
               const productionLogNudge =
                 isKolboGenerationTool && !part.state.time.compacted ? PRODUCTION_LOG_REMINDER : ""
               // Sanitize Kolbo auth-expired errors that come through as a
               // "completed" tool result with the auth tag in the output text.
               // (MCP returns 4xx as data, not as a thrown error, in some paths.)
-              const rawOutput =
-                typeof part.state.output === "string" ? part.state.output : ""
               const isKolboAuthExpired =
-                isKolboTool(part.tool) && looksLikeKolboAuthError(rawOutput)
+                isKolboTool(part.tool) && looksLikeKolboAuthError(raw)
               const outputText = part.state.time.compacted
                 ? "[Old tool result content cleared]"
                 : isKolboAuthExpired

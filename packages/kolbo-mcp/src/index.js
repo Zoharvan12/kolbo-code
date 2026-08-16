@@ -68,6 +68,7 @@ const { registerMediaTools } = require('./tools/media');
 const { registerPresetTools } = require('./tools/presets');
 const { registerAppBuilderTools } = require('./tools/app_builder');
 const { registerArtifactTools } = require('./tools/artifacts');
+const operation = require('./operation');
 
 async function main() {
   const client = new KolboClient();
@@ -93,7 +94,7 @@ async function main() {
   await server.connect(transport);
 }
 
-module.exports = { main };
+module.exports = { main, ...operation };
 
 // Auto-run when invoked directly (e.g. `node src/index.js` or via the published
 // bin/kolbo-mcp.js wrapper). Consumers that `require()` this module to embed it
