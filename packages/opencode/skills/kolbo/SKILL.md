@@ -76,6 +76,7 @@ For multi-scene / batch work this pairs with `generate_creative_director` (see b
 | Use **Visual DNA** / character consistency / `@name` syntax | `references/workflows/visual-dna.md` |
 | Start or continue a **multi-step production** (storyboard → scenes → final cut) | `references/workflows/production-log.md` |
 | **Transcribe** or **analyze** audio/video | `references/workflows/transcription.md` |
+| **Split a soundtrack into layers** — remove/isolate speech, strip narration, instrumental bed, stems for dubbing | `references/workflows/audio-stems.md` |
 | **Scrape brand/product info** before generating + persist as `.kolbo/brand-kits/<slug>.md` | `references/workflows/research-first.md` |
 | Browse, manage, or present existing **media library** items | `references/workflows/media-library.md` |
 | Confirm **cost** or validate **resolution / aspect / duration** against model caps | `references/workflows/cost-and-validation.md` |
@@ -101,6 +102,9 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 | `generate_speech` | TTS. Use `list_voices` to pick a voice. |
 | `generate_sound` | Sound effects. |
 | `generate_3d` | 3D models from text / single image / multi-view. Returns GLB/FBX/OBJ/USDZ. |
+| `separate_audio_stems` | Split a soundtrack into Dialogue / Music / Effects / without-dialogue (M&E). The route for removing or isolating speech, instrumental beds, and stems for dubbing. 5cr, inline. See `workflows/audio-stems.md`. |
+| `clean_dialogue_leftovers` | Strip voices still faintly audible in an M&E layer. 17cr — only when the user reports the leak, it trades fidelity. |
+| `separate_ambience` | Pull room tone out of the Effects bed as its own lane. 17cr. |
 
 ### Discovery, Library, Visual DNA, Moodboards, Chat, Publishing
 | Tool | Purpose |
