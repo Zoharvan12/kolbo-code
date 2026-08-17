@@ -283,12 +283,23 @@
 
   /* Images — generated media should be substantial, not a hyperlink-sized
      thumbnail. Cap at a comfortable on-screen size while still respecting
-     container width. */
+     container width.
+     !important on the sizing/fit properties: DOMPurify's markdown sanitizer
+     (see markdown.tsx config — USE_PROFILES html:true, only FORBID_TAGS
+     ["style"] which drops <style> BLOCKS, not the style= ATTRIBUTE) lets an
+     author-written `<img style="width:96px;height:96px;object-fit:cover">`
+     straight through. That inline style outranks this stylesheet on
+     specificity alone, so a hand-built results table (a model authoring its
+     own thumbnail grid, e.g. multi-language/multi-ratio previews) could crop
+     every image to a fixed box regardless of this rule. Forcing width/height
+     back to auto makes object-fit moot — with no box/intrinsic-ratio mismatch
+     left to fill, there is nothing left for cover to crop. */
   img {
-    max-width: min(100%, 480px);
-    max-height: 60vh;
-    height: auto;
-    width: auto;
+    max-width: min(100%, 480px) !important;
+    max-height: 60vh !important;
+    height: auto !important;
+    width: auto !important;
+    object-fit: contain !important;
     border-radius: var(--radius-md);
     margin: 1.5rem 0;
     display: block;
@@ -444,19 +455,27 @@
 
 /* Override the generic markdown img rule (margin:1.5rem 0; height:auto;
    border-radius:4px) that was inherited and pushing the thumb to the
-   bottom of the chip + letterboxing it to its natural aspect ratio. */
+   bottom of the chip + letterboxing it to its natural aspect ratio.
+   The base `img` rule now carries !important (to defeat an author-injected
+   inline style= trying to force its own crop-to-fill box — see its comment),
+   and !important always wins over a plain declaration regardless of selector
+   specificity. This chip WANTS cover — it's a small fixed-size avatar-style
+   thumb, not generated content — so its own overrides need !important too;
+   among competing !important rules specificity still decides, and
+   `img.kolbo-media-chip-thumb` outranks the bare `img` selector. */
 [data-component="markdown"] .kolbo-media-chip-thumb,
 [data-component="markdown"] img.kolbo-media-chip-thumb {
   position: absolute;
   inset: 0;
   display: block;
-  width: 100%;
-  height: 100%;
-  max-width: none;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
   margin: 0;
   border: 0;
   border-radius: 0;
-  object-fit: cover;
+  object-fit: cover !important;
   pointer-events: none;
   background: color-mix(in srgb, var(--text-base) 6%, transparent);
 }
