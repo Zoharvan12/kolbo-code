@@ -1,0 +1,23 @@
+version: 0.4.0
+name: kolbo-product-photoshoot
+description: |
+  Generate brand-quality product images across 10 specialized modes:
+  product_shot (clean studio), lifestyle_scene, closeup_product_with_person,
+  moodboard_pin (Pinterest), hero_banner, social_carousel, ad_creative_pack,
+  virtual_model_tryout, conceptual_product (surreal/CGI), restyle.
+
+  Use when: "product photo", "studio shot", "lifestyle image", "Pinterest pin",
+  "hero/banner", "carousel", "ad creative", "Meta ads", "virtual try-on",
+  "model wearing", "person holding product", "closeup with hands",
+  "CGI/surreal product", "restyle", or any product/brand/paid-social creative.
+
+  Chain: optional brand-kit lookup (.kolbo/brand-kits/SLUG.md), pair with
+  kolbo-visual-dna for character locks (virtual_model_tryout, closeup with face),
+  multi-output modes (social_carousel, ad_creative_pack) auto-route to
+  kolbo-creative-director.
+
+  NOT for: no-product text-to-image (use kolbo-generate), branded ad VIDEO
+  (use kolbo-marketing-studio), marketplace listing cards (use
+  kolbo-marketplace-cards).
+argument-hint: "[mode] [brief] [--image <product-photo>] [--count N]"
+allowed-tools: Bash, Read, Write, Edit

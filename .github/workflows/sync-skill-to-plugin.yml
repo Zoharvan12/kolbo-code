@@ -2,15 +2,18 @@ name: Distribute canonical Kolbo skill
 
 # packages/opencode/skills/kolbo is the only editable source. This workflow:
 #   1. mirrors it byte-for-byte into the Claude plugin;
-#   2. mirrors it into @kolbo/mcp, validates the bundle, versions and publishes it;
-#   3. updates kolbo-api to the newly published MCP package.
-# Never hand-edit either downstream skill tree.
+#   2. regenerates the public kolbo-skills split package from it;
+#   3. mirrors it into @kolbo/mcp, validates the bundle, versions and publishes it;
+#   4. updates kolbo-api to the newly published MCP package.
+# Never hand-edit any downstream skill tree.
 
 on:
   push:
     branches: [master, main, dev]
     paths:
       - 'packages/opencode/skills/kolbo/**'
+      - 'packages/opencode/script/build-split-skills.mjs'
+      - 'packages/opencode/script/split-skills/**'
   workflow_dispatch:
     inputs:
       reason:
@@ -76,6 +79,70 @@ jobs:
           git config user.email "kolbo-skill-sync@users.noreply.github.com"
           git add skills/kolbo/ "$MANIFEST"
           git commit -m "chore(skill): sync canonical skill from kolbo-code@${SHA}"
+          git push
+
+      # --- kolbo-skills: the public split-skill package -------------------
+      # Same canonical content, regenerated into the 11 slash-command skills
+      # that repo publishes. Runs before the MCP release so it is never gated
+      # on an npm publish.
+      - name: Checkout public skills package
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Zoharvan12/kolbo-skills
+          token: ${{ secrets.PLUGIN_REPO_TOKEN }}
+          path: skills-pkg
+
+      - name: Set up Node.js for generator
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Generate split skills from canonical
+        run: |
+          set -euo pipefail
+          cd source/packages/opencode
+          node script/build-split-skills.mjs --out "$GITHUB_WORKSPACE/skills-pkg"
+          node script/build-split-skills.mjs --check --out "$GITHUB_WORKSPACE/skills-pkg"
+
+      - name: Sync plugin manifests to the generated skill set
+        run: |
+          set -euo pipefail
+          cd skills-pkg
+          VERSION=$(cat VERSION)
+          SKILLS=$(jq -c '.skills' skills.manifest.json)
+          rm skills.manifest.json
+          for f in .claude-plugin/plugin.json .codex-plugin/plugin.json .cursor-plugin/plugin.json; do
+            [ -f "$f" ] || continue
+            tmp=$(mktemp); jq --arg v "$VERSION" '.version = $v' "$f" > "$tmp"; mv "$tmp" "$f"
+          done
+          tmp=$(mktemp)
+          jq --arg v "$VERSION" --argjson s "$SKILLS" \
+            '.plugins[0].version = $v | .plugins[0].skills = $s' \
+            .claude-plugin/marketplace.json > "$tmp"
+          mv "$tmp" .claude-plugin/marketplace.json
+
+      - name: Detect public skills package changes
+        id: skills_changes
+        run: |
+          set -euo pipefail
+          cd skills-pkg
+          git add -A
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push public skills package
+        if: steps.skills_changes.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          cd skills-pkg
+          SHA=$(cd ../source && git rev-parse --short HEAD)
+          git config user.name "kolbo-skill-sync[bot]"
+          git config user.email "kolbo-skill-sync@users.noreply.github.com"
+          git commit -m "chore(skills): regenerate from kolbo-code@${SHA}"
           git push
 
       - name: Checkout MCP package

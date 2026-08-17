@@ -1,0 +1,21 @@
+version: 0.4.0
+name: kolbo-transcription
+description: |
+  Transcribe audio/video into text + SRT subtitles + word-by-word SRT, and route
+  multimodal audio/video analysis to the right tool (transcribe vs upload-to-chat
+  vs hybrid path).
+
+  Use when: "transcribe this", "give me an SRT", "I need word-by-word timing",
+  "make subtitles", "what did they say about X?", "summarize this meeting",
+  "find the part where they mention Y", "analyze this video", "what's in this audio?",
+  "process this podcast / interview / lecture".
+
+  Chain: transcription output (text, SRT URL) can feed kolbo-html-artifacts
+  (caption decks), kolbo-generate (Veo videos with synced dialogue), or stay
+  standalone as the deliverable.
+
+  NOT for: live audio capture (Kolbo is file-based), translation (transcribe in
+  source language; translate downstream with chat), image analysis (use native
+  vision — Read the image directly).
+argument-hint: "[file-path-or-url] [--deliverable srt|text|word-by-word|analysis]"
+allowed-tools: Bash, Read, Write, Edit

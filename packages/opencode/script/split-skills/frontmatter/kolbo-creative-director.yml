@@ -1,0 +1,22 @@
+version: 0.4.0
+name: kolbo-creative-director
+description: |
+  Generate 2–8 related image OR video outputs from one brief — storyboards, ad
+  campaigns, character lookbooks, multi-angle/multi-pose sets, scene variations.
+  This is an AGENT, not a niche tool — it plans each scene's prompt internally,
+  locks consistency, and runs scenes in parallel.
+
+  Use when: "make 4/6/8 [shots, scenes, variations, angles, poses, outfits,
+  moods, settings, frames]", "show the character in N different ___",
+  "create a storyboard / ad campaign / product set", "key frames for a video",
+  "8 angles of this character", "ad pack with 4 variants",
+  "campaign batch", "lookbook", "scene 1 scene 2 scene 3".
+
+  Chain: pair with kolbo-visual-dna (lock character across scenes), then optionally
+  with kolbo-generate (animate each frame via generate_video_from_image).
+
+  NOT for: a single image (use kolbo-generate), modifying ONE existing image
+  (use kolbo-generate with generate_image_edit), N variations of THE SAME exact
+  prompt with random seeds (use kolbo-generate with num_images).
+argument-hint: "[scene-count] [brief] [--mode photo|video|cinema] [--visual-dna-id <id>]"
+allowed-tools: Bash, Read, Write, Edit

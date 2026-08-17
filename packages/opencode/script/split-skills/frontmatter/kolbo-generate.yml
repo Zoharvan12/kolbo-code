@@ -1,0 +1,22 @@
+version: 0.4.0
+name: kolbo-generate
+description: |
+  Generate any image / video / music / TTS / sound / 3D content via the Kolbo AI
+  MCP server. Default entry point for generic "make me X" requests across
+  100+ models (GPT Image, Nano Banana, Seedance, Veo, Kling, Flux, Suno, ...).
+
+  Use when: "generate", "create", "make me a", "edit", "animate", "transcribe",
+  any model name by itself (Flux, Kling, Suno, etc.), generic single-output
+  generation requests.
+
+  Chain: pair with kolbo-visual-dna (consume vdna_id via `visual_dna_ids`),
+  hand off multi-output requests to kolbo-creative-director, hand off
+  Marketing Studio / DTC / product / marketplace work to the matching skill,
+  hand off HTML artifacts to kolbo-html-artifacts.
+
+  NOT for: 2+ related outputs (use kolbo-creative-director), branded ad video
+  (use kolbo-marketing-studio), brand product imagery (use kolbo-product-photoshoot),
+  marketplace cards (use kolbo-marketplace-cards), HTML artifacts (use
+  kolbo-html-artifacts), full React apps (use kolbo-app-builder).
+argument-hint: "[prompt-or-command] [--model NAME] [--image <path>] [--video <path>]"
+allowed-tools: Bash, Read, Write, Edit

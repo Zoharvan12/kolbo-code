@@ -1,0 +1,23 @@
+version: 0.4.0
+name: kolbo-visual-dna
+description: |
+  Train a Visual DNA — a personalized model that captures the visual identity
+  of a character, style, product, or scene from reference media. Kolbo uses
+  the trained DNA for identity-faithful image and video generation across
+  every DNA-aware tool.
+
+  Use when: "create a Visual DNA", "train my face", "make my digital twin",
+  "build me an avatar", "learn my appearance", "create a character of me",
+  "set up identity for video", "I want my face in generated images",
+  "consistent character across X", "keep the same look/face/product".
+
+  Chain: train Visual DNA (one-time, returns vdna_id) → use in
+  kolbo-generate / kolbo-creative-director / kolbo-marketing-studio /
+  kolbo-product-photoshoot / kolbo-marketplace-cards via `visual_dna_ids: ["..."]`
+  with the `@NAME` tag in the prompt.
+
+  NOT for: one-shot face swaps (use kolbo-generate with `source_images`),
+  named real public figures (refuses on policy), one-time edits without
+  reusing the identity.
+argument-hint: "[name] [photo paths...] [--type character|style|product|scene]"
+allowed-tools: Bash, Read, Write, Edit

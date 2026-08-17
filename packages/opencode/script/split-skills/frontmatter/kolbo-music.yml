@@ -1,0 +1,21 @@
+version: 0.4.0
+name: kolbo-music
+description: |
+  Generate music via Kolbo — primarily Suno + variants. Full songs, lyrics,
+  instrumentals, jingles, scores, soundtracks, lo-fi beats, ad music,
+  cinematic trailers.
+
+  Use when: "make me a song", "Suno prompt", "write lyrics for", "music prompt",
+  "ai song", "soundtrack", "jingle", "lo-fi beat", "cinematic score",
+  "instrumental for [scene]", "background music for my video".
+
+  Chain: usually standalone, but ad/video flows often pair this with
+  kolbo-marketing-studio or kolbo-generate (video) — generate music separately,
+  then mux client-side or pass the music URL into a video tool that supports
+  `audio_url`.
+
+  NOT for: TTS / voice cloning (use kolbo-generate with `generate_speech`),
+  sound effects (use kolbo-generate with `generate_sound`), full ad video
+  (use kolbo-marketing-studio).
+argument-hint: "[style description] [--lyrics file] [--instrumental] [--duration <s>]"
+allowed-tools: Bash, Read, Write, Edit

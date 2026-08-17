@@ -1,0 +1,23 @@
+version: 0.4.0
+name: kolbo-marketing-studio
+description: |
+  Generate branded ad VIDEO — UGC, unboxing, tutorial, product review, TV spot,
+  product showcase, virtual try-on, wild card. 9 modes, each with the right
+  Kolbo MCP routing and defaults (UGC defaults to 9:16, sound off, no captions,
+  no watermarks).
+
+  Use when: "UGC ad", "make me a TikTok / Reels / Shorts", "creator video",
+  "unboxing video", "product review", "TV ad", "commercial", "branded video",
+  "ad spot", "talking head", "selfie video", "virtual try on", "fashion shoot",
+  "vlogger", "for social", "Instagram video", "YouTube short".
+
+  Chain: pair with kolbo-visual-dna (presenter face), kolbo-product-photoshoot
+  (product photos to upload as references), or kolbo-music (separate music gen
+  to layer in post). Brand-kit lookup auto-reads .kolbo/brand-kits/SLUG.md
+  if a previous brand-research turn persisted one.
+
+  NOT for: brand product IMAGES (use kolbo-product-photoshoot), marketplace
+  cards (use kolbo-marketplace-cards), composed ad images (use kolbo-dtc-ads),
+  generic single image / video (use kolbo-generate).
+argument-hint: "[mode] [brief] [--visual-dna-id <id>] [--product-image <path>]"
+allowed-tools: Bash, Read, Write, Edit

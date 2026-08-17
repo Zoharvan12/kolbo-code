@@ -1,0 +1,115 @@
+{
+  "$comment": "Drives build-split-skills.mjs. Body content is CONCATENATED FROM CANONICAL — never hand-edit the generated tree in kolbo-skills. Frontmatter (routing metadata: description triggers, argument-hint, allowed-tools) is hand-authored and lives in ./frontmatter/<name>.yml.",
+  "$comment2": "retired: skill dirs the generator must DELETE from the published package. Dropping a skill from `skills` is not enough — the directory would linger and stay installable. App Builder left canonical in kolbo-code v2.4.4 (2026-07-29) and the MCP no longer exposes it.",
+  "retired": ["kolbo-app-builder"],
+  "sharedSections": [
+    "Step 0 — Bootstrap",
+    "🎬 Confirm the Creative Brief BEFORE Generating (CRITICAL — read first)",
+    "⚠️ Visual DNA `@Name` in the prompt (HARD RULE — always on)",
+    "📁 Projects — Where Work Lands (CRITICAL)",
+    "Cost Awareness — Quick Rules",
+    "🛑 Runaway-Loop Guard — ONE Generation per Requested Item (CRITICAL)",
+    "⚠️ Detecting Failed Generations (CRITICAL)",
+    "⚠️ Generated URLs in Chat (CRITICAL)"
+  ],
+  "skills": [
+    {
+      "name": "kolbo-generate",
+      "title": "Kolbo Generate — Image, Video, Music, Speech, Sound, 3D",
+      "sections": [
+        "Available MCP Tools",
+        "⚠️ Seedance / Elements prompt contract (HARD RULE)",
+        "⚠️ If the User Names a Tool, USE THAT TOOL (HARD RULE)",
+        "⚠️ Generate vs Edit (when the user did NOT name a tool)",
+        "Core Workflow",
+        "Rate Limiting & Batch Generation",
+        "⚠️ Editing an Existing Video → ONE Call, Not Frames-First (CRITICAL)",
+        "⚠️ Character-Driven Video — Frames First, Then Animate (CRITICAL)",
+        "Limitations & Safety"
+      ],
+      "references": [
+        "references/models/seedance.md",
+        "references/models/seedance25.md",
+        "references/models/veo.md",
+        "references/models/nano-banana.md",
+        "references/models/gpt-image.md",
+        "references/models/prompt-copilot.md",
+        "references/workflows/cost-and-validation.md",
+        "references/workflows/audio-stems.md",
+        "references/workflows/media-library.md",
+        "references/workflows/troubleshooting.md"
+      ]
+    },
+    {
+      "name": "kolbo-visual-dna",
+      "title": "Kolbo Visual DNA — Character / Style Consistency",
+      "sources": ["references/workflows/visual-dna.md"]
+    },
+    {
+      "name": "kolbo-creative-director",
+      "title": "Kolbo Creative Director — Multi-Scene Batches",
+      "sources": ["references/models/creative-director.md"]
+    },
+    {
+      "name": "kolbo-marketing-studio",
+      "title": "Kolbo Marketing Studio — UGC & Campaign Assets",
+      "sources": ["references/workflows/marketing-studio.md"]
+    },
+    {
+      "name": "kolbo-dtc-ads",
+      "title": "Kolbo DTC Ads",
+      "sources": ["references/workflows/dtc-ads.md"]
+    },
+    {
+      "name": "kolbo-product-photoshoot",
+      "title": "Kolbo Product Photoshoot",
+      "sources": ["references/workflows/product-photoshoot.md"]
+    },
+    {
+      "name": "kolbo-marketplace-cards",
+      "title": "Kolbo Marketplace Cards",
+      "sources": ["references/workflows/marketplace-cards.md"]
+    },
+    {
+      "name": "kolbo-transcription",
+      "title": "Kolbo Transcription",
+      "sources": ["references/workflows/transcription.md"]
+    },
+    {
+      "name": "kolbo-music",
+      "title": "Kolbo Music",
+      "sources": ["references/models/music.md"]
+    },
+    {
+      "name": "kolbo-html-artifacts",
+      "title": "Kolbo HTML Artifacts",
+      "sources": ["references/models/html-presentation.md"],
+      "references": [
+        "references/models/landing-page.md",
+        "references/models/visual-code.md"
+      ]
+    },
+    {
+      "name": "kolbo-filmmaking",
+      "title": "Kolbo Filmmaking — Development, Direction, Production",
+      "sources": ["references/workflows/filmmaking.md"],
+      "references": [
+        "references/filmmaking/routing.md",
+        "references/filmmaking/scene-engine.md",
+        "references/filmmaking/production-bible.md",
+        "references/filmmaking/asset-preproduction.md",
+        "references/filmmaking/prompt-contracts.md",
+        "references/filmmaking/cinematography.md",
+        "references/filmmaking/blocking-continuity.md",
+        "references/filmmaking/acting-direction.md",
+        "references/filmmaking/physics-action.md",
+        "references/filmmaking/audio-dialogue-music.md",
+        "references/filmmaking/validation.md",
+        "references/filmmaking/workflows.md",
+        "references/models/seedance.md",
+        "references/models/seedance25.md",
+        "references/models/veo.md"
+      ]
+    }
+  ]
+}

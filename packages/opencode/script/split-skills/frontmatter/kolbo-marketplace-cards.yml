@@ -1,0 +1,22 @@
+version: 0.4.0
+name: kolbo-marketplace-cards
+description: |
+  Generate marketplace listing visuals for Amazon / Shopify / eBay / Etsy /
+  Walmart — main image (compliance-aware), secondary product images, and
+  A+ content modules. 4 bundle scopes (main / product-images / aplus / full-set)
+  + 13 named asset types.
+
+  Use when: "Amazon main image", "Amazon listing", "Shopify product cards",
+  "marketplace listing", "A+ content", "infographic for my product",
+  "what's in the box image", "marketplace image set", "full Amazon set",
+  "main + secondary + A+", "Walmart listing", "Etsy listing".
+
+  Chain: optional brand-kit lookup (.kolbo/brand-kits/SLUG.md), routes
+  bundles through kolbo-creative-director under the hood, pair with
+  kolbo-product-photoshoot for additional non-listing brand imagery.
+
+  NOT for: generic brand product photography without marketplace/listing
+  context (use kolbo-product-photoshoot), video generation or UGC ads
+  (use kolbo-marketing-studio), Visual DNA training (use kolbo-visual-dna).
+argument-hint: "[--scope main|product-images|aplus|full-set] [brief] [--image <product>]"
+allowed-tools: Bash, Read, Write, Edit

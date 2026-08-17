@@ -1,0 +1,21 @@
+version: 0.4.0
+name: kolbo-dtc-ads
+description: |
+  Compose a brand ad IMAGE from 5 building blocks: brand kit + ad format
+  (headline-driven, bullet-points, us-vs-them, before/after, founder statement,
+  lifestyle hero, testimonial, pattern interrupt, …) + optional avatar +
+  optional product + optional reference media.
+
+  Use when: "headline ad", "founder ad", "before/after ad", "bullet points ad",
+  "us vs them comparison", "DTC ad image", "branded ad creative",
+  "make me an ad image", "ad for [brand]", "[brand]-style ad creative".
+
+  Chain: optional brand-kit lookup (.kolbo/brand-kits/SLUG.md), pair with
+  kolbo-visual-dna for a specific presenter, kolbo-product-photoshoot for the
+  product hero, or kolbo-creative-director for multi-variant ad packs.
+
+  NOT for: ad VIDEO (use kolbo-marketing-studio), product photography
+  without ad-format structure (use kolbo-product-photoshoot), marketplace
+  listings (use kolbo-marketplace-cards).
+argument-hint: "[format] [brief] [--brand-kit SLUG] [--avatar <vdna_id>] [--product <path>]"
+allowed-tools: Bash, Read, Write, Edit

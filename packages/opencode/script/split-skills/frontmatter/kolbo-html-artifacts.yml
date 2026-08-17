@@ -1,0 +1,21 @@
+version: 0.4.0
+name: kolbo-html-artifacts
+description: |
+  Build distinctive, production-grade HTML artifacts — slide decks /
+  presentations / pitch decks, landing pages / marketing sites / one-pagers,
+  and interactive widgets (dashboards, data viz, mini-games, UI mockups, charts,
+  animated components). Publishable to sites.kolbo.ai with strict CSP.
+
+  Use when: "build me a presentation / slide deck / pitch deck / mצגת",
+  "build me a landing page / one-pager / SaaS site / waitlist page / דף נחיתה",
+  "build me a dashboard / data visualization / interactive widget / animated
+  component / mini-game / UI mockup / chart / tool / demo", "publish this HTML",
+  "share this artifact".
+
+  Chain: pair with kolbo-generate for hero images / background visuals, then
+  publish_html_artifact returns a sites.kolbo.ai URL.
+
+  NOT for: any non-rendered code (use kolbo-app-builder for full React apps),
+  motion graphics or video (use kolbo-generate), generic markdown documentation.
+argument-hint: "[type: presentation|landing|widget] [brief]"
+allowed-tools: Bash, Read, Write, Edit

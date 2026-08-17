@@ -1,0 +1,22 @@
+version: 0.8.4
+name: kolbo-filmmaking
+description: |
+  Direct AI films end to end — script development, production bible, recurring
+  characters and locations, acting direction, blocking and continuity, camera
+  and optics, physics, dialogue and score, then executable model prompts for
+  Seedance, Veo, Kling and Hailuo.
+
+  Use when: "write this scene", "direct this shot", "make a short film",
+  "build a production bible", "keep the character consistent across shots",
+  "the acting feels dead", "the eyes look empty", "audit this prompt",
+  "my last take failed, fix the prompt", "plan a multi-shot sequence",
+  "storyboard this", "shot list", "continuity between cuts".
+
+  Chain: develop scene (scene engine) → production bible + Visual DNA
+  (kolbo-visual-dna) → shot cards → generate via kolbo-generate /
+  kolbo-creative-director → audit failed takes and patch the prompt.
+
+  NOT for: one-off images or single clips with no story or continuity
+  requirement (use kolbo-generate), video editing or FFmpeg, motion graphics.
+argument-hint: "[scene, shot, or prompt to direct or audit]"
+allowed-tools: Bash, Read, Write, Edit
