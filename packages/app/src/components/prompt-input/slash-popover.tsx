@@ -7,6 +7,10 @@ export type AtOption =
   | { type: "agent"; name: string; display: string }
   | { type: "file"; path: string; display: string; recent?: boolean }
   | { type: "image"; id: string; display: string; mime: string; url: string }
+  // Split per `type` rather than one member with a union discriminant, so the
+  // narrowing chain in the popover still eliminates these before the file branch.
+  | { type: "visual-dna"; id: string; name: string; display: string; thumbnail?: string; dnaType?: string }
+  | { type: "moodboard"; id: string; name: string; display: string; thumbnail?: string }
 
 export interface SlashCommand {
   id: string
@@ -91,6 +95,46 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
                       >
                         <Icon name="brain" size="small" class="text-icon-info-active shrink-0" />
                         <span class="text-14-regular text-text-strong whitespace-nowrap">@{item.name}</span>
+                      </button>
+                    )
+                  }
+
+                  if (item.type === "visual-dna" || item.type === "moodboard") {
+                    const sigil = item.type === "moodboard" ? "#" : "@"
+                    return (
+                      <button
+                        class="w-full flex items-center gap-x-2 rounded-md px-2 py-0.5"
+                        classList={{
+                          "bg-surface-raised-base-hover": props.atActive === key,
+                          "mt-1 pt-1 border-t border-border-weaker-base rounded-t-none": divider,
+                        }}
+                        onClick={() => props.onAtSelect(item)}
+                        onMouseEnter={() => props.setAtActive(key)}
+                      >
+                        <Show
+                          when={item.thumbnail}
+                          fallback={
+                            <Icon
+                              name={item.type === "moodboard" ? "moodboard" : "dna"}
+                              size="small"
+                              class="text-icon-info-active shrink-0"
+                            />
+                          }
+                        >
+                          <img
+                            src={item.thumbnail}
+                            alt=""
+                            loading="lazy"
+                            class="shrink-0 size-6 rounded-[3px] object-cover"
+                          />
+                        </Show>
+                        <span class="text-14-regular text-text-strong truncate min-w-0">
+                          {sigil}
+                          {item.name}
+                        </span>
+                        <Show when={item.type === "visual-dna" ? item.dnaType : undefined}>
+                          {(dnaType) => <span class="text-11-regular text-text-subtle shrink-0">{dnaType()}</span>}
+                        </Show>
                       </button>
                     )
                   }

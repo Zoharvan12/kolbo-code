@@ -117,9 +117,17 @@ function collectCanvasCells(
           // different host / query / tool (e.g. a generated image fed into
           // `generate_video_from_image`, or a video echoed by its
           // get_generation_status recovery) only earns one cell.
+          // Two keys, because filename alone isn't enough: the same generation
+          // echoed by a recovery call (generate_* times out → get_generation_status
+          // returns it) can come back under a different filename entirely — a
+          // provider URL first, the Kolbo CDN copy second. The generation id is
+          // the same in both, so it catches what the filename misses.
           const key = mediaKey(url)
+          const genKey = op?.id ? `gen:${op.id}:${idx}` : undefined
           if (seenKeys.has(key)) return
+          if (genKey && seenKeys.has(genKey)) return
           seenKeys.add(key)
+          if (genKey) seenKeys.add(genKey)
           cells.push({
             key: `${tool.id}:${idx}`,
             messageID: message.id,
@@ -719,7 +727,7 @@ function PendingCellView(props: { cell: PendingCell }) {
       >
         <div
           class="shrink-0 flex items-center justify-center"
-          style="width:32px;height:32px;border-radius:10px;background:color-mix(in srgb, var(--background-base) 92%, transparent)"
+          style="width:32px;height:32px;border-radius:10px;background:color-mix(in srgb, var(--text-base) 5%, transparent);border:1px solid color-mix(in srgb, var(--text-base) 10%, transparent)"
         >
           {whitelabelLogo ? (
             <img src={whitelabelLogo} alt="" style="width:18px;height:18px;object-fit:contain;opacity:0.92" />
@@ -767,7 +775,7 @@ function PendingCellView(props: { cell: PendingCell }) {
         />
         <div
           class="relative flex items-center justify-center"
-          style="width:36px;height:36px;border-radius:12px;background:color-mix(in srgb, var(--background-base) 92%, transparent);box-shadow:0 4px 12px color-mix(in srgb, var(--text-base) 12%, transparent)"
+          style="width:36px;height:36px;border-radius:12px;background:color-mix(in srgb, var(--text-base) 5%, transparent);border:1px solid color-mix(in srgb, var(--text-base) 10%, transparent);box-shadow:0 4px 12px rgba(0, 0, 0, 0.22)"
         >
           {whitelabelLogo ? (
             <img src={whitelabelLogo} alt="" style="width:22px;height:22px;object-fit:contain;opacity:0.92" />

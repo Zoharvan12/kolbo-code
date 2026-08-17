@@ -207,7 +207,7 @@ Read `max_visual_dna` from `list_models` for the exact cap, AND `supports_visual
 
 **Step 1 — Generate both images in parallel (one `generate_image` call each, fire simultaneously):**
 
-1. **4-angle character sheet** — prompt: `"[character description], character reference sheet showing front view, back view, left side view, right side view, four panels arranged in a 2x2 grid, neutral solid background, full body, photorealistic"`, aspect ratio `16:9`
+1. **4-angle character sheet** — prompt: `"[character description], character reference sheet showing front view, back view, left side view, right side view, four panels arranged in a 2x2 grid, neutral solid background, full body, photorealistic"`, aspect ratio `16:9` (or `3:2` — always landscape, see the aspect-ratio rule below)
 2. **Close-up portrait** — prompt: `"[character description], close-up portrait, face and shoulders, neutral solid background, soft studio lighting, photorealistic"`, aspect ratio `1:1`
 
 **Step 2 — Call `create_visual_dna`** with:
@@ -250,3 +250,13 @@ Tools: `list_visual_dna_folders`, `create_visual_dna_folder` (`name`, optional h
 - When the user is about to create a **character** DNA, proactively OFFER it: "want me to generate a character sheet first? It makes the character far more consistent and costs a few credits." Run it only on a yes.
 - Flow: `generate_character_sheet {image_urls}` → show the sheet → `create_visual_dna {name, images, character_sheet_url: <url>}`.
 - For non-character DNAs (style/product/environment), skip it.
+
+### ⚠️ Aspect ratio — character sheets and bibles are LANDSCAPE
+
+Default every character sheet, turnaround, and character/production **bible** sheet to **`3:2` or `16:9`** unless the user asks for something else.
+
+These are multi-panel grids laid out side by side — front, back, left, right, plus detail callouts. A square or portrait frame forces the panels to stack, which shrinks each one and costs the engine the very facial and body detail the sheet exists to capture. Landscape gives each panel usable width.
+
+- Character sheet / turnaround / bible sheet → `3:2` or `16:9`
+- Close-up portrait reference → `1:1` (a single panel, so the grid logic doesn't apply)
+- Only deviate when the user explicitly names a different ratio.

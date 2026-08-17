@@ -736,15 +736,30 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     }
   }
 
+  // Media handed over by an MCP widget. A widget is a sandboxed cross-origin
+  // iframe, and a native HTML5 drag started inside one does not deliver its
+  // dataTransfer to this document — so "drag the result into the composer" can
+  // never be made to work from in there. The widget posts the URL to the host
+  // instead (ui/attach-media → this event), which lands the attachment exactly
+  // as a paste would. Same document-event convention as kolbo:open-canvas.
+  const handleWidgetAttach = (event: Event) => {
+    const url = (event as CustomEvent<{ url?: unknown }>).detail?.url
+    if (typeof url !== "string" || !/^https?:\/\//.test(url)) return
+    input.focusEditor()
+    attachFromUrl(url)
+  }
+
   onMount(() => {
     // Use explicit addEventListener with {passive:false} so preventDefault() is always honoured
     document.addEventListener("dragover", handleDragOver, { passive: false })
     document.addEventListener("dragleave", handleDragLeave)
     document.addEventListener("drop", handleDrop)
+    document.addEventListener("kolbo:attach-media", handleWidgetAttach)
     onCleanup(() => {
       document.removeEventListener("dragover", handleDragOver)
       document.removeEventListener("dragleave", handleDragLeave)
       document.removeEventListener("drop", handleDrop)
+      document.removeEventListener("kolbo:attach-media", handleWidgetAttach)
     })
   })
 

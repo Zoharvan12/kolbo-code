@@ -2,9 +2,10 @@ import { getFilename } from "@opencode-ai/util/path"
 import { type AgentPartInput, type FilePartInput, type Part, type TextPartInput } from "@opencode-ai/sdk/v2/client"
 import type { FileSelection } from "@/context/file"
 import { encodeFilePath } from "@/context/file/path"
-import type { AgentPart, FileAttachmentPart, ImageAttachmentPart, Prompt } from "@/context/prompt"
+import type { AgentPart, FileAttachmentPart, ImageAttachmentPart, KolboAssetPart, Prompt } from "@/context/prompt"
 import { Identifier } from "@/utils/id"
 import { createCommentMetadata, formatCommentNote } from "@/utils/comment-note"
+import { mediaLabels } from "./media-labels"
 
 type PromptRequestPart = (TextPartInput | FilePartInput | AgentPartInput) & { id: string }
 
@@ -51,6 +52,20 @@ const parseCommentMentions = (comment: string) => {
 
 const isFileAttachment = (part: Prompt[number]): part is FileAttachmentPart => part.type === "file"
 const isAgentAttachment = (part: Prompt[number]): part is AgentPart => part.type === "agent"
+const isKolboAsset = (part: Prompt[number]): part is KolboAssetPart => part.type === "kolbo-asset"
+
+const IMAGE_EXT_MIME: Record<string, string> = {
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+}
+
+const imageMime = (url: string) => {
+  const ext = url.split("?")[0]?.split(".").pop()?.toLowerCase() ?? ""
+  return IMAGE_EXT_MIME[ext] ?? "image/jpeg"
+}
 
 const toOptimisticPart = (part: PromptRequestPart, sessionID: string, messageID: string): Part => {
   if (part.type === "text") {
@@ -189,7 +204,11 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
   const imageParts: PromptRequestPart[] = []
   const imageOptimisticParts: PromptRequestPart[] = []
 
-  for (const attachment of input.images) {
+  // Computed over ALL attachments, not just the ones that made it past the
+  // publicUrl guard below, so the numbering matches what the composer shows.
+  const handles = mediaLabels(input.images)
+
+  for (const [index, attachment] of input.images.entries()) {
     // Never ship data:/blob: into the session — those bytes stay in every
     // later turn and blow the context window. Wait for the CDN URL.
     const url = attachment.publicUrl
@@ -222,7 +241,9 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
       const notePart: PromptRequestPart = {
         id: Identifier.ascending("part"),
         type: "text",
-        text: `[${kind} — ${sourceParts.join(" | ")}]`,
+        // The `@handle` comes first so the model can bind a mention like
+        // "@image2" in the prompt text to this specific attachment.
+        text: `[@${handles[index]} — ${kind} — ${sourceParts.join(" | ")}]`,
         synthetic: true,
       }
       imageParts.push(notePart)
@@ -230,7 +251,35 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
     }
   }
 
-  requestParts.push(...files, ...context, ...agents, ...imageParts)
+  // Visual DNA / moodboard mentions. The `@name` / `#name` token already sits in
+  // the prompt text (kolbo-api's parsers resolve it there), so what these parts add
+  // is the id — VisualDNA.name has no uniqueness constraint and the parser takes
+  // first-match, so the name alone can bind the wrong character — plus the reference
+  // image, which the server inlines as base64 for http(s) media URLs.
+  const kolboAssetParts = input.prompt.filter(isKolboAsset).flatMap((asset): PromptRequestPart[] => {
+    const label = asset.kind === "moodboard" ? "Moodboard" : "Visual DNA"
+    const field = asset.kind === "moodboard" ? "moodboard_id" : "visual_dna_ids"
+    const parts: PromptRequestPart[] = [
+      {
+        id: Identifier.ascending("part"),
+        type: "text",
+        text: `[${label} "${asset.content}" → id ${asset.id}. Pass this id as ${field} and keep "${asset.content}" verbatim in the generation prompt.]`,
+        synthetic: true,
+      },
+    ]
+    if (asset.thumbnail?.startsWith("http")) {
+      parts.push({
+        id: Identifier.ascending("part"),
+        type: "file",
+        mime: imageMime(asset.thumbnail),
+        url: asset.thumbnail,
+        filename: `${asset.name}.${asset.thumbnail.split("?")[0]?.split(".").pop() ?? "jpg"}`,
+      })
+    }
+    return parts
+  })
+
+  requestParts.push(...files, ...context, ...agents, ...kolboAssetParts, ...imageParts)
 
   const optimisticRequestParts = [
     ...requestParts.filter((p) => !imageParts.includes(p)),

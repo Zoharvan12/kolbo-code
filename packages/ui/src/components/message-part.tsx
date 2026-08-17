@@ -1877,14 +1877,30 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
 // One-line gist for the collapsed row: the first line of the reasoning with
 // its markdown markers stripped. Long lines are cut by CSS, not here, so the
 // ellipsis lands wherever the row actually runs out of width.
+function stripMarkers(line: string) {
+  return line
+    .replace(/^\s{0,3}#{1,6}\s+/, "")
+    .replace(/^\s{0,3}[-*+>]\s+/, "")
+    .replace(/^\s{0,3}\d+\.\s+/, "")
+    .replace(/[*_`]/g, "")
+    .trim()
+}
+
 function reasoningGist(text: string) {
   for (const line of text.split("\n")) {
-    const bare = line
-      .replace(/^\s{0,3}#{1,6}\s+/, "")
-      .replace(/^\s{0,3}[-*+>]\s+/, "")
-      .replace(/^\s{0,3}\d+\.\s+/, "")
-      .replace(/[*_`]/g, "")
-      .trim()
+    const bare = stripMarkers(line)
+    if (bare) return bare
+  }
+  return ""
+}
+
+// The line the model is writing RIGHT NOW — the collapsed row uses this as a
+// live ticker while reasoning streams, so you can follow the train of thought
+// without a wall of text taking over the transcript.
+function reasoningTail(text: string) {
+  const lines = text.split("\n")
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const bare = stripMarkers(lines[i])
     if (bare) return bare
   }
   return ""
@@ -1898,12 +1914,11 @@ PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
   )
   const text = () => part().text.trim()
 
-  // Open while the model is still thinking — that live stream is the point of
-  // showing reasoning at all — then fold to a single line once the turn lands,
-  // so a finished transcript stays skimmable. `on` fires only when streaming
-  // actually flips, so a manual toggle afterwards is never overridden.
-  const [open, setOpen] = createSignal(streaming())
-  createEffect(on(streaming, (now) => setOpen(now), { defer: true }))
+  // Collapsed by default, streaming or not. Auto-expanding buried the actual
+  // answer under a wall of reasoning on every single turn; the collapsed row
+  // carries a live ticker of the current line instead, so you can still follow
+  // the thinking at a glance and open it when you want the whole thing.
+  const [open, setOpen] = createSignal(false)
 
   return (
     <Show when={text()}>
@@ -1911,9 +1926,18 @@ PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
         <Collapsible open={open()} onOpenChange={setOpen} variant="ghost">
           <Collapsible.Trigger>
             <div data-component="reasoning-trigger">
-              <span data-slot="reasoning-trigger-text">
-                {open() ? i18n.t("ui.sessionTurn.status.thinking") : reasoningGist(text())}
-              </span>
+              <Show
+                when={!open() && streaming()}
+                fallback={
+                  <span data-slot="reasoning-trigger-text">
+                    {open() ? i18n.t("ui.sessionTurn.status.thinking") : reasoningGist(text())}
+                  </span>
+                }
+              >
+                <span data-slot="reasoning-trigger-text">
+                  <TextShimmer text={reasoningTail(text())} active />
+                </span>
+              </Show>
               <Collapsible.Arrow />
             </div>
           </Collapsible.Trigger>
@@ -3373,6 +3397,19 @@ function KolboOperationCard(props: {
     if (kind() !== "image" && kind() !== "asset" && kind() !== "video") return []
     return urls().slice(0, MAX_CHIP_THUMBS)
   })
+  // The inline grid shows the ACTUAL results — every one of them. Hiding a
+  // 5-image set behind "+5, view in canvas" made the chat useless for the one
+  // thing it's for: looking at what you just generated. Only a genuinely long
+  // run collapses, and then it expands in place rather than sending you away.
+  const INLINE_MAX = 10
+  const [expanded, setExpanded] = createSignal(false)
+  const previews = createMemo<string[]>(() => {
+    if (inFlight() || isError()) return []
+    if (kind() !== "image" && kind() !== "asset" && kind() !== "video") return []
+    return urls()
+  })
+  const shownPreviews = createMemo(() => (expanded() ? previews() : previews().slice(0, INLINE_MAX)))
+  const hiddenPreviews = createMemo(() => previews().length - shownPreviews().length)
   const audioUrl = createMemo(() => (kind() === "audio" && !inFlight() && !isError() ? urls()[0] : undefined))
   const actions = createMemo(() => (!inFlight() && !isError() ? (view()?.actions ?? []) : []))
   // Credit cost for this generation, parsed from the tool result. Kolbo's
@@ -3537,16 +3574,15 @@ function KolboOperationCard(props: {
             credit cost, and a "View in Canvas" jump. */}
             <div class="flex flex-col gap-1.5">
               <div class="flex flex-wrap gap-2">
-                <For each={thumbs()}>{(src) => <KolboBigPreview url={src} />}</For>
-                <Show when={overflowN() > 0}>
+                <For each={shownPreviews()}>{(src) => <KolboBigPreview url={src} />}</For>
+                <Show when={hiddenPreviews() > 0}>
                   <button
                     type="button"
-                    onClick={openCanvas}
+                    onClick={() => setExpanded(true)}
                     class="flex items-center justify-center rounded-xl border border-border-weaker-base bg-background-stronger text-text-weak hover:text-text-base hover:border-border-weak-base transition-colors cursor-pointer"
                     style="width:80px;height:80px;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums"
-                    aria-label={i18n.t("ui.kolbo.chip.viewInCanvas")}
                   >
-                    +{overflowN()}
+                    +{hiddenPreviews()}
                   </button>
                 </Show>
               </div>

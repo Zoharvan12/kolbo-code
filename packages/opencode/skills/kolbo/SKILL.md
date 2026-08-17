@@ -139,6 +139,19 @@ Passing `visual_dna_ids` is **not enough**. For every DNA in that array you MUST
 
 Resolve names with `list_visual_dnas` first. Full binding rules: `references/workflows/visual-dna.md`.
 
+## ⚠️ `enhance_prompt` — leave it OFF (HARD RULE)
+
+**Never pass `enhance_prompt: true` unless the user asked for it in words.** It is
+not a quality knob you turn on to be helpful — it sends the prompt to a rewriter
+first, so the model renders *different words than the ones the user wrote*.
+
+- The user says "make it more cinematic" → that is a request to change **your**
+  prompt. Write the better prompt yourself. It is NOT permission to enhance.
+- Only "enhance the prompt" / "improve my prompt" / "expand this prompt" is.
+- Passing it silently is the worst case: the card shows an `enhanced` chip the
+  user never asked for, and their own wording never reached the model.
+- The default is `false` in every generation tool. Leave the argument out.
+
 ## ⚠️ Seedance / Elements prompt contract (HARD RULE)
 
 `generate_elements`, Seedance 2, and Seedance 2.5 share **one** compile shape — the Locked Intro in `references/models/seedance.md`:

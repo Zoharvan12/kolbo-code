@@ -133,6 +133,13 @@
     width: min(calc(100vw - 32px), 960px);
     height: min(calc(100vh - 32px), 600px);
   }
+
+  /* For dialogs whose whole job is browsing a lot of pictures — the bigger the
+     grid, the fewer DNAs you have to scroll past to recognise the one you want. */
+  &[data-size="full"] [data-slot="dialog-container"] {
+    width: min(calc(100vw - 48px), 1440px);
+    height: min(calc(100vh - 48px), 920px);
+  }
 }
 
 [data-component="dialog"][data-transition] [data-slot="dialog-content"] {

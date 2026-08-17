@@ -2275,6 +2275,45 @@ export type GlobalKolboBalanceResponses = {
 
 export type GlobalKolboBalanceResponse = GlobalKolboBalanceResponses[keyof GlobalKolboBalanceResponses]
 
+export type KolboAsset = {
+    id: string;
+    name: string;
+    thumbnail?: string;
+    dnaType?: string;
+};
+
+export type GlobalKolboVisualDnasData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/global/kolbo-visual-dnas';
+};
+
+export type GlobalKolboVisualDnasResponses = {
+    /**
+     * Visual DNAs
+     */
+    200: Array<KolboAsset>;
+};
+
+export type GlobalKolboVisualDnasResponse = GlobalKolboVisualDnasResponses[keyof GlobalKolboVisualDnasResponses];
+
+export type GlobalKolboMoodboardsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/global/kolbo-moodboards';
+};
+
+export type GlobalKolboMoodboardsResponses = {
+    /**
+     * Moodboards
+     */
+    200: Array<KolboAsset>;
+};
+
+export type GlobalKolboMoodboardsResponse = GlobalKolboMoodboardsResponses[keyof GlobalKolboMoodboardsResponses];
+
 export type GlobalKolboPricingData = {
   body?: never
   path?: never

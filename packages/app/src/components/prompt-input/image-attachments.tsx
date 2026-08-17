@@ -2,6 +2,7 @@ import { Component, For, Show } from "solid-js"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import type { ImageAttachmentPart } from "@/context/prompt"
+import { mediaLabels } from "./media-labels"
 
 type PromptImageAttachmentsProps = {
   attachments: ImageAttachmentPart[]
@@ -19,11 +20,15 @@ const removeClass =
 const nameClass = "absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/50 rounded-b-md"
 
 export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (props) => {
+  // The badge shows the same handle the @ menu offers (`@image1`), so the user
+  // can tell which thumbnail a mention points at. The filename moves to the
+  // tooltip, where its length doesn't matter.
+  const labels = () => mediaLabels(props.attachments)
   return (
     <Show when={props.attachments.length > 0}>
       <div class="flex flex-wrap gap-2 px-3 pt-3">
         <For each={props.attachments}>
-          {(attachment) => (
+          {(attachment, index) => (
             <Tooltip value={attachment.filename} placement="top" contentClass="break-all">
               <div class="relative group">
                 <Show
@@ -114,7 +119,7 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
                   <Icon name="close" class="size-3 text-text-weak" />
                 </button>
                 <div class={nameClass}>
-                  <span class="text-10-regular text-white truncate block">{attachment.filename}</span>
+                  <span class="text-10-regular text-white truncate block">@{labels()[index()]}</span>
                 </div>
               </div>
             </Tooltip>

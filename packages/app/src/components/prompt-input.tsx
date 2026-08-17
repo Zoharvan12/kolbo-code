@@ -14,6 +14,7 @@ import {
   AgentPart,
   FileAttachmentPart,
   MediaMentionPart,
+  KolboAssetPart,
 } from "@/context/prompt"
 import { useLayout } from "@/context/layout"
 import { useSDK } from "@/context/sdk"
@@ -31,6 +32,7 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { usePlatformOps } from "@opencode-ai/ui/context/platform-ops"
 import { useTheme } from "@opencode-ai/ui/theme/context"
 import { ModelSelectorPopover } from "@/components/dialog-select-model"
+import { DialogSelectKolboAsset } from "@/components/dialog-select-kolbo-asset"
 import { useProviders } from "@/hooks/use-providers"
 import { useCommand } from "@/context/command"
 import { Persist, persisted } from "@/utils/persist"
@@ -62,6 +64,8 @@ import { PromptContextItems } from "./prompt-input/context-items"
 import { PromptImageAttachments } from "./prompt-input/image-attachments"
 import { PromptDragOverlay } from "./prompt-input/drag-overlay"
 import { promptPlaceholder } from "./prompt-input/placeholder"
+import { matchMentionTrigger, mentionTokenPattern } from "./prompt-input/mention-trigger"
+import { mediaLabels } from "./prompt-input/media-labels"
 import { createVoiceDictation, type DictationErrorCode } from "./prompt-input/voice-dictation"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
 
@@ -110,6 +114,8 @@ const NON_EMPTY_TEXT = /[^\s\u200B]/
 // Map agent name \u2192 icon (build/auto-approve/plan are first-party native
 // agents from packages/opencode/src/agent/agent.ts:181-220; user agents
 // fall through to a sensible default).
+type KolboAsset = { id: string; name: string; thumbnail?: string; dnaType?: string }
+
 type AgentIconName = "pencil-line" | "circle-check" | "checklist" | "magnifying-glass" | "brain"
 function agentIcon(name?: string): AgentIconName {
   switch (name) {
@@ -200,6 +206,60 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const server = useServer()
   const usage = useSessionUsage()
 
+  // Visual DNAs (@) and moodboards (#) for the mention menu. Fetched once — the
+  // server caches them and the menu filters locally, because /v1/moodboards sits
+  // on the same 10 req/min bucket as generation, so a search-per-keystroke would
+  // rate-limit the user's own image generations.
+  const [visualDnas, setVisualDnas] = createSignal<KolboAsset[]>([])
+  const [moodboards, setMoodboards] = createSignal<KolboAsset[]>([])
+  // Which character opened the mention menu — scopes it to moodboards for `#`.
+  const [atTrigger, setAtTrigger] = createSignal<"@" | "#">("@")
+  onMount(() => {
+    // Array.isArray, not truthiness: a server without these routes falls through
+    // to the SPA catch-all and returns HTML, which would blow up on .map() below.
+    globalSDK.client.global
+      .kolboVisualDnas()
+      .then((res) => {
+        if (Array.isArray(res.data)) setVisualDnas(res.data as KolboAsset[])
+      })
+      .catch(() => {})
+    globalSDK.client.global
+      .kolboMoodboards()
+      .then((res) => {
+        if (Array.isArray(res.data)) setMoodboards(res.data as KolboAsset[])
+      })
+      .catch(() => {})
+  })
+
+  // The platform catalog is thousands of presets, so it is NOT fetched on mount
+  // and never enters the `@` menu — it loads once, the first time someone opens
+  // the Global tab in the browser dialog.
+  const [globalDnas, setGlobalDnas] = createSignal<KolboAsset[]>([])
+  const [globalDnasLoading, setGlobalDnasLoading] = createSignal(false)
+  let globalDnasRequested = false
+  const loadGlobalDnas = () => {
+    if (globalDnasRequested) return
+    globalDnasRequested = true
+    setGlobalDnasLoading(true)
+    globalSDK.client.global
+      .kolboGlobalVisualDnas()
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setGlobalDnas(res.data as KolboAsset[])
+          return
+        }
+        // A sidecar without this route answers the SPA catch-all with HTML — a
+        // 200, so it never reaches .catch(). Treat it as a failure, or the tab
+        // stays empty forever and never asks again.
+        globalDnasRequested = false
+      })
+      .catch(() => {
+        // Let a failed fetch be retried the next time the tab is opened.
+        globalDnasRequested = false
+      })
+      .finally(() => setGlobalDnasLoading(false))
+  }
+
   // ── Voice dictation (realtime Scribe) ──────────────────────────────────
   // Streams the mic to kolbo-api's realtime transcription and types the text
   // into the editor LIVE — partials render as you speak and get replaced by
@@ -212,10 +272,14 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   let dictationCommitted = ""
   let dictationWritten = 0
   let dictationNeedsSpace = false
+  // stop() keeps the socket alive ~1.5s so the final transcript can land.
+  // Once the message is sent that text has nowhere to go — the editor it was
+  // writing into is empty again — so silence the writer until the next start.
+  let dictationSilenced = false
   const joinChunks = (a: string, b: string) => (a ? `${a} ${b}` : b)
   const writeDictation = (live: string) => {
     const el = editorRef
-    if (!el) return
+    if (!el || dictationSilenced) return
     el.focus()
     const total = getTextLength(el)
     // Select the previously written dictation tail (collapsed at the end on
@@ -251,6 +315,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (dictation.state() !== "starting") return
     dictationCommitted = ""
     dictationWritten = 0
+    dictationSilenced = false
     const existing = editorRef?.textContent ?? ""
     dictationNeedsSpace = existing.length > 0 && !/\s$/.test(existing)
   })
@@ -778,17 +843,22 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
 
   // Media already sitting in the composer, offered at the top of the @ menu so the
   // user can point at one of several attachments ("crop @shot.png").
-  const attachmentOptions = createMemo(() =>
-    imageAttachments().map(
-      (attachment): AtOption => ({
+  // Labelled `@image1` / `@video1` rather than by filename — a generated
+  // filename is 80 unreadable characters and the position is what actually
+  // identifies the attachment to the model. See media-labels.ts.
+  const attachmentOptions = createMemo(() => {
+    const attachments = imageAttachments()
+    const labels = mediaLabels(attachments)
+    return attachments.map(
+      (attachment, index): AtOption => ({
         type: "image",
         id: attachment.id,
-        display: attachment.filename,
+        display: labels[index]!,
         mime: attachment.mime,
         url: attachment.publicUrl ?? attachment.dataUrl,
       }),
-    ),
-  )
+    )
+  })
 
   const handleAtSelect = (option: AtOption | undefined) => {
     if (!option) return
@@ -798,6 +868,19 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       // Reference only — the attachment itself is already being sent, so this must not
       // become a file part (the backend would try to read it as text from disk).
       addPart({ type: "media", id: option.id, content: "@" + option.display, start: 0, end: 0 })
+    } else if (option.type === "visual-dna" || option.type === "moodboard") {
+      // "@name" / "#name" is the literal token kolbo-api's mention parsers resolve,
+      // so the pill has to serialize back to exactly that.
+      addPart({
+        type: "kolbo-asset",
+        kind: option.type,
+        id: option.id,
+        name: option.name,
+        thumbnail: option.thumbnail,
+        content: (option.type === "moodboard" ? "#" : "@") + option.name,
+        start: 0,
+        end: 0,
+      })
     } else {
       addPart({ type: "file", path: option.path, content: "@" + option.path, start: 0, end: 0 })
     }
@@ -807,6 +890,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (!x) return ""
     if (x.type === "agent") return `agent:${x.name}`
     if (x.type === "image") return `image:${x.id}`
+    if (x.type === "visual-dna") return `visual-dna:${x.id}`
+    if (x.type === "moodboard") return `moodboard:${x.id}`
     return `file:${x.path}`
   }
 
@@ -818,23 +903,40 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     onKeyDown: atOnKeyDown,
   } = useFilteredList<AtOption>({
     items: async (query) => {
+      // `#` is the moodboard namespace in kolbo-api's parser, so scope the menu to
+      // moodboards alone rather than mixing them with files and agents.
+      if (atTrigger() === "#") {
+        return moodboards().map(
+          (mb): AtOption => ({ type: "moodboard", id: mb.id, name: mb.name, display: mb.name, thumbnail: mb.thumbnail }),
+        )
+      }
       const attachments = attachmentOptions()
       const agents = agentList()
+      const dnas: AtOption[] = visualDnas().map((dna) => ({
+        type: "visual-dna",
+        id: dna.id,
+        name: dna.name,
+        display: dna.name,
+        thumbnail: dna.thumbnail,
+        dnaType: dna.dnaType,
+      }))
       const open = recent()
       const seen = new Set(open)
       const pinned: AtOption[] = open.map((path) => ({ type: "file", path, display: path, recent: true }))
-      if (!query.trim()) return [...attachments, ...agents, ...pinned]
+      if (!query.trim()) return [...attachments, ...agents, ...dnas, ...pinned]
       const paths = await files.searchFilesAndDirectories(query)
       const fileOptions: AtOption[] = paths
         .filter((path) => !seen.has(path))
         .map((path) => ({ type: "file", path, display: path }))
-      return [...attachments, ...agents, ...pinned, ...fileOptions]
+      return [...attachments, ...agents, ...dnas, ...pinned, ...fileOptions]
     },
     key: atKey,
     filterKeys: ["display"],
     groupBy: (item) => {
       if (item.type === "image") return "image"
       if (item.type === "agent") return "agent"
+      if (item.type === "visual-dna") return "visual-dna"
+      if (item.type === "moodboard") return "moodboard"
       if (item.recent) return "recent"
       return "file"
     },
@@ -842,8 +944,9 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       const rank = (category: string) => {
         if (category === "image") return 0
         if (category === "agent") return 1
-        if (category === "recent") return 2
-        return 3
+        if (category === "visual-dna" || category === "moodboard") return 2
+        if (category === "recent") return 3
+        return 4
       }
       return rank(a.category) - rank(b.category)
     },
@@ -906,13 +1009,133 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     onSelect: handleSlashSelect,
   })
 
-  const createPill = (part: FileAttachmentPart | AgentPart | MediaMentionPart) => {
+  // The media library already exists as a canvas tab — reuse it rather than
+  // building a second picker. `kolbo:open-canvas` is the same event the Canvas
+  // button fires, so it also clears the "dismissed" flag and opens the panel.
+  const openMediaLibrary = () => {
+    view().canvas.setMode("library")
+    document.dispatchEvent(new CustomEvent("kolbo:open-canvas"))
+  }
+
+  const openKolboAssets = (initialTab: "visual-dna" | "global-dna" | "moodboard") =>
+    dialog.show(() => (
+      <DialogSelectKolboAsset
+        visualDnas={visualDnas()}
+        moodboards={moodboards()}
+        globalDnas={globalDnas()}
+        globalLoading={globalDnasLoading()}
+        onNeedGlobal={loadGlobalDnas}
+        initialTab={initialTab}
+        onSelect={(kind, item) =>
+          handleAtSelect({
+            type: kind,
+            id: item.id,
+            name: item.name,
+            display: item.name,
+            thumbnail: item.thumbnail,
+            ...(kind === "visual-dna" ? { dnaType: item.dnaType } : {}),
+          })
+        }
+      />
+    ))
+
+  // The picture a mention points at, when there is one. Visual DNAs and
+  // moodboards carry their own thumbnail; an attachment mention has to look its
+  // image back up, since MediaMentionPart only stores the id.
+  const pillThumbnail = (part: FileAttachmentPart | AgentPart | MediaMentionPart | KolboAssetPart) => {
+    if (part.type === "kolbo-asset") return part.thumbnail
+    if (part.type !== "media") return undefined
+    const attachment = imageAttachments().find((item) => item.id === part.id)
+    // Only stills — a <video> inside the contenteditable is more trouble than a
+    // first frame is worth, and "@video1" already says what it is.
+    if (!attachment?.mime.startsWith("image/")) return undefined
+    return attachment.publicUrl ?? attachment.dataUrl
+  }
+
+  const createPill = (part: FileAttachmentPart | AgentPart | MediaMentionPart | KolboAssetPart) => {
     const pill = document.createElement("span")
-    pill.textContent = part.content
     pill.setAttribute("data-type", part.type)
     if (part.type === "file") pill.setAttribute("data-path", part.path)
     if (part.type === "agent") pill.setAttribute("data-name", part.name)
     if (part.type === "media") pill.setAttribute("data-id", part.id)
+    if (part.type === "kolbo-asset") {
+      pill.setAttribute("data-id", part.id)
+      pill.setAttribute("data-name", part.name)
+      pill.setAttribute("data-kind", part.kind)
+      if (part.thumbnail) pill.setAttribute("data-thumbnail", part.thumbnail)
+    }
+
+    // A mention that points at a picture shows the picture — same chip language
+    // as kolbo-map's prompt editor. parseFromDOM reads pills back through
+    // `textContent` and never descends into them, so the nested <img> (which
+    // contributes no text) round-trips cleanly; the label stays the only text.
+    const thumbnail = pillThumbnail(part)
+    if (thumbnail) {
+      pill.dir = "ltr"
+      pill.style.cssText =
+        "display:inline-flex;align-items:center;gap:4px;vertical-align:middle;" +
+        "padding:1px 7px 1px 2px;border-radius:999px;" +
+        "border:1px solid var(--border-weaker-base);background:var(--surface-recess-base)"
+      // The thumbnail doubles as the remove target: hover it and an X covers the
+      // face, same gesture as kolbo-map's chips. Backspacing a pill out of a
+      // contenteditable is fiddly and invisible; this is the obvious way.
+      const face = document.createElement("span")
+      face.style.cssText = "position:relative;display:inline-flex;width:16px;height:16px;flex-shrink:0"
+
+      const image = document.createElement("img")
+      image.src = thumbnail
+      image.alt = ""
+      image.draggable = false
+      image.referrerPolicy = "no-referrer"
+      image.style.cssText =
+        "width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--surface-base)"
+      // A dead blob:/expired CDN URL must not leave the browser's broken-image
+      // glyph sitting in the composer — drop back to the plain text pill.
+      image.onerror = () => {
+        face.remove()
+        pill.style.padding = ""
+        pill.style.border = ""
+        pill.style.background = ""
+        pill.style.borderRadius = ""
+      }
+      face.appendChild(image)
+
+      const remove = document.createElement("button")
+      remove.type = "button"
+      remove.setAttribute("aria-label", language.t("prompt.attachment.remove"))
+      remove.setAttribute("contenteditable", "false")
+      // An SVG, NOT a text "×": parseFromDOM reads a pill back through
+      // `textContent`, so a text glyph here rode along into the prompt and the
+      // model received "×@tel_aviv_invasion". SVG contributes no text.
+      remove.innerHTML =
+        '<svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true">' +
+        '<path d="M1.5 1.5 8.5 8.5M8.5 1.5 1.5 8.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+        "</svg>"
+      remove.style.cssText =
+        "position:absolute;inset:0;display:none;align-items:center;justify-content:center;" +
+        "border:0;padding:0;cursor:pointer;border-radius:50%;color:#fff;font-size:12px;line-height:1;" +
+        "background:rgba(0,0,0,0.65)"
+      // mousedown, not click: the editor's own mousedown would move the caret
+      // and re-render the pill out from under the click.
+      remove.onmousedown = (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        pill.remove()
+        handleInput()
+        focusEditorEnd()
+      }
+      face.appendChild(remove)
+      face.onmouseenter = () => (remove.style.display = "flex")
+      face.onmouseleave = () => (remove.style.display = "none")
+
+      pill.appendChild(face)
+      const label = document.createElement("span")
+      label.textContent = part.content
+      pill.appendChild(label)
+    } else {
+      pill.textContent = part.content
+    }
+
     pill.setAttribute("contenteditable", "false")
     pill.style.userSelect = "text"
     pill.style.cursor = "default"
@@ -936,6 +1159,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       if (el.dataset.type === "file") return true
       if (el.dataset.type === "agent") return true
       if (el.dataset.type === "media") return true
+      if (el.dataset.type === "kolbo-asset") return true
       return el.tagName === "BR"
     })
 
@@ -946,7 +1170,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         editorRef.appendChild(createTextFragment(part.content))
         continue
       }
-      if (part.type === "file" || part.type === "agent" || part.type === "media") {
+      if (part.type === "file" || part.type === "agent" || part.type === "media" || part.type === "kolbo-asset") {
         editorRef.appendChild(createPill(part))
       }
     }
@@ -1095,6 +1319,22 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         pushAgent(el)
         return
       }
+      if (el.dataset.type === "kolbo-asset") {
+        flushText()
+        const content = el.textContent ?? ""
+        parts.push({
+          type: "kolbo-asset",
+          kind: el.dataset.kind === "moodboard" ? "moodboard" : "visual-dna",
+          id: el.dataset.id!,
+          name: el.dataset.name!,
+          thumbnail: el.dataset.thumbnail,
+          content,
+          start: position,
+          end: position + content.length,
+        })
+        position += content.length
+        return
+      }
       if (el.dataset.type === "media") {
         flushText()
         pushMedia(el)
@@ -1157,11 +1397,12 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     const shellMode = store.mode === "shell"
 
     if (!shellMode) {
-      const atMatch = rawText.substring(0, cursorPosition).match(/@(\S*)$/)
+      const mention = matchMentionTrigger(rawText.substring(0, cursorPosition), moodboards().length > 0)
       const slashMatch = rawText.match(/^\/(\S*)$/)
 
-      if (atMatch) {
-        atOnInput(atMatch[1])
+      if (mention) {
+        setAtTrigger(mention.trigger)
+        atOnInput(mention.query)
         setStore("popover", "at")
       } else if (slashMatch) {
         slashOnInput(slashMatch[1])
@@ -1202,14 +1443,16 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         .current()
         .map((p) => ("content" in p ? p.content : ""))
         .join("")
-      const atMatch = rawText.substring(0, cursorPosition).match(/@(\S*)$/)
+      // Consume the token actually typed — `#query` for moodboards, `@query`
+      // otherwise — so the trigger character is replaced, not left behind.
+      const atMatch = rawText.substring(0, cursorPosition).match(mentionTokenPattern(part.type === "kolbo-asset" ? part.kind : part.type))
       if (!atMatch) return
       const start = atMatch.index ?? cursorPosition - atMatch[0].length
       setRangeEdge(editorRef, range, "start", start)
       setRangeEdge(editorRef, range, "end", cursorPosition)
     }
 
-    if (part.type === "file" || part.type === "agent" || part.type === "media") {
+    if (part.type === "file" || part.type === "agent" || part.type === "media" || part.type === "kolbo-asset") {
       const pill = createPill(part)
       const gap = document.createTextNode(" ")
 
@@ -1346,7 +1589,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     return permission.isAutoAccepting(id, sdk.directory)
   })
 
-  const { abort, handleSubmit } = createPromptSubmit({
+  const { abort, handleSubmit: submitPrompt } = createPromptSubmit({
     info,
     imageAttachments,
     commentCount,
@@ -1368,6 +1611,18 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     onAbort: props.onAbort,
     onSubmit: props.onSubmit,
   })
+
+  // Sending closes the mic. Typing while recording is fine — you can dictate
+  // and correct at the same time — but hitting send means "this is the
+  // message", so a mic left hot would dribble the next sentence into an empty
+  // composer with no visible reason.
+  const handleSubmit = (event: Event) => {
+    if (dictating()) {
+      dictationSilenced = true
+      dictation.stop()
+    }
+    return submitPrompt(event)
+  }
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "u") {
@@ -1641,8 +1896,15 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
               style={{ "padding-bottom": space }}
             />
             <Show when={!prompt.dirty()}>
+              {/* Nudged 3px past the editor's own pl-3: an empty contenteditable
+                  parks the caret at exactly pl-3, so at rest the caret was drawn
+                  straight through the "A" of the placeholder. The offset only
+                  applies while the placeholder is visible — typed text still
+                  starts at pl-3 — so nothing shifts as you type. Weaker text
+                  colour too, so the placeholder reads as a hint rather than
+                  competing with real content. */}
               <div
-                class="absolute top-0 inset-x-0 pl-3 pr-2 pt-2 text-14-regular text-text-weak pointer-events-none whitespace-nowrap truncate"
+                class="absolute top-0 inset-x-0 pl-[15px] pr-2 pt-2 text-14-regular text-text-weaker pointer-events-none whitespace-nowrap truncate"
                 classList={{ "font-mono!": store.mode === "shell" }}
                 style={{ "padding-bottom": space }}
               >
@@ -1715,9 +1977,14 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                           restoreFocus()
                         }}
                       >
+                        {/* closeOnSelect: Kobalte defaults RadioItem to false so
+                            multi-toggle menus can stay open. Picking an agent is a
+                            single choice, so the menu has to dismiss itself —
+                            without it the menu stayed open over the composer after
+                            switching Build/Plan. */}
                         <For each={agentNames()}>
                           {(name) => (
-                            <DropdownMenu.RadioItem value={name} onSelect={restoreFocus}>
+                            <DropdownMenu.RadioItem value={name} closeOnSelect onSelect={restoreFocus}>
                               <Icon name={agentIcon(name)} size="small" class="shrink-0 text-text-weak" />
                               <DropdownMenu.ItemLabel class="capitalize">{name}</DropdownMenu.ItemLabel>
                               <DropdownMenu.ItemIndicator>
@@ -1824,24 +2091,70 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 "pointer-events": buttonsSpring() > 0.5 ? "auto" : "none",
               }}
             >
+              {/* `+` is the one "add something" affordance, so everything you can
+                  add hangs off it: a local file, something already in the media
+                  library, a Visual DNA, a moodboard. Typing `@` still works and
+                  is faster once you know the name — this is the browsable way in,
+                  which is what a DNA (a *look*, not a word) actually needs. */}
               <TooltipKeybind
                 placement="top"
-                title={language.t("prompt.action.attachFile")}
+                title={language.t("prompt.action.add")}
                 keybind={command.keybind("file.attach")}
               >
-                <Button
-                  data-action="prompt-attach"
-                  type="button"
-                  variant="ghost"
-                  class="size-8 p-0"
-                  style={buttons()}
-                  onClick={pick}
-                  disabled={store.mode !== "normal"}
-                  tabIndex={store.mode === "normal" ? undefined : -1}
-                  aria-label={language.t("prompt.action.attachFile")}
-                >
-                  <Icon name="plus" class="size-4.5" />
-                </Button>
+                <DropdownMenu gutter={4} placement="top-start">
+                  <DropdownMenu.Trigger
+                    as={Button}
+                    data-action="prompt-attach"
+                    type="button"
+                    variant="ghost"
+                    class="size-8 p-0"
+                    style={buttons()}
+                    disabled={store.mode !== "normal"}
+                    tabIndex={store.mode === "normal" ? undefined : -1}
+                    aria-label={language.t("prompt.action.add")}
+                  >
+                    <Icon name="plus" class="size-4.5" />
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    {/* Inline padding, not a class: the shared dropdown CSS sets
+                        `padding: 4px 8px` on [data-slot], which a utility class
+                        loses to. These rows are the composer's main entry point,
+                        so they get room to breathe. */}
+                    <DropdownMenu.Content class="min-w-[240px]">
+                      <DropdownMenu.Item onSelect={() => pick()} style={{ padding: "9px 10px" }}>
+                        <Icon name="cloud-upload" size="small" class="shrink-0 text-text-weak" />
+                        <DropdownMenu.ItemLabel>{language.t("prompt.action.attachFile")}</DropdownMenu.ItemLabel>
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item onSelect={openMediaLibrary} style={{ padding: "9px 10px" }}>
+                        <Icon name="photo" size="small" class="shrink-0 text-text-weak" />
+                        <DropdownMenu.ItemLabel>{language.t("prompt.action.mediaLibrary")}</DropdownMenu.ItemLabel>
+                      </DropdownMenu.Item>
+                      {/* Not gated on having DNAs of your own — the global
+                          catalog lives inside this dialog as a tab, so hiding the
+                          row would also hide the only way to reach it. */}
+                      <DropdownMenu.Item
+                        onSelect={() => openKolboAssets("visual-dna")}
+                        style={{ padding: "9px 10px" }}
+                      >
+                        <Icon name="dna" size="small" class="shrink-0 text-text-weak" />
+                        <DropdownMenu.ItemLabel>
+                          {language.t("dialog.kolboAsset.visualDnas")}
+                        </DropdownMenu.ItemLabel>
+                      </DropdownMenu.Item>
+                      <Show when={moodboards().length > 0}>
+                        <DropdownMenu.Item
+                          onSelect={() => openKolboAssets("moodboard")}
+                          style={{ padding: "9px 10px" }}
+                        >
+                          <Icon name="moodboard" size="small" class="shrink-0 text-text-weak" />
+                          <DropdownMenu.ItemLabel>
+                            {language.t("dialog.kolboAsset.moodboards")}
+                          </DropdownMenu.ItemLabel>
+                        </DropdownMenu.Item>
+                      </Show>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu>
               </TooltipKeybind>
               <Tooltip
                 placement="top"
@@ -1851,10 +2164,19 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   data-action="prompt-dictate"
                   type="button"
                   variant="ghost"
-                  class={"size-8 p-0" + (dictation.state() === "starting" ? " animate-pulse" : "")}
+                  class={"size-8 p-0 relative" + (dictation.state() === "starting" ? " animate-pulse" : "")}
                   style={{
                     ...buttons(),
-                    ...(dictating() ? { color: "rgb(239,68,68)", background: "rgba(239,68,68,0.12)" } : {}),
+                    // Live mic reads as ON without shouting: red icon on a faint
+                    // red wash with a red outline. The pulsing dot in the
+                    // "Listening…" label beside it carries the motion.
+                    ...(dictating()
+                      ? {
+                          color: "rgb(239,68,68)",
+                          background: "rgba(239,68,68,0.10)",
+                          "box-shadow": "inset 0 0 0 1px rgba(239,68,68,0.55)",
+                        }
+                      : {}),
                   }}
                   onClick={() => dictation.toggle()}
                   disabled={store.mode !== "normal"}
@@ -1870,9 +2192,16 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 {/* Inline status in the reserved button strip — the editor keeps
                     padding-bottom for this row, so it never covers typed text. */}
                 <span
-                  class="truncate text-12-regular max-w-[220px] pl-1"
-                  style={{ color: voiceErrorText() ? "rgb(239,68,68)" : "var(--text-weak, inherit)" }}
+                  class="inline-flex items-center gap-1.5 truncate text-12-medium max-w-[220px] pl-1"
+                  style={{ color: "rgb(239,68,68)" }}
                 >
+                  <Show when={!voiceErrorText()}>
+                    <span
+                      aria-hidden="true"
+                      class="size-1.5 rounded-full animate-pulse shrink-0"
+                      style={{ background: "rgb(239,68,68)" }}
+                    />
+                  </Show>
                   {voiceErrorText() ?? language.t("prompt.voice.listening")}
                 </span>
               </Show>

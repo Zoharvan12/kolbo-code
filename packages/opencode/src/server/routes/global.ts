@@ -22,6 +22,74 @@ const log = Log.create({ service: "server" })
 // Declared at module top to avoid temporal dead zone in Bun compiled binaries
 const _htmlPreviewStore = new Map<string, string>()
 
+/**
+ * Kolbo asset (Visual DNA / moodboard) cache for the `@`/`#` mention menu.
+ *
+ * `GET /v1/moodboards` sits on the 10 req/min per-user SDK bucket that generation
+ * routes share, so an uncached autocomplete would rate-limit the user's own image
+ * generations. The menu filters locally (fuzzysort in useFilteredList), so one
+ * fetch per TTL window is all the UI ever needs.
+ */
+type KolboAsset = { id: string; name: string; thumbnail?: string; dnaType?: string }
+const _kolboAssetCache = new Map<string, { at: number; value: KolboAsset[] }>()
+const KOLBO_ASSET_TTL = 5 * 60 * 1000
+
+async function kolboAssets(cacheKey: string, path: string): Promise<KolboAsset[]> {
+  const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+  const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+  if (!apiKey) return []
+
+  const key = `${cacheKey}:${apiKey}`
+  const hit = _kolboAssetCache.get(key)
+  if (hit && Date.now() - hit.at < KOLBO_ASSET_TTL) return hit.value
+
+  try {
+    const res = await fetch(`${Partner.apiBase}${path}`, { headers: { "X-API-Key": apiKey } })
+    if (!res.ok) return hit?.value ?? []
+    const body = (await res.json()) as Record<string, any>
+    // kolbo-api wraps list payloads differently per route.
+    const rows: any[] = body.visual_dnas ?? body.moodboards ?? body.data ?? []
+    const value = rows.flatMap((row): KolboAsset[] => {
+      const id = row?.id ?? row?._id
+      const name = row?.name
+      if (!id || !name) return []
+      return [
+        {
+          id: String(id),
+          name: String(name),
+          // Reference sheet first, matching kolbo-map's hero-image rule
+          // (characterSheet > images > thumbnail). The v1 API exposes it as
+          // `sheet_url` and only sets it when one exists and isn't a data: URL —
+          // 42 of 60 personal DNAs and 989 of the 1,936 global presets have one.
+          // A turnaround identifies a character far better than a single still.
+          // Raw rows are snake_case; the camelCase aliases are not always present.
+          thumbnail:
+            row.sheet_url ??
+            row.characterSheet ??
+            row.thumbnail_url ??
+            row.thumbnail ??
+            row.images?.[0] ??
+            row.source_images?.[0]?.url,
+          dnaType: row.dna_type ?? row.dnaType,
+        },
+      ]
+    })
+    _kolboAssetCache.set(key, { at: Date.now(), value })
+    return value
+  } catch {
+    // Degrade silently like /kolbo-balance — a signed-out or offline user must
+    // still get files and agents in the @ menu, not an error.
+    return hit?.value ?? []
+  }
+}
+
+const KolboAssetSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  thumbnail: z.string().optional(),
+  dnaType: z.string().optional(),
+})
+
 // ── Kolbo model metadata cache ────────────────────────────────────────────
 // /kolbo/v1/models is hit on every page load by the model picker. The data
 // (pricing + avatars) changes rarely — a 5-minute TTL with single in-flight
@@ -636,6 +704,61 @@ export const GlobalRoutes = lazy(() =>
           return c.json({ error: "Kolbo status service is unavailable" }, 502)
         }
       },
+    )
+    .get(
+      "/kolbo-visual-dnas",
+      describeRoute({
+        summary: "List Kolbo Visual DNAs",
+        description:
+          "Fetch the authenticated user's Visual DNAs for the prompt `@` mention menu. Cached server-side; returns an empty list when signed out.",
+        operationId: "global.kolbo-visual-dnas",
+        responses: {
+          200: {
+            description: "Visual DNAs",
+            content: { "application/json": { schema: resolver(z.array(KolboAssetSchema)) } },
+          },
+          ...errors(401, 502),
+        },
+      }),
+      // `mine` = personal + org + shared. NOT "personal" — kolbo-api validates
+      // scope against ['mine','global','all'] and silently falls back to 'all'
+      // on anything else, so the old value was quietly asking for the whole
+      // catalog and relying on luck to keep the menu short.
+      async (c) => c.json(await kolboAssets("visual-dna", "/v1/visual-dna?scope=mine")),
+    )
+    .get(
+      "/kolbo-global-visual-dnas",
+      describeRoute({
+        summary: "List the global Kolbo Visual DNA catalog",
+        description:
+          "Fetch the platform-wide Visual DNA presets. Deliberately separate from /kolbo-visual-dnas: the catalog runs to thousands of entries, so it is browsed in its own tab rather than mixed into the `@` mention menu. kolbo-api serves this scope from a 15-minute cache of its own.",
+        operationId: "global.kolbo-global-visual-dnas",
+        responses: {
+          200: {
+            description: "Global Visual DNAs",
+            content: { "application/json": { schema: resolver(z.array(KolboAssetSchema)) } },
+          },
+          ...errors(401, 502),
+        },
+      }),
+      async (c) => c.json(await kolboAssets("visual-dna-global", "/v1/visual-dna?scope=global")),
+    )
+    .get(
+      "/kolbo-moodboards",
+      describeRoute({
+        summary: "List Kolbo moodboards",
+        description:
+          "Fetch the authenticated user's moodboards for the prompt `#` mention menu. Cached server-side; returns an empty list when signed out.",
+        operationId: "global.kolbo-moodboards",
+        responses: {
+          200: {
+            description: "Moodboards",
+            content: { "application/json": { schema: resolver(z.array(KolboAssetSchema)) } },
+          },
+          ...errors(401, 502),
+        },
+      }),
+      async (c) => c.json(await kolboAssets("moodboard", "/v1/moodboards")),
     )
     .get(
       "/kolbo-pricing",

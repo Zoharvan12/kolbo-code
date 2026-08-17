@@ -35,7 +35,7 @@ export function clonePromptParts(prompt: Prompt): Prompt {
   return prompt.map((part) => {
     if (part.type === "text") return { ...part }
     if (part.type === "image") return { ...part }
-    if (part.type === "agent" || part.type === "media") return { ...part }
+    if (part.type === "agent" || part.type === "media" || part.type === "kolbo-asset") return { ...part }
     return {
       ...part,
       selection: part.selection ? { ...part.selection } : undefined,
@@ -138,6 +138,7 @@ function isPromptEqual(promptA: PromptHistoryStoredEntry, promptB: PromptHistory
     if (partA.type === "agent" && partA.name !== (partB.type === "agent" ? partB.name : "")) return false
     if (partA.type === "image" && partA.id !== (partB.type === "image" ? partB.id : "")) return false
     if (partA.type === "media" && partA.content !== (partB.type === "media" ? partB.content : "")) return false
+    if (partA.type === "kolbo-asset" && partA.content !== (partB.type === "kolbo-asset" ? partB.content : "")) return false
   }
   if (entryA.comments.length !== entryB.comments.length) return false
   for (let i = 0; i < entryA.comments.length; i++) {

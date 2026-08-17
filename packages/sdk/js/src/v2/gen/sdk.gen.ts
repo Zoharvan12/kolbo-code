@@ -56,6 +56,8 @@ import type {
   GlobalKolboArtifactPublishResponses,
   GlobalKolboAuthContextResponses,
   GlobalKolboBalanceResponses,
+  GlobalKolboMoodboardsResponses,
+  GlobalKolboVisualDnasResponses,
   GlobalKolboFilesUploadErrors,
   GlobalKolboFilesUploadFromPathErrors,
   GlobalKolboFilesUploadFromPathResponses,
@@ -387,6 +389,33 @@ export class Global extends HeyApiClient {
       url: "/global/kolbo-balance",
       ...options,
     })
+  }
+
+  /**
+   * List Kolbo Visual DNAs
+   *
+   * Fetch the authenticated user's Visual DNAs for the prompt `@` mention menu. Cached server-side; returns an empty list when signed out.
+   */
+  public kolboVisualDnas<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<GlobalKolboVisualDnasResponses, unknown, ThrowOnError>({ url: '/global/kolbo-visual-dnas', ...options });
+  }
+
+  /**
+   * List the global Kolbo Visual DNA catalog
+   *
+   * Fetch the platform-wide Visual DNA presets. Deliberately separate from /kolbo-visual-dnas: the catalog runs to thousands of entries, so it is browsed in its own tab rather than mixed into the `@` mention menu.
+   */
+  public kolboGlobalVisualDnas<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<GlobalKolboVisualDnasResponses, unknown, ThrowOnError>({ url: '/global/kolbo-global-visual-dnas', ...options });
+  }
+
+  /**
+   * List Kolbo moodboards
+   *
+   * Fetch the authenticated user's moodboards for the prompt `#` mention menu. Cached server-side; returns an empty list when signed out.
+   */
+  public kolboMoodboards<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<GlobalKolboMoodboardsResponses, unknown, ThrowOnError>({ url: '/global/kolbo-moodboards', ...options });
   }
 
   /**

@@ -28,6 +28,7 @@ import {
   Columns3,
   Copy,
   CornerDownLeft,
+  Dna,
   Download,
   Ellipsis,
   Expand,
@@ -42,6 +43,7 @@ import {
   Grid3x3,
   Image as ImageIcon,
   Keyboard,
+  LayoutGrid,
   LayoutPanelTop,
   Link2,
   List,
@@ -172,6 +174,10 @@ const lucideIcons: Record<string, LucideLike> = {
   comment: MessageSquare,
   "folder-add-left": FolderPlus,
   "dot-grid": Ellipsis,
+  // Same glyphs kolbo-map's prompt editor uses for these two, so a Visual DNA
+  // reads the same in both products.
+  dna: Dna,
+  moodboard: LayoutGrid,
   "circle-check": CircleCheck,
   copy: Copy,
   photo: ImageIcon,

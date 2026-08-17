@@ -35,6 +35,20 @@ export interface MediaMentionPart extends PartBase {
   id: string
 }
 
+// A Kolbo Visual DNA (`@name`) or moodboard (`#name`) mention. `content` is the
+// literal token kolbo-api's mention parsers resolve, so it must survive into the
+// prompt text verbatim; `id` rides along because VisualDNA.name has no uniqueness
+// constraint and the parser resolves first-match, so the name alone can bind the
+// wrong character. `kind` is a field rather than part of `type` so the discriminant
+// stays a single literal and the narrowing chains below keep working.
+export interface KolboAssetPart extends PartBase {
+  type: "kolbo-asset"
+  kind: "visual-dna" | "moodboard"
+  id: string
+  name: string
+  thumbnail?: string
+}
+
 export interface ImageAttachmentPart {
   type: "image"
   id: string
@@ -47,7 +61,13 @@ export interface ImageAttachmentPart {
   uploadError?: string
 }
 
-export type ContentPart = TextPart | FileAttachmentPart | AgentPart | MediaMentionPart | ImageAttachmentPart
+export type ContentPart =
+  | TextPart
+  | FileAttachmentPart
+  | AgentPart
+  | MediaMentionPart
+  | KolboAssetPart
+  | ImageAttachmentPart
 export type Prompt = ContentPart[]
 
 export type FileContextItem = {
@@ -82,6 +102,8 @@ function isPartEqual(partA: ContentPart, partB: ContentPart) {
       return partB.type === "agent" && partA.name === partB.name
     case "media":
       return partB.type === "media" && partA.id === partB.id && partA.content === partB.content
+    case "kolbo-asset":
+      return partB.type === "kolbo-asset" && partA.id === partB.id && partA.content === partB.content
     case "image":
       return partB.type === "image" && partA.id === partB.id
   }
@@ -105,7 +127,7 @@ function clonePart(part: ContentPart): ContentPart {
   // Shared by ref so Solid <For> doesn't remount <img>/<video> on every
   // keystroke. Mutations flow through updateImageAttachment + produce().
   if (part.type === "image") return part
-  if (part.type === "agent" || part.type === "media") return { ...part }
+  if (part.type === "agent" || part.type === "media" || part.type === "kolbo-asset") return { ...part }
   return {
     ...part,
     selection: cloneSelection(part.selection),

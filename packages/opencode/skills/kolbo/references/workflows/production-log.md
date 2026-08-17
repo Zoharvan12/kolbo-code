@@ -16,9 +16,50 @@ Read `.kolbo/production.md` **before** acting on any of these signals:
 
 If the file is missing and the user is referencing prior media, ask the user — do not guess from chat.
 
+## ⚠️ Approval gates — the user is usually still iterating (READ THIS FIRST)
+
+Most media work is an **approval loop**, not a single shot. The user generates, looks, asks for another take, and keeps going until satisfied. This is the normal case for **images, image sets, Visual DNAs, moodboards, and videos** alike.
+
+The log records **what the user approved** — not everything you produced. Getting this wrong is expensive in both directions: log too eagerly and take 3 of 7 is enshrined as "the character"; log too late and the approved URL is gone after compaction.
+
+**The loop:**
+
+1. **Generate** candidates.
+2. **Present them so the user can actually judge.** Never ask "approve?" over bare URLs or ids — the user cannot see those. Use the widget-carrying tools:
+   - Visual DNAs → `list_visual_dnas` (renders a thumbnail media grid; `create_visual_dna` returns text only, so follow it with this)
+   - Moodboards → `list_moodboards`
+   - Images / videos / audio → show the returned URLs as markdown images/links
+   Say plainly which ones are in play, e.g. "created `@maya` and `@maya_alt` — here they are".
+3. **Ask for a decision** and name the options ("keep the first, redo the second, or both?").
+4. **Repeat** until the user is satisfied. Log nothing as approved during this stage.
+5. **On approval → update `.kolbo/production.md` immediately**, in the same turn, before your next tool call or final reply.
+
+**Never write an artifact into the log as approved without the user's approval.**
+
+**If the user genuinely doesn't care** — "whatever you think", "you pick", "don't care", or they hand you the whole job — then **you decide**. Choose, say in one line which you picked and why, and log it as usual with `(agent-selected)`. Do not stall a production waiting for an approval the user has already delegated to you.
+
+**Don't lose candidate URLs while iterating.** Recording a candidate is not the same as claiming approval, and compaction will eat unlogged URLs. Park in-flight takes under a `#### Candidates (pending approval)` bullet, and on approval promote the winner to a normal entry and mark the rest `(rejected)`:
+
+```md
+2. **Rainy street walk** — neon reflections, slow dolly
+   #### Candidates (pending approval)
+   - take 1: https://...02-rain-a.png  (flux-2-pro, 2026-08-17)
+   - take 2: https://...02-rain-b.png  (flux-2-pro, 2026-08-17)
+```
+
+after the user picks take 2:
+
+```md
+2. **Rainy street walk** — neon reflections, slow dolly
+   - still: https://...02-rain-b.png  (flux-2-pro · 1K, approved 2026-08-17)
+   - take 1: https://...02-rain-a.png  (rejected 2026-08-17)
+```
+
+**Re-confirm state after a long loop.** When a session has churned through many takes, restate the approved set before moving on — "so we're locked on: @maya, moodboard #noir, scenes 1-3" — and make the log match. An approval loop that ends without a written-down approved state is how the wrong asset ships.
+
 ## When to WRITE to it
 
-**Immediately after every successful generation tool call**, before your next tool call or your final reply. The runtime will inject a reminder after generation tool results — treat that as a hard rule, not a suggestion.
+**Immediately once an artifact is approved** (see the approval gates above), before your next tool call or your final reply. The runtime will inject a reminder after generation tool results — treat that as a hard rule, not a suggestion. Where there is no approval loop — the user asked for one thing and got it, or delegated the choice to you — approval is implicit and you log right away.
 
 Tools that REQUIRE logging:
 - `generate_image`, `generate_image_edit`, `edit_image`
@@ -52,6 +93,8 @@ Stub for first creation:
 
 **Brief:** <paraphrase of user's overall goal in 1-3 sentences>
 **Now working on:** <the immediate next step>
+**Approved:** <locked assets — DNAs, moodboards, scenes; "nothing yet" if still iterating>
+**Awaiting approval:** <what you've presented and are waiting on; omit when nothing is pending>
 **Last updated:** <ISO date>
 
 ---
@@ -107,6 +150,8 @@ When a user request supersedes a previous artifact (e.g., "redo scene 2 with mor
 4. **Do not log failures.** Only successful generations.
 5. **Resolve user references via the log, not chat history.** If the user says "scene 3," use the URL the log says is scene 3, even if a later tool_result mentioned a different URL.
 6. **One file per workspace.** Multiple concurrent productions go under separate `## Production: <name>` headings inside the same file.
+7. **Approved state is user-granted, never assumed.** A generation succeeding is not approval. Only the user's "yes" — or their explicit delegation of the choice to you — promotes a candidate to an approved entry. Silence is not approval; neither is the user moving on to another topic.
+8. **The `## 🎯 Now` block names what is locked.** Keep an `**Approved:**` line there listing the currently-approved cast, DNAs, moodboards, and scenes, so the approved state survives compaction and is the first thing you read next session.
 
 ## Bulk Generation Entry Shape
 

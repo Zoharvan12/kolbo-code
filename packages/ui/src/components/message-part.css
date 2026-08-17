@@ -1226,7 +1226,10 @@
    the whole composer. */
 [data-component="prompt-input"] {
   outline: none;
-  caret-color: var(--kolbo-accent, #034cff);
+  /* Brand blue at full saturation sat right on top of the placeholder's first
+     glyph and read as a rendering defect. Blended toward the text colour it
+     still reads as Kolbo blue but stops fighting the copy beside it. */
+  caret-color: color-mix(in srgb, var(--kolbo-accent, #034cff) 55%, var(--text-strong, #fff));
   transition: caret-color 180ms ease;
 }
 

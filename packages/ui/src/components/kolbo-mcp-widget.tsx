@@ -315,7 +315,23 @@ export function KolboMcpWidget(props: {
     }
     if (msg.method === "ui/notifications/size-changed") {
       const next = Number(msg.params?.height)
-      if (Number.isFinite(next) && next > 0) setH(Math.min(Math.max(next, 180), 720))
+      // 720 was below what a completed image card actually needs (header +
+      // prompt + chips + preview + actions + footer), so every finished
+      // generation got an inner scrollbar. The widget already clamps itself
+      // against the screen; this is just a runaway guard.
+      if (Number.isFinite(next) && next > 0) setH(Math.min(Math.max(next, 180), 1400))
+      return
+    }
+    if (msg.method === "ui/attach-media") {
+      // The widget can't drag its media out — it's a sandboxed cross-origin
+      // iframe, so a native drag never hands dataTransfer to this document.
+      // It posts the URL instead and the composer attaches it (see
+      // attachments.ts handleWidgetAttach).
+      const url = msg.params?.url
+      if (typeof url === "string" && /^https?:\/\//.test(url)) {
+        document.dispatchEvent(new CustomEvent("kolbo:attach-media", { detail: { url } }))
+      }
+      if (msg.id != null) reply(msg.id, {})
       return
     }
     if (msg.method === "ui/open-link") {
@@ -347,6 +363,12 @@ export function KolboMcpWidget(props: {
         src={src()}
         title="Kolbo"
         sandbox="allow-scripts allow-same-origin allow-popups"
+        // Without these the <video> element's fullscreen button is inert: the
+        // Fullscreen API is gated per-frame, so a cross-origin iframe has to be
+        // granted it explicitly. `allow` is the modern form, `allowfullscreen`
+        // the legacy attribute some webviews still key on — send both.
+        allow="fullscreen; clipboard-write"
+        allowfullscreen
         style={{
           width: "100%",
           height: `${h()}px`,

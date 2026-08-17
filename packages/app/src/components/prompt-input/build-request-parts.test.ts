@@ -364,4 +364,62 @@ describe("buildRequestParts", () => {
       expect(filePart.url).toContain("/..")
     }
   })
+
+  test("binds a Visual DNA mention to its id and attaches the reference image", () => {
+    const prompt: Prompt = [
+      {
+        type: "kolbo-asset",
+        kind: "visual-dna",
+        id: "vdna_abc",
+        name: "maya",
+        thumbnail: "https://cdn.kolbo.ai/dna/maya.png",
+        content: "@maya",
+        start: 0,
+        end: 5,
+      },
+    ]
+
+    const result = buildRequestParts({
+      prompt,
+      context: [],
+      images: [],
+      text: "@maya walking in Tokyo",
+      messageID: "msg_dna",
+      sessionID: "ses_dna",
+      sessionDirectory: "/repo",
+    })
+
+    // The id binding — without it a duplicate DNA name resolves first-match server-side.
+    const note = result.requestParts.find((part) => part.type === "text" && part.synthetic)
+    expect(note?.type === "text" && note.text).toContain("vdna_abc")
+    expect(note?.type === "text" && note.text).toContain("@maya")
+    expect(note?.type === "text" && note.text).toContain("visual_dna_ids")
+
+    // The reference image, as an http(s) file part the server inlines as base64.
+    const image = result.requestParts.find((part) => part.type === "file")
+    expect(image?.type === "file" && image.url).toBe("https://cdn.kolbo.ai/dna/maya.png")
+    expect(image?.type === "file" && image.mime).toBe("image/png")
+  })
+
+  test("a moodboard mention binds moodboard_id; a thumbnail-less asset still binds", () => {
+    const prompt: Prompt = [
+      { type: "kolbo-asset", kind: "moodboard", id: "mb_1", name: "noir", content: "#noir", start: 0, end: 5 },
+    ]
+
+    const result = buildRequestParts({
+      prompt,
+      context: [],
+      images: [],
+      text: "#noir",
+      messageID: "msg_mb",
+      sessionID: "ses_mb",
+      sessionDirectory: "/repo",
+    })
+
+    const note = result.requestParts.find((part) => part.type === "text" && part.synthetic)
+    expect(note?.type === "text" && note.text).toContain("mb_1")
+    expect(note?.type === "text" && note.text).toContain("moodboard_id")
+    // No thumbnail → no file part, rather than a broken one.
+    expect(result.requestParts.some((part) => part.type === "file")).toBe(false)
+  })
 })
