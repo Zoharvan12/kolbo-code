@@ -68,6 +68,46 @@ function urlsFromFields(obj: Record<string, unknown>): string[] {
 }
 
 /**
+ * Did this result actually PRODUCE media? Stricter than extractKolboUrls on
+ * purpose, and used to decide whether a tool gets a generation card at all.
+ *
+ * extractKolboUrls is deliberately generous — it ends with a bare `url`
+ * fallback and walks `data`/`results`/`generations` rows applying it per item,
+ * which is right for pulling every asset out of a batch result. Using that same
+ * generosity to ANSWER "is this a generation?" is what made unrelated tools
+ * render as big image cards: any list row or doc result carrying a `url` looked
+ * like generated output, so `update_doc` and friends mounted a media card and
+ * rendered a Kolbo logo as if it were the result.
+ *
+ * Only two things count here: the operation envelope, or a real output field
+ * (`urls` / `image_urls` / … — never a bare `url`, never a per-row url).
+ */
+export function hasGeneratedOutput(output: string | undefined): boolean {
+  if (!output) return false
+  let obj: unknown
+  try {
+    obj = JSON.parse(output)
+  } catch {
+    return false
+  }
+  if (!obj || typeof obj !== "object") return false
+  const rec = obj as Record<string, unknown>
+  if (rec.schema === "kolbo.operation/1" && Array.isArray(rec.outputs)) return rec.outputs.length > 0
+  const fromFields = (o: Record<string, unknown>) =>
+    KOLBO_OUTPUT_FIELDS.some((field) => {
+      const value = o[field]
+      if (Array.isArray(value)) return value.some((v) => typeof v === "string" && /^https?:\/\//.test(v))
+      return typeof value === "string" && /^https?:\/\//.test(value)
+    })
+  if (fromFields(rec)) return true
+  // get_generation_status recovers a timed-out generation as
+  // { state, result: { urls: [...] } } — a real generation, one level down.
+  const result = rec.result
+  if (result && typeof result === "object" && fromFields(result as Record<string, unknown>)) return true
+  return false
+}
+
+/**
  * Pull the real generated URLs from a Kolbo MCP tool result. Prefers
  * structured output fields (so echoed input URLs / poster URLs /
  * `_followup_hint` text don't pollute the result), falls back to a

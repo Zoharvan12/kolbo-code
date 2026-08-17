@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { generative } from "./kolbo-mcp-widget"
+import { hasGeneratedOutput } from "@opencode-ai/util/kolbo-media"
 import { advertised, card, costOf, parse, player, read, SCHEMA } from "./kolbo-operation"
 
 const SMELL = "https://cdn.example/never-seen.mp3"
@@ -171,6 +172,32 @@ describe("kolbo.operation/1 host contract", () => {
 
   test("plain json with a url but no generation markers is ignored", () => {
     expect(read(JSON.stringify({ url: "https://example.com", name: "readme" }))).toBeUndefined()
+  })
+
+  test("hasGeneratedOutput only fires on real generated media", () => {
+    // The false positives that made unrelated tools render as image cards: a
+    // doc/list result carrying a bare `url`, or rows each carrying one.
+    expect(hasGeneratedOutput(JSON.stringify({ url: "https://app.kolbo.ai/docs/abc", title: "Brief" }))).toBe(false)
+    expect(
+      hasGeneratedOutput(
+        JSON.stringify({ data: [{ id: "m1", url: "https://media.kolbo.ai/uploaded/a.png" }] }),
+      ),
+    ).toBe(false)
+    expect(hasGeneratedOutput(JSON.stringify({ models: [{ avatar: "kolbo-ai.png" }] }))).toBe(false)
+    expect(hasGeneratedOutput("not json")).toBe(false)
+    expect(hasGeneratedOutput(undefined)).toBe(false)
+
+    // Real generations still register.
+    expect(hasGeneratedOutput(JSON.stringify({ urls: ["https://media.kolbo.ai/gen/a.png"] }))).toBe(true)
+    expect(hasGeneratedOutput(JSON.stringify({ video_url: "https://media.kolbo.ai/gen/a.mp4" }))).toBe(true)
+    // get_generation_status recovery shape — urls one level down.
+    expect(
+      hasGeneratedOutput(JSON.stringify({ state: "completed", result: { urls: ["https://media.kolbo.ai/gen/b.png"] } })),
+    ).toBe(true)
+    expect(
+      hasGeneratedOutput(JSON.stringify({ schema: SCHEMA, outputs: [{ url: "https://media.kolbo.ai/gen/c.png" }] })),
+    ).toBe(true)
+    expect(hasGeneratedOutput(JSON.stringify({ schema: SCHEMA, outputs: [] }))).toBe(false)
   })
 
   test("invalid JSON that starts with { does not throw", () => {

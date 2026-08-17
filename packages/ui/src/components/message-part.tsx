@@ -40,6 +40,7 @@ import { BasicTool, GenericTool } from "./basic-tool"
 import { setupPathLinks } from "./markdown"
 import {
   extractKolboUrls as extractKolboUrlsShared,
+  hasGeneratedOutput,
   isVideoUrl as isVideoUrlShared,
   openKolboLightbox,
   startMediaDrag,
@@ -1670,7 +1671,12 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
     const widget = (state.metadata?.structuredContent as { widget?: unknown } | undefined)?.widget
     if (typeof widget === "string" && widget !== "generation") return KolboOperationCard
     if (read(state.output, state.metadata)) return KolboOperationCard
-    if (extractKolboUrlsShared(state.output).length > 0) return KolboOperationCard
+    // hasGeneratedOutput, NOT extractKolboUrls: the latter's bare-`url` and
+    // per-row fallbacks are right for harvesting assets but wrong for deciding
+    // "is this a generation" — they made any tool whose result carried a url
+    // (update_doc, list rows) mount a media card and render a logo as if it
+    // were the output.
+    if (hasGeneratedOutput(state.output)) return KolboOperationCard
     const name = tool.replace(/^kolbo_/, "").replace(/^mcp__kolbo__/, "")
     if (name.startsWith("list_")) return KolboOperationCard
     if (generative(name)) return KolboOperationCard
@@ -3336,9 +3342,15 @@ function KolboOperationCard(props: {
     const env = reported()
     const check = platformOps.generationStatus
     if (!check || !env || env.phase !== "running" || env.outputs.length > 0) return
-    // Still inside the tool call — its own result will arrive. Only an already
-    // returned, still-running generation is orphaned.
-    if (props.status !== "completed") return
+    // Poll once the tool call can no longer deliver the result itself.
+    // "completed" is the normal case. "error" is the one that mattered and was
+    // missing: interrupting a turn aborts the tool call, so its result NEVER
+    // arrives — and that is exactly when the generation still needs watching.
+    // It is already submitted and already paid for, and it lands in the library
+    // either way; refusing to poll just left the card spinning forever and hid
+    // an image the user owns. Interrupting is not cancelling — cancelling is the
+    // Stop button on the card, and nothing else calls cancelGeneration.
+    if (props.status !== "completed" && props.status !== "error") return
     const id = env.id
     if (!id) return
     let stopped = false

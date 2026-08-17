@@ -9,6 +9,7 @@ export {
   KOLBO_OUTPUT_FIELDS,
   KOLBO_VIDEO_EXT_RE,
   extractKolboUrls,
+  hasGeneratedOutput,
   isVideoUrl,
   mediaKey,
 } from "@opencode-ai/util/kolbo-media"
