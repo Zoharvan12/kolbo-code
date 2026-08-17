@@ -8,9 +8,6 @@ import config from "./config.mjs"
 import { rehypeHeadingIds } from "@astrojs/markdown-remark"
 import rehypeAutolinkHeadings from "rehype-autolink-headings"
 import { spawnSync } from "child_process"
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
 
 // https://astro.build/config
 export default defineConfig({
