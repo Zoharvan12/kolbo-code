@@ -67,6 +67,17 @@ describe("extractKolboUrls", () => {
     expect(extractKolboUrls(out)).toEqual([IMG, IMG2])
   })
 
+  test("regex fallback skips model icons and branding assets", () => {
+    // Non-JSON output falls through to the blind URL sweep. A Kolbo logo or a
+    // model avatar riding along in the text is UI furniture, not an output —
+    // it used to render as a generated image next to the real one.
+    const out =
+      `Here is your sheet: ${IMG}\n` +
+      "model icon https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/models_icons/kolbo-ai.png\n" +
+      "logo https://api.kolbo.ai/assets/kolbo-ai.png"
+    expect(extractKolboUrls(out)).toEqual([IMG])
+  })
+
   test("reads urls from a kolbo.operation/1 envelope", () => {
     const out = JSON.stringify({
       schema: "kolbo.operation/1",

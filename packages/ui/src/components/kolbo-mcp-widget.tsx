@@ -1,4 +1,5 @@
 import { Show, createEffect, createSignal, onCleanup, untrack } from "solid-js"
+import { unwrap } from "solid-js/store"
 import { useKolboModels } from "../context/kolbo-models"
 import { usePlatformOps } from "../context/platform-ops"
 import { read, type Operation } from "./kolbo-operation"
@@ -132,7 +133,25 @@ function listed(output?: string) {
   }
 }
 
-function structured(
+/**
+ * The payload is postMessage'd into the widget iframe, and `metadata` / `input`
+ * come straight off the session store — where every nested object is a Proxy.
+ * Structured clone refuses a Proxy outright ("#<Object> could not be cloned"),
+ * and that throw inside the push effect took the whole app down. unwrap() is
+ * deep, so one call here covers structuredContent and the settings arrays alike.
+ */
+export function structured(
+  output?: string,
+  metadata?: Record<string, unknown>,
+  input?: Record<string, unknown>,
+  tool?: string,
+  resolved?: Operation,
+) {
+  const data = build(output, metadata, input, tool, resolved)
+  return data && typeof data === "object" ? unwrap(data) : data
+}
+
+function build(
   output?: string,
   metadata?: Record<string, unknown>,
   input?: Record<string, unknown>,
@@ -157,12 +176,24 @@ function structured(
     generation_id: op.id,
     urls: op.outputs.map((item) => item.url),
     model: op.model.id,
+    // Generation type ("text_to_img", "image_editing", …) — the key the model
+    // chip needs to resolve a generation model's name + avatar.
+    route: op.route,
     credits_used: op.cost,
     prompt: op.prompt || (typeof input?.prompt === "string" ? input.prompt : ""),
+    // Rebuilt from the tool INPUT, because this path is reached when the MCP's
+    // own structuredContent isn't available (a generation resolved by polling
+    // after the tool call gave up). Anything omitted here is a chip the card
+    // silently loses on that path.
     settings: {
       aspect_ratio: input?.aspect_ratio,
       resolution: input?.resolution,
       quality: input?.quality,
+      duration: input?.duration,
+      visual_dna_ids: input?.visual_dna_ids,
+      moodboard_id: input?.moodboard_id,
+      moodboard_ids: input?.moodboard_ids,
+      preset_id: input?.preset_id,
     },
   }
 }
@@ -191,16 +222,25 @@ export function KolboMcpWidget(props: {
    * because WebView2 cannot fetch api.kolbo.ai avatars directly.
    */
   const withModelChip = (data: Record<string, unknown>) => {
-    if (data.widget !== "generation" || data.model_icon || data.model_name) return data
+    if (data.widget !== "generation" || (data.model_icon && data.model_name)) return data
     const id = typeof data.model === "string" ? data.model : ""
     if (!id) return data
+    // lookup() only knows the CHAT catalog (/kolbo/v1/models filters `type:
+    // "code"`), so a generation model like "nano-banana-2" misses it entirely
+    // and the chip degrades to the raw identifier next to a first-letter
+    // circle. byType() is the catalog that has them — same source the approval
+    // card's model picker already uses.
+    const route = typeof data.route === "string" ? data.route : ""
+    const typed = route ? kolboModels.byType(route).find((m) => m.id === id) : undefined
     const info = kolboModels.lookup(id)
-    const icon = info.avatar ? (ops.imageProxyUrl?.(info.avatar) ?? info.avatar) : undefined
-    if (!info.name && !icon) return data
+    const name = typed?.name ?? info.name
+    const avatar = typed?.avatar ?? info.avatar
+    const icon = avatar ? (ops.imageProxyUrl?.(avatar) ?? avatar) : undefined
+    if (!name && !icon) return data
     return {
       ...data,
-      ...(info.name ? { model_name: info.name } : {}),
-      ...(icon ? { model_icon: icon } : {}),
+      ...(!data.model_name && name ? { model_name: name } : {}),
+      ...(!data.model_icon && icon ? { model_icon: icon } : {}),
     }
   }
 

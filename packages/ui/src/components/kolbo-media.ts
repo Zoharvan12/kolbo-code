@@ -126,7 +126,17 @@ export function extractKolboUrls(output: string | undefined): string[] {
   while ((m = mdRe.exec(output)) !== null) all.push(m[2].trim())
   const bareRe = /(?<!\()(https?:\/\/[^\s"'<>)]+)/g
   while ((m = bareRe.exec(output)) !== null) all.push(m[1].trim())
-  return unique(all)
+  return unique(all.filter((url) => !isChrome(url)))
+}
+
+// UI furniture, not generated media. The regex scan above is a blind sweep of
+// every URL in the text, so any model avatar or Kolbo logo that rides along in
+// a tool result gets promoted to "generated image" and shows up in the chip
+// strip next to the real outputs.
+const CHROME_RE = /\/models_icons\/|\/assets\/[^/]+\.(png|jpe?g|svg|webp|avif)(?=$|[?#])|\/chat-agent-icons\//i
+
+function isChrome(url: string): boolean {
+  return CHROME_RE.test(url)
 }
 
 // Single canonical video extension regex. Includes `ogv` (canvas's old
