@@ -92,7 +92,7 @@ const defaultSettings: Settings = {
     autoSave: true,
     releaseNotes: true,
     followup: "queue",
-    showReasoningSummaries: false,
+    showReasoningSummaries: true,
     shellToolPartsExpanded: false,
     editToolPartsExpanded: false,
     showSessionProgressBar: true,

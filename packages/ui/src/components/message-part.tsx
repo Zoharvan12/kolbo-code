@@ -1874,19 +1874,55 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   )
 }
 
+// One-line gist for the collapsed row: the first line of the reasoning with
+// its markdown markers stripped. Long lines are cut by CSS, not here, so the
+// ellipsis lands wherever the row actually runs out of width.
+function reasoningGist(text: string) {
+  for (const line of text.split("\n")) {
+    const bare = line
+      .replace(/^\s{0,3}#{1,6}\s+/, "")
+      .replace(/^\s{0,3}[-*+>]\s+/, "")
+      .replace(/^\s{0,3}\d+\.\s+/, "")
+      .replace(/[*_`]/g, "")
+      .trim()
+    if (bare) return bare
+  }
+  return ""
+}
+
 PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
+  const i18n = useI18n()
   const part = () => props.part as ReasoningPart
   const streaming = createMemo(
     () => props.message.role === "assistant" && typeof (props.message as AssistantMessage).time.completed !== "number",
   )
   const text = () => part().text.trim()
 
+  // Open while the model is still thinking — that live stream is the point of
+  // showing reasoning at all — then fold to a single line once the turn lands,
+  // so a finished transcript stays skimmable. `on` fires only when streaming
+  // actually flips, so a manual toggle afterwards is never overridden.
+  const [open, setOpen] = createSignal(streaming())
+  createEffect(on(streaming, (now) => setOpen(now), { defer: true }))
+
   return (
     <Show when={text()}>
       <div data-component="reasoning-part">
-        <Show when={streaming()} fallback={<Markdown text={text()} cacheKey={part().id} streaming={false} />}>
-          <PacedMarkdown text={text()} cacheKey={part().id} streaming={streaming()} />
-        </Show>
+        <Collapsible open={open()} onOpenChange={setOpen} variant="ghost">
+          <Collapsible.Trigger>
+            <div data-component="reasoning-trigger">
+              <span data-slot="reasoning-trigger-text">
+                {open() ? i18n.t("ui.sessionTurn.status.thinking") : reasoningGist(text())}
+              </span>
+              <Collapsible.Arrow />
+            </div>
+          </Collapsible.Trigger>
+          <Collapsible.Content>
+            <Show when={streaming()} fallback={<Markdown text={text()} cacheKey={part().id} streaming={false} />}>
+              <PacedMarkdown text={text()} cacheKey={part().id} streaming={streaming()} />
+            </Show>
+          </Collapsible.Content>
+        </Collapsible>
       </div>
     </Show>
   )

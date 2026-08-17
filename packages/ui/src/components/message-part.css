@@ -394,6 +394,33 @@
   color: var(--text-base);
   line-height: var(--line-height-normal);
 
+  /* Collapsed, the whole block is this one row: the first line of the
+     reasoning, clipped to whatever width is left. */
+  [data-component="reasoning-trigger"] {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    margin-top: 24px;
+    color: var(--text-weak);
+    font-size: var(--font-size-base);
+    text-align: start;
+  }
+
+  [data-slot="reasoning-trigger-text"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* The trigger already carries the top margin for the block. */
+  [data-slot="collapsible-content"] [data-component="markdown"]:first-child {
+    margin-top: 8px;
+  }
+
   [data-component="markdown"] {
     margin-top: 24px;
     font-style: normal;
