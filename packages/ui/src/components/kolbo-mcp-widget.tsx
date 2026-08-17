@@ -140,6 +140,33 @@ function listed(output?: string) {
  * and that throw inside the push effect took the whole app down. unwrap() is
  * deep, so one call here covers structuredContent and the settings arrays alike.
  */
+/**
+ * Guaranteed structured-clone safety net for the widget postMessage payload.
+ *
+ * `structured()` already runs solid-js/store's `unwrap()`, but that unwrap is
+ * only reliably deep when the value it is CALLED ON is plain: it recurses
+ * through plain objects/arrays fine, but the moment it hits a value that is
+ * ITSELF already a store Proxy, it returns that Proxy's raw value immediately
+ * — without recursing into THAT raw's own children (solid-js/store/dist:
+ * `if (result = item != null && item[$RAW]) return result;`, no further walk).
+ * So a Proxy assigned two levels deep — e.g. withModelChip's `{ ...data,
+ * model_name, model_icon }` spread, or a resolved Operation handed in from a
+ * different store — survives. postMessage's structured-clone algorithm
+ * refuses a Proxy outright ("DataCloneError: ... could not be cloned"), and
+ * that throw inside the push effect took the whole app down.
+ *
+ * JSON is the actual proxy-stripper: JSON.stringify transparently forwards
+ * every Proxy trap (get/ownKeys/…), so it can only ever emit plain values —
+ * there is no way for a Proxy's identity to survive a JSON round-trip.
+ */
+export function serializeForWidget<T>(value: T): T | undefined {
+  try {
+    return JSON.parse(JSON.stringify(value)) as T
+  } catch {
+    return undefined
+  }
+}
+
 export function structured(
   output?: string,
   metadata?: Record<string, unknown>,
@@ -246,7 +273,8 @@ export function KolboMcpWidget(props: {
 
   const payload = () => {
     const data = structured(props.output, props.metadata, props.input, props.tool, props.resolved)
-    return data && typeof data === "object" ? withModelChip(data as Record<string, unknown>) : data
+    const chipped = data && typeof data === "object" ? withModelChip(data as Record<string, unknown>) : data
+    return chipped === undefined ? chipped : serializeForWidget(chipped)
   }
 
   // Push even with no structuredContent. A widget that never receives a
