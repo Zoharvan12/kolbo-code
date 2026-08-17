@@ -201,6 +201,20 @@ jobs:
           set -euo pipefail
           cd mcp
           npm version patch --no-git-tag-version
+          # A run that dies between publishing and pushing leaves npm and the
+          # release tags ahead of main, so the next patch bump lands on a version
+          # that already exists and the tag push is rejected. Skip anything
+          # already taken on either side rather than colliding with it.
+          for _ in $(seq 1 20); do
+            NEW=$(node -p "require('./package.json').version")
+            if npm view "@kolbo/mcp@${NEW}" version >/dev/null 2>&1 ||
+               git ls-remote --exit-code --tags origin "v${NEW}" >/dev/null 2>&1; then
+              echo "version ${NEW} already exists on npm or as a tag — bumping past it"
+              npm version patch --no-git-tag-version
+            else
+              break
+            fi
+          done
           npm ci
           npm run smoke
           npm run check-skill-bundle
