@@ -18,6 +18,7 @@
   --color-surface-inset-base-hover: var(--surface-inset-base-hover);
   --color-surface-inset-strong: var(--surface-inset-strong);
   --color-surface-inset-strong-hover: var(--surface-inset-strong-hover);
+  --color-surface-recess-base: var(--surface-recess-base);
   --color-surface-raised-base: var(--surface-raised-base);
   --color-surface-float-base: var(--surface-float-base);
   --color-surface-float-base-hover: var(--surface-float-base-hover);

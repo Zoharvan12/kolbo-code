@@ -13,6 +13,7 @@
 --surface-inset-base-hover: var(--smoke-light-alpha-3);
 --surface-inset-strong: #1F000017;
 --surface-inset-strong-hover: #1F000017;
+--surface-recess-base: #F0F0F0;
 --surface-raised-base: var(--smoke-light-alpha-1);
 --surface-float-base: var(--smoke-dark-1);
 --surface-float-base-hover: var(--smoke-dark-2);

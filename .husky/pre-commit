@@ -25,9 +25,10 @@ for FILE in $STAGED; do
     # them is required, not cosmetic: without it the hook blocks every commit that
     # touches it.
     # `.husky/pre-commit` does NOT match `*hooks/pre-commit`, so without the
-    # .husky patterns the guard blocks the commit that would track the guard —
-    # which is exactly why it stayed untracked, and unarmed, on every clone.
-    .husky/*|*/.husky/*|*hooks/pre-commit|*.githooks/*|*malware-scan.yml|*scanner*|*malware*|*INCIDENT-*.md) continue ;;
+    # .husky patterns the guard matches its OWN IOC list on line 64 and blocks
+    # the commit that would track the guard — which is exactly why it stayed
+    # untracked, and unarmed, on every clone. Removing these re-broke that.
+    .husky/*|*/.husky/*|*hooks/pre-commit|*.githooks/*|*malware-scan.yml|*scanner*|*malware*|*INCIDENT-*.md|*scan-c2.sh) continue ;;
     *.map|*.min.js|*.min.ts) continue ;;
     node_modules/*|*/node_modules/*|dist/*|build/*|*/dist/*|*/build/*) continue ;;
   esac

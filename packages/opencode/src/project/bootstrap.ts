@@ -14,12 +14,15 @@ import { Bus } from "../bus"
 import { Command } from "../command"
 import { Instance } from "./instance"
 import { Log } from "@/util/log"
+import { KolboShare } from "@/share/kolbo-share"
 import { ShareNext } from "@/share/share-next"
 
 export async function InstanceBootstrap() {
   Log.Default.info("bootstrapping", { directory: Instance.directory })
   // Fire non-blocking inits immediately (they all initialize lazily on first use)
   ShareNext.init()
+  const orphaned = KolboShare.reconcile()
+  if (orphaned) Log.Default.info("dropped share links from the retired backend", { sessions: orphaned })
   Format.init()
   LSP.init() // don't await — initializes lazily on first file touch
   File.init()

@@ -19,6 +19,10 @@ import { provideTmpdirInstance } from "../fixture/fixture"
 import { resetDatabase } from "../fixture/db"
 import { testEffect } from "../lib/effect"
 
+// ShareNext is the upstream opncd.ai sync path, off by default now that sharing publishes
+// to Kolbo instead (see src/share/kolbo-share.ts). Opt in so these tests still cover it.
+process.env["KOLBO_ENABLE_OPENCODE_SHARE"] = "true"
+
 const env = Layer.mergeAll(
   Session.defaultLayer,
   AccountRepo.layer,

@@ -17,7 +17,10 @@ import { SessionShareTable } from "./share.sql"
 
 export namespace ShareNext {
   const log = Log.create({ service: "share-next" })
-  const disabled = process.env["KOLBO_DISABLE_SHARE"] === "true" || process.env["KOLBO_DISABLE_SHARE"] === "1"
+  // Sharing runs on Kolbo now (see kolbo-share.ts). The upstream opncd.ai sync path is
+  // off by default so session content is never pushed to a server we do not own; `url()`
+  // and `request()` stay live because `kodu import` still reads opencode share links.
+  const disabled = () => process.env["KOLBO_ENABLE_OPENCODE_SHARE"] !== "true"
 
   export type Api = {
     create: string
@@ -119,7 +122,7 @@ export namespace ShareNext {
 
       function sync(sessionID: SessionID, data: Data[]): Effect.Effect<void> {
         return Effect.gen(function* () {
-          if (disabled) return
+          if (disabled()) return
           const s = yield* InstanceState.get(state)
           const existing = s.queue.get(sessionID)
           if (existing) {
@@ -157,7 +160,7 @@ export namespace ShareNext {
             ),
           )
 
-          if (disabled) return cache
+          if (disabled()) return cache
 
           const watch = <D extends { type: string }>(
             def: D,
@@ -230,7 +233,7 @@ export namespace ShareNext {
       })
 
       const flush = Effect.fn("ShareNext.flush")(function* (sessionID: SessionID) {
-        if (disabled) return
+        if (disabled()) return
         const s = yield* InstanceState.get(state)
         const queued = s.queue.get(sessionID)
         if (!queued) return
@@ -280,7 +283,7 @@ export namespace ShareNext {
       })
 
       const init = Effect.fn("ShareNext.init")(function* () {
-        if (disabled) return
+        if (disabled()) return
         yield* InstanceState.get(state)
       })
 
@@ -289,7 +292,7 @@ export namespace ShareNext {
       })
 
       const create = Effect.fn("ShareNext.create")(function* (sessionID: SessionID) {
-        if (disabled) return { id: "", url: "", secret: "" }
+        if (disabled()) return { id: "", url: "", secret: "" }
         log.info("creating share", { sessionID })
         const req = yield* request()
         const result = yield* HttpClientRequest.post(`${req.baseUrl}${req.api.create}`).pipe(
@@ -321,7 +324,7 @@ export namespace ShareNext {
       })
 
       const remove = Effect.fn("ShareNext.remove")(function* (sessionID: SessionID) {
-        if (disabled) return
+        if (disabled()) return
         log.info("removing share", { sessionID })
         const share = yield* get(sessionID)
         if (!share) return

@@ -125,6 +125,8 @@ export namespace Partner {
    *
    * Scheme is preserved from the source URL so http://localhost works.
    */
+  const GENERIC_HOST_LABELS = new Set(["app", "www"])
+
   function derive(apiBase: string, appBaseOverride?: string): Partial<Profile> {
     const apiUrl = parseUrl(apiBase)
     if (!apiUrl) return { apiBase }
@@ -132,7 +134,11 @@ export namespace Partner {
     // The "branding host" is the user-facing app host. When app and api are
     // on different subdomains, this is what id/name/domain are derived from.
     const brandHostname = stripPort(appUrl.host)
-    const firstLabel = brandHostname.split(".")[0] || "partner"
+    // `app.` / `www.` are plumbing, not branding — app.kolbo.ai is Kolbo, not "App".
+    // Any other first label still wins, so staging.kolbo.ai stays "staging" (see above).
+    const labels = brandHostname.split(".").filter(Boolean)
+    while (labels.length > 1 && GENERIC_HOST_LABELS.has(labels[0]!.toLowerCase())) labels.shift()
+    const firstLabel = labels[0] || "partner"
     const appOrigin = `${appUrl.protocol}//${appUrl.host}`
     return {
       id: firstLabel,

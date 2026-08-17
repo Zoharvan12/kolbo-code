@@ -45,3 +45,6 @@ branch_structure.json
 # graphify knowledge graph — local build artifact (~60MB), rebuilt by git hook
 graphify-out/
 .dev-logs/
+
+# Local dev config — holds a live Kolbo API key, must never be committed.
+packages/desktop/src-tauri/config.json

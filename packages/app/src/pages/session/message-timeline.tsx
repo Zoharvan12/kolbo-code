@@ -419,6 +419,9 @@ export function MessageTimeline(props: {
   })
 
   let more: HTMLButtonElement | undefined
+  // Dedicated share affordance in the header. The popover anchors here when it is
+  // present, falling back to the overflow button on child sessions.
+  let shareAnchor: HTMLButtonElement | undefined
   let head: HTMLDivElement | undefined
 
   createResizeObserver(
@@ -941,6 +944,24 @@ export function MessageTimeline(props: {
                           </KobaltePopover>
                         </Show>
                         <SessionUsageMenu />
+                        <Show when={!parentID() && shareEnabled()}>
+                          <Button
+                            icon="share"
+                            variant="ghost"
+                            size="small"
+                            class="h-6 rounded-md px-1.5"
+                            classList={{
+                              "bg-surface-base-active": share.open || title.pendingShare,
+                            }}
+                            aria-expanded={share.open || title.pendingShare}
+                            onClick={() => setShare({ open: !share.open, dismiss: null })}
+                            ref={(el: HTMLButtonElement) => {
+                              shareAnchor = el
+                            }}
+                          >
+                            {language.t("session.share.action.share")}
+                          </Button>
+                        </Show>
                         <Show when={!parentID()}>
                           <DropdownMenu
                             gutter={4}
@@ -1018,7 +1039,7 @@ export function MessageTimeline(props: {
 
                           <KobaltePopover
                             open={share.open}
-                            anchorRef={() => more}
+                            anchorRef={() => shareAnchor ?? more}
                             placement="bottom-end"
                             gutter={4}
                             modal={false}
