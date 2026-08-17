@@ -1,0 +1,102 @@
+#!/bin/sh
+# kolbo-malware-guard-v4
+#
+# v2 checked `^[ ]{100,}\S` — LEADING padding only — and every real infection to date
+# appends the payload MID-LINE, after a legitimate statement (`module.exports = router;`
+# + spaces + code). That one anchor is why six cleanups of kolbo-docs/postcss.config.mjs
+# never held: the hook passed the very commits that reintroduced it. Do not re-add the `^`.
+#
+# v4 (2026-08-17, incident A8-1955): v3 skipped `*.woff2|*.ttf|*.png|...` outright — and the
+# dropper IS a `.woff2` (27,482 B, magic bytes `20202020`, plain JS inside, real fonts beside
+# it as camouflage). The guard was blind to the payload carrier by design. Binary assets are
+# now checked BEFORE the skip: a font must start with a real font signature, and no binary
+# asset may contain executable JavaScript.
+#
+# Scans STAGED CONTENT (`git show :file`), not the working tree, because the payload
+# has appeared between edit and commit.
+
+FAIL=0
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$STAGED" ] && exit 0
+
+for FILE in $STAGED; do
+  case "$FILE" in
+    # The guard files themselves quote these IOCs, as do incident write-ups. Excluding
+    # them is required, not cosmetic: without it the hook blocks every commit that
+    # touches it.
+    # `.husky/pre-commit` does NOT match `*hooks/pre-commit`, so without the
+    # .husky patterns the guard blocks the commit that would track the guard —
+    # which is exactly why it stayed untracked, and unarmed, on every clone.
+    .husky/*|*/.husky/*|*hooks/pre-commit|*.githooks/*|*malware-scan.yml|*scanner*|*malware*|*INCIDENT-*.md) continue ;;
+    *.map|*.min.js|*.min.ts) continue ;;
+    node_modules/*|*/node_modules/*|dist/*|build/*|*/dist/*|*/build/*) continue ;;
+  esac
+
+  # --- Binary assets: checked, then skipped from the text scans -------------------
+  # This block is the v4 fix. Do NOT turn it back into a bare `continue`.
+  case "$FILE" in
+    *.png|*.jpg|*.jpeg|*.gif|*.webp|*.ico|*.mp4|*.mp3|*.wav|*.zip|*.7z|*.exe|*.dll|*.pdf|*.woff|*.woff2|*.ttf|*.otf|*.ttc|*.eot)
+
+      # a) A font must start with a real font signature. wOF2 / wOFF / OTTO /
+      #    00010000 (TrueType) / true / ttcf. Anything else is not a font.
+      case "$FILE" in
+        *.woff|*.woff2|*.ttf|*.otf|*.ttc)
+          MAGIC=$(git show ":$FILE" 2>/dev/null | head -c 4 | od -An -v -tx1 | tr -d ' \n')
+          case "$MAGIC" in
+            774f4632|774f4646|4f54544f|00010000|74727565|74746366) ;;
+            *) echo "SECURITY: $FILE is not a font — magic bytes '$MAGIC', expected wOF2/wOFF/OTTO/00010000"; FAIL=1 ;;
+          esac ;;
+      esac
+
+      # b) No binary asset contains executable JavaScript.
+      if git show ":$FILE" 2>/dev/null | grep -qaE "require\(|module\.exports|child_process|createRequire|process\.(env|argv)|eval\(" 2>/dev/null; then
+        echo "SECURITY: JavaScript inside binary asset $FILE — dropper disguised as media"; FAIL=1
+      fi
+
+      continue ;;
+  esac
+
+  CONTENT=$(git show ":$FILE" 2>/dev/null) || continue
+
+  # 1. Injection padding, ANYWHERE in the line. This is the load-bearing check.
+  if printf '%s' "$CONTENT" | grep -qP '[ ]{100,}\S' 2>/dev/null; then
+    echo "SECURITY: 100+ spaces mid-line then code — injection padding in $FILE"; FAIL=1
+  fi
+
+  # 2. Known IOCs across observed variants (A8-1955 / A9-1672 / EtherHiding).
+  if printf '%s' "$CONTENT" | grep -qE "global\.i *= *['\"]A[0-9]+-|eth_getBlockByNumber|blockscout\.com/api|166\.88\.[0-9]+\.[0-9]+|136\.0\.9\.8|global\['_V'\]" 2>/dev/null; then
+    echo "SECURITY: known C2 loader IOC in $FILE"; FAIL=1
+  fi
+
+  # 3. Unicode-escape density — the loader encodes strings as \uXXXX to defeat grep.
+  N=$(printf '%s' "$CONTENT" | grep -oP '\u00[0-9a-fA-F]{2}' 2>/dev/null | wc -l)
+  if [ "${N:-0}" -gt 100 ]; then
+    echo "SECURITY: $N unicode escapes in $FILE — obfuscated payload signature"; FAIL=1
+  fi
+done
+
+# 4. The .vscode auto-execution vector. tasks.json runs the dropper; settings.json is
+#    what makes it fire — workspace `task.allowAutomaticTasks: true` overrides the
+#    user-level "off". v3 only checked tasks.json, which is why removing 2 of the 3
+#    files failed five times.
+for FILE in $STAGED; do
+  case "$FILE" in
+    *.vscode/tasks.json)
+      if git show ":$FILE" 2>/dev/null | grep -q "folderOpen"; then
+        echo "SECURITY: .vscode/tasks.json runs on folderOpen — auto-execution vector ($FILE)"; FAIL=1
+      fi ;;
+    *.vscode/settings.json)
+      if git show ":$FILE" 2>/dev/null | grep -qE '"task\.allowAutomaticTasks" *: *"?(on|true)"?'; then
+        echo "SECURITY: .vscode/settings.json enables allowAutomaticTasks — auto-execution vector ($FILE)"; FAIL=1
+      fi ;;
+  esac
+done
+
+if [ "$FAIL" -ne 0 ]; then
+  echo ""
+  echo "Commit BLOCKED by kolbo-malware-guard-v4."
+  echo "Do not bypass with --no-verify. Inspect the file; the payload hides behind"
+  echo "a long run of spaces so the file still looks correct in an editor."
+  exit 1
+fi
+exit 0
