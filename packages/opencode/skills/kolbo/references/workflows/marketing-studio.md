@@ -54,6 +54,15 @@ The mode determines which Kolbo MCP tool to call, what defaults to set, and what
 
 **Pick the actual model** with `list_models({ type: "..." })` and validate caps before firing — see SKILL.md "Resolution / Aspect / Duration — validate against caps".
 
+## The Look Itself — read `workflows/ugc-smartphone.md`
+
+The modes and defaults below decide WHAT gets made. The physics that make it read as a
+real phone capture — deep depth of field, computational HDR, named available light,
+imperfect framing — live in `workflows/ugc-smartphone.md`. Read it before writing any
+UGC prompt: **"smartphone" on its own does not produce a smartphone look**, and that file
+is also where the still-image cases live (a user's product photo re-shot as a customer
+snapshot, the to-camera vs observational subject dial).
+
 ## UGC Family Defaults (CRITICAL)
 
 When ANY `ugc*` mode is selected, snap to these unless the user explicitly overrides:

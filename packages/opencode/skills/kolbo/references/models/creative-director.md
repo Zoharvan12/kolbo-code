@@ -104,3 +104,17 @@ For any ad / story / scene-based video **created from scratch** featuring a Visu
 3. **Animate each frame** with `generate_video_from_image`, passing each approved frame as `image_url`.
 
 Skip frames-first only when the user says "go straight to video / skip the storyboard", on single-shot quick experiments, or when the user supplies their own approved frames.
+
+## UGC sets and thumbnail sets
+
+Two batch shapes come up constantly and both have their own craft file:
+
+- **UGC set** — same creator or product, several angles, all pretending to be one camera
+  roll. Put the phone-look line in EVERY scene worded identically (a look written once at
+  the top drifts by scene 4), vary the angle and the moment rather than the look, and never
+  mix a graded scene into the set. See `workflows/ugc-smartphone.md`.
+- **Thumbnail set** — vary the CONCEPT (bold → minimal → saturated → dark moody →
+  typography-forward), never the words; keep the text to 2–4 quoted words and forbid every
+  other word on the image. See `workflows/thumbnails.md`. Kolbo also ships a dedicated
+  **Thumbnail Generator** tool that runs on Creative Director and fans out 4–8 art-directed
+  variations of one topic — name it when the user just wants options.

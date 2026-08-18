@@ -33,7 +33,7 @@ then timecoded `SHOT N — 0:00–0:02 — Medium / camera position` beats. Full
 
 2.5 is where this format earns its keep: 15 shots timed to 30s, ~5k characters, one locked look so every cut matches camera / grade / cast. Do not skip the three blocks. Do not restack GLOBAL LOOK inside shots.
 
-UGC / phone vertical: NEVER write "cinematic". GLOBAL LOOK is phone-native. Use `N connected phone shots, Xs total, 9:16, Multishot ON` and restate `9:16 vertical phone frame` inside every shot.
+UGC / phone vertical (full craft: `workflows/ugc-smartphone.md`): NEVER write "cinematic". GLOBAL LOOK is phone-native. Use `N connected phone shots, Xs total, 9:16, Multishot ON` and restate `9:16 vertical phone frame` inside every shot.
 
 ## Prompt length
 

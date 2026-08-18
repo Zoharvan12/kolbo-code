@@ -171,6 +171,9 @@ NO captions, NO watermarks, NO extra text.
 @image1 (the product) in a {real-world scene description},
 natural {time-of-day} light, {natural action involving the product}.
 Photographic, editorial style, {iPhone | 35mm film | medium format} feel.
+<!-- "iPhone feel" is not a look on its own — for a genuine phone-shot / UGC product
+     photo (deep focus, computational HDR, named available light, real clutter, and the
+     rules for keeping label identity intact) read workflows/ugc-smartphone.md. -->
 {Optional: include hands, partial face — never identifiable people}.
 {Brand palette baked into props/clothing}.
 NO captions, NO watermarks.

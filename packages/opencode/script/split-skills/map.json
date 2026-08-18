@@ -37,7 +37,9 @@
         "references/workflows/cost-and-validation.md",
         "references/workflows/audio-stems.md",
         "references/workflows/media-library.md",
-        "references/workflows/troubleshooting.md"
+        "references/workflows/troubleshooting.md",
+        "references/workflows/ugc-smartphone.md",
+        "references/workflows/thumbnails.md"
       ]
     },
     {
@@ -48,22 +50,26 @@
     {
       "name": "kolbo-creative-director",
       "title": "Kolbo Creative Director — Multi-Scene Batches",
-      "sources": ["references/models/creative-director.md"]
+      "sources": ["references/models/creative-director.md"],
+      "references": ["references/workflows/thumbnails.md", "references/workflows/ugc-smartphone.md"]
     },
     {
       "name": "kolbo-marketing-studio",
       "title": "Kolbo Marketing Studio — UGC & Campaign Assets",
-      "sources": ["references/workflows/marketing-studio.md"]
+      "sources": ["references/workflows/marketing-studio.md"],
+      "references": ["references/workflows/ugc-smartphone.md", "references/workflows/thumbnails.md"]
     },
     {
       "name": "kolbo-dtc-ads",
       "title": "Kolbo DTC Ads",
-      "sources": ["references/workflows/dtc-ads.md"]
+      "sources": ["references/workflows/dtc-ads.md"],
+      "references": ["references/workflows/ugc-smartphone.md"]
     },
     {
       "name": "kolbo-product-photoshoot",
       "title": "Kolbo Product Photoshoot",
-      "sources": ["references/workflows/product-photoshoot.md"]
+      "sources": ["references/workflows/product-photoshoot.md"],
+      "references": ["references/workflows/ugc-smartphone.md"]
     },
     {
       "name": "kolbo-marketplace-cards",

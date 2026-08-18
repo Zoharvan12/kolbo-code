@@ -70,6 +70,8 @@ For multi-scene / batch work this pairs with `generate_creative_director` (see b
 | Build a **dashboard / data viz / interactive widget / mini-game / UI mockup** | `references/models/visual-code.md` |
 | Generate with **any other model** (Flux, Kling, Sora, Hailuo, ElevenLabs, DeepDub, …) — also covers universal prompt-engineering basics | `references/models/prompt-copilot.md` |
 | Build a **UGC ad / TV spot / branded video / unboxing / product review / virtual try-on** | `references/workflows/marketing-studio.md` |
+| Make anything look **shot on a phone** — UGC, selfie, candid, "authentic", a product photo that must not look like an ad (image OR video) | `references/workflows/ugc-smartphone.md` |
+| Make a **YouTube / Shorts / Reels thumbnail** or video cover | `references/workflows/thumbnails.md` |
 | Compose a **DTC ad image** (brand kit + ad format + avatar + product + reference media) | `references/workflows/dtc-ads.md` |
 | Generate **brand product imagery** (studio shot, lifestyle, Pinterest pin, hero banner, carousel, ad pack, virtual try-on, conceptual, restyle) | `references/workflows/product-photoshoot.md` |
 | Generate **marketplace listing cards** (Amazon main + secondary + A+ content) | `references/workflows/marketplace-cards.md` |
