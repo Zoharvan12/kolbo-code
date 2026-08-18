@@ -1469,6 +1469,13 @@ export namespace Provider {
               }
             }
 
+            // Restore the video parts the SDK cannot represent. ProviderTransform
+            // parked each one as a sentinel text part because openai-compatible's
+            // converter throws on any video file part; now that the converter has
+            // run, swap them back into the `video_url` shape kolbo-api recognizes.
+            if (model.api.npm === "@ai-sdk/openai-compatible" && typeof opts.body === "string" && opts.method === "POST") {
+              opts.body = ProviderTransform.restoreVideoParts(opts.body)
+            }
 
             const res = await fetchFn(input, {
               ...opts,

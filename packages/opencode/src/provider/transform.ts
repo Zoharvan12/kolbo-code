@@ -275,7 +275,91 @@ export namespace ProviderTransform {
     })
   }
 
+  // A video file part cannot survive @ai-sdk/openai-compatible's message
+  // converter: it serializes only image/*, application/pdf and text/*, and
+  // hard-throws `file part media type video/mp4` on anything else — which is
+  // why attaching a video crashed the entire turn. Worse, because video is
+  // absent from the supportedUrls override in provider.ts, the SDK first
+  // DOWNLOADS the public URL into base64 before throwing it away.
+  //
+  // kolbo-api has accepted video all along — MEDIA_PART_TYPES carries
+  // `video_url`, and such parts route to the Gemini vision model — so the only
+  // real problem is smuggling the URL past the SDK. Park it in a sentinel text
+  // part here; the custom fetch in provider.ts swaps it back into a real
+  // `video_url` part on the serialized body, once the converter has run. The
+  // URL travels as a URL the whole way, so nothing re-embeds multi-MB base64
+  // and trips kolbo-api's 413 limit (the same reason images are URL-passthrough).
+  export const VIDEO_SENTINEL_RE = /<<<KOLBO_VIDEO:([A-Za-z0-9+/=]+)>>>/g
+
+  function videoSentinel(msgs: ModelMessage[], model: Provider.Model): ModelMessage[] {
+    if (model.api.npm !== "@ai-sdk/openai-compatible") return msgs
+    return msgs.map((msg) => {
+      if (msg.role !== "user" || !Array.isArray(msg.content)) return msg
+      let touched = false
+      const content = msg.content.map((part) => {
+        if (part.type !== "file" || !part.mediaType?.startsWith("video/")) return part
+        const url = part.data instanceof URL ? part.data.toString() : typeof part.data === "string" ? part.data : ""
+        // Bytes-only video has no URL to hand the backend and would only
+        // re-inflate the body — leave it for unsupportedParts to degrade.
+        if (!/^https?:\/\//.test(url)) return part
+        touched = true
+        const payload = Buffer.from(JSON.stringify({ url, filename: part.filename }), "utf8").toString("base64")
+        return { type: "text" as const, text: `<<<KOLBO_VIDEO:${payload}>>>` }
+      })
+      return touched ? { ...msg, content } : msg
+    })
+  }
+
+  // The other half of videoSentinel, run from the custom fetch in provider.ts on
+  // the already-serialized request body — the sentinel only has to survive the
+  // SDK's converter, and this is the first point past it. Anything that fails to
+  // decode is left exactly as it was: a visible sentinel beats a dead turn.
+  export function restoreVideoParts(raw: string): string {
+    if (!raw.includes("<<<KOLBO_VIDEO:")) return raw
+    try {
+      const body = JSON.parse(raw)
+      let changed = false
+      for (const msg of Array.isArray(body.messages) ? body.messages : []) {
+        if (!Array.isArray(msg.content)) continue
+        const next: any[] = []
+        let msgChanged = false
+        for (const part of msg.content) {
+          const text = part?.type === "text" ? part.text : undefined
+          if (typeof text !== "string" || !text.includes("<<<KOLBO_VIDEO:")) {
+            next.push(part)
+            continue
+          }
+          // Fresh regex per part: VIDEO_SENTINEL_RE is /g and carries lastIndex.
+          const re = new RegExp(VIDEO_SENTINEL_RE.source, "g")
+          let cursor = 0
+          for (let m = re.exec(text); m; m = re.exec(text)) {
+            const before = text.slice(cursor, m.index)
+            if (before.trim()) next.push({ ...part, text: before })
+            try {
+              const info = JSON.parse(Buffer.from(m[1], "base64").toString("utf8"))
+              if (info?.url) {
+                next.push({ type: "video_url", video_url: { url: info.url } })
+                msgChanged = true
+              }
+            } catch {}
+            cursor = m.index + m[0].length
+          }
+          const after = text.slice(cursor)
+          if (after.trim()) next.push({ ...part, text: after })
+        }
+        if (msgChanged) {
+          msg.content = next
+          changed = true
+        }
+      }
+      return changed ? JSON.stringify(body) : raw
+    } catch {
+      return raw
+    }
+  }
+
   export function message(msgs: ModelMessage[], model: Provider.Model, options: Record<string, unknown>) {
+    msgs = videoSentinel(msgs, model)
     msgs = unsupportedParts(msgs, model)
     // Note: Kolbo file parts no longer need client-side normalization.
     // The backend auto-injects uploaded media from a pending queue, so
