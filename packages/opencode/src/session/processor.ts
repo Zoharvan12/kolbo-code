@@ -20,6 +20,7 @@ import type { Provider } from "@/provider/provider"
 import { Question } from "@/question"
 import { errorMessage } from "@/util/error"
 import { isRecord } from "@/util/record"
+import { SCHEMA } from "@/kolbo/operation"
 
 export namespace SessionProcessor {
   const DOOM_LOOP_THRESHOLD = 3
@@ -504,13 +505,37 @@ export namespace SessionProcessor {
           }
           ctx.reasoningMap = {}
 
+          // A Kolbo generation tool call keeps running server-side regardless of
+          // this interrupt — its MCP execute() never forwards an abort signal
+          // into the request (mcp/index.ts). Force-marking it "error" here (and
+          // clearing ctx.toolcalls below) only threw away the eventual real
+          // result: the detached execution fiber's late-completion branch
+          // (`opts.abortSignal.aborted` in this file's tool-resolution code)
+          // calls completeToolCall directly once the generation actually
+          // finishes, but that needs the entry still in ctx.toolcalls with
+          // status "running" to land it. Interrupting a turn is meant to stop
+          // the model's own reasoning stream, never a generation the user is
+          // already paying for — so these are left completely untouched here.
+          const kolboGenerationCallIDs: string[] = []
+          const interruptibleCalls: (typeof ctx.toolcalls)[string][] = []
+          for (const [toolCallID, call] of Object.entries(ctx.toolcalls)) {
+            const match = yield* readToolCall(toolCallID)
+            const metadata =
+              match && "metadata" in match.part.state && isRecord(match.part.state.metadata)
+                ? match.part.state.metadata
+                : {}
+            if (metadata.schema === SCHEMA) kolboGenerationCallIDs.push(toolCallID)
+            else interruptibleCalls.push(call)
+          }
+
           yield* Effect.forEach(
-            Object.values(ctx.toolcalls),
+            interruptibleCalls,
             (call) => Deferred.await(call.done).pipe(Effect.timeout("250 millis"), Effect.ignore),
             { concurrency: "unbounded" },
           )
 
           for (const toolCallID of Object.keys(ctx.toolcalls)) {
+            if (kolboGenerationCallIDs.includes(toolCallID)) continue
             const match = yield* readToolCall(toolCallID)
             if (!match) continue
             const part = match.part
@@ -526,8 +551,8 @@ export namespace SessionProcessor {
                 time: { start: "time" in part.state ? part.state.time.start : end, end },
               },
             })
+            delete ctx.toolcalls[toolCallID]
           }
-          ctx.toolcalls = {}
           ctx.assistantMessage.time.completed = Date.now()
           yield* session.updateMessage(ctx.assistantMessage)
         })
