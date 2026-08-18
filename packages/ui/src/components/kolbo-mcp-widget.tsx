@@ -197,7 +197,16 @@ function build(
   if (!op) return
   return {
     widget: "generation",
-    phase: op.phase === "running" ? "generating" : op.phase,
+    // "review" is this app's own pre-flight envelope (describe(), sent before
+    // the tool call even runs) — Kolbo Code auto-approves every tool call
+    // (patterns:["*"]) and never shows a review/knobs UI, so the widget should
+    // never see it. Left unmapped, it fell through the widget's phase switch
+    // to the completed-result renderer with no media yet, flashing an
+    // error/empty card for the ~1-2s until the MCP server's first progress
+    // ping overwrites phase with "generating". Same fix already applied
+    // one-off for generate_character_sheet (kolbo-mcp visual_dna.js) — this
+    // is the general case, at the one place every tool's phase passes through.
+    phase: op.phase === "running" || op.phase === "review" ? "generating" : op.phase,
     kind: op.kind,
     tool: bare(tool),
     generation_id: op.id,
