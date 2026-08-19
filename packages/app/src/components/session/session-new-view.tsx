@@ -117,9 +117,9 @@ export function NewSessionView(props: NewSessionViewProps) {
 
   return (
     <div class={ROOT_CLASS} data-component="session-new-view">
-      <div class="h-12 shrink-0" aria-hidden />
+      <div class="h-24 shrink-0" aria-hidden />
       <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-10 flex items-start justify-center">
-        <div class="w-full max-w-200 flex flex-col items-center text-center gap-7 pt-10">
+        <div class="w-full max-w-200 flex flex-col items-center text-center gap-7 pt-16">
           <div class="flex flex-col items-center gap-4" data-slot="new-session-hero">
             <div data-slot="new-session-mark">
               {import.meta.env.VITE_WHITELABEL_LOGO ? (
