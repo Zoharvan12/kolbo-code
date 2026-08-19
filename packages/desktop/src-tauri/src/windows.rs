@@ -159,8 +159,12 @@ fn base_window_config<'a, R: Runtime, M: Manager<R>>(
         // connections, which breaks the app's localhost sidecar server.
         // Note: when setting additional args, we must re-apply wry's default
         // `--disable-features=...` flags.
+        // `--autoplay-policy=no-user-gesture-required`: WebView2 (unlike desktop
+        // Chrome) refuses even MUTED autoplay until the document has user
+        // activation — starter-card videos and result-card previews sat frozen
+        // on their first frame until the user happened to click somewhere.
         .additional_browser_args(
-            "--proxy-bypass-list=<-loopback> --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection",
+            "--proxy-bypass-list=<-loopback> --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required",
         )
         .data_directory(_app.path().config_dir().expect("Failed to get config dir").join(_app.config().product_name.clone().unwrap()))
         .decorations(false);
