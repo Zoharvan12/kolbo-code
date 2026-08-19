@@ -1,4 +1,4 @@
-import { Component, For, Match, Show, Switch } from "solid-js"
+import { Component, For, Match, Show, Switch, createEffect } from "solid-js"
 import { FileIcon } from "@opencode-ai/ui/file-icon"
 import { Icon } from "@opencode-ai/ui/icon"
 import { getDirectory, getFilename } from "@opencode-ai/util/path"
@@ -43,6 +43,12 @@ type PromptPopoverProps = {
 }
 
 export const PromptPopover: Component<PromptPopoverProps> = (props) => {
+  const followActive = (el: HTMLElement, key: string, active: () => string | undefined) => {
+    createEffect(() => {
+      if (active() === key) el.scrollIntoView({ block: "nearest" })
+    })
+  }
+
   return (
     <Show when={props.popover}>
       <div
@@ -62,13 +68,14 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
               when={props.atFlat.length > 0}
               fallback={<div class="text-text-weak px-2 py-1">{props.t("prompt.popover.emptyResults")}</div>}
             >
-              <For each={props.atFlat.slice(0, 10)}>
+              <For each={props.atFlat.slice(0, 50)}>
                 {(item, index) => {
                   const key = props.atKey(item)
 
                   if (item.type === "image") {
                     return (
                       <button
+                        ref={(el) => followActive(el, key, () => props.atActive)}
                         class="w-full flex items-center gap-x-2 rounded-md px-2 py-0.5"
                         classList={{ "bg-surface-raised-base-hover": props.atActive === key }}
                         onClick={() => props.onAtSelect(item)}
@@ -91,6 +98,7 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
                   if (item.type === "agent") {
                     return (
                       <button
+                        ref={(el) => followActive(el, key, () => props.atActive)}
                         class="w-full flex items-center gap-x-2 rounded-md px-2 py-0.5"
                         classList={{
                           "bg-surface-raised-base-hover": props.atActive === key,
@@ -109,6 +117,7 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
                     const sigil = item.type === "moodboard" ? "#" : "@"
                     return (
                       <button
+                        ref={(el) => followActive(el, key, () => props.atActive)}
                         class="w-full flex items-center gap-x-2 rounded-md px-2 py-0.5"
                         classList={{
                           "bg-surface-raised-base-hover": props.atActive === key,
@@ -151,6 +160,7 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
 
                   return (
                     <button
+                      ref={(el) => followActive(el, key, () => props.atActive)}
                       class="w-full flex items-center gap-x-2 rounded-md px-2 py-0.5"
                       classList={{
                         "bg-surface-raised-base-hover": props.atActive === key,
