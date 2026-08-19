@@ -69,9 +69,11 @@ Keep identity, world, period, audio ownership, safety, and editorial objective f
 
 ## 4. Select the audio lane
 
+The generation family from section 2 must already be known — see section 6. A model that bakes audio in decides how the lane executes, and sometimes that it is not a separate lane at all.
+
 | Lane | Use when | Required truth |
 |---|---|---|
-| Dialogue | Actors speak exact lines | speaker, verbatim text, timing, voice identity, listener behavior, silence ownership |
+| Dialogue | Actors speak exact lines | speaker, verbatim text, timing, voice identity, listener behavior, silence ownership. **On Seedance 2 / 2.5 this lane executes IN-PROMPT** — quoted lines written into the shot beat, performed natively; never a TTS or lip-sync tool |
 | Exact-song lip-sync | A supplied waveform must own the mouth | source asset, performer ownership, exact lyrics/phonetics, breath seams, non-performer mouth behavior |
 | Native music performance | The model should create or perform a musical moment | musical structure, performers, vocal ownership, tempo/beat behavior, desired score/SFX relationship |
 | Ambience/SFX only | Music belongs in post or silence is dramatic | environment bed, timed effects, no-score instruction if model supports it |
@@ -93,9 +95,11 @@ Load a pack only when a relevant signal is present:
 
 ## 6. Select the adapter
 
-Read the target model adapter last so it can translate the creative plan into actual limits and syntax. Never let the adapter replace the story, performance, or production truth.
+Identify the target model as soon as the generation family in section 2 is fixed — **before** choosing the audio lane in section 4. A model that bakes audio in (Seedance 2 / 2.5) owns dialogue, ambience and score itself, so a lane chosen model-neutrally produces a plan the model cannot execute.
 
-If the model is unspecified, ask only when the answer materially changes the deliverable. Otherwise produce a model-neutral shot card and state which adapter remains unresolved.
+Read the adapter's limits and syntax last, at compile time, so it translates the creative plan rather than replacing it. Never let the adapter replace the story, performance, or production truth.
+
+If the model is unspecified, ask only when the answer materially changes the deliverable — whether the family bakes audio in is exactly that case. Otherwise produce a model-neutral shot card and state which adapter remains unresolved.
 
 ## 7. Select output depth
 

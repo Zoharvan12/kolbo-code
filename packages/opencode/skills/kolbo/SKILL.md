@@ -1,5 +1,5 @@
 ---
-version: 0.8.4
+version: 0.9.0
 name: kolbo
 description: |
   Generate, edit, analyze, and direct creative media through Kolbo AI: images,
@@ -57,6 +57,7 @@ For multi-scene / batch work this pairs with `generate_creative_director` (see b
 
 | If the user wants to… | Read first |
 |---|---|
+| Make a **film / ad / scene / episode / campaign / any video with multiple or recurring characters** — read BEFORE planning a single shot | `references/workflows/production-planning.md` |
 | Direct, develop, audit, or continue a **film / episode / connected scene / complex performance** with continuity, acting, dialogue, music, blocking, or physics | `references/workflows/filmmaking.md` |
 | Generate a **Seedance 2.5** video | `references/models/seedance25.md` + Locked Intro in `references/models/seedance.md`. For narrative/continuity also load `references/workflows/filmmaking.md` — but compile the prompt as Locked Intro, NOT the SCENE CONTEXT / OPTICS / ACTION pack |
 | Generate a **Seedance 2 / 2.0** video **or Elements** (`generate_elements`) | `references/models/seedance.md` — same Locked Intro. Elements is NOT a different prompt language |
@@ -70,6 +71,7 @@ For multi-scene / batch work this pairs with `generate_creative_director` (see b
 | Build a **dashboard / data viz / interactive widget / mini-game / UI mockup** | `references/models/visual-code.md` |
 | Generate with **any other model** (Flux, Kling, Sora, Hailuo, ElevenLabs, DeepDub, …) — also covers universal prompt-engineering basics | `references/models/prompt-copilot.md` |
 | Build a **UGC ad / TV spot / branded video / unboxing / product review / virtual try-on** | `references/workflows/marketing-studio.md` |
+| Write a **complex multi-element still**, an **edit that must not drift** (identity / product / scene lock), or a **reusable prompt template** | `references/workflows/prompt-structure.md` |
 | Make anything look **shot on a phone** — UGC, selfie, candid, "authentic", a product photo that must not look like an ad (image OR video) | `references/workflows/ugc-smartphone.md` |
 | Make a **YouTube / Shorts / Reels thumbnail** or video cover | `references/workflows/thumbnails.md` |
 | Compose a **DTC ad image** (brand kit + ad format + avatar + product + reference media) | `references/workflows/dtc-ads.md` |
@@ -94,14 +96,14 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 | `generate_image` | Single image from a text prompt. Supports Visual DNA, moodboards, image presets, reference images, web-search grounding. When a preset is requested, resolve it with `list_presets({ type: "image" })` and pass its exact id as `preset_id`. |
 | `generate_image_edit` | Edit/transform an existing image. Pass `source_images` + edit prompt. Image-editing presets are supported through `preset_id` from `list_presets({ type: "image_edit" })`. |
 | `generate_creative_director` | **2–8 related images or videos as one coherent set.** Use INSTEAD of multiple `generate_image` calls for any related multi-output. |
-| `generate_video` | Text-to-video. Does **not** support Visual DNA — use `generate_elements` for character-consistent video. |
+| `generate_video` | Text-to-video. Accepts `visual_dna_ids` and `sound_enabled`; `generate_elements` is still the primary reference-driven route for a DNA-anchored film. |
 | `generate_video_from_image` | Animate a still. Prompt describes motion, not subject. |
 | `generate_video_from_video` | Restyle/transform an existing video. Keeps original motion. |
 | `generate_elements` | Reference-driven video. **Primary route for DNA → video.** Prompt = Seedance Locked Intro (`Total` + `[GLOBAL LOOK]` / `[CAST]` / `[LOCATION]` + `SHOT N`). Every DNA in `visual_dna_ids` must also be `@Name` in that prompt. |
 | `generate_first_last_frame` | Keyframe interpolation between two frames. |
-| `generate_lipsync` | Lipsync audio to an image or video face. |
+| `generate_lipsync` | Lipsync an existing waveform onto a face. **Not the route for dialogue in a film you are generating** — write the line in the Seedance prompt instead. |
 | `generate_music` | Music generation (Suno + variants). |
-| `generate_speech` | TTS. Use `list_voices` to pick a voice. |
+| `generate_speech` | TTS for narration, voiceover and standalone audio. **NOT for scene dialogue** — Seedance 2/2.5 performs quoted lines itself. |
 | `generate_sound` | Sound effects. |
 | `generate_3d` | 3D models from text / single image / multi-view. Returns GLB/FBX/OBJ/USDZ. |
 | `separate_audio_stems` | Split a soundtrack into Dialogue / Music / Effects / without-dialogue (M&E). The route for removing or isolating speech, instrumental beds, and stems for dubbing. 5cr, inline. See `workflows/audio-stems.md`. |
@@ -154,11 +156,19 @@ first, so the model renders *different words than the ones the user wrote*.
   user never asked for, and their own wording never reached the model.
 - The default is `false` in every generation tool. Leave the argument out.
 
+## ⚠️ Assets Before Shots (HARD RULE)
+
+For any film / ad / scene / episode / campaign the order is **Map → Create → Confirm → Shoot**: inventory every character, location and prop the script needs, build each as a Visual DNA (sheet presets), get the user's explicit approval on the asset set, and only then generate video. A shot fired against an unapproved cast is waste, not a draft.
+
+Scene dialogue is **never** `generate_speech` or `generate_lipsync`. Seedance 2 / 2.5 performs quoted lines written into the shot beat itself — English only. Full flow: `references/workflows/production-planning.md`.
+
 ## ⚠️ Seedance / Elements prompt contract (HARD RULE)
 
 `generate_elements`, Seedance 2, and Seedance 2.5 share **one** compile shape — the Locked Intro in `references/models/seedance.md`:
 
 `Total: Xs / N shots / AR` → `[GLOBAL LOOK – LOCKED, APPLIES TO EVERY SHOT]` → `[CAST – IDENTICAL IN EVERY SHOT]` (each person is `@DNAName`) → `[LOCATION]` → `SHOT N — 0:00–0:02 — …`
+
+Write the beats at FULL DEPTH. The cap is 15,000 characters on Seedance 2.5 (10,000 on 2.0) — a 30s / 8+ shot compile should land around 4k–9k, and every beat carries its own camera move, a performance task for the speaker AND the listeners, prop/hand state, and the sound in that beat. A one-line shot beat is under-written; the structure alone is not the craft. Read `references/models/seedance25.md` before compiling.
 
 Do **not** default Elements to `SCENE CONTEXT` / `OPTICS` / `ACTION` / `ACTIVE REFERENCES` department packs (those live in filmmaking audit/contracts for other models). Do not load `seedance-2-prompting` SCENE CONTEXT as the Elements format.
 

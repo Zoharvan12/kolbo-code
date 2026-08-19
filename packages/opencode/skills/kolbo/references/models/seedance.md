@@ -109,7 +109,10 @@ These elevate rich cinematic / reference-anchored sequences. For a short, tight,
 
 ## Dialogue & expression
 
-- Dialogue goes in quotes and may be in ANY language (Hebrew included). For silent tension, deliver it as expression, not speech: `He does not speak. His expression clearly says: "…"`.
+- **Dialogue is PERFORMED by the model, never by a TTS tool.** Quoted lines in the prompt come back as synced speech with lip movement and room tone, together with the SFX you name in AUDIO. Scene dialogue therefore never routes through `generate_speech` or `generate_lipsync` — write the line in quotes inside its shot beat and let Seedance act it.
+- **Write dialogue in ENGLISH.** Seedance does not reliably perform other languages, and Hebrew in particular does not work — it comes back as accented gibberish or English-shaped mouth movement. Never offer a user "Hebrew dialogue directly". If the delivered film has to be Hebrew, the honest routes are: (a) keep the spoken lines English, or (b) stage the beat as expression + on-screen text, or (c) generate the scene clean and dub it afterwards as an explicit, separately-priced pass. Say which one you are doing.
+- `list_models` reports `sound_generation_type: "none"` for Seedance 2 / 2.5 because there is no in-app sound toggle (`sound_baked_in: true`). That field does NOT mean the model is silent. Do not read it as a reason to add TTS.
+- For silent tension, deliver it as expression, not speech: `He does not speak. His expression clearly says: "…"`.
 
 ## Content tone
 

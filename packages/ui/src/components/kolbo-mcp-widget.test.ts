@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { createStore } from "solid-js/store"
-import { catalogTypes, matchModel, referenceUrls, serializeForWidget } from "./kolbo-mcp-widget"
+import { catalogTypes, gridRow, matchModel, messageText, referenceUrls, serializeForWidget } from "./kolbo-mcp-widget"
 
 describe("serializeForWidget", () => {
   test("resolves a live store Proxy to a plain, deep-equal object", () => {
@@ -72,5 +72,41 @@ describe("in-progress generation card", () => {
       }),
     ).toEqual(["https://cdn.kolbo.ai/a.png", "https://cdn.kolbo.ai/b.png"])
     expect(referenceUrls(undefined)).toEqual([])
+  })
+})
+
+describe("widget → host bridge", () => {
+  test("reads the text out of a ui/message request", () => {
+    // window.kolbo.sendMessage() posts MCP-UI's role/content envelope. The host
+    // had no case for ui/message at all, so every "Use" button was inert; this
+    // guards the shape the bridge actually sends.
+    expect(messageText({ role: "user", content: [{ type: "text", text: "Use preset X" }] })).toBe("Use preset X")
+    expect(messageText({ text: "plain" })).toBe("plain")
+    expect(messageText({ role: "user", content: [] })).toBeUndefined()
+    expect(messageText(undefined)).toBeUndefined()
+  })
+})
+
+describe("text-derived list rows", () => {
+  test("maps compact-list field names onto the ones the widgets render", () => {
+    // Kolbo Code doesn't advertise MCP Apps, so @kolbo/mcp returns compactList
+    // JSON instead of its grid payload — rows keyed `name`/`filename`, and for
+    // list_presets no image at all. media-grid draws a missing thumbnail as the
+    // kind icon, which is the wall of file glyphs this maps away from.
+    expect(gridRow({ id: "1", name: "Storyboard", category: "layout" })).toMatchObject({
+      title: "Storyboard",
+      subtitle: "layout",
+    })
+    expect(gridRow({ id: "2", filename: "shot.png", url: "https://cdn.kolbo.ai/shot.png" })).toMatchObject({
+      title: "shot.png",
+      thumbnail: "https://cdn.kolbo.ai/shot.png",
+    })
+    // A non-image url is not a thumbnail.
+    expect(gridRow({ id: "3", name: "clip", url: "https://cdn.kolbo.ai/clip.mp4" })).not.toHaveProperty("thumbnail")
+    // Anything the MCP already shaped is left alone.
+    expect(gridRow({ id: "4", title: "Kept", thumbnail: "https://cdn.kolbo.ai/a.png" })).toMatchObject({
+      title: "Kept",
+      thumbnail: "https://cdn.kolbo.ai/a.png",
+    })
   })
 })

@@ -220,6 +220,23 @@ async function getKolboModelMetadata(): Promise<KolboModelMetadata> {
 // uses), returning each model's id, friendly name and avatar. Cached per type.
 type KolboGenModel = { id: string; name: string; avatar: string | null }
 const kolboGenModelCache = new Map<string, { at: number; data: KolboGenModel[] }>()
+
+// Generation-model avatars come off /v1/models as BARE FILENAMES, never URLs —
+// every single row ("Bytedance icon.png", "kling-color.svg", …), spaces and
+// all. The chat-metadata route hands out absolute URLs, so callers assumed
+// these were absolute too and fed them straight to the image proxy: the
+// in-progress generation card resolved "Seedance 2.5" correctly but rendered a
+// first-letter circle instead of the Bytedance icon, because `Bytedance
+// icon.png` is not a loadable src. Resolve here, once, so every consumer of
+// this route (widget model chip, approval-card picker) gets a real URL —
+// same base and same per-segment encoding @kolbo/mcp uses server-side.
+const MODEL_ICON_CDN_BASE = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/models_icons"
+
+function resolveModelAvatar(avatar: string | null | undefined): string | null {
+  if (typeof avatar !== "string" || avatar.length === 0) return null
+  if (/^(https?:)?\/\//i.test(avatar) || avatar.startsWith("data:")) return avatar
+  return `${MODEL_ICON_CDN_BASE}/${encodeURIComponent(avatar.replace(/^\/+/, ""))}`
+}
 async function getKolboGenerationModels(type: string): Promise<KolboGenModel[]> {
   const cached = kolboGenModelCache.get(type)
   if (cached && Date.now() - cached.at < KOLBO_MODELS_TTL_MS) return cached.data
@@ -241,7 +258,7 @@ async function getKolboGenerationModels(type: string): Promise<KolboGenModel[]> 
       .map((m) => ({
         id: m.identifier,
         name: (typeof m.name === "string" && m.name.trim()) || m.identifier,
-        avatar: typeof m.avatar === "string" && m.avatar.length > 0 ? m.avatar : null,
+        avatar: resolveModelAvatar(m.avatar),
       }))
     kolboGenModelCache.set(type, { at: Date.now(), data: out })
     return out
@@ -1508,7 +1525,13 @@ export const GlobalRoutes = lazy(() =>
           host === "kolbo.ai" ||
           host === "app.kolbo.ai" ||
           host === "media.kolbo.ai" ||
-          host.endsWith(".kolbo.ai")) &&
+          host.endsWith(".kolbo.ai") ||
+          // Model icons live on Kolbo's public DO Spaces CDN, not on a
+          // kolbo.ai host (kolbo-api mirrors them there on every startup).
+          // Without this, resolving a bare avatar filename to its real URL
+          // just moved the failure: the proxy answered 403 and the chip still
+          // fell back to a letter circle.
+          host === "kolbo-general-media.fra1.cdn.digitaloceanspaces.com") &&
         parsed.protocol === "https:"
 
       // Also allow the backend this install is actually configured against.

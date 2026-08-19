@@ -9,13 +9,17 @@ Load this file when the user wants a **Seedance 2.5** video (they said "2.5" / "
 
 **Kolbo MCP routing:** `generate_video` or `generate_elements` (refs / Visual DNA / first-last). Run `list_models({ type: "text_to_video" })` and pick the Seedance 2.5 variant by name.
 
-**Audio:** Seedance 2.5 still emits real synced audio. `list_models` may show `sound_generation_type: none` because there is no in-app toggle (`sound_baked_in: true`). Do not tell the user the model is silent.
+**Audio:** Seedance 2.5 emits real synced audio. `list_models` shows `sound_generation_type: none` only because there is no in-app toggle (`sound_baked_in: true`) — it does NOT mean the model is silent, and it is never a reason to reach for TTS. Quoted dialogue is PERFORMED (synced voices, lip movement, room tone) alongside the SFX named in AUDIO, so scene dialogue never goes through `generate_speech` or `generate_lipsync`; write the lines in quotes inside their shot beats.
+
+**Dialogue language: English.** Other languages are not reliably performed, and Hebrew does not work — it returns accented gibberish or English-shaped mouth movement. Never offer a user "Hebrew dialogue directly". See `models/seedance.md` for the three honest alternatives.
+
+**Draft at 480p.** Resolution is a credit MULTIPLIER, not a flat rate. Relative to 720p: 480p ×0.44, 1080p ×2.25. A 30s pass costs ~540cr at 480p against ~1230cr at 720p and ~2770cr at 1080p. Block the film at 480p, get the user's sign-off on staging, performance and timing, then re-run only the approved cut at delivery resolution.
 
 ## What's NEW in 2.5 (verified — never hedge)
 
 - **Duration 4–30 seconds**, whole seconds. 30s IS supported.
 - **Up to 30 shots/cuts in ONE generation.** Deliver exactly N if N ≤ 30.
-- **Prompt cap 30,000 characters** for the entire prompt as one string.
+- **Prompt cap 15,000 characters** for the entire prompt as one string (`max_prompt_length` in the catalog; Seedance 2.0 is 10,000). Verify with `list_models` rather than trusting this number — it was documented as 30,000 for months, which is double the real limit.
 - **Up to 50 reference medias / Visual DNA mentions** (`@Name`, `@ImageN`, `#Moodboard`). Every referenced asset must be tagged in the prompt text.
 - **Multimodal refs:** images + video clips + audio can all anchor one generation.
 
@@ -37,11 +41,13 @@ UGC / phone vertical (full craft: `workflows/ugc-smartphone.md`): NEVER write "c
 
 ## Prompt length
 
-Simple ≤15s ~120–280 words. Locked-intro cinematic 15s typically 400–900 words. Full 30s / 15+ shots typically 700–1200 words / ~4k–9k chars. Hard cap 30,000. Never split into part 1 / part 2.
+Simple ≤15s ~120–280 words. Locked-intro cinematic 15s typically 400–900 words. Full 30s / 15+ shots typically 700–1200 words / ~4k–9k chars. Hard cap 15,000 characters. Never split into part 1 / part 2.
+
+A one-line shot beat is UNDER-WRITTEN. At 30s / 8+ shots you have ~15k characters to work with and a thin prompt wastes them: every beat carries its own camera move, performance task for BOTH the speaker and the listeners, prop/hand state, and the sound in that beat. If a 30s compile lands under ~4k characters, it is too thin — go back and direct it.
 
 ## Feature-Block (optional, UNDER the Locked Intro)
 
-Reach for extra department passes only when the user wants "their best possible 30 seconds" AND the 30k budget still has room after GLOBAL LOOK / CAST / LOCATION. Never replace the Locked Intro.
+Reach for extra department passes only when the user wants "their best possible 30 seconds" AND the 15k budget still has room after GLOBAL LOOK / CAST / LOCATION. Never replace the Locked Intro.
 
 May add above GLOBAL LOOK: **EMOTIONAL INTENT** + **SIGNATURE MOMENT**.
 May add under the shot list: CAMERA timecode pass, SOUND timestamps, PHYSICS contract, EDITING/CONTINUITY, DIRECTORIAL NOTES.

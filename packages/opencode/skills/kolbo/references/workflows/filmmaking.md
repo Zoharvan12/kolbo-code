@@ -19,6 +19,7 @@ Read [routing.md](references/filmmaking/routing.md) for the full decision rules.
 
 | Request | Mode | Read |
 |---|---|---|
+| Any multi-asset or multi-scene production — film, ad, episode, campaign, recurring or multiple characters | Production planning | `references/workflows/production-planning.md` **first** — map assets, build the DNAs, confirm the set, only then shoot |
 | Premise, outline, screenplay, weak scene | Development | `scene-engine.md`, then `workflows.md` |
 | Character, location, prop, state, voice, or production preparation | Pre-production | `asset-preproduction.md`, `production-bible.md`; add `acting-direction.md` for recurring characters |
 | One generation-ready video prompt | Direction | `prompt-contracts.md`, selected craft references, then the model adapter |

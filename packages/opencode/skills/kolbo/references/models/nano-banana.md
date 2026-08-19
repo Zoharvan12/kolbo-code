@@ -72,6 +72,7 @@ Layer these onto any framework to lift good → breathtaking.
 - **Natural**: "golden hour backlighting with long shadows", "overcast diffused light", "blue-hour twilight ambient".
 
 ### Camera, lens, focus (hardware = visual DNA)
+- **Editing an upload?** Open with a reference contract — `identity_lock` plus a named `preserve` list — not "keep everything else the same". See `workflows/prompt-structure.md`.
 - **`iPhone` is a vibe word, not a look** — for a real phone-capture image (and for a product photo that must not read as an ad) read `workflows/ugc-smartphone.md` and write the optics/processing/light/imperfection stack.
 - **Hardware vibe**: `GoPro` for distorted action immersion · `Fujifilm` for authentic color science · `disposable camera` for raw nostalgic flash · `Hasselblad medium format` for editorial fashion · `iPhone` for everyday realism · `ARRI ALEXA` for cinematic.
 - **Lens / focus**: "low-angle shot, shallow depth of field f/1.8", "wide-angle for vast scale", "macro for intricate detail", "85mm portrait compression", "anamorphic 2.39:1 bokeh".

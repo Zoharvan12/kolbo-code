@@ -56,7 +56,15 @@ function uri(meta?: Record<string, unknown>, tool?: string, data?: unknown) {
   const widget = rec(meta?.structuredContent)?.widget ?? rec(data)?.widget
   if (typeof widget === "string" && BY_WIDGET[widget]) return BY_WIDGET[widget]
   const toolName = bare(tool)
-  if (BY_TOOL[toolName]) return BY_TOOL[toolName]
+  if (BY_TOOL[toolName]) {
+    // media-grid.html draws a thumbnail-less item as its media-kind icon, so a
+    // payload we rebuilt from tool TEXT (no MCP structuredContent — see
+    // gridRow) mounted a wall of identical file glyphs where the list widget
+    // reads fine. Only downgrade once we can see the items and none has an
+    // image; an absent payload still gets the mapped widget.
+    if (BY_TOOL[toolName] === BY_WIDGET["media-grid"] && thumbless(data)) return BY_WIDGET.list
+    return BY_TOOL[toolName]
+  }
   if (toolName.startsWith("list_")) return BY_WIDGET.list
   // Nothing else falls back to the generation card. generation.html boots as a
   // "Generating" spinner and only leaves it once an operation payload arrives,
@@ -64,6 +72,67 @@ function uri(meta?: Record<string, unknown>, tool?: string, data?: unknown) {
   // get_media, upload_media…) pins a spinner on a result that is already final.
   if (generative(toolName)) return GEN
   return undefined
+}
+
+const IMAGE_URL = /\.(png|jpe?g|webp|gif|avif|svg)(\?|$)/i
+
+/**
+ * One compact-list row → the field names the widgets actually render.
+ *
+ * @kolbo/mcp only ships its hand-built grid payload to hosts that advertise
+ * MCP Apps, and Kolbo Code doesn't — so tools like list_presets return the
+ * compactList JSON instead, whose rows are `{id,name,category,type,…}`: no
+ * `title`, no `thumbnail`. media-grid.html renders a missing thumbnail as the
+ * media-kind icon, which is why the preset grid came out as 24 identical
+ * file glyphs. Map whatever IS on the row; tools whose text carries no image
+ * URL at all end up on the list widget instead (see uri()).
+ */
+export function gridRow(value: unknown) {
+  const row = rec(value)
+  if (!row) return value
+  const pick = (...keys: string[]) => {
+    for (const key of keys) {
+      const found = row[key]
+      if (typeof found === "string" && found) return found
+    }
+    return undefined
+  }
+  const url = pick("url")
+  const thumbnail =
+    pick("thumbnail", "thumbnail_url", "preview_url", "image_url") ?? (url && IMAGE_URL.test(url) ? url : undefined)
+  return {
+    ...row,
+    ...(row.title ? {} : { title: pick("name", "filename", "title") }),
+    ...(row.subtitle ? {} : { subtitle: pick("subtitle", "category", "description", "type") }),
+    ...(thumbnail ? { thumbnail } : {}),
+  }
+}
+
+/**
+ * Text of a `ui/message` request. The bridge sends MCP-UI's
+ * `{ role, content: [{ type: "text", text }] }`; a plain `{ text }` is accepted
+ * too so an older or hand-rolled widget isn't silently dropped.
+ */
+export function messageText(params: unknown): string | undefined {
+  const p = rec(params)
+  if (!p) return undefined
+  if (typeof p.text === "string" && p.text.trim()) return p.text
+  const content = Array.isArray(p.content) ? p.content : []
+  const joined = content
+    .flatMap((item) => {
+      const text = rec(item)?.text
+      return typeof text === "string" ? [text] : []
+    })
+    .join("\n")
+    .trim()
+  return joined || undefined
+}
+
+/** Items are present, and not one of them has an image to show. */
+function thumbless(data: unknown) {
+  const items = rec(data)?.items
+  if (!Array.isArray(items) || items.length === 0) return false
+  return !items.some((item) => typeof rec(item)?.thumbnail === "string")
 }
 
 function bare(tool?: string) {
@@ -179,7 +248,7 @@ function listed(output?: string) {
   if (!output) return
   try {
     const obj = JSON.parse(output) as Record<string, unknown>
-    if (Array.isArray(obj.items)) return obj
+    if (Array.isArray(obj.items)) return { ...obj, items: obj.items.map(gridRow) }
     const key = (["sessions", "projects", "generations", "agents", "docs", "folders", "sources"] as const).find((name) =>
       Array.isArray(obj[name]),
     )
@@ -459,6 +528,20 @@ export function KolboMcpWidget(props: {
       // generation got an inner scrollbar. The widget already clamps itself
       // against the screen; this is just a runaway guard.
       if (Number.isFinite(next) && next > 0) setH(Math.min(Math.max(next, 180), 1400))
+      return
+    }
+    if (msg.method === "ui/message") {
+      // window.kolbo.sendMessage() — every "Use" button on a media-grid /
+      // catalog / list card, plus the grid's "Load more". The bridge posts
+      // ui/message and awaits the reply; this host had no case for it, so the
+      // request fell through to the bare ack below without ever reaching the
+      // session and the buttons did nothing at all. A widget is a sandboxed
+      // cross-origin iframe, so the text goes to the composer over a document
+      // event, exactly like ui/attach-media hands over a URL (listener:
+      // prompt-input.tsx handleWidgetMessage).
+      const text = messageText(msg.params)
+      if (text) document.dispatchEvent(new CustomEvent("kolbo:send-message", { detail: { text } }))
+      if (msg.id != null) reply(msg.id, {})
       return
     }
     if (msg.method === "ui/attach-media") {

@@ -1633,6 +1633,25 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     return submitPrompt(event)
   }
 
+  // A Kolbo widget's "Use" / "Load more" button (window.kolbo.sendMessage →
+  // ui/message → kolbo:attach-media's sibling event, see kolbo-mcp-widget.tsx).
+  // The widget is a sandboxed cross-origin iframe with no way to reach the
+  // session itself, so it hands the composer a finished sentence to send. Goes
+  // through the normal submit path so queue-while-busy, history and attachments
+  // all behave exactly as if the user had typed it.
+  const handleWidgetMessage = (event: Event) => {
+    const text = (event as CustomEvent<{ text?: unknown }>).detail?.text
+    if (typeof text !== "string" || !text.trim()) return
+    setEditorText(text)
+    prompt.set([{ type: "text", content: text, start: 0, end: text.length }, ...imageAttachments()], text.length)
+    void handleSubmit(new Event("submit"))
+  }
+
+  onMount(() => {
+    document.addEventListener("kolbo:send-message", handleWidgetMessage)
+    onCleanup(() => document.removeEventListener("kolbo:send-message", handleWidgetMessage))
+  })
+
   const handleKeyDown = (event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "u") {
       event.preventDefault()
