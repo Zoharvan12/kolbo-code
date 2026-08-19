@@ -22,8 +22,6 @@ type Starter = {
     | "ugc"
     | "presentation"
     | "landing"
-    | "music"
-    | "productPhotoshoot"
     | "productAnimation"
   categories: StarterCategory[]
   /** i18n suffix for the small corner tag (session.new.tag.*); omit = no tag */
@@ -66,7 +64,8 @@ const DEMO_SCENE: { url: string; filename: string; mime: string }[] = [
 // Fashion campaign set — ORDER IS THE CONTRACT: attachment order defines the
 // @ImageN numbering the preset prompt references (1=model, 2-5=outfits, 6=env).
 const DEMO_FASHION: { url: string; filename: string; mime: string }[] = [
-  { url: `${DEMO_CDN}/demo-fashion-model.jpg`, filename: "model.jpg", mime: "image/jpeg" },
+  // Same image as the card thumbnail — what the card shows IS @Image1.
+  { url: `${THUMB_CDN_V3}/fashionCampaign-v2.webp`, filename: "model.webp", mime: "image/webp" },
   { url: `${DEMO_CDN}/demo-fashion-outfit-red.jpg`, filename: "outfit-red.jpg", mime: "image/jpeg" },
   { url: `${DEMO_CDN}/demo-fashion-outfit-cream.jpg`, filename: "outfit-cream.jpg", mime: "image/jpeg" },
   { url: `${DEMO_CDN}/demo-fashion-outfit-black.jpg`, filename: "outfit-black.jpg", mime: "image/jpeg" },
@@ -80,9 +79,7 @@ const STARTERS: Starter[] = [
   { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN_V3}/ugc-v2.webp`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
   { key: "presentation", categories: ["web"], gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
   { key: "landing", categories: ["web", "marketing"], gradient: "linear-gradient(140deg,#00c2ff,#0037ff)" },
-  { key: "productPhotoshoot", categories: ["marketing", "images"], thumb: `${THUMB_CDN_V3}/productPhotoshoot.webp`, media: [DEMO_SUNGLASSES], gradient: "linear-gradient(140deg,#8f5bff,#2d0f66)" },
   { key: "productAnimation", categories: ["marketing", "film"], media: [DEMO_SNEAKER], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
-  { key: "music", categories: ["film"], thumb: `${THUMB_CDN_V3}/music.webp`, gradient: "linear-gradient(140deg,#00e58f,#00707a)" },
 ]
 
 const CATEGORIES: ("all" | StarterCategory)[] = ["all", "marketing", "film", "images", "web"]
