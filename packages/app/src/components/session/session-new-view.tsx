@@ -87,6 +87,27 @@ const STARTERS: Starter[] = [
 
 const CATEGORIES: ("all" | StarterCategory)[] = ["all", "marketing", "film", "images", "web"]
 
+// Chromium ignores a JSX-set `muted` attribute when deciding autoplay policy —
+// the property must be true BEFORE play() or playback is silently blocked and
+// the card shows only its first frame. Mute via property, retry once the data
+// is ready, and once more on the first user interaction (WebView2's autoplay
+// policy can refuse play() until the document has been interacted with).
+const playMutedLoop = (el: HTMLVideoElement) => {
+  el.muted = true
+  el.defaultMuted = true
+  el.loop = true
+  const tryPlay = () => {
+    if (el.isConnected && el.paused) void el.play().catch(() => {})
+  }
+  el.addEventListener("canplay", tryPlay)
+  const resume = () => {
+    tryPlay()
+    if (!el.isConnected || !el.paused) document.removeEventListener("pointerdown", resume, true)
+  }
+  document.addEventListener("pointerdown", resume, true)
+  tryPlay()
+}
+
 export function NewSessionView(props: NewSessionViewProps) {
   const sync = useSync()
   const language = useLanguage()
@@ -219,20 +240,20 @@ export function NewSessionView(props: NewSessionViewProps) {
                               <video
                                 src={starter.thumbVideo}
                                 aria-hidden="true"
-                                autoplay
-                                muted
                                 loop
                                 playsinline
+                                preload="auto"
+                                ref={playMutedLoop}
                                 data-slot="new-session-card-thumb-blur"
                                 onError={(e) => (e.currentTarget.style.display = "none")}
                               />
                             </Show>
                             <video
                               src={starter.thumbVideo}
-                              autoplay
-                              muted
                               loop
                               playsinline
+                              preload="auto"
+                              ref={playMutedLoop}
                               style={starter.fit === "contain" ? { "object-fit": "contain" } : undefined}
                               onError={(e) => (e.currentTarget.style.display = "none")}
                             />

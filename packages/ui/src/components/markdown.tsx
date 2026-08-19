@@ -9,7 +9,7 @@ import { ComponentProps, createEffect, createMemo, createResource, createSignal,
 import { isServer } from "solid-js/web"
 import { stream } from "./markdown-stream"
 import { openKolboLightbox as openLightbox, isVideoUrl as isKolboVideoUrl, firstFramePosterSrc, pauseOnFirstFrame, startMediaDrag } from "./kolbo-media"
-import { dispatchArtifact, resolveHtmlPreviewSource } from "../lib/artifact"
+import { dispatchArtifact, isKolboSiteUrl, resolveHtmlPreviewSource } from "../lib/artifact"
 
 /**
  * Download a media URL. For data: URIs the browser Save-As works natively.
@@ -265,6 +265,47 @@ function injectHtmlInlinePreviews(container: HTMLElement, ops: PlatformOps, prev
   }
 }
 
+/**
+ * Published Kolbo sites (sites.kolbo.ai links in assistant text) get the same
+ * inline preview card local HTML gets. The iframe loads through the sidecar's
+ * /global/site-preview proxy — the sites' `frame-ancestors *.kolbo.ai` CSP
+ * blocks the app origin from framing them directly.
+ */
+function injectKolboSitePreviews(container: HTMLElement, ops: PlatformOps, previewLabel: string) {
+  for (const anchor of container.querySelectorAll("a[href]")) {
+    const href = anchor.getAttribute("href") ?? ""
+    if (!isKolboSiteUrl(href)) continue
+    if (anchor.getAttribute("data-site-preview-active") === "true") continue
+    const proxied = ops.sitePreviewUrl?.(href)
+    if (!proxied) continue
+    anchor.setAttribute("data-site-preview-active", "true")
+
+    const card = document.createElement("div")
+    card.setAttribute("data-slot", "markdown-html-inline-preview")
+    card.setAttribute("role", "button")
+    card.setAttribute("tabindex", "0")
+    card.setAttribute("title", previewLabel)
+    card.setAttribute("data-url", href)
+
+    const iframe = document.createElement("iframe")
+    iframe.setAttribute("loading", "lazy")
+    iframe.setAttribute("title", "Site preview")
+    iframe.setAttribute("src", proxied)
+    card.appendChild(iframe)
+
+    const overlay = document.createElement("div")
+    overlay.setAttribute("data-slot", "markdown-html-preview-overlay")
+    const label = document.createElement("div")
+    label.setAttribute("data-slot", "markdown-html-preview-label")
+    label.textContent = previewLabel
+    overlay.appendChild(label)
+    card.appendChild(overlay)
+
+    const block = anchor.closest("p, li, td") ?? anchor
+    block.insertAdjacentElement("afterend", card)
+  }
+}
+
 function setupPreviewClick(root: HTMLDivElement) {
   const handleClick = (event: MouseEvent) => {
     const target = event.target
@@ -272,6 +313,11 @@ function setupPreviewClick(root: HTMLDivElement) {
 
     const card = target.closest('[data-slot="markdown-html-inline-preview"]')
     if (card instanceof HTMLElement) {
+      const siteUrl = card.getAttribute("data-url") ?? ""
+      if (siteUrl) {
+        dispatchArtifact(siteUrl, "site")
+        return
+      }
       const content = card.getAttribute("data-content") ?? ""
       if (content) dispatchArtifact(content, "html")
       return
@@ -295,6 +341,11 @@ function setupPreviewClick(root: HTMLDivElement) {
     const card = target.closest('[data-slot="markdown-html-inline-preview"]')
     if (!(card instanceof HTMLElement)) return
     event.preventDefault()
+    const siteUrl = card.getAttribute("data-url") ?? ""
+    if (siteUrl) {
+      dispatchArtifact(siteUrl, "site")
+      return
+    }
     const content = card.getAttribute("data-content") ?? ""
     if (content) dispatchArtifact(content, "html")
   }
@@ -1421,7 +1472,10 @@ export function Markdown(
 
     if (!previewCleanup) previewCleanup = setupPreviewClick(container)
 
-    if (!(local.streaming ?? false)) injectHtmlInlinePreviews(container, ops, labels.preview)
+    if (!(local.streaming ?? false)) {
+      injectHtmlInlinePreviews(container, ops, labels.preview)
+      injectKolboSitePreviews(container, ops, labels.preview)
+    }
 
     if (!pathLinksCleanup)
       pathLinksCleanup = setupPathLinks(container, () => ops, () => ({

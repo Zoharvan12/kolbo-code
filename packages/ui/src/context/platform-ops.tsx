@@ -40,6 +40,13 @@ export type PlatformOps = {
    * Returns the original URL on web/no-sidecar builds.
    */
   imageProxyUrl?: (remoteUrl: string) => string
+  /**
+   * Rewrite a published Kolbo site URL (sites.kolbo.ai / dev shared-artifact-raw)
+   * to the sidecar's /global/site-preview proxy. Published sites send
+   * `frame-ancestors https://*.kolbo.ai`, so the app origin can only iframe
+   * them through the proxy. Returns null when no sidecar is available.
+   */
+  sitePreviewUrl?: (remoteUrl: string) => string | null
   /** Cancel one in-flight Kolbo media generation and refund its credits. */
   cancelGeneration?: (generationId: string) => Promise<void>
   /**
@@ -91,6 +98,9 @@ export function PlatformOpsProvider(props: ParentProps<PlatformOps>) {
     },
     get imageProxyUrl() {
       return props.imageProxyUrl ?? parent.imageProxyUrl
+    },
+    get sitePreviewUrl() {
+      return props.sitePreviewUrl ?? parent.sitePreviewUrl
     },
     get cancelGeneration() {
       return props.cancelGeneration ?? parent.cancelGeneration

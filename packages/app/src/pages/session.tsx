@@ -448,7 +448,7 @@ export default function Page() {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ content: string; lang: string; autoOpen?: boolean }>).detail
       const lang = detail.lang as ArtifactData["lang"]
-      if (lang !== "html" && lang !== "svg" && lang !== "mermaid" && lang !== "markdown") return
+      if (lang !== "html" && lang !== "svg" && lang !== "mermaid" && lang !== "markdown" && lang !== "site") return
       setArtifact({ content: detail.content, lang })
       setArtifactsTabActive(true)
       // Explicit artifact request wins over any sticky canvas override.

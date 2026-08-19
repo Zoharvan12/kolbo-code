@@ -9,8 +9,9 @@ import { Button } from "@opencode-ai/ui/button"
 import { Markdown } from "@opencode-ai/ui/markdown"
 
 export type ArtifactData = {
+  /** Source markup — or, for lang "site", the published site's public URL. */
   content: string
-  lang: "html" | "svg" | "mermaid" | "markdown"
+  lang: "html" | "svg" | "mermaid" | "markdown" | "site"
 }
 
 function buildMermaidSrcdoc(code: string): string {
@@ -129,6 +130,12 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
   })
 
   const effectiveHtmlUrl = createMemo(() => {
+    // Published Kolbo sites iframe through the sidecar proxy — their
+    // frame-ancestors CSP blocks the app origin from framing them directly.
+    if (props.artifact.lang === "site") {
+      const base = server.current?.http.url
+      return base ? `${base}/global/site-preview?url=${encodeURIComponent(props.artifact.content)}` : null
+    }
     const u = htmlPreview()
     if (typeof u === "string" && u) return u
     const b = blobUrl()
@@ -262,9 +269,14 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
           </button>
         </Show>
 
-        <Show when={props.artifact.lang === "html"}>
+        <Show when={props.artifact.lang === "html" || props.artifact.lang === "site"}>
           {(() => {
             const handleOpen = () => {
+              // A published site opens at its real public URL.
+              if (props.artifact.lang === "site") {
+                platform.openLink(props.artifact.content)
+                return
+              }
               // Use the Rust temp-file approach — works even when sidecar is unreachable
               if (platform.openHtmlPreview) {
                 platform.openHtmlPreview(props.artifact.content)
@@ -306,7 +318,7 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
         class="flex-1 min-h-0 overflow-hidden relative"
       >
         {/* HTML — wait for HTTP URL so WebView2 composites WebGL/Canvas correctly */}
-        <Show when={props.artifact.lang === "html"}>
+        <Show when={props.artifact.lang === "html" || props.artifact.lang === "site"}>
           {/* Loading spinner while sidecar is processing */}
           <Show when={isLoadingPreview() && view() === "preview"}>
             <div class="absolute inset-0 flex items-center justify-center bg-white dark:bg-neutral-900">

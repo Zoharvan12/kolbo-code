@@ -78,6 +78,11 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
         if (!url) return Promise.resolve(null)
         return storeHtmlPreview(url, content)
       }}
+      sitePreviewUrl={(remote) => {
+        const url = server.current?.http.url
+        if (!url || !remote) return null
+        return `${url}/global/site-preview?url=${encodeURIComponent(remote)}`
+      }}
       imageProxyUrl={(remote) => {
         const url = server.current?.http.url
         // No sidecar available (web build) — caller will fetch directly.

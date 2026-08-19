@@ -1453,6 +1453,37 @@ export const GlobalRoutes = lazy(() =>
       if (!content) return c.json({ error: "not found" }, 404)
       return c.newResponse(content, 200, { "Content-Type": "text/html; charset=utf-8" })
     })
+    // ── Published-site preview proxy ────────────────────────────────────────
+    // Published Kolbo sites (sites.kolbo.ai) ship `frame-ancestors 'self'
+    // https://*.kolbo.ai` + X-Frame-Options, so the app origin cannot iframe
+    // them directly. Re-serving the body from the sidecar sheds the
+    // header-delivered CSP; a <base> tag keeps any relative asset resolving
+    // against the original origin. Allowlisted to published-site hosts only.
+    .get("/site-preview", async (c) => {
+      const remote = c.req.query("url")
+      if (!remote) return c.json({ error: "missing url" }, 400)
+      let parsed: URL
+      try {
+        parsed = new URL(remote)
+      } catch {
+        return c.json({ error: "invalid url" }, 400)
+      }
+      const allowed =
+        (parsed.protocol === "https:" && parsed.hostname.toLowerCase() === "sites.kolbo.ai") ||
+        // Dev/staging/partner backends publish under the configured API origin
+        // (…/shared-artifact-raw/<token>) instead of sites.kolbo.ai.
+        (partnerImageOrigins().has(parsed.origin) && parsed.pathname.includes("/shared-artifact-raw/"))
+      if (!allowed) return c.json({ error: "host not allowed" }, 403)
+      try {
+        const res = await fetch(parsed.toString(), { signal: AbortSignal.timeout(15_000) })
+        if (!res.ok) return c.json({ error: `upstream ${res.status}` }, 502)
+        let html = await res.text()
+        html = html.replace(/<head([^>]*)>/i, `<head$1><base href="${parsed.origin}${parsed.pathname}">`)
+        return c.newResponse(html, 200, { "Content-Type": "text/html; charset=utf-8" })
+      } catch {
+        return c.json({ error: "fetch failed" }, 502)
+      }
+    })
     // ── Image proxy ─────────────────────────────────────────────────────────
     // Tauri's WebView2 can't reliably load https://api.kolbo.ai/assets/*.svg
     // (TLS handshake fails — surfaces in DevTools as ERR_SSL_PROTOCOL_ERROR).
