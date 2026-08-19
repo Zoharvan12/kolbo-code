@@ -2120,6 +2120,59 @@ export default function Page() {
     if (fillFrame !== undefined) cancelAnimationFrame(fillFrame)
   })
 
+  const composerRegion = () => (
+      <SessionComposerRegion
+        state={composer}
+        ready={!store.deferRender && messagesReady()}
+        centered={centered()}
+        inputRef={(el) => {
+          inputRef = el
+        }}
+        newSessionWorktree={newSessionWorktree()}
+        onNewSessionWorktreeReset={() => setStore("newSessionWorktree", "main")}
+        onSubmit={() => {
+          comments.clear()
+          resumeScroll()
+        }}
+        onResponseSubmit={resumeScroll}
+        followup={
+          params.id && !isChildSession()
+            ? {
+                queue: queueEnabled,
+                items: followupDock(),
+                sending: sendingFollowup(),
+                edit: editingFollowup(),
+                onQueue: queueFollowup,
+                onAbort: () => {
+                  const id = params.id
+                  if (!id) return
+                  setFollowup("paused", id, true)
+                },
+                onSend: (id) => {
+                  void sendFollowup(params.id!, id, { manual: true })
+                },
+                onEdit: editFollowup,
+                onDelete: deleteFollowup,
+                onEditLoaded: clearFollowupEdit,
+              }
+            : undefined
+        }
+        revert={
+          rolled().length > 0
+            ? {
+                items: rolled(),
+                restoring: restoring(),
+                disabled: reverting(),
+                onRestore: restore,
+              }
+            : undefined
+        }
+        setPromptDockRef={(el) => {
+          promptDock = el
+        }}
+      />
+  )
+
   return (
     <div class="relative bg-background-base size-full overflow-hidden flex flex-col">
       <SessionHeader />
@@ -2220,61 +2273,15 @@ export default function Page() {
                 </Show>
               </Match>
               <Match when={true}>
-                <NewSessionView worktree={newSessionWorktree()} />
+                <NewSessionView composer={composerRegion()} />
               </Match>
             </Switch>
           </div>
 
-          <SessionComposerRegion
-            state={composer}
-            ready={!store.deferRender && messagesReady()}
-            centered={centered()}
-            inputRef={(el) => {
-              inputRef = el
-            }}
-            newSessionWorktree={newSessionWorktree()}
-            onNewSessionWorktreeReset={() => setStore("newSessionWorktree", "main")}
-            onSubmit={() => {
-              comments.clear()
-              resumeScroll()
-            }}
-            onResponseSubmit={resumeScroll}
-            followup={
-              params.id && !isChildSession()
-                ? {
-                    queue: queueEnabled,
-                    items: followupDock(),
-                    sending: sendingFollowup(),
-                    edit: editingFollowup(),
-                    onQueue: queueFollowup,
-                    onAbort: () => {
-                      const id = params.id
-                      if (!id) return
-                      setFollowup("paused", id, true)
-                    },
-                    onSend: (id) => {
-                      void sendFollowup(params.id!, id, { manual: true })
-                    },
-                    onEdit: editFollowup,
-                    onDelete: deleteFollowup,
-                    onEditLoaded: clearFollowupEdit,
-                  }
-                : undefined
-            }
-            revert={
-              rolled().length > 0
-                ? {
-                    items: rolled(),
-                    restoring: restoring(),
-                    disabled: reverting(),
-                    onRestore: restore,
-                  }
-                : undefined
-            }
-            setPromptDockRef={(el) => {
-              promptDock = el
-            }}
-          />
+          {/* One composer, two homes: inline under the hero on the new-session
+              page (quick start is the primary action there), docked at the
+              bottom during an active session. Only one branch mounts at a time. */}
+          <Show when={params.id}>{composerRegion()}</Show>
 
           <Show when={desktopReviewOpen()}>
             <div onPointerDown={() => size.start()}>

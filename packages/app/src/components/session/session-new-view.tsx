@@ -1,19 +1,16 @@
-import { For, Show, createMemo, createSignal } from "solid-js"
-import { DateTime } from "luxon"
+import { For, Show, createMemo, createSignal, type JSX } from "solid-js"
 import { useSync } from "@/context/sync"
-import { useSDK } from "@/context/sdk"
 import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Kobi } from "@opencode-ai/ui/kobi"
-import { getDirectory, getFilename } from "@opencode-ai/util/path"
 
-const MAIN_WORKTREE = "main"
-const CREATE_WORKTREE = "create"
 const ROOT_CLASS = "size-full flex flex-col"
 
 interface NewSessionViewProps {
-  worktree: string
+  /** The session composer, rendered inline right under the hero — quick start
+   *  is the primary action on this page, not a dock at the bottom of a void. */
+  composer?: JSX.Element
 }
 
 type StarterCategory = "marketing" | "film" | "images" | "web"
@@ -59,22 +56,9 @@ const CATEGORIES: ("all" | StarterCategory)[] = ["all", "marketing", "film", "im
 
 export function NewSessionView(props: NewSessionViewProps) {
   const sync = useSync()
-  const sdk = useSDK()
   const language = useLanguage()
   const prompt = usePrompt()
 
-  const sandboxes = createMemo(() => sync.project?.sandboxes ?? [])
-  const options = createMemo(() => [MAIN_WORKTREE, ...sandboxes(), CREATE_WORKTREE])
-  const current = createMemo(() => {
-    const selection = props.worktree
-    if (options().includes(selection)) return selection
-    return MAIN_WORKTREE
-  })
-  const isWorktree = createMemo(() => {
-    const project = sync.project
-    if (!project) return false
-    return sdk.directory !== project.worktree
-  })
   // Kobi reacts to the composer: idle until you start describing something.
   const typing = createMemo(() => prompt.current().some((part) => "content" in part && part.content.trim().length > 0))
 
@@ -82,17 +66,6 @@ export function NewSessionView(props: NewSessionViewProps) {
   const visible = createMemo(() =>
     STARTERS.filter((starter) => category() === "all" || starter.categories.includes(category() as StarterCategory)),
   )
-
-  const label = (value: string) => {
-    if (value === MAIN_WORKTREE) {
-      if (isWorktree()) return language.t("session.new.worktree.main")
-      const branch = sync.data.vcs?.branch
-      if (branch) return language.t("session.new.worktree.mainWithBranch", { branch })
-      return language.t("session.new.worktree.main")
-    }
-    if (value === CREATE_WORKTREE) return language.t("session.new.worktree.create")
-    return getFilename(value)
-  }
 
   const seed = (starter: Starter) => {
     const text = language.t(`session.new.starter.${starter.key}.prompt`)
@@ -109,7 +82,7 @@ export function NewSessionView(props: NewSessionViewProps) {
   return (
     <div class={ROOT_CLASS} data-component="session-new-view">
       <div class="h-12 shrink-0" aria-hidden />
-      <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-30 flex items-start justify-center">
+      <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-10 flex items-start justify-center">
         <div class="w-full max-w-200 flex flex-col items-center text-center gap-7 pt-10">
           <div class="flex flex-col items-center gap-4" data-slot="new-session-hero">
             <div data-slot="new-session-mark">
@@ -125,6 +98,10 @@ export function NewSessionView(props: NewSessionViewProps) {
             </div>
           </div>
 
+          <Show when={props.composer}>
+            <div data-slot="new-session-composer" class="w-full">{props.composer}</div>
+          </Show>
+
           <Show
             when={sync.project}
             fallback={
@@ -134,33 +111,7 @@ export function NewSessionView(props: NewSessionViewProps) {
               </div>
             }
           >
-            {(project) => (
-              <>
-                <div data-slot="new-session-meta">
-                  <span class="select-text">
-                    {getDirectory(project().worktree)}
-                    <span data-slot="new-session-meta-strong">{getFilename(project().worktree)}</span>
-                  </span>
-                  <span data-slot="new-session-meta-divider" aria-hidden="true">
-                    ·
-                  </span>
-                  <span class="inline-flex items-center gap-1">
-                    <Icon name="branch" size="small" />
-                    {label(current())}
-                  </span>
-                  <span data-slot="new-session-meta-divider" aria-hidden="true">
-                    ·
-                  </span>
-                  <span>
-                    {language.t("session.new.lastModified")}{" "}
-                    <span data-slot="new-session-meta-strong">
-                      {DateTime.fromMillis(project().time.updated ?? project().time.created)
-                        .setLocale(language.intl())
-                        .toRelative()}
-                    </span>
-                  </span>
-                </div>
-
+            <>
                 <div data-slot="new-session-divider" aria-hidden="true">
                   <span />
                   <span data-slot="new-session-divider-label">{language.t("session.new.jumpIn")}</span>
@@ -217,8 +168,7 @@ export function NewSessionView(props: NewSessionViewProps) {
                     )}
                   </For>
                 </div>
-              </>
-            )}
+            </>
           </Show>
         </div>
       </div>
