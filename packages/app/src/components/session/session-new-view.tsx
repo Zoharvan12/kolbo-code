@@ -22,10 +22,9 @@ type Starter = {
     | "ugc"
     | "presentation"
     | "landing"
-    | "video"
+    | "music"
     | "productPhotoshoot"
     | "productAnimation"
-    | "aiInfluencer"
   categories: StarterCategory[]
   /** i18n suffix for the small corner tag (session.new.tag.*); omit = no tag */
   tag?: "guided" | "seedance" | "needsRefs"
@@ -56,6 +55,14 @@ const DEMO_CREAM_JAR = { url: `${DEMO_CDN}/demo-cream-jar.jpg`, filename: "demo-
 const DEMO_CREATOR_WOMAN = { url: `${DEMO_CDN}/demo-creator-woman.jpg`, filename: "demo-creator.jpg", mime: "image/jpeg" }
 const DEMO_SUNGLASSES = { url: `${DEMO_CDN}/demo-sunglasses.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
 const DEMO_SNEAKER = { url: `${DEMO_CDN}/demo-sneaker.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
+// Direct-a-scene set — ORDER IS THE CONTRACT: @Image1/@Image2 characters,
+// @Image3 location, exactly as the preset prompt references them.
+const DEMO_SCENE: { url: string; filename: string; mime: string }[] = [
+  { url: `${DEMO_CDN}/demo-scene-character-a.jpg`, filename: "character-a.jpg", mime: "image/jpeg" },
+  { url: `${DEMO_CDN}/demo-scene-character-b.jpg`, filename: "character-b.jpg", mime: "image/jpeg" },
+  { url: `${DEMO_CDN}/demo-scene-environment.jpg`, filename: "environment.jpg", mime: "image/jpeg" },
+]
+
 // Fashion campaign set — ORDER IS THE CONTRACT: attachment order defines the
 // @ImageN numbering the preset prompt references (1=model, 2-5=outfits, 6=env).
 const DEMO_FASHION: { url: string; filename: string; mime: string }[] = [
@@ -68,15 +75,14 @@ const DEMO_FASHION: { url: string; filename: string; mime: string }[] = [
 ]
 
 const STARTERS: Starter[] = [
-  { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${THUMB_CDN_V3}/fashionCampaign.webp`, media: DEMO_FASHION, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
-  { key: "scene", categories: ["film"], tag: "seedance", gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
+  { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${DEMO_CDN}/demo-fashion-model.jpg`, fit: "contain", media: DEMO_FASHION, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
+  { key: "scene", categories: ["film"], tag: "seedance", media: DEMO_SCENE, gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
   { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN_V3}/ugc-v2.webp`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
   { key: "presentation", categories: ["web"], gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
   { key: "landing", categories: ["web", "marketing"], gradient: "linear-gradient(140deg,#00c2ff,#0037ff)" },
-  { key: "video", categories: ["film"], gradient: "linear-gradient(140deg,#00e58f,#00707a)" },
   { key: "productPhotoshoot", categories: ["marketing", "images"], thumb: `${THUMB_CDN_V3}/productPhotoshoot.webp`, media: [DEMO_SUNGLASSES], gradient: "linear-gradient(140deg,#8f5bff,#2d0f66)" },
   { key: "productAnimation", categories: ["marketing", "film"], media: [DEMO_SNEAKER], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
-  { key: "aiInfluencer", categories: ["marketing", "images"], gradient: "linear-gradient(140deg,#b84dff,#3a0ca3)" },
+  { key: "music", categories: ["film"], thumb: `${THUMB_CDN_V3}/music.webp`, gradient: "linear-gradient(140deg,#00e58f,#00707a)" },
 ]
 
 const CATEGORIES: ("all" | StarterCategory)[] = ["all", "marketing", "film", "images", "web"]
