@@ -56,9 +56,19 @@ const DEMO_CREAM_JAR = { url: `${DEMO_CDN}/demo-cream-jar.jpg`, filename: "demo-
 const DEMO_CREATOR_WOMAN = { url: `${DEMO_CDN}/demo-creator-woman.jpg`, filename: "demo-creator.jpg", mime: "image/jpeg" }
 const DEMO_SUNGLASSES = { url: `${DEMO_CDN}/demo-sunglasses.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
 const DEMO_SNEAKER = { url: `${DEMO_CDN}/demo-sneaker.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
+// Fashion campaign set — ORDER IS THE CONTRACT: attachment order defines the
+// @ImageN numbering the preset prompt references (1=model, 2-5=outfits, 6=env).
+const DEMO_FASHION: { url: string; filename: string; mime: string }[] = [
+  { url: `${DEMO_CDN}/demo-fashion-model.jpg`, filename: "model.jpg", mime: "image/jpeg" },
+  { url: `${DEMO_CDN}/demo-fashion-outfit-red.jpg`, filename: "outfit-red.jpg", mime: "image/jpeg" },
+  { url: `${DEMO_CDN}/demo-fashion-outfit-cream.jpg`, filename: "outfit-cream.jpg", mime: "image/jpeg" },
+  { url: `${DEMO_CDN}/demo-fashion-outfit-black.jpg`, filename: "outfit-black.jpg", mime: "image/jpeg" },
+  { url: `${DEMO_CDN}/demo-fashion-outfit-blue.jpg`, filename: "outfit-blue.jpg", mime: "image/jpeg" },
+  { url: `${DEMO_CDN}/demo-fashion-environment.jpg`, filename: "environment.jpg", mime: "image/jpeg" },
+]
 
 const STARTERS: Starter[] = [
-  { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${THUMB_CDN_V3}/fashionCampaign.webp`, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
+  { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${THUMB_CDN_V3}/fashionCampaign.webp`, media: DEMO_FASHION, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
   { key: "scene", categories: ["film"], tag: "seedance", gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
   { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN_V3}/ugc-v2.webp`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
   { key: "presentation", categories: ["web"], gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
