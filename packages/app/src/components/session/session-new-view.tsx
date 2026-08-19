@@ -35,10 +35,12 @@ type Starter = {
   gradient: string
 }
 
-// Real card art lives on the CDN (same contract as Kobi's poses in
-// packages/ui kobi.tsx): keyed by starter key so it can be redrawn without
-// shipping a new build. Until an asset exists, the gradient tile carries the card.
-const THUMB_CDN = "https://media.kolbo.ai/kolboai-media/kolbo-code/starters"
+// Real card art lives on the shared env-agnostic CDN bucket (kolbo-general-media,
+// the documented home for hardcoded product assets): keyed by starter key so it
+// can be redrawn without shipping a new build. Assets are cached immutable — on
+// any redraw upload a NEW key (-v2) and update this base or the key names.
+// Gradient tile carries the card if an asset is missing/unreachable.
+const THUMB_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/starters"
 
 const STARTERS: Starter[] = [
   { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
