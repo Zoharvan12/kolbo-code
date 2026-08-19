@@ -52,12 +52,12 @@ const DEMO_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/ko
 const DEMO_CREAM_JAR = { url: `${DEMO_CDN}/demo-cream-jar.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
 const DEMO_CREATOR_WOMAN = { url: `${DEMO_CDN}/demo-creator-woman.jpg`, filename: "demo-creator.jpg", mime: "image/jpeg" }
 const DEMO_SUNGLASSES = { url: `${DEMO_CDN}/demo-sunglasses.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
-const DEMO_SNEAKER = { url: `${DEMO_CDN}/demo-sneaker.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
+const DEMO_SNEAKER = { url: `${DEMO_CDN}/demo-product-sheet.jpg`, filename: "product-sheet.jpg", mime: "image/jpeg" }
 // Direct-a-scene set — ORDER IS THE CONTRACT: @Image1/@Image2 characters,
 // @Image3 location, exactly as the preset prompt references them.
 const DEMO_SCENE: { url: string; filename: string; mime: string }[] = [
-  { url: `${DEMO_CDN}/demo-scene-character-a.jpg`, filename: "character-a.jpg", mime: "image/jpeg" },
-  { url: `${DEMO_CDN}/demo-scene-character-b.jpg`, filename: "character-b.jpg", mime: "image/jpeg" },
+  { url: `${DEMO_CDN}/demo-scene-character-a-sheet.jpg`, filename: "character-a-sheet.jpg", mime: "image/jpeg" },
+  { url: `${DEMO_CDN}/demo-scene-character-b-sheet.jpg`, filename: "character-b-sheet.jpg", mime: "image/jpeg" },
   { url: `${DEMO_CDN}/demo-scene-environment.jpg`, filename: "environment.jpg", mime: "image/jpeg" },
 ]
 
