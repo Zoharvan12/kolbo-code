@@ -27,6 +27,7 @@ export function SessionComposerRegion(props: {
   onNewSessionWorktreeReset: () => void
   onSubmit: () => void
   onResponseSubmit: () => void
+  popoverDirection?: "up" | "down"
   followup?: {
     queue: () => boolean
     items: { id: string; text: string }[]
@@ -270,6 +271,7 @@ export function SessionComposerRegion(props: {
                       onQueue={props.followup?.onQueue}
                       onAbort={props.followup?.onAbort}
                       onSubmit={props.onSubmit}
+                      popoverDirection={props.popoverDirection}
                       hasProject={() => !!sync.project}
                       onBlockedNoProject={() =>
                         showToast({

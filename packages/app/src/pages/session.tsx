@@ -2128,6 +2128,7 @@ export default function Page() {
         state={composer}
         ready={!store.deferRender && messagesReady()}
         centered={centered()}
+        popoverDirection={params.id ? "up" : "down"}
         inputRef={(el) => {
           inputRef = el
         }}

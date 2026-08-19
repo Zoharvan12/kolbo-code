@@ -24,6 +24,10 @@ export interface SlashCommand {
 
 type PromptPopoverProps = {
   popover: "at" | "slash" | null
+  /** "up" (default): opens above the input — the bottom-docked composer.
+   *  "down": opens below — the new-session page's composer sits at the TOP of
+   *  a scroll container, and an upward popover clips against its edge. */
+  direction?: "up" | "down"
   setSlashPopoverRef: (el: HTMLDivElement) => void
   atFlat: AtOption[]
   atActive?: string
@@ -45,9 +49,11 @@ export const PromptPopover: Component<PromptPopoverProps> = (props) => {
         ref={(el) => {
           if (props.popover === "slash") props.setSlashPopoverRef(el)
         }}
-        class="absolute inset-x-0 -top-2 -translate-y-full origin-bottom-left max-h-80 min-h-10
-                 overflow-auto no-scrollbar flex flex-col p-2 rounded-[12px]
-                 bg-surface-raised-stronger-non-alpha shadow-[var(--shadow-lg-border-base)]"
+        classList={{
+          "absolute inset-x-0 max-h-80 min-h-10 overflow-auto no-scrollbar flex flex-col p-2 rounded-[12px] bg-surface-raised-stronger-non-alpha shadow-[var(--shadow-lg-border-base)]": true,
+          "-top-2 -translate-y-full origin-bottom-left": props.direction !== "down",
+          "top-full mt-2 origin-top-left z-50": props.direction === "down",
+        }}
         onMouseDown={(e) => e.preventDefault()}
       >
         <Switch>

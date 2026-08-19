@@ -83,6 +83,8 @@ interface PromptInputProps {
   onSubmit?: () => void
   hasProject?: () => boolean
   onBlockedNoProject?: () => void
+  /** Where the @/slash popover opens relative to the input. Default "up". */
+  popoverDirection?: "up" | "down"
 }
 
 const EXAMPLES = [
@@ -1797,6 +1799,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   return (
     <div class="relative size-full _max-h-[320px] flex flex-col gap-0">
       <PromptPopover
+        direction={props.popoverDirection}
         popover={store.popover}
         setSlashPopoverRef={(el) => (slashPopoverRef = el)}
         atFlat={atFlat()}
