@@ -1,7 +1,7 @@
 import { For, Show, createMemo, createSignal, type JSX } from "solid-js"
 import { useSync } from "@/context/sync"
 import { useLanguage } from "@/context/language"
-import { usePrompt } from "@/context/prompt"
+import { usePrompt, type Prompt } from "@/context/prompt"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Kobi } from "@opencode-ai/ui/kobi"
 
@@ -29,8 +29,9 @@ type Starter = {
   categories: StarterCategory[]
   /** i18n suffix for the small corner tag (session.new.tag.*); omit = no tag */
   tag?: "guided" | "seedance" | "needsRefs"
-  /** Clicking also opens the attachment picker (UGC needs product + face refs). */
-  wantsAttachments?: boolean
+  /** Demo input assets auto-attached on click (public CDN URLs) so the preset
+   *  works instantly — the prompt tells the user they can swap in their own. */
+  media?: { url: string; filename: string; mime: string }[]
   /** Fallback tile when the CDN still is missing/unreachable — never a broken image. */
   gradient: string
 }
@@ -40,17 +41,22 @@ type Starter = {
 // can be redrawn without shipping a new build. Assets are cached immutable — on
 // any redraw upload a NEW key (-v2) and update this base or the key names.
 // Gradient tile carries the card if an asset is missing/unreachable.
-const THUMB_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/starters"
+const THUMB_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/starters-v2"
+const DEMO_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/demo-assets"
+
+const DEMO_PRODUCT = { url: `${DEMO_CDN}/demo-product-base.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
+const DEMO_UGC_PRODUCT = { url: `${DEMO_CDN}/demo-ugc-product.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
+const DEMO_UGC_CREATOR = { url: `${DEMO_CDN}/demo-ugc-creator.jpg`, filename: "demo-creator.jpg", mime: "image/jpeg" }
 
 const STARTERS: Starter[] = [
   { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
   { key: "scene", categories: ["film"], tag: "seedance", gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
-  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", wantsAttachments: true, gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
+  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", media: [DEMO_UGC_PRODUCT, DEMO_UGC_CREATOR], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
   { key: "presentation", categories: ["web"], gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
   { key: "landing", categories: ["web", "marketing"], gradient: "linear-gradient(140deg,#00c2ff,#0037ff)" },
   { key: "video", categories: ["film"], gradient: "linear-gradient(140deg,#00e58f,#00707a)" },
-  { key: "productPhotoshoot", categories: ["marketing", "images"], gradient: "linear-gradient(140deg,#8f5bff,#2d0f66)" },
-  { key: "productAnimation", categories: ["marketing", "film"], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
+  { key: "productPhotoshoot", categories: ["marketing", "images"], media: [DEMO_PRODUCT], gradient: "linear-gradient(140deg,#8f5bff,#2d0f66)" },
+  { key: "productAnimation", categories: ["marketing", "film"], media: [DEMO_PRODUCT], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
   { key: "aiInfluencer", categories: ["marketing", "images"], gradient: "linear-gradient(140deg,#b84dff,#3a0ca3)" },
 ]
 
@@ -71,14 +77,23 @@ export function NewSessionView(props: NewSessionViewProps) {
 
   const seed = (starter: Starter) => {
     const text = language.t(`session.new.starter.${starter.key}.prompt`)
-    prompt.set([{ type: "text", content: text, start: 0, end: text.length }], text.length)
+    const parts: Prompt = [{ type: "text", content: text, start: 0, end: text.length }]
+    // Demo inputs ride as ready image attachments (public CDN URLs — publicUrl
+    // is already set, so no upload round-trip), letting the preset run
+    // instantly; the prompt copy invites swapping in real assets.
+    for (const m of starter.media ?? []) {
+      parts.push({
+        type: "image",
+        id: `demo-${starter.key}-${m.filename}-${Date.now()}`,
+        filename: m.filename,
+        mime: m.mime,
+        dataUrl: m.url,
+        publicUrl: m.url,
+      })
+    }
+    prompt.set(parts, text.length)
     const editor = document.querySelector<HTMLElement>('[data-component="prompt-input"]')
     editor?.focus()
-    if (starter.wantsAttachments) {
-      // The composer's own hidden multi-file input — on this page no dialog is
-      // mounted, so it is the only [multiple] file input in the document.
-      document.querySelector<HTMLInputElement>('input[type="file"][multiple]')?.click()
-    }
   }
 
   return (
