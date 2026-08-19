@@ -39,6 +39,7 @@ import { ModelsProvider } from "@/context/models"
 import { NotificationProvider } from "@/context/notification"
 import { PermissionProvider } from "@/context/permission"
 import { PromptProvider } from "@/context/prompt"
+import { KolboProjectProvider } from "@/context/kolbo-project"
 import { ServerConnection, ServerProvider, serverName, useServer } from "@/context/server"
 import { SettingsProvider } from "@/context/settings"
 import { TerminalProvider } from "@/context/terminal"
@@ -156,9 +157,11 @@ function SessionProviders(props: ParentProps) {
   return (
     <TerminalProvider>
       <FileProvider>
-        <PromptProvider>
-          <CommentsProvider>{props.children}</CommentsProvider>
-        </PromptProvider>
+        <KolboProjectProvider>
+          <PromptProvider>
+            <CommentsProvider>{props.children}</CommentsProvider>
+          </PromptProvider>
+        </KolboProjectProvider>
       </FileProvider>
     </TerminalProvider>
   )
