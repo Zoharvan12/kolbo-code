@@ -185,25 +185,23 @@
     max-width: 100%;
   }
 
-  [data-slot="user-message-text"][data-collapsed="true"] {
+  /* Clamp + fade live on the INNER wrapper so the bubble keeps its full
+     rounded shape and padding, the fade touches only the last text lines, and
+     the toggle below never fades. overflow hidden, not auto: the collapsed
+     bubble must not be a secret scroll container. */
+  [data-slot="user-message-text-clamp"][data-collapsed="true"] {
     max-height: 7lh;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
-    mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
-  }
-
-  [data-slot="user-message-text"][data-collapsed="true"]::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
   }
 
   [data-slot="user-message-toggle"] {
-    align-self: flex-end;
-    margin-top: 4px;
-    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 2px 0;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -211,6 +209,34 @@
     font-size: var(--font-size-small, 12px);
     color: var(--text-weak);
     transition: color 0.15s ease;
+  }
+
+  [data-slot="user-message-mention-chip"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    vertical-align: middle;
+    margin: 0 2px;
+    padding: 1px 7px 1px 2px;
+    border-radius: 999px;
+    border: 1px solid var(--border-weaker-base);
+    background: var(--surface-recess-base);
+    font-size: var(--font-size-small, 12px);
+    color: var(--syntax-string, var(--text-base));
+    white-space: nowrap;
+  }
+
+  [data-slot="user-message-mention-chip"] img {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: none;
+  }
+
+  /* Text-only chips (video/audio have no renderable thumb) keep even padding. */
+  [data-slot="user-message-mention-chip"]:not(:has(img)) {
+    padding: 1px 7px;
   }
 
   [data-slot="user-message-toggle"]:hover {

@@ -1416,27 +1416,32 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
       <Show when={text()}>
         <>
           <div data-slot="user-message-body">
-            <div
-              data-slot="user-message-text"
-              data-collapsed={collapsed() ? "true" : undefined}
-              dir={detectBubbleDirection(text())}
-              style="text-align:start"
-            >
-              <HighlightedText text={text()} references={inlineFiles()} agents={agents()} />
+            {/* The bubble owns BOTH the clamped text and the toggle: the fade
+                mask lives on the inner clamp wrapper only, so the button never
+                fades and never floats outside the bubble (kolbo-map pattern). */}
+            <div data-slot="user-message-text" dir={detectBubbleDirection(text())} style="text-align:start">
+              <div data-slot="user-message-text-clamp" data-collapsed={collapsed() ? "true" : undefined}>
+                <UserMessageText
+                  text={text()}
+                  references={inlineFiles()}
+                  agents={agents()}
+                  attachments={attachments()}
+                />
+              </div>
+              <Show when={isLong()}>
+                <button
+                  type="button"
+                  data-slot="user-message-toggle"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setState("expanded", !expanded())
+                  }}
+                >
+                  {expanded() ? i18n.t("ui.message.collapse") : i18n.t("ui.message.expand")}
+                </button>
+              </Show>
             </div>
-            <Show when={isLong()}>
-              <button
-                type="button"
-                data-slot="user-message-toggle"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  setState("expanded", !expanded())
-                }}
-              >
-                {expanded() ? i18n.t("ui.message.collapse") : i18n.t("ui.message.expand")}
-              </button>
-            </Show>
           </div>
           <div data-slot="user-message-copy-wrapper">
             <Show when={metaHead() || metaTail()}>
@@ -1499,6 +1504,75 @@ export function UserMessageDisplay(props: { message: UserMessage; parts: PartTyp
 }
 
 type HighlightSegment = { text: string; type?: "file" | "agent" }
+
+// @image1 / @video2 / @audio1 tokens in a SENT message rendered as media
+// chips with a thumbnail, matching the composer's pills and kolbo-map's
+// message chips — plain text hid what the message actually referenced.
+// Numbering is positional PER KIND over the message's own attachments, the
+// same order the composer's media labels assign, so token → attachment is a
+// counter walk, not a filename guess.
+const MEDIA_TOKEN_RE = /@(image|video|audio)(\d+)/gi
+
+function mediaHandleMap(attachments: FilePart[]) {
+  const counters: Record<string, number> = {}
+  const map = new Map<string, FilePart>()
+  for (const file of attachments) {
+    const k = kind(file)
+    if (k !== "image" && k !== "video" && k !== "audio") continue
+    counters[k] = (counters[k] ?? 0) + 1
+    map.set(`@${k}${counters[k]}`, file)
+  }
+  return map
+}
+
+function UserMessageText(props: { text: string; references: FilePart[]; agents: AgentPart[]; attachments: FilePart[] }) {
+  const handles = createMemo(() => mediaHandleMap(props.attachments))
+  const segments = createMemo(() => {
+    const out: (string | { token: string; file: FilePart })[] = []
+    if (handles().size === 0) return [props.text]
+    const re = new RegExp(MEDIA_TOKEN_RE.source, "gi")
+    let cursor = 0
+    for (let m = re.exec(props.text); m; m = re.exec(props.text)) {
+      const file = handles().get(m[0].toLowerCase())
+      if (!file) continue
+      if (m.index > cursor) out.push(props.text.slice(cursor, m.index))
+      out.push({ token: m[0], file })
+      cursor = m.index + m[0].length
+    }
+    if (cursor === 0) return [props.text]
+    if (cursor < props.text.length) out.push(props.text.slice(cursor))
+    return out
+  })
+  const plain = createMemo(() => segments().length === 1 && typeof segments()[0] === "string")
+
+  return (
+    <Show
+      when={!plain()}
+      fallback={<HighlightedText text={props.text} references={props.references} agents={props.agents} />}
+    >
+      <For each={segments()}>
+        {(segment) =>
+          typeof segment === "string" ? (
+            <span>{segment}</span>
+          ) : (
+            <span data-slot="user-message-mention-chip" title={segment.file.filename ?? segment.token}>
+              <Show when={kind(segment.file) === "image"}>
+                <img
+                  src={segment.file.url}
+                  alt=""
+                  loading="lazy"
+                  referrerpolicy="no-referrer"
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+              </Show>
+              {segment.token}
+            </span>
+          )
+        }
+      </For>
+    </Show>
+  )
+}
 
 function HighlightedText(props: { text: string; references: FilePart[]; agents: AgentPart[] }) {
   const segments = createMemo(() => {
