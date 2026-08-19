@@ -585,6 +585,7 @@ export const dict = {
   "prompt.noProject.description": "Create or open a project first — everything we make is saved inside its folder.",
   "prompt.kolboProject.label": "Kolbo project",
   "prompt.kolboProject.default": "API Generations",
+  "prompt.kolboProject.shared": "Shared",
   "prompt.kolboProject.createNew": "Create new project…",
   "prompt.kolboProject.createPrompt": "Name for the new Kolbo project:",
   "prompt.action.mediaLibrary": "Media library",

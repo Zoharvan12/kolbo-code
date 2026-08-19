@@ -2416,6 +2416,7 @@ export type GlobalKolboProjectsResponses = {
     id: string
     name: string
     is_default: boolean
+    role: string
     thumbnail: string | null
   }>
 }
@@ -2439,6 +2440,7 @@ export type GlobalKolboProjectsCreateResponses = {
     id: string
     name: string
     is_default: boolean
+    role: string
     thumbnail: string | null
   }
 }

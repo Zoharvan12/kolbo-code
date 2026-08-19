@@ -14,7 +14,7 @@ import { usePlatform } from "@/context/platform"
  */
 export type KolboProjectLink = { id?: string; name?: string }
 
-export type KolboProjectInfo = { id: string; name: string; is_default: boolean; thumbnail: string | null }
+export type KolboProjectInfo = { id: string; name: string; is_default: boolean; role: string; thumbnail: string | null }
 
 /**
  * Write the link from OUTSIDE the workspace provider tree — the New Project

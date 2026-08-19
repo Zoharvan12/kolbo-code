@@ -99,6 +99,9 @@ const KolboProjectSchema = z.object({
   id: z.string(),
   name: z.string(),
   is_default: z.boolean(),
+  // Upstream role: 'owner' | 'edit' | 'full' — anything but 'owner' means the
+  // project was shared with this user, which the chip surfaces as a badge.
+  role: z.string(),
   thumbnail: z.string().nullable(),
 })
 type KolboProject = z.infer<typeof KolboProjectSchema>
@@ -116,12 +119,13 @@ async function kolboProjects(): Promise<KolboProject[]> {
     const res = await fetch(`${Partner.apiBase}/v1/projects?limit=200`, { headers: { "X-API-Key": apiKey } })
     if (!res.ok) return hit?.value ?? []
     const body = (await res.json()) as {
-      projects?: { id: string; name: string; is_default?: boolean; thumbnail_url?: string | null }[]
+      projects?: { id: string; name: string; is_default?: boolean; role?: string; thumbnail_url?: string | null }[]
     }
     const value = (body.projects ?? []).map((p) => ({
       id: p.id,
       name: p.name,
       is_default: !!p.is_default,
+      role: p.role ?? "owner",
       thumbnail: p.thumbnail_url ?? null,
     }))
     _kolboProjectsCache = { at: Date.now(), key: apiKey, value }
@@ -850,7 +854,7 @@ export const GlobalRoutes = lazy(() =>
         const body = (await res.json()) as { project?: { id: string; name: string } }
         if (!body.project?.id) return c.json({ error: "Malformed upstream response" }, 502)
         _kolboProjectsCache = undefined // next list must include the new project
-        return c.json({ id: body.project.id, name: body.project.name, is_default: false, thumbnail: null })
+        return c.json({ id: body.project.id, name: body.project.name, is_default: false, role: "owner", thumbnail: null })
       },
     )
     .get(
