@@ -3,6 +3,7 @@ import { unwrap } from "solid-js/store"
 import { useKolboModels } from "../context/kolbo-models"
 import { usePlatformOps } from "../context/platform-ops"
 import { read, type Operation } from "./kolbo-operation"
+import { openKolboLightbox } from "./kolbo-media"
 
 const GEN = "ui://kolbo/generation.html"
 
@@ -373,7 +374,18 @@ export function KolboMcpWidget(props: {
     }
     if (msg.method === "ui/open-link") {
       const href = msg.params?.url
-      if (typeof href === "string") ops.openLink?.(href)
+      if (typeof href === "string") {
+        // A media URL from a result card opens the IN-APP lightbox, not the
+        // browser. The widget only sends these as a fallback: clicking an
+        // image calls requestDisplayMode('fullscreen') first, this host never
+        // grants it, and the fallback used to punt every click to an external
+        // browser window. Download links (/mcp/download) and everything else
+        // (app.kolbo.ai deep links) still open externally on purpose.
+        const isDownload = href.includes("/mcp/download")
+        const isMedia = /\.(png|jpe?g|webp|gif|avif|mp4|mov|webm|mkv)(\?|$)/i.test(href)
+        if (isMedia && !isDownload) openKolboLightbox(href)
+        else ops.openLink?.(href)
+      }
       if (msg.id != null) reply(msg.id, {})
       return
     }

@@ -522,25 +522,28 @@ export default function Page() {
   // on the rising edge of "something is running", NOT per finished media
   // part: the old per-media version re-opened the panel and overrode the
   // active tab on every completed image, which made file tabs and the panel
-  // close button feel broken. Two guards keep that from returning — closing
-  // Canvas (canvas.dismissed) mutes it for the session, and we never yank
-  // the user off a tab they chose themselves.
+  // close button feel broken. Guards, in order of who wins:
+  //  - closing Canvas (canvas.dismissed) mutes it for the session — an
+  //    explicit user "no" is never overridden;
+  //  - a FILE tab the user opened is never yanked away;
+  //  - the artifacts tab IS switched to Canvas — it is not a user-chosen
+  //    file, and a running generation is the more urgent thing to show
+  //    (users were not discovering generations at all).
+  // No defer + prev===undefined counts as a rising edge: entering a session
+  // where a generation is ALREADY running must open the canvas too — the
+  // old rising-edge-only version silently missed that case.
   createEffect(
-    on(
-      runningGenerations,
-      (now, prev) => {
-        if (prev !== 0 || now === 0) return
-        if (view().canvas.dismissed()) return
-        const panelOpen = view().reviewPanel.opened()
-        if (panelOpen && (artifactsTabActive() || activeFileTab())) return
-        batch(() => {
-          setArtifactsTabActive(false)
-          setCanvasTabActive(true)
-          if (!panelOpen) view().reviewPanel.open()
-        })
-      },
-      { defer: true },
-    ),
+    on(runningGenerations, (now, prev) => {
+      if (now === 0 || (prev !== 0 && prev !== undefined)) return
+      if (view().canvas.dismissed()) return
+      const panelOpen = view().reviewPanel.opened()
+      if (panelOpen && activeFileTab()) return
+      batch(() => {
+        setArtifactsTabActive(false)
+        setCanvasTabActive(true)
+        if (!panelOpen) view().reviewPanel.open()
+      })
+    }),
   )
 
   const revertMessageID = createMemo(() => info()?.revert?.messageID)
