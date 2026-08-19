@@ -59,6 +59,7 @@ import {
   promptLength,
 } from "./prompt-input/history"
 import { createPromptSubmit, type FollowupDraft } from "./prompt-input/submit"
+import { KolboProjectChip } from "./prompt-input/kolbo-project-chip"
 import { PromptPopover, type AtOption, type SlashCommand } from "./prompt-input/slash-popover"
 import { PromptContextItems } from "./prompt-input/context-items"
 import { PromptImageAttachments } from "./prompt-input/image-attachments"
@@ -2306,6 +2307,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                       </TooltipKeybind>
                     </Show>
                   </div>
+                  <KolboProjectChip />
                   {/* Thinking effort cycle hidden — not needed for non-technical users */}
                 </Show>
               </div>
