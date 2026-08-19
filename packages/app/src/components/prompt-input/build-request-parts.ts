@@ -291,7 +291,13 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
         {
           id: Identifier.ascending("part"),
           type: "text",
-          text: `[Kolbo platform project for this workspace: "${input.kolboProject.name}" → project_id ${input.kolboProject.id}. Pass project_id: "${input.kolboProject.id}" on EVERY Kolbo generation, upload, and session tool call — it is per-call, never sticky.]`,
+          // Two hard-won constraints encoded here: (1) the binding is per-call
+          // on the API and context can be compacted away, so repeat on every
+          // submit; (2) kolbo-api's resolveSdkTarget IGNORES project_id when a
+          // session_id is passed — a session created under a previous project
+          // silently swallows generations after the user switches, so a switch
+          // must also mean fresh sessions.
+          text: `[Kolbo platform project for this workspace: "${input.kolboProject.name}" → project_id ${input.kolboProject.id}. This SUPERSEDES any earlier project binding in this conversation. Pass project_id: "${input.kolboProject.id}" on EVERY Kolbo generation, upload, and session tool call — it is per-call, never sticky. NEVER reuse a session_id that was created under a different project: the API ignores project_id when session_id is present, so after a project change omit session_id and let a fresh session be created.]`,
           synthetic: true,
         },
       ]
