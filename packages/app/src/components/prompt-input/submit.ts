@@ -10,6 +10,7 @@ import { useLayout } from "@/context/layout"
 import { useLocal } from "@/context/local"
 import { usePermission } from "@/context/permission"
 import { type ContextItem, type ImageAttachmentPart, type Prompt, usePrompt } from "@/context/prompt"
+import { useKolboProjectOptional } from "@/context/kolbo-project"
 import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { promptProbe } from "@/testing/prompt"
@@ -36,6 +37,9 @@ export type FollowupDraft = {
   agent: string
   model: { providerID: string; modelID: string }
   variant?: string
+  /** Workspace-linked Kolbo platform project at draft time — captured here so a
+   *  QUEUED message still carries the project that was selected when it was typed. */
+  kolboProject?: { id: string; name: string }
 }
 
 type FollowupSendInput = {
@@ -134,6 +138,7 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
     sessionID: input.draft.sessionID,
     messageID,
     sessionDirectory: input.draft.sessionDirectory,
+    kolboProject: input.draft.kolboProject,
   })
 
   const message: Message = {
@@ -225,6 +230,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
   const local = useLocal()
   const permission = usePermission()
   const prompt = usePrompt()
+  const kolboProject = useKolboProjectOptional()
   const layout = useLayout()
   const language = useLanguage()
   const params = useParams()
@@ -429,6 +435,9 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       agent,
       model,
       variant,
+      kolboProject: kolboProject?.link.id
+        ? { id: kolboProject.link.id, name: kolboProject.link.name ?? "" }
+        : undefined,
     }
 
     const clearInput = () => {

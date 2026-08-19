@@ -81,3 +81,9 @@ export function useKolboProject() {
   if (!ctx) throw new Error("useKolboProject must be used within KolboProjectProvider")
   return ctx
 }
+
+/** For call sites that can render outside the provider (tests, other surfaces
+ *  reusing PromptInput) — absent provider means "default bucket", not a crash. */
+export function useKolboProjectOptional() {
+  return useContext(Context)
+}

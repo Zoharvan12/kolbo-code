@@ -422,4 +422,38 @@ describe("buildRequestParts", () => {
     // No thumbnail → no file part, rather than a broken one.
     expect(result.requestParts.some((part) => part.type === "file")).toBe(false)
   })
+
+  test("injects a synthetic kolbo project part when a project is linked", () => {
+    const result = buildRequestParts({
+      prompt: [{ type: "text", content: "make an image", start: 0, end: 13 }],
+      context: [],
+      images: [],
+      text: "make an image",
+      messageID: "msg_kp",
+      sessionID: "ses_kp",
+      sessionDirectory: "/repo",
+      kolboProject: { id: "68e5e", name: "Summer Campaign" },
+    })
+
+    const note = result.requestParts.find(
+      (part) => part.type === "text" && part.synthetic && part.text.includes("68e5e"),
+    )
+    expect(note).toBeTruthy()
+    expect(note?.type === "text" && note.text).toContain("project_id")
+    expect(note?.type === "text" && note.text).toContain("Summer Campaign")
+  })
+
+  test("injects nothing when no kolbo project is linked", () => {
+    const result = buildRequestParts({
+      prompt: [{ type: "text", content: "make an image", start: 0, end: 13 }],
+      context: [],
+      images: [],
+      text: "make an image",
+      messageID: "msg_kp2",
+      sessionID: "ses_kp2",
+      sessionDirectory: "/repo",
+    })
+
+    expect(result.requestParts.some((part) => part.type === "text" && part.text.includes("project_id"))).toBe(false)
+  })
 })

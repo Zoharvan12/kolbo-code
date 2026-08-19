@@ -28,6 +28,10 @@ type BuildRequestPartsInput = {
   messageID: string
   sessionID: string
   sessionDirectory: string
+  /** Workspace-linked Kolbo platform project (composer chip). Injected as a
+   *  synthetic part so the agent passes project_id on every generation call —
+   *  omitted entirely for the default "API Generations" bucket. */
+  kolboProject?: { id: string; name: string }
 }
 
 const absolute = (directory: string, path: string) => {
@@ -279,7 +283,21 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
     return parts
   })
 
-  requestParts.push(...files, ...context, ...agents, ...kolboAssetParts, ...imageParts)
+  // Workspace-linked Kolbo project — same idea as the asset ids above: the
+  // binding is per-call on the API, so the agent must be told on EVERY submit,
+  // not once per session (context can be compacted away between turns).
+  const kolboProjectParts: PromptRequestPart[] = input.kolboProject?.id
+    ? [
+        {
+          id: Identifier.ascending("part"),
+          type: "text",
+          text: `[Kolbo platform project for this workspace: "${input.kolboProject.name}" → project_id ${input.kolboProject.id}. Pass project_id: "${input.kolboProject.id}" on EVERY Kolbo generation, upload, and session tool call — it is per-call, never sticky.]`,
+          synthetic: true,
+        },
+      ]
+    : []
+
+  requestParts.push(...files, ...context, ...agents, ...kolboAssetParts, ...kolboProjectParts, ...imageParts)
 
   const optimisticRequestParts = [
     ...requestParts.filter((p) => !imageParts.includes(p)),
