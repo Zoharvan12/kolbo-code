@@ -50,19 +50,22 @@ const THUMB_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/k
 const THUMB_CDN_V3 = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/starters-v3"
 const DEMO_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/demo-assets"
 
-const DEMO_HEADPHONES = { url: `${DEMO_CDN}/demo-product-headphones.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
-const DEMO_UGC_PRODUCT = { url: `${DEMO_CDN}/demo-ugc-product.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
-const DEMO_UGC_CREATOR = { url: `${DEMO_CDN}/demo-ugc-creator.jpg`, filename: "demo-creator.jpg", mime: "image/jpeg" }
+// Each preset's demo assets MATCH its card art — a card showing a woman with
+// a cream jar must attach exactly that woman-type creator ref and that jar.
+const DEMO_CREAM_JAR = { url: `${DEMO_CDN}/demo-cream-jar.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
+const DEMO_CREATOR_WOMAN = { url: `${DEMO_CDN}/demo-creator-woman.jpg`, filename: "demo-creator.jpg", mime: "image/jpeg" }
+const DEMO_SUNGLASSES = { url: `${DEMO_CDN}/demo-sunglasses.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
+const DEMO_SNEAKER = { url: `${DEMO_CDN}/demo-sneaker.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
 
 const STARTERS: Starter[] = [
   { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${THUMB_CDN_V3}/fashionCampaign.webp`, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
   { key: "scene", categories: ["film"], tag: "seedance", gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
-  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN_V3}/ugc-v2.webp`, fit: "contain", media: [DEMO_UGC_PRODUCT, DEMO_UGC_CREATOR], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
+  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN_V3}/ugc-v2.webp`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
   { key: "presentation", categories: ["web"], gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
   { key: "landing", categories: ["web", "marketing"], gradient: "linear-gradient(140deg,#00c2ff,#0037ff)" },
   { key: "video", categories: ["film"], gradient: "linear-gradient(140deg,#00e58f,#00707a)" },
-  { key: "productPhotoshoot", categories: ["marketing", "images"], thumb: `${THUMB_CDN_V3}/productPhotoshoot.webp`, media: [DEMO_HEADPHONES], gradient: "linear-gradient(140deg,#8f5bff,#2d0f66)" },
-  { key: "productAnimation", categories: ["marketing", "film"], media: [DEMO_HEADPHONES], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
+  { key: "productPhotoshoot", categories: ["marketing", "images"], thumb: `${THUMB_CDN_V3}/productPhotoshoot.webp`, media: [DEMO_SUNGLASSES], gradient: "linear-gradient(140deg,#8f5bff,#2d0f66)" },
+  { key: "productAnimation", categories: ["marketing", "film"], media: [DEMO_SNEAKER], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
   { key: "aiInfluencer", categories: ["marketing", "images"], gradient: "linear-gradient(140deg,#b84dff,#3a0ca3)" },
 ]
 
@@ -168,6 +171,19 @@ export function NewSessionView(props: NewSessionViewProps) {
                         onClick={() => seed(starter)}
                       >
                         <span data-slot="new-session-card-thumb" style={{ background: starter.gradient }}>
+                          {/* contain-fit art (9:16 in a 16:10 card) sits on a blurred
+                              cover-fill of ITSELF — flat gradient bars read broken. */}
+                          <Show when={starter.fit === "contain"}>
+                            <img
+                              src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
+                              alt=""
+                              aria-hidden="true"
+                              loading="lazy"
+                              referrerpolicy="no-referrer"
+                              data-slot="new-session-card-thumb-blur"
+                              onError={(e) => (e.currentTarget.style.display = "none")}
+                            />
+                          </Show>
                           <img
                             src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
                             alt=""

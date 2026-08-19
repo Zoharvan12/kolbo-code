@@ -266,6 +266,12 @@
     object-fit: cover;
   }
 
+  [data-component="session-new-view"] [data-slot="new-session-card-thumb-blur"] {
+    filter: blur(18px) saturate(1.15);
+    transform: scale(1.25);
+    opacity: 0.85;
+  }
+
   [data-component="session-new-view"] [data-slot="new-session-card-tag"] {
     position: absolute;
     top: 8px;
