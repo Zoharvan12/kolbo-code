@@ -75,7 +75,7 @@ const DEMO_FASHION: { url: string; filename: string; mime: string }[] = [
 ]
 
 const STARTERS: Starter[] = [
-  { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${DEMO_CDN}/demo-fashion-model.jpg`, fit: "contain", media: DEMO_FASHION, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
+  { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${THUMB_CDN_V3}/fashionCampaign-v2.webp`, media: DEMO_FASHION, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
   { key: "scene", categories: ["film"], tag: "seedance", media: DEMO_SCENE, gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
   { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN_V3}/ugc-v2.webp`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
   { key: "presentation", categories: ["web"], gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
