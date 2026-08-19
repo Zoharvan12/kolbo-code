@@ -96,16 +96,19 @@ const playMutedLoop = (el: HTMLVideoElement) => {
   el.muted = true
   el.defaultMuted = true
   el.loop = true
-  const tryPlay = () => {
-    if (el.isConnected && el.paused) void el.play().catch(() => {})
-  }
+  // NO isConnected/paused guards: Solid refs run before insertion, and the
+  // eager play() on the detached element is exactly what starts the media
+  // load — it rejects with AbortError (expected, swallowed) yet leaves the
+  // element armed to play the moment data arrives. Guarding it out is what
+  // made the cards paint nothing.
+  const tryPlay = () => void el.play().catch(() => {})
   el.addEventListener("canplay", tryPlay)
   const resume = () => {
     tryPlay()
-    if (!el.isConnected || !el.paused) document.removeEventListener("pointerdown", resume, true)
+    if (!el.paused) document.removeEventListener("pointerdown", resume, true)
   }
   document.addEventListener("pointerdown", resume, true)
-  tryPlay()
+  queueMicrotask(tryPlay)
 }
 
 export function NewSessionView(props: NewSessionViewProps) {
