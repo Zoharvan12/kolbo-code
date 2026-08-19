@@ -32,6 +32,8 @@ type Starter = {
   /** Demo input assets auto-attached on click (public CDN URLs) so the preset
    *  works instantly — the prompt tells the user they can swap in their own. */
   media?: { url: string; filename: string; mime: string }[]
+  /** Full-URL override for the card still (art iterations use new immutable keys). */
+  thumb?: string
   /** Fallback tile when the CDN still is missing/unreachable — never a broken image. */
   gradient: string
 }
@@ -42,21 +44,23 @@ type Starter = {
 // any redraw upload a NEW key (-v2) and update this base or the key names.
 // Gradient tile carries the card if an asset is missing/unreachable.
 const THUMB_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/starters-v2"
+const THUMB_CDN_V3 = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/starters-v3"
 const DEMO_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/demo-assets"
 
 const DEMO_PRODUCT = { url: `${DEMO_CDN}/demo-product-base.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
+const DEMO_HEADPHONES = { url: `${DEMO_CDN}/demo-product-headphones.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
 const DEMO_UGC_PRODUCT = { url: `${DEMO_CDN}/demo-ugc-product.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
 const DEMO_UGC_CREATOR = { url: `${DEMO_CDN}/demo-ugc-creator.jpg`, filename: "demo-creator.jpg", mime: "image/jpeg" }
 
 const STARTERS: Starter[] = [
-  { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
+  { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${THUMB_CDN_V3}/fashionCampaign.webp`, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
   { key: "scene", categories: ["film"], tag: "seedance", gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
-  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", media: [DEMO_UGC_PRODUCT, DEMO_UGC_CREATOR], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
+  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN_V3}/ugc.webp`, media: [DEMO_UGC_PRODUCT, DEMO_UGC_CREATOR], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
   { key: "presentation", categories: ["web"], gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
   { key: "landing", categories: ["web", "marketing"], gradient: "linear-gradient(140deg,#00c2ff,#0037ff)" },
   { key: "video", categories: ["film"], gradient: "linear-gradient(140deg,#00e58f,#00707a)" },
-  { key: "productPhotoshoot", categories: ["marketing", "images"], media: [DEMO_PRODUCT], gradient: "linear-gradient(140deg,#8f5bff,#2d0f66)" },
-  { key: "productAnimation", categories: ["marketing", "film"], media: [DEMO_PRODUCT], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
+  { key: "productPhotoshoot", categories: ["marketing", "images"], thumb: `${THUMB_CDN_V3}/productPhotoshoot.webp`, media: [DEMO_PRODUCT], gradient: "linear-gradient(140deg,#8f5bff,#2d0f66)" },
+  { key: "productAnimation", categories: ["marketing", "film"], media: [DEMO_HEADPHONES], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
   { key: "aiInfluencer", categories: ["marketing", "images"], gradient: "linear-gradient(140deg,#b84dff,#3a0ca3)" },
 ]
 
@@ -163,7 +167,7 @@ export function NewSessionView(props: NewSessionViewProps) {
                       >
                         <span data-slot="new-session-card-thumb" style={{ background: starter.gradient }}>
                           <img
-                            src={`${THUMB_CDN}/${starter.key}.webp`}
+                            src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
                             alt=""
                             loading="lazy"
                             referrerpolicy="no-referrer"
