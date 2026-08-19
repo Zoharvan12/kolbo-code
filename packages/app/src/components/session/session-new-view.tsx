@@ -52,6 +52,7 @@ const DEMO_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/ko
 const DEMO_CREAM_JAR = { url: `${DEMO_CDN}/demo-cream-jar.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
 const DEMO_CREATOR_WOMAN = { url: `${DEMO_CDN}/demo-creator-woman.jpg`, filename: "demo-creator.jpg", mime: "image/jpeg" }
 const DEMO_SUNGLASSES = { url: `${DEMO_CDN}/demo-sunglasses.jpg`, filename: "demo-product.jpg", mime: "image/jpeg" }
+const DEMO_LANDING = { url: `${DEMO_CDN}/demo-landing-reference.jpg`, filename: "design-reference.jpg", mime: "image/jpeg" }
 const DEMO_SNEAKER = { url: `${DEMO_CDN}/demo-product-sheet.jpg`, filename: "product-sheet.jpg", mime: "image/jpeg" }
 // Direct-a-scene set — ORDER IS THE CONTRACT: @Image1/@Image2 characters,
 // @Image3 location, exactly as the preset prompt references them.
@@ -78,7 +79,7 @@ const STARTERS: Starter[] = [
   { key: "scene", categories: ["film"], tag: "seedance", media: DEMO_SCENE, gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
   { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN_V3}/ugc-v2.webp`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
   { key: "presentation", categories: ["web"], gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
-  { key: "landing", categories: ["web", "marketing"], gradient: "linear-gradient(140deg,#00c2ff,#0037ff)" },
+  { key: "landing", media: [DEMO_LANDING], categories: ["web", "marketing"], gradient: "linear-gradient(140deg,#00c2ff,#0037ff)" },
   { key: "productAnimation", categories: ["marketing", "film"], media: [DEMO_SNEAKER], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
 ]
 
