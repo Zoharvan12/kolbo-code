@@ -317,6 +317,40 @@ describe("prompt submit worktree selection", () => {
     })
   })
 
+  test("submit is blocked when the workspace has no project", async () => {
+    let blocked = 0
+    const submit = createPromptSubmit({
+      info: () => undefined,
+      imageAttachments: () => [],
+      commentCount: () => 0,
+      autoAccept: () => false,
+      mode: () => "normal",
+      working: () => false,
+      editor: () => undefined,
+      queueScroll: () => undefined,
+      promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
+      addToHistory: () => undefined,
+      resetHistoryNavigation: () => undefined,
+      setMode: () => undefined,
+      setPopover: () => undefined,
+      newSessionWorktree: () => selected,
+      onNewSessionWorktreeReset: () => undefined,
+      onSubmit: () => undefined,
+      hasProject: () => false,
+      onBlockedNoProject: () => {
+        blocked += 1
+      },
+    })
+
+    const event = { preventDefault: () => undefined } as unknown as Event
+
+    await submit.handleSubmit(event)
+
+    expect(blocked).toBe(1)
+    expect(createdSessions).toHaveLength(0)
+    expect(optimistic).toHaveLength(0)
+  })
+
   test("seeds new sessions before optimistic prompts are added", async () => {
     const submit = createPromptSubmit({
       info: () => undefined,

@@ -81,6 +81,8 @@ interface PromptInputProps {
   onQueue?: (draft: FollowupDraft) => void
   onAbort?: () => void
   onSubmit?: () => void
+  hasProject?: () => boolean
+  onBlockedNoProject?: () => void
 }
 
 const EXAMPLES = [
@@ -1611,6 +1613,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     onNewSessionWorktreeReset: props.onNewSessionWorktreeReset,
     shouldQueue: props.shouldQueue,
     onQueue: props.onQueue,
+    hasProject: props.hasProject,
+    onBlockedNoProject: props.onBlockedNoProject,
     onAbort: props.onAbort,
     onSubmit: props.onSubmit,
   })

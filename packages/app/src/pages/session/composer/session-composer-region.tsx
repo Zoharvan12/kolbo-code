@@ -4,6 +4,7 @@ import { useNavigate } from "@solidjs/router"
 import { useSpring } from "@opencode-ai/ui/motion-spring"
 import { PromptInput } from "@/components/prompt-input"
 import { useLanguage } from "@/context/language"
+import { showToast } from "@opencode-ai/ui/toast"
 import { usePrompt } from "@/context/prompt"
 import { useSync } from "@/context/sync"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
@@ -269,6 +270,14 @@ export function SessionComposerRegion(props: {
                       onQueue={props.followup?.onQueue}
                       onAbort={props.followup?.onAbort}
                       onSubmit={props.onSubmit}
+                      hasProject={() => !!sync.project}
+                      onBlockedNoProject={() =>
+                        showToast({
+                          variant: "error",
+                          title: language.t("prompt.noProject.title"),
+                          description: language.t("prompt.noProject.description"),
+                        })
+                      }
                     />
                   </Show>
                 }

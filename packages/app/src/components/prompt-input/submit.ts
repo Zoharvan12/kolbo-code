@@ -211,6 +211,10 @@ type PromptSubmitInput = {
   onQueue?: (draft: FollowupDraft) => void
   onAbort?: () => void
   onSubmit?: () => void
+  /** "A project is a folder" enforcement: when this reports false the submit is
+   *  refused outright — no session, no silent fallback to the server's cwd. */
+  hasProject?: () => boolean
+  onBlockedNoProject?: () => void
 }
 
 type CommentItem = {
@@ -307,6 +311,11 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
   const handleSubmit = async (event: Event) => {
     event.preventDefault()
+
+    if (input.hasProject && !input.hasProject()) {
+      input.onBlockedNoProject?.()
+      return
+    }
 
     if (inFlightAttachments.size > 0) {
       await Promise.allSettled(inFlightAttachments)

@@ -581,6 +581,8 @@ export const dict = {
   "dialog.kolboAsset.moodboards": "Moodboards",
   "dialog.kolboAsset.empty": "Nothing here yet",
   "prompt.action.add": "Add",
+  "prompt.noProject.title": "No project open",
+  "prompt.noProject.description": "Create or open a project first — everything we make is saved inside its folder.",
   "prompt.kolboProject.label": "Kolbo project",
   "prompt.kolboProject.default": "API Generations",
   "prompt.kolboProject.createNew": "Create new project…",
