@@ -1503,6 +1503,19 @@ export namespace Provider {
             // multi-MB base64 in the request body and tripping kolbo-api's 413
             // limit. Declare URL support after the fact via a getter override
             // so the SDK ships URLs untouched.
+            //
+            // video/* MUST be declared here too, and it is NOT optional the way
+            // it might look: ProviderTransform.message() (transform.ts) runs
+            // inside a wrapLanguageModel `transformParams` hook (llm.ts), which
+            // only fires once ai-sdk's OWN convertToLanguageModelPrompt has
+            // already turned the prompt into a LanguageModelV3Prompt — i.e.
+            // AFTER it already consulted supportedUrls and decided whether to
+            // download the file. Without an entry here, that step downloads the
+            // video into raw bytes before videoSentinel ever runs, so
+            // part.data is no longer a URL/string by the time the sentinel
+            // looks for one — the swap silently no-ops and the raw video part
+            // still reaches openai-compatible's converter, which throws. This
+            // is what actually broke the first attempt at this fix.
             if (model.api.npm === "@ai-sdk/openai-compatible") {
               const wrapLanguageModel = (lm: any) => {
                 if (!lm || typeof lm !== "object") return lm
@@ -1511,6 +1524,7 @@ export namespace Provider {
                     get: () => ({
                       "image/*": [/^https?:\/\/.*$/],
                       "application/pdf": [/^https?:\/\/.*$/],
+                      "video/*": [/^https?:\/\/.*$/],
                     }),
                     configurable: true,
                   })
