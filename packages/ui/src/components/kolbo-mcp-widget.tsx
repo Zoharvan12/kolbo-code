@@ -74,6 +74,99 @@ function bare(tool?: string) {
 }
 
 /**
+ * Tool name → the model-catalog `type` that tool's models live under. The
+ * envelope's `route` falls back to the TOOL name when the operation carries no
+ * route of its own (kolbo-operation.ts), and a tool name is not a catalog type
+ * — so byType("generate_image_edit") matched nothing and every in-progress card
+ * printed a raw identifier next to a first-letter circle. Mirrors the `type`
+ * each tool passes to canonicalModelId in kolbo-mcp's generate.js; a tool with
+ * several candidate types lists them all and the first hit wins.
+ */
+const TOOL_TYPES: Record<string, string[]> = {
+  generate_image: ["text_to_img"],
+  generate_image_edit: ["image_editing"],
+  edit_image: ["image_editing"],
+  generate_video: ["text_to_video"],
+  generate_video_from_image: ["img_to_video"],
+  generate_video_from_video: ["video_to_video"],
+  edit_video: ["video_to_video"],
+  generate_elements: ["elements"],
+  generate_first_last_frame: ["firstlastgenerations"],
+  generate_lipsync: ["lipsync-image", "lipsync-video"],
+  generate_music: ["music_gen"],
+  generate_speech: ["text_to_speech"],
+  generate_sound: ["text_to_sound"],
+  generate_3d: ["3d_text_to_model", "3d_image_to_model", "3d_multi_image_to_model", "3d_world"],
+  generate_creative_director: ["text_to_img", "text_to_video"],
+}
+
+export function catalogTypes(route: string, tool: string): string[] {
+  const mapped = TOOL_TYPES[bare(tool)]
+  if (mapped) return mapped
+  // An operation that DID carry a real route keeps using it.
+  return route ? [route] : []
+}
+
+/**
+ * Separator-insensitive id match, the same leniency canonicalModelId applies
+ * server-side. The card is built from the tool INPUT, where the model is
+ * whatever the agent typed ("gpt-image-2"), while the catalog keys the editor
+ * under its own identifier ("gpt-image-2/edit") — an exact match misses.
+ */
+function normId(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "")
+}
+
+export function matchModel<T extends { id: string; name?: string }>(models: T[], id: string): T | undefined {
+  const want = normId(id)
+  if (!want) return undefined
+  return (
+    models.find((m) => m.id === id) ??
+    models.find((m) => normId(m.id) === want || normId(m.name ?? "") === want) ??
+    models.find((m) => normId(m.id).startsWith(want))
+  )
+}
+
+// Every input key across the generation tools that names media the user
+// supplied. The card's own collectRefs() classifies each url by extension and
+// dedups, so they can all arrive in one list.
+const REF_INPUT_KEYS = [
+  "source_images",
+  "reference_images",
+  "reference_videos",
+  "reference_audio_urls",
+  "additional_images",
+  "image_url",
+  "mask_image_url",
+  "first_frame",
+  "last_frame",
+  "source",
+  "source_video",
+  "audio",
+  "audio_url",
+]
+
+/**
+ * References the generation was given, pulled off the tool input. The MCP ships
+ * these itself, but only in the payload that lands when the tool RETURNS — on
+ * this host the tool blocks for the whole generation, so the in-progress card is
+ * ours alone and showed no thumbnails at all. Local paths are skipped: the
+ * iframe can only load http(s).
+ */
+export function referenceUrls(input?: Record<string, unknown>): string[] {
+  if (!input) return []
+  const out: string[] = []
+  for (const key of REF_INPUT_KEYS) {
+    const value = input[key]
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (typeof item !== "string" || !/^https?:\/\//i.test(item)) continue
+      if (!out.includes(item)) out.push(item)
+    }
+  }
+  return out
+}
+
+/**
  * Tools that produce media, and so warrant a generation card before any result
  * exists. Tool-name routing lives here — the envelope reader stays name-free.
  */
@@ -216,6 +309,10 @@ function build(
     // Generation type ("text_to_img", "image_editing", …) — the key the model
     // chip needs to resolve a generation model's name + avatar.
     route: op.route,
+    // What the user actually handed this generation. The card renders these as
+    // thumbnails beside the chips; without them an in-progress edit showed no
+    // sign of its own source images.
+    reference_images: referenceUrls(input),
     credits_used: op.cost,
     prompt: op.prompt || (typeof input?.prompt === "string" ? input.prompt : ""),
     // Rebuilt from the tool INPUT, because this path is reached when the MCP's
@@ -268,7 +365,11 @@ export function KolboMcpWidget(props: {
     // circle. byType() is the catalog that has them — same source the approval
     // card's model picker already uses.
     const route = typeof data.route === "string" ? data.route : ""
-    const typed = route ? kolboModels.byType(route).find((m) => m.id === id) : undefined
+    let typed: { id: string; name: string; avatar?: string | null } | undefined
+    for (const type of catalogTypes(route, props.tool)) {
+      typed = matchModel(kolboModels.byType(type), id)
+      if (typed) break
+    }
     const info = kolboModels.lookup(id)
     const name = typed?.name ?? info.name
     const avatar = typed?.avatar ?? info.avatar
