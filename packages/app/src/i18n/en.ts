@@ -589,6 +589,16 @@ export const dict = {
   "home.greeting": "Hey, I'm Kobi",
   "home.tagline": "Open a project and I'll get to work — code, images, video, the whole production.",
   "home.recentProjects": "Recent projects",
+  "home.newProject.title": "New project",
+  "home.newProject.explainer":
+    "A project is a folder on your computer. Everything we make — images, videos, pages — is saved inside it.",
+  "home.newProject.name": "Project name",
+  "home.newProject.saveIn": "Save in",
+  "home.newProject.change": "Change…",
+  "home.newProject.willCreate": "Will create:",
+  "home.newProject.create": "Create project",
+  "home.newProject.error": "Could not create the folder.",
+  "home.openExisting": "Open an existing folder",
   "home.empty.title": "No recent projects",
   "home.empty.description": "Get started by opening a local project",
 

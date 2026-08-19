@@ -10,6 +10,7 @@ import { usePlatform } from "@/context/platform"
 import { DateTime } from "luxon"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { DialogSelectDirectory } from "@/components/dialog-select-directory"
+import { DialogNewProject } from "@/components/dialog-new-project"
 import { DialogSelectServer } from "@/components/dialog-select-server"
 import { useServer } from "@/context/server"
 import { useGlobalSync } from "@/context/global-sync"
@@ -106,8 +107,16 @@ export default function Home() {
         <div class="relative mt-4 text-20-medium text-text-strong">{language.t("home.greeting")}</div>
         <div class="relative mt-1.5 text-14-regular text-text-weak max-w-sm">{language.t("home.tagline")}</div>
 
-        <Button size="large" icon="folder-add-left" class="relative mt-6 pl-3 pr-4" onClick={chooseProject}>
-          {language.t("command.project.open")}
+        <Button
+          size="large"
+          icon="folder-add-left"
+          class="relative mt-6 pl-3 pr-4"
+          onClick={() => dialog.show(() => <DialogNewProject onCreated={openProject} />)}
+        >
+          {language.t("home.newProject.title")}
+        </Button>
+        <Button size="normal" variant="ghost" class="relative mt-2 text-12-regular text-text-weak" onClick={chooseProject}>
+          {language.t("home.openExisting")}
         </Button>
         <Button
           size="normal"
