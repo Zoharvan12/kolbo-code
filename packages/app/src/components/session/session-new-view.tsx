@@ -31,6 +31,8 @@ type Starter = {
   media?: { url: string; filename: string; mime: string }[]
   /** Full-URL override for the card still (art iterations use new immutable keys). */
   thumb?: string
+  /** Looping muted card video (small ~400KB mp4). Takes precedence over thumb. */
+  thumbVideo?: string
   /** "contain" letterboxes the still over the gradient (vertical 9:16 art in a
    *  16:10 card) instead of the default cover-crop. */
   fit?: "contain"
@@ -77,10 +79,10 @@ const DEMO_FASHION: { url: string; filename: string; mime: string }[] = [
 const STARTERS: Starter[] = [
   { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${THUMB_CDN_V3}/fashionCampaign-v2.webp`, media: DEMO_FASHION, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
   { key: "scene", categories: ["film"], tag: "seedance", media: DEMO_SCENE, gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
-  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN_V3}/ugc-v2.webp`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
+  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumbVideo: `${THUMB_CDN_V3}/ugc-video-v1.mp4`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
   { key: "presentation", categories: ["web"], gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
   { key: "landing", media: [DEMO_LANDING], categories: ["web", "marketing"], gradient: "linear-gradient(140deg,#00c2ff,#0037ff)" },
-  { key: "productAnimation", categories: ["marketing", "film"], media: [DEMO_SNEAKER], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
+  { key: "productAnimation", categories: ["marketing", "film"], thumbVideo: `${THUMB_CDN_V3}/productAnimation-video-v1.mp4`, media: [DEMO_SNEAKER], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
 ]
 
 const CATEGORIES: ("all" | StarterCategory)[] = ["all", "marketing", "film", "images", "web"]
@@ -187,25 +189,54 @@ export function NewSessionView(props: NewSessionViewProps) {
                         <span data-slot="new-session-card-thumb" style={{ background: starter.gradient }}>
                           {/* contain-fit art (9:16 in a 16:10 card) sits on a blurred
                               cover-fill of ITSELF — flat gradient bars read broken. */}
-                          <Show when={starter.fit === "contain"}>
-                            <img
-                              src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
-                              alt=""
-                              aria-hidden="true"
-                              loading="lazy"
-                              referrerpolicy="no-referrer"
-                              data-slot="new-session-card-thumb-blur"
+                          <Show
+                            when={starter.thumbVideo}
+                            fallback={
+                              <>
+                                <Show when={starter.fit === "contain"}>
+                                  <img
+                                    src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
+                                    alt=""
+                                    aria-hidden="true"
+                                    loading="lazy"
+                                    referrerpolicy="no-referrer"
+                                    data-slot="new-session-card-thumb-blur"
+                                    onError={(e) => (e.currentTarget.style.display = "none")}
+                                  />
+                                </Show>
+                                <img
+                                  src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
+                                  alt=""
+                                  loading="lazy"
+                                  referrerpolicy="no-referrer"
+                                  style={starter.fit === "contain" ? { "object-fit": "contain" } : undefined}
+                                  onError={(e) => (e.currentTarget.style.display = "none")}
+                                />
+                              </>
+                            }
+                          >
+                            <Show when={starter.fit === "contain"}>
+                              <video
+                                src={starter.thumbVideo}
+                                aria-hidden="true"
+                                autoplay
+                                muted
+                                loop
+                                playsinline
+                                data-slot="new-session-card-thumb-blur"
+                                onError={(e) => (e.currentTarget.style.display = "none")}
+                              />
+                            </Show>
+                            <video
+                              src={starter.thumbVideo}
+                              autoplay
+                              muted
+                              loop
+                              playsinline
+                              style={starter.fit === "contain" ? { "object-fit": "contain" } : undefined}
                               onError={(e) => (e.currentTarget.style.display = "none")}
                             />
                           </Show>
-                          <img
-                            src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
-                            alt=""
-                            loading="lazy"
-                            referrerpolicy="no-referrer"
-                            style={starter.fit === "contain" ? { "object-fit": "contain" } : undefined}
-                            onError={(e) => (e.currentTarget.style.display = "none")}
-                          />
                           <Show when={starter.tag}>
                             <span data-slot="new-session-card-tag">{language.t(`session.new.tag.${starter.tag}`)}</span>
                           </Show>

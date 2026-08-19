@@ -258,7 +258,8 @@
     aspect-ratio: 16 / 10;
   }
 
-  [data-component="session-new-view"] [data-slot="new-session-card-thumb"] img {
+  [data-component="session-new-view"] [data-slot="new-session-card-thumb"] img,
+  [data-component="session-new-view"] [data-slot="new-session-card-thumb"] video {
     position: absolute;
     inset: 0;
     width: 100%;
