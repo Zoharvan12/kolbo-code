@@ -90,6 +90,47 @@ const KolboAssetSchema = z.object({
   dnaType: z.string().optional(),
 })
 
+// ── Kolbo platform projects ───────────────────────────────────────────────
+// The cloud buckets generations land in. Selected per-workspace via the
+// composer chip; the New Project dialog auto-links one by name. Separate from
+// kolboAssets(): projects need `is_default` (the "API Generations" fallback
+// bucket), which the generic asset projection has no slot for.
+const KolboProjectSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  is_default: z.boolean(),
+  thumbnail: z.string().nullable(),
+})
+type KolboProject = z.infer<typeof KolboProjectSchema>
+
+let _kolboProjectsCache: { at: number; key: string; value: KolboProject[] } | undefined
+const KOLBO_PROJECTS_TTL = 5 * 60 * 1000
+
+async function kolboProjects(): Promise<KolboProject[]> {
+  const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+  const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+  if (!apiKey) return []
+  const hit = _kolboProjectsCache
+  if (hit && hit.key === apiKey && Date.now() - hit.at < KOLBO_PROJECTS_TTL) return hit.value
+  try {
+    const res = await fetch(`${Partner.apiBase}/v1/projects?limit=200`, { headers: { "X-API-Key": apiKey } })
+    if (!res.ok) return hit?.value ?? []
+    const body = (await res.json()) as {
+      projects?: { id: string; name: string; is_default?: boolean; thumbnail_url?: string | null }[]
+    }
+    const value = (body.projects ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      is_default: !!p.is_default,
+      thumbnail: p.thumbnail_url ?? null,
+    }))
+    _kolboProjectsCache = { at: Date.now(), key: apiKey, value }
+    return value
+  } catch {
+    return hit?.value ?? []
+  }
+}
+
 // ── Kolbo model metadata cache ────────────────────────────────────────────
 // /kolbo/v1/models is hit on every page load by the model picker. The data
 // (pricing + avatars) changes rarely — a 5-minute TTL with single in-flight
@@ -759,6 +800,58 @@ export const GlobalRoutes = lazy(() =>
         },
       }),
       async (c) => c.json(await kolboAssets("moodboard", "/v1/moodboards")),
+    )
+    .get(
+      "/kolbo-projects",
+      describeRoute({
+        summary: "List Kolbo platform projects",
+        description:
+          "Cloud projects where generations land, for the composer's project chip. Cached server-side (~5min); returns an empty list when signed out — never an error.",
+        operationId: "global.kolbo-projects",
+        responses: {
+          200: {
+            description: "Projects",
+            content: { "application/json": { schema: resolver(z.array(KolboProjectSchema)) } },
+          },
+        },
+      }),
+      async (c) => c.json(await kolboProjects()),
+    )
+    .post(
+      "/kolbo-projects",
+      describeRoute({
+        summary: "Create a Kolbo platform project by name",
+        description:
+          "Used by the New Project dialog's auto-link and the composer chip's Create-new. Idempotent by name: if a project with this name already exists it is returned instead of duplicated.",
+        operationId: "global.kolbo-projects-create",
+        responses: {
+          200: {
+            description: "Created or matched project",
+            content: { "application/json": { schema: resolver(KolboProjectSchema) } },
+          },
+          ...errors(401, 502),
+        },
+      }),
+      validator("json", z.object({ name: z.string().min(1) })),
+      async (c) => {
+        const { name } = c.req.valid("json")
+        const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+        const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+        if (!apiKey) return c.json({ error: "Not authenticated with Kolbo" }, 401)
+        // Match-first: auto-link must be idempotent when a folder is re-created.
+        const existing = (await kolboProjects()).find((p) => p.name.toLowerCase() === name.trim().toLowerCase())
+        if (existing) return c.json(existing)
+        const res = await fetch(`${Partner.apiBase}/v1/projects`, {
+          method: "POST",
+          headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name.trim() }),
+        })
+        if (!res.ok) return c.json({ error: `Kolbo API ${res.status}` }, 502)
+        const body = (await res.json()) as { project?: { id: string; name: string } }
+        if (!body.project?.id) return c.json({ error: "Malformed upstream response" }, 502)
+        _kolboProjectsCache = undefined // next list must include the new project
+        return c.json({ id: body.project.id, name: body.project.name, is_default: false, thumbnail: null })
+      },
     )
     .get(
       "/kolbo-pricing",

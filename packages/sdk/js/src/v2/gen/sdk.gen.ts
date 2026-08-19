@@ -56,16 +56,23 @@ import type {
   GlobalKolboArtifactPublishResponses,
   GlobalKolboAuthContextResponses,
   GlobalKolboBalanceResponses,
-  GlobalKolboMoodboardsResponses,
-  GlobalKolboVisualDnasResponses,
   GlobalKolboFilesUploadErrors,
   GlobalKolboFilesUploadFromPathErrors,
   GlobalKolboFilesUploadFromPathResponses,
   GlobalKolboFilesUploadResponses,
+  GlobalKolboGenerationCancelErrors,
+  GlobalKolboGenerationCancelResponses,
   GlobalKolboGenerationModelsResponses,
+  GlobalKolboGenerationStatusErrors,
+  GlobalKolboGenerationStatusResponses,
+  GlobalKolboGlobalVisualDnasResponses,
   GlobalKolboModelMetadataResponses,
+  GlobalKolboMoodboardsResponses,
   GlobalKolboPricingResponses,
+  GlobalKolboProjectsCreateResponses,
+  GlobalKolboProjectsResponses,
   GlobalKolboSessionUsageResponses,
+  GlobalKolboVisualDnasResponses,
   GlobalSyncEventSubscribeResponses,
   GlobalUpgradeErrors,
   GlobalUpgradeResponses,
@@ -85,6 +92,8 @@ import type {
   McpDisconnectResponses,
   McpLocalConfig,
   McpRemoteConfig,
+  McpResourceErrors,
+  McpResourceResponses,
   McpStatusResponses,
   OutputFormat,
   Part as Part2,
@@ -99,6 +108,8 @@ import type {
   PermissionRespondErrors,
   PermissionRespondResponses,
   PermissionRuleset,
+  ProjectCreateErrors,
+  ProjectCreateResponses,
   ProjectCurrentResponses,
   ProjectInitGitResponses,
   ProjectListResponses,
@@ -392,21 +403,78 @@ export class Global extends HeyApiClient {
   }
 
   /**
+   * Cancel one Kolbo media generation
+   *
+   * Forwards an exact generation id to Kolbo's existing stop-and-refund endpoint.
+   */
+  public kolboGenerationCancel<ThrowOnError extends boolean = false>(
+    parameters?: {
+      generationId?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "body", key: "generationId" }] }])
+    return (options?.client ?? this.client).post<
+      GlobalKolboGenerationCancelResponses,
+      GlobalKolboGenerationCancelErrors,
+      ThrowOnError
+    >({
+      url: "/global/kolbo-generation-cancel",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Check one Kolbo media generation
+   *
+   * Forwards a generation id to Kolbo's status endpoint. The MCP's generate_* tools give up waiting after their poll window and return `state: "processing"`; without this the card that result renders has no way to ever learn the generation finished.
+   */
+  public kolboGenerationStatus<ThrowOnError extends boolean = false>(
+    parameters: {
+      generationId: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "generationId" }] }])
+    return (options?.client ?? this.client).get<
+      GlobalKolboGenerationStatusResponses,
+      GlobalKolboGenerationStatusErrors,
+      ThrowOnError
+    >({
+      url: "/global/kolbo-generation-status",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * List Kolbo Visual DNAs
    *
    * Fetch the authenticated user's Visual DNAs for the prompt `@` mention menu. Cached server-side; returns an empty list when signed out.
    */
   public kolboVisualDnas<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
-    return (options?.client ?? this.client).get<GlobalKolboVisualDnasResponses, unknown, ThrowOnError>({ url: '/global/kolbo-visual-dnas', ...options });
+    return (options?.client ?? this.client).get<GlobalKolboVisualDnasResponses, unknown, ThrowOnError>({
+      url: "/global/kolbo-visual-dnas",
+      ...options,
+    })
   }
 
   /**
    * List the global Kolbo Visual DNA catalog
    *
-   * Fetch the platform-wide Visual DNA presets. Deliberately separate from /kolbo-visual-dnas: the catalog runs to thousands of entries, so it is browsed in its own tab rather than mixed into the `@` mention menu.
+   * Fetch the platform-wide Visual DNA presets. Deliberately separate from /kolbo-visual-dnas: the catalog runs to thousands of entries, so it is browsed in its own tab rather than mixed into the `@` mention menu. kolbo-api serves this scope from a 15-minute cache of its own.
    */
   public kolboGlobalVisualDnas<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
-    return (options?.client ?? this.client).get<GlobalKolboVisualDnasResponses, unknown, ThrowOnError>({ url: '/global/kolbo-global-visual-dnas', ...options });
+    return (options?.client ?? this.client).get<GlobalKolboGlobalVisualDnasResponses, unknown, ThrowOnError>({
+      url: "/global/kolbo-global-visual-dnas",
+      ...options,
+    })
   }
 
   /**
@@ -415,7 +483,46 @@ export class Global extends HeyApiClient {
    * Fetch the authenticated user's moodboards for the prompt `#` mention menu. Cached server-side; returns an empty list when signed out.
    */
   public kolboMoodboards<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
-    return (options?.client ?? this.client).get<GlobalKolboMoodboardsResponses, unknown, ThrowOnError>({ url: '/global/kolbo-moodboards', ...options });
+    return (options?.client ?? this.client).get<GlobalKolboMoodboardsResponses, unknown, ThrowOnError>({
+      url: "/global/kolbo-moodboards",
+      ...options,
+    })
+  }
+
+  /**
+   * List Kolbo platform projects
+   *
+   * Cloud projects where generations land, for the composer's project chip. Cached server-side (~5min); returns an empty list when signed out — never an error.
+   */
+  public kolboProjects<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<GlobalKolboProjectsResponses, unknown, ThrowOnError>({
+      url: "/global/kolbo-projects",
+      ...options,
+    })
+  }
+
+  /**
+   * Create a Kolbo platform project by name
+   *
+   * Used by the New Project dialog's auto-link and the composer chip's Create-new. Idempotent by name: if a project with this name already exists it is returned instead of duplicated.
+   */
+  public kolboProjectsCreate<ThrowOnError extends boolean = false>(
+    parameters?: {
+      name?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "body", key: "name" }] }])
+    return (options?.client ?? this.client).post<GlobalKolboProjectsCreateResponses, unknown, ThrowOnError>({
+      url: "/global/kolbo-projects",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
   }
 
   /**
@@ -804,6 +911,45 @@ export class Project extends HeyApiClient {
       url: "/project/git/init",
       ...options,
       ...params,
+    })
+  }
+
+  /**
+   * Create a new project folder
+   *
+   * Creates <parent>/<name> on the server's filesystem (mkdir -p) and returns the absolute path. Used by the New Project dialog; the client then opens the returned directory as a workspace.
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      parent?: string
+      name?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "parent" },
+            { in: "body", key: "name" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<ProjectCreateResponses, ProjectCreateErrors, ThrowOnError>({
+      url: "/project/create",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 
@@ -3693,6 +3839,40 @@ export class Mcp2 extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<McpDisconnectResponses, unknown, ThrowOnError>({
       url: "/mcp/{name}/disconnect",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Read MCP resource
+   *
+   * Read a resource from a connected Model Context Protocol server (used for Kolbo MCP Apps widgets).
+   */
+  public resource<ThrowOnError extends boolean = false>(
+    parameters: {
+      name: string
+      directory?: string
+      workspace?: string
+      uri: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "name" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "query", key: "uri" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<McpResourceResponses, McpResourceErrors, ThrowOnError>({
+      url: "/mcp/{name}/resource",
       ...options,
       ...params,
     })

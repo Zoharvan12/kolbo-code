@@ -2275,44 +2275,176 @@ export type GlobalKolboBalanceResponses = {
 
 export type GlobalKolboBalanceResponse = GlobalKolboBalanceResponses[keyof GlobalKolboBalanceResponses]
 
-export type KolboAsset = {
-    id: string;
-    name: string;
-    thumbnail?: string;
-    dnaType?: string;
-};
+export type GlobalKolboGenerationCancelData = {
+  body?: {
+    generationId: string
+  }
+  path?: never
+  query?: never
+  url: "/global/kolbo-generation-cancel"
+}
+
+export type GlobalKolboGenerationCancelErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type GlobalKolboGenerationCancelError =
+  GlobalKolboGenerationCancelErrors[keyof GlobalKolboGenerationCancelErrors]
+
+export type GlobalKolboGenerationCancelResponses = {
+  /**
+   * Generation cancelled
+   */
+  200: {
+    [key: string]: unknown
+  }
+}
+
+export type GlobalKolboGenerationCancelResponse =
+  GlobalKolboGenerationCancelResponses[keyof GlobalKolboGenerationCancelResponses]
+
+export type GlobalKolboGenerationStatusData = {
+  body?: never
+  path?: never
+  query: {
+    generationId: string
+  }
+  url: "/global/kolbo-generation-status"
+}
+
+export type GlobalKolboGenerationStatusErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type GlobalKolboGenerationStatusError =
+  GlobalKolboGenerationStatusErrors[keyof GlobalKolboGenerationStatusErrors]
+
+export type GlobalKolboGenerationStatusResponses = {
+  /**
+   * Generation status
+   */
+  200: {
+    [key: string]: unknown
+  }
+}
+
+export type GlobalKolboGenerationStatusResponse =
+  GlobalKolboGenerationStatusResponses[keyof GlobalKolboGenerationStatusResponses]
 
 export type GlobalKolboVisualDnasData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/global/kolbo-visual-dnas';
-};
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/kolbo-visual-dnas"
+}
 
 export type GlobalKolboVisualDnasResponses = {
-    /**
-     * Visual DNAs
-     */
-    200: Array<KolboAsset>;
-};
+  /**
+   * Visual DNAs
+   */
+  200: Array<{
+    id: string
+    name: string
+    thumbnail?: string
+    dnaType?: string
+  }>
+}
 
-export type GlobalKolboVisualDnasResponse = GlobalKolboVisualDnasResponses[keyof GlobalKolboVisualDnasResponses];
+export type GlobalKolboVisualDnasResponse = GlobalKolboVisualDnasResponses[keyof GlobalKolboVisualDnasResponses]
+
+export type GlobalKolboGlobalVisualDnasData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/kolbo-global-visual-dnas"
+}
+
+export type GlobalKolboGlobalVisualDnasResponses = {
+  /**
+   * Global Visual DNAs
+   */
+  200: Array<{
+    id: string
+    name: string
+    thumbnail?: string
+    dnaType?: string
+  }>
+}
+
+export type GlobalKolboGlobalVisualDnasResponse =
+  GlobalKolboGlobalVisualDnasResponses[keyof GlobalKolboGlobalVisualDnasResponses]
 
 export type GlobalKolboMoodboardsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/global/kolbo-moodboards';
-};
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/kolbo-moodboards"
+}
 
 export type GlobalKolboMoodboardsResponses = {
-    /**
-     * Moodboards
-     */
-    200: Array<KolboAsset>;
-};
+  /**
+   * Moodboards
+   */
+  200: Array<{
+    id: string
+    name: string
+    thumbnail?: string
+    dnaType?: string
+  }>
+}
 
-export type GlobalKolboMoodboardsResponse = GlobalKolboMoodboardsResponses[keyof GlobalKolboMoodboardsResponses];
+export type GlobalKolboMoodboardsResponse = GlobalKolboMoodboardsResponses[keyof GlobalKolboMoodboardsResponses]
+
+export type GlobalKolboProjectsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/kolbo-projects"
+}
+
+export type GlobalKolboProjectsResponses = {
+  /**
+   * Projects
+   */
+  200: Array<{
+    id: string
+    name: string
+    is_default: boolean
+    thumbnail: string | null
+  }>
+}
+
+export type GlobalKolboProjectsResponse = GlobalKolboProjectsResponses[keyof GlobalKolboProjectsResponses]
+
+export type GlobalKolboProjectsCreateData = {
+  body?: {
+    name: string
+  }
+  path?: never
+  query?: never
+  url: "/global/kolbo-projects"
+}
+
+export type GlobalKolboProjectsCreateResponses = {
+  /**
+   * Created or matched project
+   */
+  200: {
+    id: string
+    name: string
+    is_default: boolean
+    thumbnail: string | null
+  }
+}
+
+export type GlobalKolboProjectsCreateResponse =
+  GlobalKolboProjectsCreateResponses[keyof GlobalKolboProjectsCreateResponses]
 
 export type GlobalKolboPricingData = {
   body?: never
@@ -2657,6 +2789,39 @@ export type ProjectInitGitResponses = {
 }
 
 export type ProjectInitGitResponse = ProjectInitGitResponses[keyof ProjectInitGitResponses]
+
+export type ProjectCreateData = {
+  body?: {
+    parent: string
+    name: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/project/create"
+}
+
+export type ProjectCreateErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProjectCreateError = ProjectCreateErrors[keyof ProjectCreateErrors]
+
+export type ProjectCreateResponses = {
+  /**
+   * Folder created (or already existed and is empty)
+   */
+  200: {
+    directory: string
+  }
+}
+
+export type ProjectCreateResponse = ProjectCreateResponses[keyof ProjectCreateResponses]
 
 export type ProjectUpdateData = {
   body?: {
@@ -5087,6 +5252,40 @@ export type McpDisconnectResponses = {
 }
 
 export type McpDisconnectResponse = McpDisconnectResponses[keyof McpDisconnectResponses]
+
+export type McpResourceData = {
+  body?: never
+  path: {
+    name: string
+  }
+  query: {
+    directory?: string
+    workspace?: string
+    uri: string
+  }
+  url: "/mcp/{name}/resource"
+}
+
+export type McpResourceErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type McpResourceError = McpResourceErrors[keyof McpResourceErrors]
+
+export type McpResourceResponses = {
+  /**
+   * Resource contents
+   */
+  200: {
+    html?: string
+    uri: string
+  }
+}
+
+export type McpResourceResponse = McpResourceResponses[keyof McpResourceResponses]
 
 export type TuiAppendPromptData = {
   body?: {
