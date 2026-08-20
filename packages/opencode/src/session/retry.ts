@@ -70,9 +70,21 @@ export namespace SessionRetry {
     return false
   }
 
+  // OpenRouter / DeepSeek / GLM often return this as HTTP 400 with
+  // isRetryable=false. The blip is transient — retry instead of Continue.
+  const TRANSIENT_PROVIDER_RE =
+    /connect timeout|request timeout|please try again later|provider (?:returned error|is overloaded|overloaded)|high demand/i
+
   export function retryable(error: Err) {
     // context overflow errors should not be retried
     if (MessageV2.ContextOverflowError.isInstance(error)) return undefined
+
+    const msg = typeof error.data?.message === "string" ? error.data.message : ""
+    const body = typeof error.data?.responseBody === "string" ? error.data.responseBody : ""
+    if (TRANSIENT_PROVIDER_RE.test(msg) || TRANSIENT_PROVIDER_RE.test(body)) {
+      return msg || "Provider timed out"
+    }
+
     if (MessageV2.APIError.isInstance(error)) {
       if (!error.data.isRetryable) return undefined
       if (error.data.responseBody?.includes("FreeUsageLimitError")) return GO_UPSELL_MESSAGE
@@ -83,8 +95,7 @@ export namespace SessionRetry {
     // messages. Network branch catches errors that escape APIError typing
     // (raw `SystemError` or `TypeError: fetch failed`) so a stale TLS socket
     // after long idle gets retried instead of surfaced as gibberish.
-    const msg = error.data?.message
-    if (typeof msg === "string") {
+    if (msg) {
       const lower = msg.toLowerCase()
       if (
         lower.includes("rate increased too quickly") ||

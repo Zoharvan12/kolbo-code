@@ -164,6 +164,16 @@ describe("session.retry.retryable", () => {
     expect(SessionRetry.retryable(error)).toBe(msg)
   })
 
+  test("retries OpenRouter connect timeout even when marked non-retryable", () => {
+    const msg = "Connect timeout, please try again later."
+    const error = new MessageV2.APIError({
+      message: msg,
+      isRetryable: false,
+      statusCode: 400,
+    }).toObject() as MessageV2.APIError
+    expect(SessionRetry.retryable(error)).toBe(msg)
+  })
+
   test("does not retry context overflow errors", () => {
     const error = new MessageV2.ContextOverflowError({
       message: "Input exceeds context window of this model",
