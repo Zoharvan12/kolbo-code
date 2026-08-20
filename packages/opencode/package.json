@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "version": "2.4.11",
+  "version": "2.4.18",
   "name": "@kolbo/kolbo-code",
   "type": "module",
   "license": "MIT",
