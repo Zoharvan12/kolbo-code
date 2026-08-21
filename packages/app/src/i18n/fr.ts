@@ -452,6 +452,8 @@ export const dict = {
   "toast.update.action.installRestart": "Installer et redémarrer",
   "toast.update.action.notYet": "Pas encore",
   "toast.update.downloading": "Téléchargement de la mise à jour... {{pct}}%",
+  "toast.update.downloadingSize": "Téléchargement de la mise à jour... {{size}}",
+  "toast.update.installing": "Installation de la mise à jour...",
   "error.page.title": "Quelque chose s'est mal passé",
   "error.page.description": "Une erreur s'est produite lors du chargement de l'application.",
   "error.page.details.label": "Détails de l'erreur",

@@ -22,7 +22,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tauri::{AppHandle, Listener, Manager, RunEvent, State, ipc::Channel};
+use tauri::{AppHandle, Emitter, Listener, Manager, RunEvent, State, ipc::Channel};
 #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_specta::Event;
@@ -348,11 +348,13 @@ async fn install_update(
     use futures::StreamExt;
 
     let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::limited(10))
         .build()
         .map_err(|e| e.to_string())?;
 
     let resp = client
         .get(&url)
+        .header(reqwest::header::ACCEPT_ENCODING, "identity")
         .send()
         .await
         .map_err(|e| format!("Failed to fetch update: {e}"))?;
@@ -361,7 +363,16 @@ async fn install_update(
         return Err(format!("HTTP {}", resp.status()));
     }
 
-    let total = resp.content_length();
+    let total = resp
+        .content_length()
+        .filter(|n| *n > 0)
+        .or_else(|| {
+            resp.headers()
+                .get(reqwest::header::CONTENT_LENGTH)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.parse().ok())
+                .filter(|n: &u64| *n > 0)
+        });
 
     let filename = url
         .split('/')
@@ -372,30 +383,61 @@ async fn install_update(
 
     let dest = std::env::temp_dir().join(&filename);
 
+    use tokio::io::AsyncWriteExt;
+    let mut file = tokio::fs::File::create(&dest)
+        .await
+        .map_err(|e| format!("Failed to create installer: {e}"))?;
+
     let mut downloaded = 0u64;
-    let mut file_bytes = Vec::new();
+    let mut last = 0u64;
+    let mut at = std::time::Instant::now();
     let mut stream = resp.bytes_stream();
+
+    let handle = app.clone();
+    let emit = |downloaded: u64| {
+        let payload = UpdateDownloadProgress { downloaded, total };
+        let _ = on_progress.send(payload.clone());
+        let _ = handle.emit("update-download-progress", payload);
+    };
+
+    emit(0);
 
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("Download error: {e}"))?;
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| format!("Failed to write installer: {e}"))?;
         downloaded += chunk.len() as u64;
-        file_bytes.extend_from_slice(&chunk);
-        let _ = on_progress.send(UpdateDownloadProgress {
-            downloaded,
-            total,
-        });
+        let done = total.is_some_and(|n| downloaded >= n);
+        if done || downloaded.saturating_sub(last) >= 256 * 1024 || at.elapsed().as_millis() >= 150 {
+            last = downloaded;
+            at = std::time::Instant::now();
+            emit(downloaded);
+        }
     }
 
-    tokio::fs::write(&dest, &file_bytes)
+    file.flush()
         .await
         .map_err(|e| format!("Failed to save installer: {e}"))?;
+    emit(downloaded);
 
-    // Launch the installer independently — no special NSIS flags
-    std::process::Command::new(&dest)
-        .spawn()
+    // Give the UI one frame to paint 100% / "Installing..." before we exit.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    // /P = one passive progress window (same as plugins.updater.windows.installMode).
+    // /UPDATE = upgrade path: skip welcome/dir pages and run the previous
+    // uninstaller silently instead of the two-wizard uninstall-then-install UI.
+    // /R = relaunch the app when NSIS finishes.
+    let mut cmd = Command::new(&dest);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.args(["/P", "/UPDATE", "/R"]);
+        cmd.creation_flags(0x00000008 | 0x00000200);
+    }
+    cmd.spawn()
         .map_err(|e| format!("Failed to launch installer: {e}"))?;
 
-    // Graceful app exit
     app.exit(0);
 
     Ok(())

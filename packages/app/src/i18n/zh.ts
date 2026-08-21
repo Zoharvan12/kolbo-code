@@ -452,6 +452,8 @@ export const dict = {
   "toast.update.action.installRestart": "安装并重启",
   "toast.update.action.notYet": "稍后",
   "toast.update.downloading": "正在下载更新... {{pct}}%",
+  "toast.update.downloadingSize": "正在下载更新... {{size}}",
+  "toast.update.installing": "正在安装更新...",
   "error.page.title": "出了点问题",
   "error.page.description": "加载应用程序时发生错误。",
   "error.page.details.label": "错误详情",

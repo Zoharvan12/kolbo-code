@@ -5,6 +5,7 @@ import { Component, Show, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
+import { installAppUpdate } from "@/utils/update-install"
 import { Icon } from "@opencode-ai/ui/icon"
 import type { E2EWindow } from "@/testing/terminal"
 
@@ -252,10 +253,7 @@ export const ErrorPage: Component<ErrorPageProps> = (props) => {
   }
 
   async function installUpdate() {
-    if (!platform.update || !platform.restart) return
-    await platform
-      .update()
-      .then(() => platform.restart!())
+    await installAppUpdate(platform, language.t)
       .then(() => setStore("actionError", undefined))
       .catch((err) => {
         setStore("actionError", formatError(err, language.t))

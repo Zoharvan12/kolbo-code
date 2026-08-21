@@ -452,6 +452,8 @@ export const dict = {
   "toast.update.action.installRestart": "इंस्टॉल करें और पुनः आरंभ करें",
   "toast.update.action.notYet": "अभी नहीं",
   "toast.update.downloading": "अपडेट डाउनलोड हो रहा है... {{pct}}%",
+  "toast.update.downloadingSize": "अपडेट डाउनलोड हो रहा है... {{size}}",
+  "toast.update.installing": "अपडेट इंस्टॉल हो रहा है...",
   "error.page.title": "कुछ गलत हो गया",
   "error.page.description": "एप्लिकेशन लोड करते समय एक त्रुटि हुई।",
   "error.page.details.label": "त्रुटि विवरण",

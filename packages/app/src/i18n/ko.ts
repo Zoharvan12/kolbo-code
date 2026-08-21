@@ -452,6 +452,8 @@ export const dict = {
   "toast.update.action.installRestart": "설치 및 다시 시작",
   "toast.update.action.notYet": "나중에",
   "toast.update.downloading": "업데이트 다운로드 중... {{pct}}%",
+  "toast.update.downloadingSize": "업데이트 다운로드 중... {{size}}",
+  "toast.update.installing": "업데이트 설치 중...",
   "error.page.title": "문제가 발생했습니다",
   "error.page.description": "애플리케이션을 로드하는 동안 오류가 발생했습니다.",
   "error.page.details.label": "오류 세부 정보",

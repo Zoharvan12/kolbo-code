@@ -452,6 +452,8 @@ export const dict = {
   "toast.update.action.installRestart": "インストールして再起動",
   "toast.update.action.notYet": "今はしない",
   "toast.update.downloading": "アップデートをダウンロード中... {{pct}}%",
+  "toast.update.downloadingSize": "アップデートをダウンロード中... {{size}}",
+  "toast.update.installing": "アップデートをインストール中...",
   "error.page.title": "問題が発生しました",
   "error.page.description": "アプリケーションの読み込み中にエラーが発生しました。",
   "error.page.details.label": "エラー詳細",

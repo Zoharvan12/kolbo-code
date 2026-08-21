@@ -518,6 +518,8 @@ export const dict = {
   "toast.update.action.installRestart": "Install and restart",
   "toast.update.action.notYet": "Not yet",
   "toast.update.downloading": "Downloading update... {{pct}}%",
+  "toast.update.downloadingSize": "Downloading update... {{size}}",
+  "toast.update.installing": "Installing update...",
 
   "error.page.title": "Something went wrong",
   "error.page.description": "An error occurred while loading the application.",

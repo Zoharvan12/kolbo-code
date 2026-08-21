@@ -51,6 +51,7 @@ import { useNotification } from "@/context/notification"
 import { usePermission } from "@/context/permission"
 import { retry } from "@opencode-ai/util/retry"
 import { playSoundById } from "@/utils/sound"
+import { installAppUpdate } from "@/utils/update-install"
 import { createAim } from "@/utils/aim"
 import { setNavigate } from "@/utils/notification-click"
 import { Worktree as WorktreeState } from "@/utils/worktree"
@@ -387,19 +388,7 @@ export default function Layout(props: ParentProps) {
               {
                 label: language.t("toast.update.action.installRestart"),
                 onClick: () => {
-                  if (platform.installUpdate) {
-                    void platform.installUpdate((p) => {}).catch((err: unknown) => {
-                      const msg = err instanceof Error ? err.message : String(err)
-                      showToast({ title: "Update failed", description: msg })
-                    })
-                  } else {
-                    void platform.update!()
-                      .then(() => platform.restart!())
-                      .catch((err: unknown) => {
-                        const msg = err instanceof Error ? err.message : String(err)
-                        showToast({ title: "Update failed", description: msg })
-                      })
-                  }
+                  void installAppUpdate(platform, language.t)
                 },
               },
               {

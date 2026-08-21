@@ -44,7 +44,8 @@ import { UPDATER_ENABLED } from "./updater"
 import { webviewZoom, applyZoom } from "./webview-zoom"
 import "./styles.css"
 import { Channel } from "@tauri-apps/api/core"
-import { commands, type InitStep } from "./bindings"
+import { listen } from "@tauri-apps/api/event"
+import { commands, type InitStep, type UpdateDownloadProgress } from "./bindings"
 import { createMenu } from "./menu"
 
 const root = document.getElementById("root")
@@ -330,10 +331,15 @@ const createPlatform = (): Platform => {
             if (!zipUrl) throw new Error("No Windows update URL found")
             const exeUrl = zipUrl.replace(".nsis.zip", ".exe")
             await commands.killSidecar().catch(() => undefined)
-            const { Channel } = await import("@tauri-apps/api/core")
-            const ch = new Channel<{ downloaded: number; total: number | null }>()
-            ch.onmessage = (msg) => onProgress(msg)
-            await commands.installUpdate(exeUrl, ch as unknown as import("@tauri-apps/api/core").Channel)
+            const push = (p: UpdateDownloadProgress) => onProgress(p)
+            const stop = await listen<UpdateDownloadProgress>("update-download-progress", (e) => push(e.payload))
+            const ch = new Channel<UpdateDownloadProgress>()
+            ch.onmessage = push
+            try {
+              await commands.installUpdate(exeUrl, ch as unknown as Channel)
+            } finally {
+              stop()
+            }
           },
         }
       : {}),

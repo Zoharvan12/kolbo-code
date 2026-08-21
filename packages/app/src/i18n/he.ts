@@ -452,6 +452,8 @@ export const dict = {
   "toast.update.action.installRestart": "התקן והפעל מחדש",
   "toast.update.action.notYet": "לא עכשיו",
   "toast.update.downloading": "מוריד עדכון... {{pct}}%",
+  "toast.update.downloadingSize": "מוריד עדכון... {{size}}",
+  "toast.update.installing": "מתקין עדכון...",
   "error.page.title": "משהו השתבש",
   "error.page.description": "אירעה שגיאה בעת טעינת האפליקציה.",
   "error.page.details.label": "פרטי שגיאה",

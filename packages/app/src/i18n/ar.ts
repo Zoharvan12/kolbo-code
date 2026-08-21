@@ -452,6 +452,8 @@ export const dict = {
   "toast.update.action.installRestart": "تثبيت وإعادة تشغيل",
   "toast.update.action.notYet": "ليس الآن",
   "toast.update.downloading": "جاري تنزيل التحديث... {{pct}}%",
+  "toast.update.downloadingSize": "جاري تنزيل التحديث... {{size}}",
+  "toast.update.installing": "جاري تثبيت التحديث...",
   "error.page.title": "حدث خطأ ما",
   "error.page.description": "حدث خطأ أثناء تحميل التطبيق.",
   "error.page.details.label": "تفاصيل الخطأ",

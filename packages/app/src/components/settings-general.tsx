@@ -8,7 +8,7 @@ import { TextField } from "@opencode-ai/ui/text-field"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { useTheme, type ColorScheme } from "@opencode-ai/ui/theme/context"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
-import { showToast, toaster, Toast } from "@opencode-ai/ui/toast"
+import { showToast } from "@opencode-ai/ui/toast"
 import { useNavigate, useParams } from "@solidjs/router"
 import { useLanguage, FLAG_MAP } from "@/context/language"
 import { usePermission } from "@/context/permission"
@@ -28,6 +28,7 @@ import { decode64 } from "@/utils/base64"
 import { playSoundById, SOUND_OPTIONS } from "@/utils/sound"
 import { Link } from "./link"
 import { SettingsList } from "./settings-list"
+import { installAppUpdate } from "@/utils/update-install"
 
 let demoSoundState = {
   cleanup: undefined as (() => void) | undefined,
@@ -162,37 +163,12 @@ export const SettingsGeneral: Component = () => {
         }
 
         const actions =
-          platform.update && platform.restart
+          platform.update || platform.installUpdate
             ? [
                 {
                   label: language.t("toast.update.action.installRestart"),
                   onClick: () => {
-                    if (platform.installUpdate) {
-                      // Windows: stream download with progress, then NSIS installer auto-launches
-                      const [pct, setPct] = createSignal(0)
-                      toaster.show((props) => (
-                        <Toast toastId={props.toastId} persistent>
-                          <Toast.Content>
-                            <Toast.Title>
-                              {language.t("toast.update.downloading", { pct: pct() })}
-                            </Toast.Title>
-                          </Toast.Content>
-                        </Toast>
-                      ))
-                      void platform.installUpdate!((p) => {
-                        if (p.total) setPct(Math.round((p.downloaded / p.total) * 100))
-                      }).catch((err: unknown) => {
-                        const msg = err instanceof Error ? err.message : String(err)
-                        showToast({ title: "Update failed", description: msg })
-                      })
-                    } else {
-                      void platform.update!()
-                        .then(() => platform.restart!())
-                        .catch((err: unknown) => {
-                          const msg = err instanceof Error ? err.message : String(err)
-                          showToast({ title: "Update failed", description: msg })
-                        })
-                    }
+                    void installAppUpdate(platform, language.t)
                   },
                 },
                 {
