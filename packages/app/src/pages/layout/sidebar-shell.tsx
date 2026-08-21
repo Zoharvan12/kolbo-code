@@ -8,10 +8,10 @@ import {
   type DragEvent,
 } from "@thisbeyond/solid-dnd"
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
-import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
 import { type LocalProject } from "@/context/layout"
+import { RAIL_TW } from "./sidebar-metrics"
 
 export const SidebarContent = (props: {
   mobile?: boolean
@@ -51,7 +51,7 @@ export const SidebarContent = (props: {
     <div class="flex h-full w-full min-w-0 overflow-hidden">
       <div
         data-component="sidebar-rail"
-        class="w-16 shrink-0 bg-background-stronger flex flex-col items-center overflow-hidden"
+        class={`${RAIL_TW} shrink-0 bg-background-stronger flex flex-col overflow-hidden`}
         onMouseMove={props.aimMove}
       >
         <div class="flex-1 min-h-0 w-full">
@@ -63,7 +63,7 @@ export const SidebarContent = (props: {
           >
             <DragDropSensors />
             <ConstrainDragXAxis />
-            <div class="h-full w-full flex flex-col items-center gap-3 px-3 py-3 overflow-y-auto no-scrollbar">
+            <div class="h-full w-full flex flex-col items-stretch gap-1 px-2 py-3 overflow-y-auto no-scrollbar">
               <SortableProvider ids={props.projects().map((p) => p.worktree)}>
                 <For each={props.projects()}>{(project) => props.renderProject(project)}</For>
               </SortableProvider>
@@ -82,33 +82,42 @@ export const SidebarContent = (props: {
                   type="button"
                   onClick={props.onOpenProject}
                   aria-label={typeof props.openProjectLabel === "string" ? props.openProjectLabel : undefined}
-                  class="flex size-10 items-center justify-center rounded-xl border border-dashed border-border-base text-icon-weak transition-all duration-200 cursor-pointer hover:border-text-interactive-base hover:text-text-interactive-base hover:bg-surface-base-hover hover:-translate-y-px"
+                  class="flex h-9 w-full items-center gap-2 px-1.5 rounded-lg border border-dashed border-border-base text-icon-weak transition-all duration-200 cursor-pointer hover:border-text-interactive-base hover:text-text-interactive-base hover:bg-surface-base-hover"
                 >
-                  <Icon name="plus" size="small" />
+                  <Icon name="plus" size="small" class="shrink-0" />
+                  <span class="min-w-0 flex-1 truncate text-12-medium text-start">
+                    {props.openProjectLabel}
+                  </span>
                 </button>
               </Tooltip>
             </div>
             <DragOverlay>{props.renderProjectOverlay()}</DragOverlay>
           </DragDropProvider>
         </div>
-        <div class="shrink-0 w-full pt-3 pb-6 flex flex-col items-center gap-2">
+        <div class="shrink-0 w-full px-2 pt-2 pb-4 flex flex-col gap-0.5">
           <TooltipKeybind placement={placement()} title={props.settingsLabel()} keybind={props.settingsKeybind() ?? ""}>
-            <IconButton
-              icon="settings-gear"
-              variant="ghost"
-              size="large"
+            <button
+              type="button"
               onClick={props.onOpenSettings}
               aria-label={props.settingsLabel()}
-            />
+              class="flex h-9 w-full items-center gap-2 px-1.5 rounded-lg text-icon-weak transition-colors cursor-pointer hover:bg-surface-base-hover hover:text-text-strong"
+            >
+              <Icon name="settings-gear" size="small" class="shrink-0" />
+              <span class="min-w-0 flex-1 truncate text-12-medium text-start text-text-base">
+                {props.settingsLabel()}
+              </span>
+            </button>
           </TooltipKeybind>
           <Tooltip placement={placement()} value={props.helpLabel()}>
-            <IconButton
-              icon="help"
-              variant="ghost"
-              size="large"
+            <button
+              type="button"
               onClick={props.onOpenHelp}
               aria-label={props.helpLabel()}
-            />
+              class="flex h-9 w-full items-center gap-2 px-1.5 rounded-lg text-icon-weak transition-colors cursor-pointer hover:bg-surface-base-hover hover:text-text-strong"
+            >
+              <Icon name="help" size="small" class="shrink-0" />
+              <span class="min-w-0 flex-1 truncate text-12-medium text-start text-text-base">{props.helpLabel()}</span>
+            </button>
           </Tooltip>
         </div>
       </div>

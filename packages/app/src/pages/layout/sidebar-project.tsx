@@ -42,8 +42,9 @@ export const ProjectDragOverlay = (props: {
   return (
     <Show when={project()}>
       {(p) => (
-        <div class="bg-background-base rounded-xl p-1">
+        <div class="bg-background-base rounded-lg px-1.5 py-1 flex items-center gap-2 w-40">
           <ProjectIcon project={p()} />
+          <span class="min-w-0 flex-1 truncate text-12-medium text-text-strong">{displayName(p())}</span>
         </div>
       )}
     </Show>
@@ -97,13 +98,13 @@ const ProjectTile = (props: {
         as="button"
         type="button"
         aria-label={displayName(props.project)}
+        title={props.project.worktree}
         data-action="project-switch"
         data-project={base64Encode(props.project.worktree)}
         classList={{
-          "flex items-center justify-center size-10 p-1 rounded-xl overflow-hidden transition-all duration-200 cursor-pointer": true,
+          "flex items-center gap-2 w-full h-9 px-1.5 rounded-lg overflow-hidden transition-colors duration-200 cursor-pointer": true,
           "bg-surface-base-active": props.selected(),
-          "bg-transparent hover:bg-surface-base-hover hover:-translate-y-px":
-            !props.selected() && !props.active(),
+          "bg-transparent hover:bg-surface-base-hover": !props.selected() && !props.active(),
           "bg-surface-base-hover": !props.selected() && props.active(),
         }}
         onPointerDown={(event) => {
@@ -144,6 +145,9 @@ const ProjectTile = (props: {
         onBlur={() => props.setOpen(false)}
       >
         <ProjectIcon project={props.project} notify />
+        <span class="min-w-0 flex-1 truncate text-12-medium text-start text-text-strong">
+          {displayName(props.project)}
+        </span>
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
         <ContextMenu.Content>
@@ -333,7 +337,7 @@ export const SortableProject = (props: {
 
   return (
     // @ts-ignore
-    <div use:sortable class="relative" classList={{ "opacity-30": sortable.isActiveDraggable }}>
+    <div use:sortable class="relative w-full" classList={{ "opacity-30": sortable.isActiveDraggable }}>
       <Show when={selected() && !props.mobile}>
         <span
           aria-hidden="true"
