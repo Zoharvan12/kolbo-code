@@ -45,7 +45,7 @@ Extract from this page, in compact bullets:
 
 ## Re-host every external image via `upload_media`
 
-The bulk-API rule applies: external URLs in `reference_images` / `source_images` / `image_url` cause **400 Bad Request**. Pipeline:
+The bulk-API rule applies: **external** (non-Kolbo) URLs in `reference_images` / `source_images` / `image_url` cause **400 Bad Request**. Skip this pipeline if the URL is already `media.kolbo.ai` / `*.kolbo.ai` / a generate_* result — pass that URL through. For a third-party host:
 
 1. `Bash: curl -fsSL "<external-url>" -o /tmp/<name>.<ext>` (or use WebFetch where it returns the binary)
 2. `mcp__kolbo__upload_media` with the local file → returns Kolbo CDN URL

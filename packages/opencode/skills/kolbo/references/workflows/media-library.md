@@ -4,6 +4,12 @@ Load this file when the user wants to browse, list, organize, delete, restore, m
 
 The library covers both **uploaded files** and **AI-generated outputs the user has saved**. Tools fall into five groups: ingest, browse, lifecycle (delete/restore/move), folders, and favorites.
 
+## ⚠️ Already-hosted URLs — never re-upload
+
+`generate_*` / `list_media` / `get_media` / a prior `upload_media` already return a Kolbo CDN URL (`media.kolbo.ai`, `*.kolbo.ai`, Spaces). Pass that exact URL into the next generation tool. Calling `upload_media` on it duplicates the file.
+
+`upload_media` is only for a local path or an external (non-Kolbo) URL. If you already have a Kolbo URL, skip ingest.
+
 ## ⚠️ Present locally-produced media to the user
 
 When you produce a media file LOCALLY — `ffmpeg` via the `video-production` skill, Remotion render, manual `Bash` mux of audio + video, `edit_image` outputs saved to disk, any save-to-file flow — make sure the user can actually find and open it. Local files are invisible in the chat / canvas UI by default; only the path string makes it through.

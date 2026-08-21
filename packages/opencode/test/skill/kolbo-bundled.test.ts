@@ -48,6 +48,7 @@ const GUARDRAILS = [
   "## ⚠️ @name Syntax",
   "Rewrite / compile never drops a tag",
   "## ⚠️ One session per plan bucket (HARD RULE)",
+  "## ⚠️ Never re-upload a Kolbo URL (HARD RULE)",
   "GATE —",
   "search: \"<name>\"",
   "headless",

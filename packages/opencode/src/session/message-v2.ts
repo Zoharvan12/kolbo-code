@@ -93,6 +93,7 @@ const PRODUCTION_LOG_REMINDER =
   "5. Do not log failures — only successful generations.\n" +
   "6. Reuse sessions: if `### Sessions` already has this plan bucket (Cast / Locations / Scene NN), pass that `session_id` on the next generate. Omit `session_id` only for a new scene or new concept, then `rename_session` to the plan name.\n" +
   "7. Do NOT mark Approved or start the next production-plan bucket until the user confirms. If they did not volunteer a yes, end with a GATE: lock <bucket> / redo @name / now <next bucket>.\n" +
+  "8. The returned URL is already on Kolbo CDN. Next generate: pass it as-is in `reference_images` / `source_images` / `image_url`. NEVER `upload_media` a generate_* URL — that duplicates the file.\n" +
   "\n" +
   "Stub for first-time creation:\n" +
   "```md\n" +

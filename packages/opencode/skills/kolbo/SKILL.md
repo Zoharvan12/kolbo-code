@@ -162,6 +162,14 @@ first, so the model renders *different words than the ones the user wrote*.
   user never asked for, and their own wording never reached the model.
 - The default is `false` in every generation tool. Leave the argument out.
 
+## ⚠️ Never re-upload a Kolbo URL (HARD RULE)
+
+A URL from `generate_*`, `list_media`, `get_media`, or a prior `upload_media` is **already on Kolbo CDN**. Pass that exact URL to the next tool (`reference_images` / `source_images` / `image_url` / `files`). Do **not** call `upload_media`, `create_upload_ticket`, or `media_upload_widget` on it — that copies the file a second time and wastes storage.
+
+- Hosts that are already hosted: `media.kolbo.ai`, any `*.kolbo.ai`, Kolbo DigitalOcean Spaces.
+- `upload_media` is only for a **local disk path** or an **external** (non-Kolbo) URL that the tools would 400 on.
+- Same rule after compaction: pull the URL from `.kolbo/production.md` and reuse it. Never download-then-reupload.
+
 ## ⚠️ Assets Before Shots (HARD RULE)
 
 For any film / ad / scene / episode / campaign the order is **Map → Create → Confirm → Shoot** (the directing guide — load `references/workflows/production-planning.md` + `filmmaking.md` before creating anything). Crack the concept first. Then every character, location, and prop becomes a Visual DNA **from a sheet** (`list_presets` search → `generate_image` with that `preset_id` → `create_visual_dna`). Do **not** register a DNA from a single portrait and skip the sheet. Publish the session plan (`Cast` / `Locations` / `Scene NN — slug`). Get a GATE lock on the asset set. **Only then** video. A shot against an unapproved cast is waste.
@@ -294,7 +302,7 @@ Full tables + formulas in `references/workflows/cost-and-validation.md`. Quick r
 - **Tracking a batch**: check ALL in-flight ids in ONE `get_generation_status` call with `generation_ids` + `wait=true`. Read `all_done` / `still_processing` from the response — do not check ids one by one, and never re-call without `wait`.
 - **Batch ≤10 items**: output ALL tool calls in one response — they run concurrently.
 - **Bulk >10 items**: real-world ceilings — `generate_image` 8–10 in-flight, image-edit 5–8, video tools 3–5, `generate_video_from_video` 3, music/speech/sound 5–8. Fire one batch → wait → fire next. Persist every `generation_id` in `.kolbo/production.md`.
-- **`upload_media` external URLs first.** `files`/`source_images`/`image_url` only accept Kolbo-hosted URLs reliably; external URLs cause `400`.
+- **`upload_media` external (non-Kolbo) URLs only.** `files`/`source_images`/`image_url` reject unknown hosts with `400`. A `media.kolbo.ai` / generate_* URL is already hosted — pass it through. Never `upload_media` a Kolbo URL.
 
 ## ⚠️ Multi-output? Default to `generate_creative_director` (CRITICAL)
 
