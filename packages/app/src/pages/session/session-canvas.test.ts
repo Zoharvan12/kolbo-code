@@ -8,9 +8,10 @@ function tool(state: ToolPart["state"]): ToolPart {
     sessionID: "ses_1",
     messageID: "msg_1",
     type: "tool",
+    callID: "call_1",
     tool: "kolbo_generate_image",
     state,
-  } as ToolPart
+  }
 }
 
 describe("session canvas media", () => {
@@ -76,6 +77,7 @@ describe("session canvas media", () => {
       sessionID: "ses_1",
       messageID: "msg_1",
       type: "tool",
+      callID: "call_media",
       tool: "kolbo_list_media",
       state: {
         status: "completed",
@@ -116,6 +118,7 @@ describe("session canvas media", () => {
       sessionID: "ses_1",
       messageID: "msg_1",
       type: "tool",
+      callID: "call_status",
       tool: "get_generation_status",
       state: {
         status: "completed",
