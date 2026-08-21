@@ -23,6 +23,17 @@ import { Icon } from "@opencode-ai/ui/icon"
 import { useKolboModels } from "@opencode-ai/ui/context"
 import { Mark } from "@opencode-ai/ui/logo"
 import { usePlatformOps } from "@opencode-ai/ui/context/platform-ops"
+import {
+  buildQuery,
+  CATEGORY_OPTIONS,
+  folderLabel,
+  folderTitle,
+  parseFolders,
+  TYPE_OPTIONS,
+  type CategoryFilter,
+  type LibraryFolder,
+  type TypeFilter,
+} from "./canvas-library"
 
 // Defensive constants — lifted from kolbo-desktop (Electron app)'s
 // MEDIA_TAB_SCROLL_IMPROVEMENTS.md after they shipped real-world scroll
@@ -35,10 +46,6 @@ const MAX_EMPTY_RESPONSES = 3
 const MAX_PAGES_LIMIT = 100
 const SENTINEL_ROOT_MARGIN = "200px"
 
-const TYPE_OPTIONS = ["all", "image", "video", "audio"] as const
-const CATEGORY_OPTIONS = ["all", "ai", "uploaded", "favorites", "trash"] as const
-type TypeFilter = (typeof TYPE_OPTIONS)[number]
-type CategoryFilter = (typeof CATEGORY_OPTIONS)[number]
 
 // Inline 12×12 chip icons. We use raw SVG so we don't have to plumb the full
 // UI Icon component through the chip layout (it'd add wrapper divs that mess
@@ -54,7 +61,9 @@ const ICON_PATHS = {
     all: <><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.4"/><path d="M3 8h10M8 3v10" stroke="currentColor" stroke-width="1.4"/></>,
     ai: <><path d="M8 2l1.5 3.5L13 7l-3.5 1.5L8 12 6.5 8.5 3 7l3.5-1.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/></>,
     uploaded: <><path d="M8 13V4M5 7l3-3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M3 13h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></>,
+    edited: <><path d="M10.5 2.8l2.7 2.7-7.2 7.2H3.3v-2.7l7.2-7.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/><path d="M9.2 4.1l2.7 2.7" stroke="currentColor" stroke-width="1.4"/></>,
     favorites: <path d="M8 2l1.9 4 4.4.6-3.2 3.1.8 4.4L8 12 4.1 14.1l.8-4.4L1.7 6.6l4.4-.6z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>,
+    "training-lab": <><rect x="3" y="2.5" width="10" height="11" rx="1.4" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M6 2.5v2.2h4V2.5M6 9h4M8 7v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></>,
     trash: <path d="M2.5 4.5h11M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4.5 4.5l.6 9a1.5 1.5 0 0 0 1.5 1.4h2.8a1.5 1.5 0 0 0 1.5-1.4l.6-9M7 7.5v4.5M9 7.5v4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>,
   },
 } as const
@@ -156,6 +165,7 @@ function loadProjects(serverBase: string): Promise<Project[]> {
 }
 
 const PROJECT_LS_KEY = "kolbo.canvas.library.projectId"
+const FOLDER_LS_KEY = "kolbo.canvas.library.folderId"
 
 // Module-scoped batch selection state for the Library — same pattern as
 // session-canvas. Selection persists while the user navigates between
@@ -418,22 +428,21 @@ function extractMediaModelName(item: MediaItem): string | undefined {
   return undefined
 }
 
-function buildQuery(filters: {
-  projectId: string
-  type: TypeFilter
-  category: CategoryFilter
-  folderId: string | null
-  page: number
-  pageSize: number
-}): string {
-  const p = new URLSearchParams()
-  if (filters.projectId && filters.projectId !== "all") p.set("project_id", filters.projectId)
-  if (filters.folderId) p.set("folder_id", filters.folderId)
-  if (filters.type !== "all") p.set("type", filters.type)
-  if (filters.category !== "all") p.set("category", filters.category)
-  p.set("page", String(filters.page))
-  p.set("page_size", String(filters.pageSize))
-  return p.toString()
+const foldersCache = new Map<string, Promise<LibraryFolder[]>>()
+function loadFolders(serverBase: string): Promise<LibraryFolder[]> {
+  const cached = foldersCache.get(serverBase)
+  if (cached) return cached
+  const p = (async () => {
+    try {
+      const res = await fetch(`${serverBase}/global/kolbo-media-folders`, { headers: { Accept: "application/json" } })
+      if (!res.ok) return []
+      return parseFolders(await res.json())
+    } catch {
+      return []
+    }
+  })()
+  foldersCache.set(serverBase, p)
+  return p
 }
 
 // Viewport-based page size — ported from kolbo-desktop's main.js:1986-1989.
@@ -461,8 +470,9 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
   )
   const [type, setType] = createSignal<TypeFilter>("all")
   const [category, setCategory] = createSignal<CategoryFilter>("all")
-  // Folders intentionally removed from v1 — UX wasn't ready.
-  const folderId = () => null as string | null
+  const [folderId, setFolderId] = createSignal<string | null>(
+    typeof localStorage !== "undefined" ? localStorage.getItem(FOLDER_LS_KEY) : null,
+  )
 
   const persistProject = (id: string) => {
     setProjectId(id)
@@ -470,8 +480,22 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
       localStorage.setItem(PROJECT_LS_KEY, id)
     } catch {}
   }
+  const persistFolder = (id: string | null) => {
+    setFolderId(id)
+    try {
+      if (id) localStorage.setItem(FOLDER_LS_KEY, id)
+      else localStorage.removeItem(FOLDER_LS_KEY)
+    } catch {}
+  }
 
   const [projects] = createResource(serverBase, (base) => (base ? loadProjects(base) : Promise.resolve([] as Project[])))
+  const [folders] = createResource(serverBase, (base) => (base ? loadFolders(base) : Promise.resolve([] as LibraryFolder[])))
+  createEffect(() => {
+    const list = folders()
+    const id = folderId()
+    if (!list || !id) return
+    if (!list.some((f) => f.id === id)) persistFolder(null)
+  })
   const [registry] = createResource(serverBase, (base) =>
     base ? loadModelRegistry(base) : Promise.resolve(indexRegistry([], "")),
   )
@@ -945,6 +969,14 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
     const found = projects()?.find((p) => p._id === id)
     return found?.name || found?.title || lang.t("canvas.library.project.pick")
   })
+  const ownedFolders = createMemo(() => (folders() ?? []).filter((f) => f.is_owner))
+  const sharedFolders = createMemo(() => (folders() ?? []).filter((f) => !f.is_owner))
+  const folderName = createMemo(() => {
+    const id = folderId()
+    if (!id) return lang.t("canvas.library.folder.all")
+    const found = (folders() ?? []).find((f) => f.id === id)
+    return found ? folderLabel(found) : lang.t("canvas.library.folder.pick")
+  })
 
   return (
     <div class="flex flex-col h-full overflow-hidden">
@@ -961,10 +993,10 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
         when={libraryBatchMode() || librarySelected().size > 0}
         fallback={
           <div class="px-3 pt-2 pb-2 flex flex-col gap-2 border-b border-border-base">
-            {/* Row 2: project picker */}
+            {/* Row 2: project + folder pickers */}
             <div class="flex items-center gap-2">
           <select
-            class="text-12-regular bg-surface-base border border-border-base rounded-md px-2 py-1 max-w-full truncate"
+            class="text-12-regular bg-surface-base border border-border-base rounded-md px-2 py-1 min-w-0 flex-1 truncate"
             value={projectId()}
             onChange={(e) => persistProject(e.currentTarget.value)}
             aria-label={lang.t("canvas.library.project.pick")}
@@ -974,6 +1006,39 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
             <For each={projects() ?? []}>
               {(p) => <option value={p._id}>{p.name || p.title || p._id}</option>}
             </For>
+          </select>
+          <select
+            class="text-12-regular bg-surface-base border border-border-base rounded-md px-2 py-1 min-w-0 flex-1 truncate"
+            value={folderId() ?? ""}
+            onChange={(e) => persistFolder(e.currentTarget.value || null)}
+            aria-label={lang.t("canvas.library.folder.pick")}
+            title={folderName()}
+          >
+            <option value="">{lang.t("canvas.library.folder.all")}</option>
+            <Show when={ownedFolders().length > 0}>
+              <option value="" disabled>
+                {lang.t("canvas.library.folder.owned")}
+              </option>
+              <For each={ownedFolders()}>
+                {(f) => (
+                  <option value={f.id} title={folderTitle(f)}>
+                    {folderLabel(f)}
+                  </option>
+                )}
+              </For>
+            </Show>
+            <Show when={sharedFolders().length > 0}>
+              <option value="" disabled>
+                {lang.t("canvas.library.folder.shared")}
+              </option>
+              <For each={sharedFolders()}>
+                {(f) => (
+                  <option value={f.id} title={folderTitle(f)}>
+                    {folderLabel(f)}
+                  </option>
+                )}
+              </For>
+            </Show>
           </select>
         </div>
         {/* Row 3: type + category chips + folder */}

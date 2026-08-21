@@ -90,6 +90,40 @@ const KolboAssetSchema = z.object({
   dnaType: z.string().optional(),
 })
 
+type KolboPreset = { id: string; name: string; thumbnail?: string }
+let _kolboPresetsCache: { at: number; key: string; value: KolboPreset[] } | undefined
+const KOLBO_PRESETS_TTL = 10 * 60 * 1000
+
+async function kolboPresets(): Promise<KolboPreset[]> {
+  const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+  const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+  if (!apiKey) return []
+  const hit = _kolboPresetsCache
+  if (hit && hit.key === apiKey && Date.now() - hit.at < KOLBO_PRESETS_TTL) return hit.value
+  try {
+    const res = await fetch(`${Partner.apiBase}/v1/presets`, { headers: { "X-API-Key": apiKey } })
+    if (!res.ok) return hit?.value ?? []
+    const body = (await res.json()) as { presets?: Array<Record<string, unknown>> }
+    const value = (body.presets ?? []).flatMap((row): KolboPreset[] => {
+      const id = row?.id ?? row?._id ?? row?.identifier
+      const name = row?.name
+      if (!id || !name) return []
+      const thumb = row.thumbnail_url ?? row.thumbnail
+      return [
+        {
+          id: String(id),
+          name: String(name),
+          ...(typeof thumb === "string" ? { thumbnail: thumb } : {}),
+        },
+      ]
+    })
+    _kolboPresetsCache = { at: Date.now(), key: apiKey, value }
+    return value
+  } catch {
+    return hit?.value ?? []
+  }
+}
+
 // ── Kolbo platform projects ───────────────────────────────────────────────
 // The cloud buckets generations land in. Selected per-workspace via the
 // composer chip; the New Project dialog auto-links one by name. Separate from
@@ -821,6 +855,70 @@ export const GlobalRoutes = lazy(() =>
         },
       }),
       async (c) => c.json(await kolboAssets("moodboard", "/v1/moodboards")),
+    )
+    .get(
+      "/kolbo-visual-dna/:id",
+      describeRoute({
+        summary: "Get one Visual DNA by id",
+        description:
+          "Resolve a single Visual DNA (name + thumbnail) for the in-progress generation card. Used when the id is not in the user's own list (global / shared).",
+        operationId: "global.kolbo-visual-dna",
+        responses: {
+          200: {
+            description: "Visual DNA",
+            content: { "application/json": { schema: resolver(KolboAssetSchema) } },
+          },
+          ...errors(401, 404, 502),
+        },
+      }),
+      async (c) => {
+        const id = c.req.param("id")
+        if (!id) return c.json({ error: "missing id" }, 400)
+        const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+        const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+        if (!apiKey) return c.json({ error: "Not authenticated with Kolbo" }, 401)
+        try {
+          const res = await fetch(`${Partner.apiBase}/v1/visual-dna/${encodeURIComponent(id)}`, {
+            headers: { "X-API-Key": apiKey },
+          })
+          if (!res.ok) return c.json({ error: "Visual DNA not found" }, 404)
+          const body = (await res.json()) as Record<string, any>
+          const row = body.visual_dna ?? body
+          const name = row?.name
+          if (!name) return c.json({ error: "Visual DNA not found" }, 404)
+          return c.json({
+            id: String(row.id ?? row._id ?? id),
+            name: String(name),
+            thumbnail:
+              row.sheet_url ??
+              row.characterSheet ??
+              row.thumbnail_url ??
+              row.thumbnail ??
+              row.images?.[0] ??
+              row.source_images?.[0]?.url,
+            dnaType: row.dna_type ?? row.dnaType,
+          })
+        } catch {
+          return c.json({ error: "Kolbo Visual DNA service is unavailable" }, 502)
+        }
+      },
+    )
+    .get(
+      "/kolbo-presets",
+      describeRoute({
+        summary: "List Kolbo generation presets",
+        description:
+          "Slim {id,name,thumbnail} list so the in-progress generation card can show the actual preset name instead of the word “preset”.",
+        operationId: "global.kolbo-presets",
+        responses: {
+          200: {
+            description: "Presets",
+            content: { "application/json": { schema: resolver(z.array(KolboAssetSchema)) } },
+          },
+          ...errors(401, 502),
+        },
+      }),
+      async (c) => c.json(await kolboPresets()),
     )
     .get(
       "/kolbo-projects",

@@ -119,6 +119,68 @@ function DirectoryDataProvider(props: ParentProps<{ directory: string }>) {
           ...(typeof data.error === "string" ? { error: data.error } : {}),
         }
       }}
+      lookupChips={async (need) => {
+        const url = server.current?.http.url
+        if (!url) return { dnas: [] }
+        const dnas: Array<{ id: string; name: string; thumbnail?: string }> = []
+        if (need.dnas?.length) {
+          const mine = await fetch(`${url}/global/kolbo-visual-dnas`)
+            .then((res) => (res.ok ? res.json() : []))
+            .catch(() => [])
+          const rows: Array<{ id?: string; name?: string; thumbnail?: string }> = Array.isArray(mine) ? mine : []
+          for (const id of need.dnas) {
+            const hit = rows.find((row) => row?.id === id)
+            if (hit?.id && hit.name) {
+              dnas.push({
+                id: String(hit.id),
+                name: String(hit.name),
+                ...(typeof hit.thumbnail === "string" ? { thumbnail: hit.thumbnail } : {}),
+              })
+              continue
+            }
+            const one = await fetch(`${url}/global/kolbo-visual-dna/${encodeURIComponent(id)}`)
+              .then((res) => (res.ok ? res.json() : null))
+              .catch(() => null)
+            if (one?.id && one.name) {
+              dnas.push({
+                id: String(one.id),
+                name: String(one.name),
+                ...(typeof one.thumbnail === "string" ? { thumbnail: one.thumbnail } : {}),
+              })
+            }
+          }
+        }
+        let preset: { id: string; name: string; thumbnail?: string } | undefined
+        if (need.preset) {
+          const list: Array<{ id?: string; name?: string; thumbnail?: string }> = await fetch(`${url}/global/kolbo-presets`)
+            .then((res) => (res.ok ? res.json() : []))
+            .catch(() => [])
+          const hit = Array.isArray(list) ? list.find((row) => row?.id === need.preset) : undefined
+          if (hit?.id && hit.name) {
+            preset = {
+              id: String(hit.id),
+              name: String(hit.name),
+              ...(typeof hit.thumbnail === "string" ? { thumbnail: hit.thumbnail } : {}),
+            }
+          }
+        }
+        let moodboards: Array<{ id: string; name: string; thumbnail?: string }> | undefined
+        if (need.moodboards?.length) {
+          const list: Array<{ id?: string; name?: string; thumbnail?: string }> = await fetch(`${url}/global/kolbo-moodboards`)
+            .then((res) => (res.ok ? res.json() : []))
+            .catch(() => [])
+          moodboards = need.moodboards.flatMap((id) => {
+            const hit = Array.isArray(list) ? list.find((row) => row?.id === id) : undefined
+            if (!hit?.id || !hit.name) return []
+            return [{
+              id: String(hit.id),
+              name: String(hit.name),
+              ...(typeof hit.thumbnail === "string" ? { thumbnail: hit.thumbnail } : {}),
+            }]
+          })
+        }
+        return { dnas, ...(preset ? { preset } : {}), ...(moodboards?.length ? { moodboards } : {}) }
+      }}
       cancelGeneration={async (generationId) => {
         const url = server.current?.http.url
         if (!url) throw new Error("Kolbo server is unavailable")

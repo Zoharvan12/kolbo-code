@@ -1,4 +1,4 @@
-import { Show, createEffect, createSignal, onCleanup, untrack } from "solid-js"
+import { Show, createEffect, createResource, createSignal, onCleanup, untrack } from "solid-js"
 import { unwrap } from "solid-js/store"
 import { useKolboModels } from "../context/kolbo-models"
 import { usePlatformOps } from "../context/platform-ops"
@@ -261,6 +261,85 @@ export function matchModel<T extends { id: string; name?: string }>(models: T[],
   )
 }
 
+const ICON_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/models_icons"
+
+/**
+ * Turn a catalog avatar (bare filename, api.kolbo.ai asset, or CDN URL) into a
+ * URL the widget iframe can actually load. WebView2 cannot fetch api.kolbo.ai
+ * directly; the public models_icons CDN can, in every host including Claude
+ * Code / Codex. Only leftover api/app URLs go through the sidecar proxy.
+ */
+export function chipIcon(avatar: string | null | undefined, proxy?: (url: string) => string) {
+  if (!avatar) return
+  if (/^https?:\/\//i.test(avatar)) {
+    try {
+      const parsed = new URL(avatar)
+      const file = parsed.pathname.match(/\/(?:models_icons|assets)\/([^/]+)$/)
+      if (file && /(?:^|\.)kolbo\.ai$|digitaloceanspaces\.com$/i.test(parsed.hostname)) {
+        return `${ICON_CDN}/${file[1]}`
+      }
+    } catch {
+      return avatar
+    }
+    if (/api\.kolbo\.ai|app\.kolbo\.ai/i.test(avatar)) return proxy?.(avatar) ?? avatar
+    return avatar
+  }
+  return `${ICON_CDN}/${encodeURIComponent(avatar.replace(/^\/+/, ""))}`
+}
+
+export type ChipHit = { id: string; name: string; thumbnail?: string }
+export type ChipNeed = { dnas?: string[]; preset?: string; moodboards?: string[] }
+
+function idList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((id): id is string => typeof id === "string" && id.length > 0)
+  if (typeof value === "string" && value) return [value]
+  return []
+}
+
+export function chipNeed(data: Record<string, unknown> | undefined): ChipNeed | undefined {
+  if (!data || data.widget !== "generation") return
+  const settings = rec(data.settings)
+  const ids = idList(settings?.visual_dna_ids)
+  const have = Array.isArray(data.visual_dnas) && data.visual_dnas.length > 0
+  const preset = typeof settings?.preset_id === "string" ? settings.preset_id : ""
+  const named = typeof settings?.preset_name === "string" && settings.preset_name
+  const boards = idList(settings?.moodboard_ids).length ? idList(settings?.moodboard_ids) : idList(settings?.moodboard_id)
+  const haveBoards = Array.isArray(data.moodboards) && data.moodboards.length > 0
+  if ((have || !ids.length) && (named || !preset) && (haveBoards || !boards.length)) return
+  return {
+    ...(!have && ids.length ? { dnas: ids } : {}),
+    ...(!named && preset ? { preset } : {}),
+    ...(!haveBoards && boards.length ? { moodboards: boards } : {}),
+  }
+}
+
+export function applyChips(
+  data: Record<string, unknown>,
+  hits?: { dnas?: ChipHit[]; preset?: ChipHit; moodboards?: ChipHit[] },
+) {
+  if (!hits || data.widget !== "generation") return data
+  const settings = rec(data.settings) ?? {}
+  const dnas = Array.isArray(data.visual_dnas) && data.visual_dnas.length > 0 ? data.visual_dnas : hits.dnas
+  const boards = Array.isArray(data.moodboards) && data.moodboards.length > 0 ? data.moodboards : hits.moodboards
+  const name = typeof settings.preset_name === "string" && settings.preset_name
+    ? settings.preset_name
+    : hits.preset?.name
+  const thumb = typeof settings.preset_thumbnail === "string" && settings.preset_thumbnail
+    ? settings.preset_thumbnail
+    : hits.preset?.thumbnail
+  if (!dnas?.length && !name && !boards?.length) return data
+  return {
+    ...data,
+    ...(dnas?.length ? { visual_dnas: dnas } : {}),
+    ...(boards?.length ? { moodboards: boards } : {}),
+    settings: {
+      ...settings,
+      ...(name ? { preset_name: name } : {}),
+      ...(thumb ? { preset_thumbnail: thumb } : {}),
+    },
+  }
+}
+
 // Every input key across the generation tools that names media the user
 // supplied. The card's own collectRefs() classifies each url by extension and
 // dedups, so they can all arrive in one list.
@@ -504,36 +583,50 @@ export function KolboMcpWidget(props: {
    * because WebView2 cannot fetch api.kolbo.ai avatars directly.
    */
   const withModelChip = (data: Record<string, unknown>) => {
-    if (data.widget !== "generation" || (data.model_icon && data.model_name)) return data
+    if (data.widget !== "generation") return data
     const id = typeof data.model === "string" ? data.model : ""
-    if (!id) return data
-    // lookup() only knows the CHAT catalog (/kolbo/v1/models filters `type:
-    // "code"`), so a generation model like "nano-banana-2" misses it entirely
-    // and the chip degrades to the raw identifier next to a first-letter
-    // circle. byType() is the catalog that has them — same source the approval
-    // card's model picker already uses.
-    const route = typeof data.route === "string" ? data.route : ""
-    let typed: { id: string; name: string; avatar?: string | null } | undefined
-    for (const type of catalogTypes(route, props.tool)) {
-      typed = matchModel(kolboModels.byType(type), id)
-      if (typed) break
+    let next = data
+    if (!(data.model_icon && data.model_name) && id) {
+      // lookup() only knows the CHAT catalog (/kolbo/v1/models filters `type:
+      // "code"`), so a generation model like "nano-banana-2" misses it entirely
+      // and the chip degrades to the raw identifier next to a first-letter
+      // circle. byType() is the catalog that has them — same source the approval
+      // card's model picker already uses.
+      const route = typeof data.route === "string" ? data.route : ""
+      let typed: { id: string; name: string; avatar?: string | null } | undefined
+      for (const type of catalogTypes(route, props.tool)) {
+        typed = matchModel(kolboModels.byType(type), id)
+        if (typed) break
+      }
+      const info = kolboModels.lookup(id)
+      const name = typed?.name ?? info.name
+      const avatar = typed?.avatar ?? info.avatar
+      const icon = chipIcon(avatar, ops.imageProxyUrl)
+      if (name || icon) {
+        next = {
+          ...data,
+          ...(!data.model_name && name ? { model_name: name } : {}),
+          ...(!data.model_icon && icon ? { model_icon: icon } : {}),
+        }
+      }
     }
-    const info = kolboModels.lookup(id)
-    const name = typed?.name ?? info.name
-    const avatar = typed?.avatar ?? info.avatar
-    const icon = avatar ? (ops.imageProxyUrl?.(avatar) ?? avatar) : undefined
-    if (!name && !icon) return data
-    return {
-      ...data,
-      ...(!data.model_name && name ? { model_name: name } : {}),
-      ...(!data.model_icon && icon ? { model_icon: icon } : {}),
-    }
+    const current = typeof next.model_icon === "string" ? next.model_icon : undefined
+    const icon = chipIcon(current, ops.imageProxyUrl)
+    if (icon && icon !== current) return { ...next, model_icon: icon }
+    return next
   }
+
+  const need = () => {
+    const data = structured(props.output, props.metadata, props.input, props.tool, props.resolved)
+    return data && typeof data === "object" ? chipNeed(data as Record<string, unknown>) : undefined
+  }
+  const [hits] = createResource(need, (want) => ops.lookupChips?.(want) ?? { dnas: [] })
 
   const payload = () => {
     const data = structured(props.output, props.metadata, props.input, props.tool, props.resolved)
-    const chipped = data && typeof data === "object" ? withModelChip(data as Record<string, unknown>) : data
-    return chipped === undefined ? chipped : serializeForWidget(chipped)
+    if (!data || typeof data !== "object") return data === undefined ? data : serializeForWidget(data)
+    const chipped = applyChips(withModelChip(data as Record<string, unknown>), hits())
+    return serializeForWidget(chipped)
   }
 
   // Push even with no structuredContent. A widget that never receives a

@@ -58,6 +58,20 @@ export type PlatformOps = {
   generationStatus?: (generationId: string) => Promise<GenerationStatus | undefined>
   /** Fetch a Kolbo MCP Apps widget HTML document by resource URI. */
   mcpWidget?: (uri: string) => Promise<string | null>
+  /**
+   * Resolve Visual DNA / preset ids for an in-progress generation card.
+   * Kolbo Code rebuilds that card from the tool INPUT (the MCP tool blocks,
+   * so the server never ships visual_dnas / preset_name until it completes).
+   */
+  lookupChips?: (need: {
+    dnas?: string[]
+    preset?: string
+    moodboards?: string[]
+  }) => Promise<{
+    dnas: Array<{ id: string; name: string; thumbnail?: string }>
+    preset?: { id: string; name: string; thumbnail?: string }
+    moodboards?: Array<{ id: string; name: string; thumbnail?: string }>
+  }>
 }
 
 const PlatformOpsCtx = createContext<PlatformOps>({})
@@ -110,6 +124,9 @@ export function PlatformOpsProvider(props: ParentProps<PlatformOps>) {
     },
     get mcpWidget() {
       return props.mcpWidget ?? parent.mcpWidget
+    },
+    get lookupChips() {
+      return props.lookupChips ?? parent.lookupChips
     },
   }
   return <PlatformOpsCtx.Provider value={value}>{props.children}</PlatformOpsCtx.Provider>

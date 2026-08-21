@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import { createStore } from "solid-js/store"
 import {
+  applyChips,
   catalogTypes,
+  chipIcon,
+  chipNeed,
   gridRow,
   matchModel,
   messageText,
@@ -56,6 +59,36 @@ describe("in-progress generation card", () => {
     // A real route on a tool we don't map still gets used.
     expect(catalogTypes("text_to_img", "some_future_tool")).toEqual(["text_to_img"])
     expect(catalogTypes("", "some_future_tool")).toEqual([])
+  })
+
+  test("rewrites bare and api.kolbo.ai avatars onto the public icon CDN", () => {
+    expect(chipIcon("chatgpt-icon.svg")).toBe(
+      "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/models_icons/chatgpt-icon.svg",
+    )
+    expect(chipIcon("https://api.kolbo.ai/assets/chatgpt-icon.svg")).toBe(
+      "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/models_icons/chatgpt-icon.svg",
+    )
+    expect(chipIcon("https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/models_icons/chatgpt-icon.svg")).toBe(
+      "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/models_icons/chatgpt-icon.svg",
+    )
+  })
+
+  test("fills DNA thumbs and the preset name on the in-progress card payload", () => {
+    const raw = {
+      widget: "generation",
+      settings: { visual_dna_ids: ["dna_1"], preset_id: "bible-1" },
+    }
+    expect(chipNeed(raw)).toEqual({ dnas: ["dna_1"], preset: "bible-1" })
+    expect(
+      applyChips(raw, {
+        dnas: [{ id: "dna_1", name: "Rock Lead", thumbnail: "https://media.kolbo.ai/rock.jpg" }],
+        preset: { id: "bible-1", name: "Character Bible" },
+      }),
+    ).toMatchObject({
+      visual_dnas: [{ id: "dna_1", name: "Rock Lead", thumbnail: "https://media.kolbo.ai/rock.jpg" }],
+      settings: { preset_id: "bible-1", preset_name: "Character Bible" },
+    })
+    expect(chipNeed(applyChips(raw, { dnas: [{ id: "dna_1", name: "Rock Lead" }], preset: { id: "bible-1", name: "Bible" } }))).toBeUndefined()
   })
 
   test("resolves the model the agent named to the catalog's own identifier", () => {
