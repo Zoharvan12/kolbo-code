@@ -7,10 +7,16 @@ const AUDIO_MIMES = new Set(ACCEPTED_AUDIO_TYPES)
 const VIDEO_MIMES = new Set(ACCEPTED_VIDEO_TYPES)
 
 const IMAGE_EXTS = new Map([
+  ["avif", "image/avif"],
+  ["bmp", "image/bmp"],
   ["gif", "image/gif"],
+  ["heic", "image/heic"],
+  ["heif", "image/heif"],
   ["jpeg", "image/jpeg"],
   ["jpg", "image/jpeg"],
   ["png", "image/png"],
+  ["tif", "image/tiff"],
+  ["tiff", "image/tiff"],
   ["webp", "image/webp"],
 ])
 
@@ -42,6 +48,65 @@ const TEXT_MIMES = new Set([
   "application/x-yaml",
   "application/xml",
   "application/yaml",
+  "text/html",
+  "text/markdown",
+  "text/csv",
+  "text/xml",
+  "image/svg+xml",
+  "application/xhtml+xml",
+])
+
+const TEXT_EXTS = new Set([
+  "txt",
+  "text",
+  "md",
+  "markdown",
+  "mdx",
+  "log",
+  "csv",
+  "tsv",
+  "html",
+  "htm",
+  "xhtml",
+  "svg",
+  "xml",
+  "json",
+  "jsonl",
+  "yaml",
+  "yml",
+  "toml",
+  "ini",
+  "env",
+  "srt",
+  "vtt",
+  "css",
+  "js",
+  "ts",
+  "tsx",
+  "jsx",
+  "py",
+  "rb",
+  "rs",
+  "go",
+  "sql",
+  "sh",
+])
+
+const DOC_EXTS = new Map([
+  ["pdf", "application/pdf"],
+  ["doc", "application/msword"],
+  ["docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  ["xls", "application/vnd.ms-excel"],
+  ["xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+  ["ppt", "application/vnd.ms-powerpoint"],
+  ["pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+  ["rtf", "application/rtf"],
+  ["pages", "application/vnd.apple.pages"],
+  ["numbers", "application/vnd.apple.numbers"],
+  ["key", "application/vnd.apple.keynote"],
+  ["zip", "application/zip"],
+  ["gz", "application/gzip"],
+  ["tgz", "application/gzip"],
 ])
 
 const SAMPLE = 4096
@@ -77,14 +142,32 @@ function textBytes(bytes: Uint8Array) {
 /** Max file size (bytes) allowed for audio/video attachments (200 MB). */
 export const MAX_MEDIA_BYTES = 200 * 1024 * 1024
 
-/** Detect mime type from a URL by its file extension. Returns undefined if unrecognized. */
+/** Detect mime type from a URL by its file extension. Unknown binaries stay attachable. */
 export function mimeFromUrl(url: string): string | undefined {
   const clean = url.split("?")[0].split("#")[0]
   const lastDot = clean.lastIndexOf(".")
   if (lastDot === -1) return undefined
   const suffix = clean.slice(lastDot + 1).toLowerCase()
-  if (suffix === "pdf") return "application/pdf"
-  return IMAGE_EXTS.get(suffix) ?? AUDIO_EXTS.get(suffix) ?? VIDEO_EXTS.get(suffix)
+  if (TEXT_EXTS.has(suffix)) return "text/plain"
+  return IMAGE_EXTS.get(suffix) ?? AUDIO_EXTS.get(suffix) ?? VIDEO_EXTS.get(suffix) ?? DOC_EXTS.get(suffix) ?? "application/octet-stream"
+}
+
+export function texted(mime: string) {
+  return mime === "text/plain" || mime.startsWith("text/")
+}
+
+/** Goes to the Kolbo CDN. HTML/SVG stay local text so they never execute on the CDN. */
+export function hosted(mime: string) {
+  if (mime === "image/svg+xml") return false
+  return mime.startsWith("image/") || mime.startsWith("audio/") || mime.startsWith("video/") || mime === "application/pdf"
+}
+
+/** Ready to send: CDN URL, inlined text, or a remembered local path. */
+export function ready(part: { mime: string; publicUrl?: string; localPath?: string; uploading?: boolean }) {
+  if (part.uploading) return false
+  if (part.publicUrl && /^https?:\/\//.test(part.publicUrl)) return true
+  if (part.localPath) return true
+  return texted(part.mime)
 }
 
 export async function attachmentMime(file: File) {
@@ -95,15 +178,16 @@ export async function attachmentMime(file: File) {
   if (type === "application/pdf") return type
 
   const suffix = ext(file.name)
+  if (TEXT_EXTS.has(suffix) || textMime(type)) return "text/plain"
+
   const fallback =
     IMAGE_EXTS.get(suffix) ??
     AUDIO_EXTS.get(suffix) ??
     VIDEO_EXTS.get(suffix) ??
-    (suffix === "pdf" ? "application/pdf" : undefined)
-  if ((!type || type === "application/octet-stream") && fallback) return fallback
+    DOC_EXTS.get(suffix)
+  if (fallback) return fallback
 
-  if (textMime(type)) return "text/plain"
   const bytes = new Uint8Array(await file.slice(0, SAMPLE).arrayBuffer())
-  if (!textBytes(bytes)) return
-  return "text/plain"
+  if (textBytes(bytes)) return "text/plain"
+  return type || "application/octet-stream"
 }

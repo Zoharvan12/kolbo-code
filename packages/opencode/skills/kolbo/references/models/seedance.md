@@ -14,6 +14,7 @@ Load this file when the user wants a **Seedance 2 / Seedance 2.0** (ByteDance) v
 ## Universal Rules (apply to EVERY Seedance / Elements prompt)
 
 - **Visual DNA names are immutable anchors:** when `visual_dna_ids` is passed, every DNA MUST appear in the prompt as the exact literal `@DNA_name` (CAST + every shot it is in). Never "Zohar's", "the left man", "the man on the LEFT", a nickname, or a Visual DNA anchors paragraph without `@tags`.
+- **Rewrites never thin out or rename anchors.** "`@X anchors Odysseus`" is NOT a reference line, and `Odysseus` must never replace `@X` later. Every referenced asset keeps its exact literal tag plus a full role line on every rewrite. Re-use the exact DNA tag in every shot it participates in. A compile that dropped `@gal_suit` / `@yonatan` / `#Board` is a failed turn.
 - **First line ALWAYS declares shot structure**: total duration, shot count, aspect ratio. Example: `Total: 15s / 6 shots / 16:9`. Put it at the BOTTOM of the prompt too. For connected narrative sequences the proven phrasing is `N connected cinematic shots, 15 seconds total, 16:9, Multishot ON` — use it and keep `Multishot ON` for any multi-shot story.
 - **Then the Locked Intro** — `[GLOBAL LOOK]` / `[CAST]` / `[LOCATION]` — before any shot. A one-liner `same character throughout` is not a character lock.
 - **Order inside each shot**: Subject → Action → Camera → Constraints → (Audio/SFX if relevant). Do NOT restack GLOBAL LOOK style inside the shot.

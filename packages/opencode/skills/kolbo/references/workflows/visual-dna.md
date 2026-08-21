@@ -8,7 +8,7 @@ Visual DNA profiles capture the visual "identity" of a character, style, product
 
 ## Workflow
 
-1. **Create** a profile with `create_visual_dna` — provide reference images (max 4 — if the user gives more, pick the 4 most representative or ask which to keep; never pass 5+), optionally video and audio.
+1. **Sheet first, then DNA.** For any production asset (character / location / prop), resolve the sheet **preset** (`list_presets` with `search`) and `generate_image` with that `preset_id` — custom instructions live on the preset. Then `create_visual_dna` with the sheet as `character_sheet_url` (max 4 extra images — if the user gives more, pick the 4 most representative; never pass 5+). Optionally video and audio.
 2. **Types**: `character` (default), `style`, `product`, `scene`, `environment`.
 3. **Use** the profile by passing its `id` in `visual_dna_ids` in: `generate_image`, `generate_creative_director`, `generate_elements`, `generate_video_from_image`, `generate_video_from_video`, `generate_first_last_frame`.
 4. **List/inspect** profiles with `list_visual_dnas` / `get_visual_dna`.
@@ -85,6 +85,7 @@ Whenever a generation call passes `visual_dna_ids` (even just one), the prompt M
 - Write a "Visual DNA anchors:" prose block that describes position/wardrobe but never writes `@ExactName`.
 - Write the character's name in plain text without the `@` prefix.
 - Drop the `@name` when only one DNA is passed — the engine still needs the binding so it knows the DNA is the *subject* and not a passive style.
+- **Drop or "clean" tags while rewriting a prompt** (help-widget parity). Compiling SCENE CONTEXT / Locked Intro / a "better" English prompt is not permission to delete `@gal_suit` or rewrite `@yonatan` as `Yonatan`. Copy every existing `@` / `#` token into the new prompt, then add craft around them.
 
 **Wrong** (DNA `name` is `esther_model`, user wrote prompt in Hebrew):
 ```
@@ -244,12 +245,22 @@ Tools: `list_visual_dna_folders`, `create_visual_dna_folder` (`name`, optional h
 - **Creating many characters for one production?** Create the folder FIRST, then `move_visual_dna_to_folder` each DNA right after `create_visual_dna` — don't leave a big cast unsorted at root.
 - To list a folder's contents: `list_visual_dnas` and filter by each profile's `folder_id` (there is no server-side folder filter).
 
-## Character sheet — offer it for character DNAs
+## Character sheet — default for production assets (not a catalog preset)
 
-`generate_character_sheet` builds a multi-angle turnaround from reference image URLs — the strongest consistency booster for a character DNA. It CHARGES CREDITS, so:
-- When the user is about to create a **character** DNA, proactively OFFER it: "want me to generate a character sheet first? It makes the character far more consistent and costs a few credits." Run it only on a yes.
-- Flow: `generate_character_sheet {image_urls}` → show the sheet → `create_visual_dna {name, images, character_sheet_url: <url>}`.
-- For non-character DNAs (style/product/environment), skip it.
+Custom instructions live on the **image preset**. Resolve it silently, then generate:
+
+1. `list_presets({ type: "image", search: "headless" | "bible" | "character sheet" | "location" | "product" })`
+2. Pass the exact `id` as `preset_id` on `generate_image` (2K or 4K, never 1K; 4K for bible / high-detail / when named)
+3. Show the sheet → GATE → `create_visual_dna { name, images, character_sheet_url }`
+
+| Search | When |
+|---|---|
+| `bible` | Lead or anyone with a lot of detail (wardrobe, hair, accessories, instrument) |
+| `headless` | Face already locked, or clothing / instrument / body must stay independent of the face |
+| `character sheet` | Simple supporting person |
+| `location` / `product` | Matching DNA type |
+
+Do **not** omit `search` (that dumps the catalog). Do not show the preset picker. `generate_character_sheet` is fallback only if no preset matches.
 
 ### ⚠️ Aspect ratio — character sheets and bibles are LANDSCAPE
 

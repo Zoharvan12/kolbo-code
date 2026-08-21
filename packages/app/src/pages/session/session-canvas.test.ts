@@ -69,4 +69,78 @@ describe("session canvas media", () => {
     expect(isGenerationPart(part)).toBe(false)
     expect(urlsFromPart(part)).toEqual([])
   })
+
+  test("fetched library media is not a canvas generation", () => {
+    const listed = {
+      id: "prt_media",
+      sessionID: "ses_1",
+      messageID: "msg_1",
+      type: "tool",
+      tool: "kolbo_list_media",
+      state: {
+        status: "completed",
+        input: {},
+        output: JSON.stringify({
+          media: [
+            {
+              id: "old1",
+              url: "https://media.kolbo.ai/kolboai-media/visual-dna/images/x/environment-sheet.jpg",
+              thumbnail_url: "https://media.kolbo.ai/kolboai-media/thumbs/x.jpg",
+            },
+          ],
+        }),
+        metadata: {},
+        title: "",
+        time: { start: 1, end: 2 },
+      },
+    } as ToolPart
+    expect(isGenerationPart(listed)).toBe(false)
+
+    const fetched = {
+      ...listed,
+      tool: "mcp__kolbo__get_media",
+      state: {
+        ...listed.state,
+        output: JSON.stringify({
+          id: "old1",
+          url: "https://media.kolbo.ai/kolboai-media/uploads/old.png",
+        }),
+      },
+    } as ToolPart
+    expect(isGenerationPart(fetched)).toBe(false)
+  })
+
+  test("status recovery of a timed-out generation still lands on canvas", () => {
+    const part = {
+      id: "prt_status",
+      sessionID: "ses_1",
+      messageID: "msg_1",
+      type: "tool",
+      tool: "get_generation_status",
+      state: {
+        status: "completed",
+        input: { generation_id: "gen_1" },
+        output: JSON.stringify({
+          state: "completed",
+          result: { urls: ["https://cdn.example/recovered.png"] },
+        }),
+        metadata: {},
+        title: "",
+        time: { start: 1, end: 2 },
+      },
+    } as ToolPart
+    expect(isGenerationPart(part)).toBe(true)
+    expect(urlsFromPart(part)).toEqual(["https://cdn.example/recovered.png"])
+  })
+
+  test("a running generate_* tool is a pending canvas cell before urls exist", () => {
+    const part = tool({
+      status: "running",
+      input: { prompt: "orange tabby" },
+      metadata: {},
+      title: "",
+      time: { start: 1 },
+    })
+    expect(isGenerationPart(part)).toBe(true)
+  })
 })

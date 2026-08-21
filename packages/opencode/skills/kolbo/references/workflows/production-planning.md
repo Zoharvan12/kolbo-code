@@ -14,10 +14,10 @@ that has to match anything else.
 
 ## The order is not negotiable
 
-1. **Map** every element the script needs.
-2. **Create** each one as an approved asset (Visual DNA).
-3. **Confirm** the asset set with the user.
-4. **Only then** compile shots and generate video.
+1. **Map** every element the script needs — including the **session plan** (names).
+2. **Create** each one as an asset (Visual DNA), grouped into the planned sessions.
+3. **Confirm** that bucket with the user. Do not start the next bucket until they lock this one.
+4. **Only then** compile shots and generate video (one session per scene).
 
 Generating video before step 3 is how a production ends up with a different face
 in every shot and a re-shoot bill. A shot generated against an unapproved cast is
@@ -39,6 +39,30 @@ State the inventory back to the user as a list with counts and cost before
 creating anything. A 4-character, 2-location, 1-prop film is 7 assets, not "some
 characters".
 
+Also publish the **session plan** in that same MAP reply — exact sidebar titles
+you will `rename_session` to. Default buckets:
+
+| Session name | Kind | Contents |
+|---|---|---|
+| `Cast` | image | all character sheets / character DNAs |
+| `Locations` | image | all environments |
+| `Props` | image | hero products / vehicles (omit if none) |
+| `Scene 01 — <slug>` | video | every shot and retake of that scene |
+| `Scene 02 — <slug>` | video | next scene |
+
+Slugs come from the plan (`Scene 01 — coffee shop`, `Scene 03 — rooftop chase`),
+not generic "API Generations" or "Untitled". One video session **per scene**;
+shots live inside it. A new session is a new scene or a new concept — never a
+new take.
+
+Omitting `session_id` on generate creates a new session. First call of a bucket
+omits it, then `rename_session` immediately; every later call in that bucket
+passes the same id. Image and video kinds cannot share an id.
+
+Write those planned names into `.kolbo/production.md` `### Sessions` as
+`(pending)` during MAP. Fill in the real `session_id` when the first generate
+returns. See `production-log.md`.
+
 Separate **states** from **identities**: clean vs bloodied, day vs night, intact
 vs broken are their own assets. Do not expect one DNA to carry both.
 
@@ -58,26 +82,50 @@ Read the matching prompt reference before writing an asset prompt:
 for GPT Image 2. There is no Mirage reference file — prompt it as a plain cinematic
 still.
 
-Use the sheet presets rather than free-form portraits — `generate_character_sheet`
-with `sheet_type`:
+Resolve the sheet **preset** (custom instructions live there):
+`list_presets({ type: "image", search: "bible" | "headless" | "character sheet" })`
+then `generate_image` with that `preset_id`. Do not dump the catalog — always
+pass `search`.
 
-- `character` — front/back/face turnaround, the default for a speaking role
-- `character_bible` — denser model sheet (turnaround + faces + wardrobe + swatches) for a lead who appears across many shots
-- `character_headless` — wardrobe/body when clothing changes but the face must not
-- `environment` — location angles plus one signature detail
-- `product` — angles plus material and construction close-ups
-- `style` — one look applied across six varied subjects
+- `bible` — lead or anyone with a lot of detail (default when in doubt)
+- `headless` — body / wardrobe / instrument; face already locked
+- `character sheet` — simple supporting role
+- `location` / `product` — matching DNA type
 
-The sheet is the single strongest consistency booster. It costs credits, so offer
-it and generate on a yes.
+Sheets are **2K or 4K** (never 1K). Default 2K; 4K for bible / high-detail / when
+the user names 4K or GPT Image 2.
+
+Do not skip the sheet and `create_visual_dna` from a portrait. The sheet is the
+asset; the DNA stores it.
 
 Then `create_visual_dna` with the sheet as the reference and the matching
 `dna_type`. Name each DNA in the exact form it will be tagged with later.
 
-## 3. Confirm
+## 3. Confirm — a labeled GATE, then wait
 
-Show the user the asset set and get an explicit approval before shooting. This is
-the cheapest possible place to change their mind.
+Show the user what this bucket produced and **stop**. Do not start Locations
+while Cast is still iterating. Do not shoot while assets are unapproved.
+Do not rewrite `## 🎯 Now` to the next phase until the gate is answered.
+
+If they do not volunteer a yes, end the turn with a GATE the next message can
+parse — not a vague "looks good?":
+
+```
+GATE — Cast
+Presented: @maya, @doron (candidates in the log)
+Lock + next: "lock cast" / "yes" / "next" / "now locations"
+Stay: "redo @maya" / "another take of the leather jacket"
+```
+
+Treat as confirmation: `yes`, `ok`, `lock`, `approved`, `that's the one`,
+`use take 2`, `next`, `go`, `continue`, or they name the **next** bucket
+("now do environments", "shoot scene 1") while treating the current set as done.
+
+Not confirmation: silence, "maybe", a question about something else, another
+take request. Ask the GATE again once; do not invent a yes.
+
+On lock: promote candidates → Approved in `.kolbo/production.md`, then start
+the next planned bucket in **its** session.
 
 ## 4. Shoot
 

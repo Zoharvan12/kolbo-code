@@ -27,7 +27,7 @@ const BY_TOOL: Record<string, string> = {
   list_visual_dna_folders: BY_WIDGET.list,
   list_models: BY_WIDGET.catalog,
   list_media: BY_WIDGET["media-grid"],
-  list_presets: BY_WIDGET["media-grid"],
+  list_presets: BY_WIDGET.list,
   list_voices: BY_WIDGET["media-grid"],
   list_visual_dnas: BY_WIDGET["media-grid"],
   list_moodboards: BY_WIDGET["media-grid"],
@@ -45,7 +45,7 @@ function appUri(value: unknown): string | undefined {
   return typeof value === "string" && value.startsWith("ui://kolbo/") ? value : undefined
 }
 
-function uri(meta?: Record<string, unknown>, tool?: string, data?: unknown) {
+export function uri(meta?: Record<string, unknown>, tool?: string, data?: unknown) {
   const ui = rec(meta?.ui)
   const fromMeta =
     appUri(ui?.["ui/resourceUri"]) ||
@@ -56,6 +56,9 @@ function uri(meta?: Record<string, unknown>, tool?: string, data?: unknown) {
   const widget = rec(meta?.structuredContent)?.widget ?? rec(data)?.widget
   if (typeof widget === "string" && BY_WIDGET[widget]) return BY_WIDGET[widget]
   const toolName = bare(tool)
+  // Named preset lookup (`search: "headless"`) is an id fetch — do not mount
+  // the 70-tile catalog the user already rejected.
+  if (toolName === "list_presets" && presetLookup(data)) return undefined
   if (BY_TOOL[toolName]) {
     // media-grid.html draws a thumbnail-less item as its media-kind icon, so a
     // payload we rebuilt from tool TEXT (no MCP structuredContent — see
@@ -66,6 +69,11 @@ function uri(meta?: Record<string, unknown>, tool?: string, data?: unknown) {
     return BY_TOOL[toolName]
   }
   if (toolName.startsWith("list_")) return BY_WIDGET.list
+  // A status poll with no media yet is not a second generation card.
+  if (statusTool(toolName)) {
+    const urls = rec(data)?.urls
+    if (!Array.isArray(urls) || urls.length === 0) return undefined
+  }
   // Nothing else falls back to the generation card. generation.html boots as a
   // "Generating" spinner and only leaves it once an operation payload arrives,
   // so mounting it for a tool that will never produce one (chat_send_message,
@@ -128,6 +136,14 @@ export function messageText(params: unknown): string | undefined {
   return joined || undefined
 }
 
+function presetLookup(data: unknown) {
+  const row = rec(data)
+  if (!row) return false
+  if (row._lookup === true || row.lookup === true) return true
+  const items = row.items
+  return Array.isArray(items) && items.length > 0 && items.length <= 6
+}
+
 /** Items are present, and not one of them has an image to show. */
 function thumbless(data: unknown) {
   const items = rec(data)?.items
@@ -174,6 +190,55 @@ export function catalogTypes(route: string, tool: string): string[] {
   if (mapped) return mapped
   // An operation that DID carry a real route keeps using it.
   return route ? [route] : []
+}
+
+/**
+ * Status checks are follow-ups, not a second generation. While they are still
+ * waiting they used to mount another full "Generating" card on top of the
+ * original generate_* card (title "Kolbo Generations", kind defaulting to
+ * image). Only show a result card once there is media to display.
+ */
+export function statusTool(tool?: string) {
+  const name = bare(tool)
+  return name === "get_generation_status" || name === "get_creative_director_status"
+}
+
+/**
+ * In-progress payloads often have no urls yet, and lift() then defaults kind
+ * to "image". Elements / lipsync / first-last-frame are video tools — the
+ * picture-frame chip on those cards was that default, not the real output.
+ */
+export function kindFromTool(tool?: string): "image" | "video" | "audio" | "model3d" | undefined {
+  const name = bare(tool)
+  if (!name) return
+  if (name.includes("3d")) return "model3d"
+  if (/music|speech|sound/.test(name)) return "audio"
+  if (/video|elements|lipsync|first_last_frame/.test(name)) return "video"
+  if (name.includes("image")) return "image"
+}
+
+export function resolveKind(kind: string | undefined, tool?: string, urls?: string[]) {
+  const first = (urls?.[0] || "").split("?")[0].toLowerCase()
+  if (/\.(mp4|mov|webm|mkv)$/.test(first) || /video-elements-results|generated-videos/.test(first)) return "video"
+  if (/\.(mp3|wav|m4a|aac|ogg|flac)$/.test(first)) return "audio"
+  if (kind === "video" || kind === "audio" || kind === "model3d" || kind === "scenes" || kind === "3d") {
+    return kind === "3d" ? "model3d" : kind === "scenes" ? "video" : kind
+  }
+  return kindFromTool(tool) || kind || "image"
+}
+
+const OWNED_HOST = /(?:^|\.)kolbo\.ai$|digitaloceanspaces\.com$/i
+
+export function preferKolbo(urls: string[]) {
+  const list = urls.filter((item) => typeof item === "string" && item)
+  const ours = list.filter((item) => {
+    try {
+      return OWNED_HOST.test(new URL(item).hostname)
+    } catch {
+      return false
+    }
+  })
+  return ours.length ? ours : list
 }
 
 /**
@@ -352,13 +417,14 @@ function build(
 ) {
   if (!resolved) {
     const fromMeta = metadata?.structuredContent
-    if (fromMeta && typeof fromMeta === "object") return fromMeta
+    if (fromMeta && typeof fromMeta === "object") return shaped(fromMeta, tool)
     const fromText = listed(output)
     if (fromText) return fromText
   }
   const op = resolved ?? read(output, metadata)
   if (!op) return
-  return {
+  const urls = preferKolbo(op.outputs.map((item) => item.url).filter(Boolean))
+  return shaped({
     widget: "generation",
     // "review" is this app's own pre-flight envelope (describe(), sent before
     // the tool call even runs) — Kolbo Code auto-approves every tool call
@@ -370,10 +436,10 @@ function build(
     // one-off for generate_character_sheet (kolbo-mcp visual_dna.js) — this
     // is the general case, at the one place every tool's phase passes through.
     phase: op.phase === "running" || op.phase === "review" ? "generating" : op.phase,
-    kind: op.kind,
+    kind: resolveKind(typeof op.kind === "string" ? op.kind : undefined, tool, urls),
     tool: bare(tool),
     generation_id: op.id,
-    urls: op.outputs.map((item) => item.url),
+    urls,
     model: op.model.id,
     // Generation type ("text_to_img", "image_editing", …) — the key the model
     // chip needs to resolve a generation model's name + avatar.
@@ -398,6 +464,19 @@ function build(
       moodboard_ids: input?.moodboard_ids,
       preset_id: input?.preset_id,
     },
+  }, tool)
+}
+
+function shaped(data: unknown, tool?: string) {
+  const obj = rec(data)
+  if (!obj || (obj.widget && obj.widget !== "generation")) return data
+  const raw = Array.isArray(obj.urls) ? obj.urls.filter((item): item is string => typeof item === "string") : []
+  const urls = preferKolbo(raw)
+  const named = typeof obj.tool === "string" ? obj.tool : tool
+  return {
+    ...obj,
+    ...(raw.length ? { urls } : {}),
+    kind: resolveKind(typeof obj.kind === "string" ? obj.kind : undefined, named, urls),
   }
 }
 

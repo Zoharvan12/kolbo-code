@@ -46,7 +46,7 @@ import {
   startMediaDrag,
 } from "./kolbo-media"
 import { card, costOf, player, read, urlsOf, type Operation } from "./kolbo-operation"
-import { generative, KolboMcpWidget } from "./kolbo-mcp-widget"
+import { generative, KolboMcpWidget, statusTool } from "./kolbo-mcp-widget"
 import { usePlatformOps } from "../context/platform-ops"
 import { useKolboModels } from "../context/kolbo-models"
 import { Accordion } from "./accordion"
@@ -3510,9 +3510,11 @@ function KolboOperationCard(props: {
     return total > MAX_CHIP_THUMBS ? total - MAX_CHIP_THUMBS : 0
   })
   const isVideoUrl = isVideoUrlShared
+  const hidePoll = createMemo(() => statusTool(props.tool) && urls().length === 0)
 
   return (
     <div class="px-3 pb-2">
+      <Show when={!hidePoll()}>
       <KolboMcpWidget
         tool={props.tool}
         output={props.output}
@@ -3750,6 +3752,7 @@ function KolboOperationCard(props: {
             )}
           </For>
         </div>
+      </Show>
       </Show>
       </Show>
     </div>

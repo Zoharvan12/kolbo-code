@@ -1353,11 +1353,13 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                       sessionID: input.sessionID,
                       type: "text" as const,
                       synthetic: true,
-                      text: `[Local ${part.mime} '${part.filename ?? filepath}' was not uploaded. Re-attach the file so it goes to the Kolbo CDN, then send again.]`,
+                      text: `[Local ${part.mime} '${part.filename ?? filepath}' at ${filepath} was not uploaded to the CDN. Use this absolute path with upload_media, or ask the user to re-attach.]`,
                     },
                   ]
                 }
 
+                // Office / zip / unknown binaries: remember the path. Do not
+                // base64 the file into the session (xlsx is a zip).
                 yield* filetime.read(input.sessionID, filepath)
                 return [
                   {
@@ -1365,20 +1367,9 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                     sessionID: input.sessionID,
                     type: "text",
                     synthetic: true,
-                    text: `Called the Read tool with the following input: {"filePath":"${filepath}"}`,
+                    text: `Attached local file '${part.filename ?? filepath}' (${part.mime}) at ${filepath}. Use this absolute path with Read (text) or upload_media (binary).`,
                   },
-                  {
-                    id: part.id,
-                    messageID: info.id,
-                    sessionID: input.sessionID,
-                    type: "file",
-                    url:
-                      `data:${part.mime};base64,` +
-                      Buffer.from(yield* fsys.readFile(filepath).pipe(Effect.catch(Effect.die))).toString("base64"),
-                    mime: part.mime,
-                    filename: part.filename!,
-                    source: part.source,
-                  },
+                  { ...part, messageID: info.id, sessionID: input.sessionID },
                 ]
               }
             }

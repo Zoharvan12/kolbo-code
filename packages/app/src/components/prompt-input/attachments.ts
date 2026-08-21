@@ -4,7 +4,7 @@ import { usePrompt, type ContentPart, type ImageAttachmentPart } from "@/context
 import { useLanguage } from "@/context/language"
 import { uuid } from "@/utils/uuid"
 import { getCursorPosition } from "./editor-dom"
-import { attachmentMime, mimeFromUrl, MAX_MEDIA_BYTES } from "./files"
+import { attachmentMime, hosted, mimeFromUrl, texted, MAX_MEDIA_BYTES } from "./files"
 import { rememberAttachmentUrl } from "./attachment-urls"
 import { normalizePaste, pasteMode } from "./paste"
 
@@ -316,35 +316,47 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     | { kind: "chip"; attachment: ImageAttachmentPart; afterInsert: () => void }
     | { kind: "mention"; path: string }
 
-  const prepareFileAttachment = async (file: File, toast: boolean): Promise<Prepared | undefined> => {
-    const mime = await attachmentMime(file)
-    if (!mime) {
-      if (toast) warn()
-      return undefined
+  const pathChip = (filePath: string, mime = mimeFromUrl(filePath) ?? "application/octet-stream"): Prepared => {
+    const filename = filePath.split(/[\\/]/).pop() || "file"
+    const fileUrl = "file:///" + filePath.replace(/\\/g, "/").replace(/^\/+/, "")
+    return {
+      kind: "chip",
+      attachment: {
+        type: "image",
+        id: uuid(),
+        filename,
+        mime,
+        dataUrl: fileUrl,
+        localPath: filePath,
+        uploading: false,
+      },
+      afterInsert: () => {},
     }
-    if (file.size > MAX_MEDIA_BYTES) {
+  }
+
+  const prepareFileAttachment = async (file: File, toast: boolean): Promise<Prepared | undefined> => {
+    const localPath = (file as File & { path?: string }).path ?? undefined
+    const mime = (await attachmentMime(file)) ?? (localPath ? mimeFromUrl(localPath) : undefined) ?? "application/octet-stream"
+    const tooBig = file.size > MAX_MEDIA_BYTES
+
+    // Too big to upload, but a local path is enough — chip + remembered path.
+    if (tooBig && localPath) return pathChip(localPath, mime)
+    if (tooBig) {
       if (toast) warnTooLarge()
       return undefined
     }
 
-    const localPath = (file as File & { path?: string }).path ?? undefined
-    const isInline = mime.startsWith("image/") || mime.startsWith("audio/") || mime.startsWith("video/") || mime === "application/pdf"
-
-    // Non-inline (text/*, unknown) → if we have a local path, attach as an
-    // @-mention so the agent reads it locally with its file tools. Avoids the
-    // wrong audio icon and the chip vanishing after send.
-    if (!isInline && localPath) {
-      return { kind: "mention", path: localPath }
-    }
-
     const id = uuid()
+
+    // Local text/docs: chip + path. The agent Reads the file from disk.
+    // Avoids inlining huge HTML and never hosts HTML/SVG on the CDN.
+    if (localPath && !hosted(mime)) return pathChip(localPath, mime)
 
     // Text files (no localPath, e.g. web file picker): embed content as a
     // data:text/plain;base64 URL. The backend (prompt.ts data: case) decodes
     // and inlines the text into the prompt while keeping the file part visible
-    // in the user bubble. Avoids the CDN round-trip and the "File data is
-    // missing" error when providers can't fetch URLs.
-    if (mime === "text/plain") {
+    // in the user bubble.
+    if (texted(mime)) {
       const text = await file.text()
       const base64 = typeof btoa === "function" ? btoa(unescape(encodeURIComponent(text))) : ""
       const inlineUrl = `data:text/plain;base64,${base64}`
@@ -365,7 +377,7 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     }
 
     const previewUrl = URL.createObjectURL(file)
-    const isMedia = mime.startsWith("image/") || mime.startsWith("audio/") || mime.startsWith("video/")
+    const upload = hosted(mime) || !localPath
     previewUrls.set(id, previewUrl)
 
     const attachment: ImageAttachmentPart = {
@@ -375,14 +387,14 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       mime,
       dataUrl: previewUrl,
       localPath,
-      uploading: isMedia,
+      uploading: upload,
     }
 
     return {
       kind: "chip",
       attachment,
       afterInsert: () => {
-        if (isMedia) void uploadAttachment(id, file, mime, file.name)
+        if (upload) void uploadAttachment(id, file, mime, file.name)
       },
     }
   }
@@ -409,8 +421,10 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
 
   const add = async (file: File, toast = true) => {
     const prepared = await prepareFileAttachment(file, toast)
-    if (!prepared) return false
-    return insertPrepared([prepared])
+    if (prepared) return insertPrepared([prepared])
+    const localPath = (file as File & { path?: string }).path
+    if (localPath) return insertPrepared([pathChip(localPath)])
+    return false
   }
 
   const addAttachment = (file: File) => add(file)
@@ -418,19 +432,14 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
   // Add an attachment given a filesystem path (desktop native picker returns paths, not File objects).
   // The server reads the file from disk and uploads it, so we don't need file:// access in the WebView.
   const addAttachmentFromPath = async (filePath: string) => {
-    // Default unknown extensions to text/plain so the backend's file:// handler
-    // can load the content via the Read tool. Keeps the chip + localPath flow
-    // consistent across media, PDF, and arbitrary files.
-    const mime = mimeFromUrl(filePath) ?? "text/plain"
+    const mime = mimeFromUrl(filePath) ?? "application/octet-stream"
     const filename = filePath.split(/[\\/]/).pop() || "file"
 
     const editor = input.editor()
     if (!editor) return false
 
-    const isMedia = mime.startsWith("image/") || mime.startsWith("audio/") || mime.startsWith("video/")
-
+    const upload = hosted(mime)
     const id = uuid()
-    // Use file:// URL for local preview; the actual upload happens server-side
     const fileUrl = "file:///" + filePath.replace(/\\/g, "/").replace(/^\/+/, "")
 
     const attachment: ImageAttachmentPart = {
@@ -440,12 +449,12 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       mime,
       dataUrl: fileUrl,
       localPath: filePath,
-      uploading: isMedia,
+      uploading: upload,
     }
     const cursor = prompt.cursor() ?? getCursorPosition(editor)
     prompt.set([...prompt.current(), attachment], cursor)
 
-    if (isMedia) {
+    if (upload) {
       const serverUrl = input.serverUrl?.()
       if (!serverUrl) {
         prompt.updateImageAttachment(id, { uploading: false })
@@ -499,6 +508,14 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     const prepared = (await Promise.all(files.map((f) => prepareFileAttachment(f, false)))).filter(
       (p): p is Prepared => !!p,
     )
+    const handled = new Set(
+      prepared.flatMap((p) => (p.kind === "chip" ? [p.attachment.filename] : [p.path.split(/[\\/]/).pop() ?? ""])),
+    )
+    for (const file of files) {
+      if (handled.has(file.name)) continue
+      const localPath = (file as File & { path?: string }).path
+      if (localPath) prepared.push(pathChip(localPath))
+    }
     const inserted = insertPrepared(prepared)
     if (!inserted && files.length > 0 && toast) warn()
     return inserted
@@ -600,10 +617,10 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       mime = url.match(/^data:([^;]+);/)?.[1]
       filename = `media.${mime?.split("/")[1] ?? "bin"}`
     } else {
-      mime = mimeFromUrl(url)
+      mime = mimeFromUrl(url) ?? "application/octet-stream"
       filename = url.split("/").pop()?.split("?")[0] || "media"
     }
-    if (!mime) return undefined
+    if (!mime) mime = "application/octet-stream"
 
     const id = uuid()
 
@@ -679,14 +696,9 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
     const plainText = event.dataTransfer?.getData("text/plain") ?? ""
     if (plainText.startsWith("file:")) {
       const url = plainText.trim()
-      const mime = mimeFromUrl(url)
-      if (mime) {
-        // Media file — store as a lightweight file:// path reference
-        attachFromUrl(url)
-      } else {
-        const filePath = url.slice("file:".length)
-        input.focusEditor()
-        input.addPart({ type: "file", path: filePath, content: "@" + filePath, start: 0, end: 0 })
+      if (!attachFromUrl(url.startsWith("file://") ? url : `file://${url.slice("file:".length)}`)) {
+        const filePath = url.replace(/^file:\/\//, "").replace(/^file:/, "")
+        insertPrepared([pathChip(filePath)])
       }
       return
     }
@@ -698,23 +710,17 @@ export function createPromptAttachments(input: PromptAttachmentsInput) {
       const prepared = (await Promise.all(files.map((f) => prepareFileAttachment(f, false)))).filter(
         (p): p is Prepared => !!p,
       )
-      // Files prepareFileAttachment rejected (.zip, folders, unknown types) get
-      // added as @mention path refs when the platform exposes a local path.
+      // Anything prepareFileAttachment skipped still becomes a path chip when
+      // the platform exposes a local path — same look as a real attach.
       const handledNames = new Set(
         prepared.flatMap((p) => (p.kind === "chip" ? [p.attachment.filename] : [p.path.split(/[\\/]/).pop() ?? ""])),
       )
-      const fallbacks = files.filter((f) => !handledNames.has(f.name))
-      let anyHandled = insertPrepared(prepared)
-      if (fallbacks.length > 0) {
-        for (const file of fallbacks) {
-          const localPath = (file as File & { path?: string }).path
-          if (localPath) {
-            input.focusEditor()
-            input.addPart({ type: "file", path: localPath, content: "@" + localPath, start: 0, end: 0 })
-            anyHandled = true
-          }
-        }
+      for (const file of files) {
+        if (handledNames.has(file.name)) continue
+        const localPath = (file as File & { path?: string }).path
+        if (localPath) prepared.push(pathChip(localPath))
       }
+      const anyHandled = insertPrepared(prepared)
       if (!anyHandled && files.length > 0) warn()
       return
     }

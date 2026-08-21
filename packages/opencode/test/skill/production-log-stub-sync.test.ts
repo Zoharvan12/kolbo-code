@@ -3,10 +3,12 @@ import fs from "node:fs"
 import path from "node:path"
 // @ts-ignore — Bun text-import attribute syntax
 import KOLBO_SKILL_MD_BUNDLED from "../../skills/kolbo/SKILL.md" with { type: "text" }
+// @ts-ignore — Bun text-import attribute syntax
+import PRODUCTION_LOG from "../../skills/kolbo/references/workflows/production-log.md" with { type: "text" }
 
 // The `.kolbo/production.md` stub format lives in TWO places by design:
 //
-//   1. SKILL.md (canonical guidance the agent reads when the skill is loaded)
+//   1. production-log.md (canonical stub the agent Reads with the skill)
 //   2. message-v2.ts's PRODUCTION_LOG_REMINDER (self-contained runtime nudge
 //      appended after every kolbo_* generation tool call — must work without
 //      SKILL.md being loaded into context)
@@ -68,17 +70,20 @@ const STUB_STRUCTURE_MARKERS = [
   // Production heading template.
   "## Production:",
   // Default subsection headings (suggestions but they must match).
+  "### Sessions",
   "### Cast",
   "### Visual DNA",
   "### Scenes",
   "### Audio",
   "### Final",
+  "**Approved:**",
+  "**Awaiting approval:**",
 ]
 
 test.each(STUB_STRUCTURE_MARKERS)(
-  "SKILL.md stub contains structural marker: %s",
+  "production-log.md stub contains structural marker: %s",
   (marker) => {
-    expect(KOLBO_SKILL_MD_BUNDLED).toContain(marker)
+    expect(PRODUCTION_LOG).toContain(marker)
   },
 )
 
@@ -105,6 +110,10 @@ const PROCEDURAL_RULES = [
   "superseded",
   // generation_id must be persisted.
   "generation_id",
+  // Session reuse + approval gate.
+  "session_id",
+  "GATE",
+  "CANDIDATE",
   // No URL echoing in chat replies.
   "Do NOT echo",
 ]
@@ -115,3 +124,8 @@ test.each(PROCEDURAL_RULES)(
     expect(reminderBody).toContain(keyword)
   },
 )
+
+test("SKILL.md still points at the production-log stub and session buckets", () => {
+  expect(KOLBO_SKILL_MD_BUNDLED).toContain("references/workflows/production-log.md")
+  expect(KOLBO_SKILL_MD_BUNDLED).toContain("One session per plan bucket")
+})

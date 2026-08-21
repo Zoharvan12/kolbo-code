@@ -48,3 +48,4 @@ graphify-out/
 
 # Local dev config — holds a live Kolbo API key, must never be committed.
 packages/desktop/src-tauri/config.json
+.superpowers/

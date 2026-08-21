@@ -20,105 +20,11 @@ export const ACCEPTED_VIDEO_TYPES = [
   "video/x-matroska",
 ]
 
-export const ACCEPTED_FILE_TYPES = [
-  ...ACCEPTED_IMAGE_TYPES,
-  ...ACCEPTED_AUDIO_TYPES,
-  ...ACCEPTED_VIDEO_TYPES,
-  "application/pdf",
-  "text/*",
-  "application/json",
-  "application/ld+json",
-  "application/toml",
-  "application/x-toml",
-  "application/x-yaml",
-  "application/xml",
-  "application/yaml",
-  ".c",
-  ".cc",
-  ".cjs",
-  ".conf",
-  ".cpp",
-  ".css",
-  ".csv",
-  ".cts",
-  ".env",
-  ".go",
-  ".gql",
-  ".graphql",
-  ".h",
-  ".hh",
-  ".hpp",
-  ".htm",
-  ".html",
-  ".ini",
-  ".java",
-  ".js",
-  ".json",
-  ".jsx",
-  ".log",
-  ".md",
-  ".mdx",
-  ".mjs",
-  ".mts",
-  ".py",
-  ".rb",
-  ".rs",
-  ".sass",
-  ".scss",
-  ".sh",
-  ".sql",
-  ".toml",
-  ".ts",
-  ".tsx",
-  ".txt",
-  ".xml",
-  ".yaml",
-  ".yml",
-  ".zsh",
-  // Audio
-  ".mp3",
-  ".wav",
-  ".ogg",
-  ".m4a",
-  ".aac",
-  ".flac",
-  ".opus",
-  // Video
-  ".mp4",
-  ".webm",
-  ".mov",
-  ".avi",
-  ".mkv",
-  ".m4v",
-]
+/** Composer attach accepts every file. The OS picker must not grey types out. */
+export const ACCEPTED_FILE_TYPES = ["*/*"]
 
-const MIME_EXT = new Map([
-  ["image/png", "png"],
-  ["image/jpeg", "jpg"],
-  ["image/gif", "gif"],
-  ["image/webp", "webp"],
-  ["application/pdf", "pdf"],
-  ["application/json", "json"],
-  ["application/ld+json", "jsonld"],
-  ["application/toml", "toml"],
-  ["application/x-toml", "toml"],
-  ["application/x-yaml", "yaml"],
-  ["application/xml", "xml"],
-  ["application/yaml", "yaml"],
-])
-
-const TEXT_EXT = ["txt", "text", "md", "markdown", "log", "csv"]
-
-export const ACCEPTED_FILE_EXTENSIONS = Array.from(
-  new Set(
-    ACCEPTED_FILE_TYPES.flatMap((item) => {
-      if (item.startsWith(".")) return [item.slice(1)]
-      if (item === "text/*") return TEXT_EXT
-      const out = MIME_EXT.get(item)
-      return out ? [out] : []
-    }),
-  ),
-).sort()
+/** Empty → desktop/native dialogs show All files (see filePickerFilters). */
+export const ACCEPTED_FILE_EXTENSIONS: string[] = []
 
 export function filePickerFilters(ext?: string[]) {
   if (!ext || ext.length === 0) return undefined

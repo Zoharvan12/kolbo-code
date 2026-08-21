@@ -1,12 +1,11 @@
 ---
 name: image-prompting-guide
 description: >
-  Deep image generation prompting guide: visual consistency strategies, hero reference technique,
-  FLUX resolution rules, batch generation, style-specific prompt patterns, prompt construction
-  with contextual layers. Complements the kolbo skill's image section with production-grade
-  techniques.
-  Keywords: image prompt, flux, dall-e, image generation, consistency, visual style, hero image,
-  reference, batch, resolution, prompt engineering, style, photorealistic, illustration
+  MUST load before generate_image or generate_image_edit. Production image prompting:
+  visual consistency, hero reference, Visual DNA stills, FLUX resolution, batch generation,
+  style-specific patterns. Do NOT write an image prompt from memory and skip this skill.
+  Keywords: image prompt, flux, dall-e, gpt image, nano banana, generate_image,
+  image generation, consistency, visual style, hero image, reference, batch, resolution
 ---
 
 # Image Generation — Production Prompting Guide
@@ -130,9 +129,11 @@ in the background. Film grain, warm amber tones.
 
 **Workflow for consistent image sets:**
 1. `create_visual_dna` with 2-4 reference images → get `visual_dna_id`
-2. Generate hero image: `generate_image` + `visual_dna_ids` + detailed prompt
-3. Generate remaining frames: same `visual_dna_ids` + adapted prompts per scene
+2. Generate hero image: `generate_image` + `visual_dna_ids` + detailed prompt that includes `@ExactStoredName`
+3. Generate remaining frames: same `visual_dna_ids` + adapted prompts per scene — keep the same `@ExactStoredName` in every prompt
 4. Or use `generate_creative_director` for automatic multi-scene coordination
+
+Passing `visual_dna_ids` without `@ExactStoredName` in the prompt wastes the DNA. Never rewrite `@gal_suit` into "the woman" / a first name.
 
 ---
 

@@ -5,8 +5,10 @@
   "sharedSections": [
     "Step 0 — Bootstrap",
     "🎬 Confirm the Creative Brief BEFORE Generating (CRITICAL — read first)",
+    "⚠️ Load the matching skill BEFORE generating (HARD RULE)",
     "⚠️ Visual DNA `@Name` in the prompt (HARD RULE — always on)",
     "📁 Projects — Where Work Lands (CRITICAL)",
+    "⚠️ One session per plan bucket (HARD RULE)",
     "Cost Awareness — Quick Rules",
     "🛑 Runaway-Loop Guard — ONE Generation per Requested Item (CRITICAL)",
     "⚠️ Detecting Failed Generations (CRITICAL)",
@@ -39,7 +41,8 @@
         "references/workflows/media-library.md",
         "references/workflows/troubleshooting.md",
         "references/workflows/ugc-smartphone.md",
-        "references/workflows/thumbnails.md"
+        "references/workflows/thumbnails.md",
+        "references/workflows/prompt-structure.md"
       ]
     },
     {
@@ -51,13 +54,13 @@
       "name": "kolbo-creative-director",
       "title": "Kolbo Creative Director — Multi-Scene Batches",
       "sources": ["references/models/creative-director.md"],
-      "references": ["references/workflows/thumbnails.md", "references/workflows/ugc-smartphone.md"]
+      "references": ["references/workflows/thumbnails.md", "references/workflows/ugc-smartphone.md", "references/workflows/prompt-structure.md"]
     },
     {
       "name": "kolbo-marketing-studio",
       "title": "Kolbo Marketing Studio — UGC & Campaign Assets",
       "sources": ["references/workflows/marketing-studio.md"],
-      "references": ["references/workflows/ugc-smartphone.md", "references/workflows/thumbnails.md"]
+      "references": ["references/workflows/ugc-smartphone.md", "references/workflows/thumbnails.md", "references/workflows/prompt-structure.md"]
     },
     {
       "name": "kolbo-dtc-ads",
@@ -114,7 +117,9 @@
         "references/filmmaking/workflows.md",
         "references/models/seedance.md",
         "references/models/seedance25.md",
-        "references/models/veo.md"
+        "references/models/veo.md",
+        "references/workflows/production-planning.md",
+        "references/workflows/production-log.md"
       ]
     }
   ]

@@ -32,9 +32,24 @@ The log records **what the user approved** — not everything you produced. Gett
    Say plainly which ones are in play, e.g. "created `@maya` and `@maya_alt` — here they are".
 3. **Ask for a decision** and name the options ("keep the first, redo the second, or both?").
 4. **Repeat** until the user is satisfied. Log nothing as approved during this stage.
-5. **On approval → update `.kolbo/production.md` immediately**, in the same turn, before your next tool call or final reply.
+5. **On approval → promote in `.kolbo/production.md` immediately**, in the same turn: move the winner out of Candidates, update `**Approved:**`, then you may start the next plan bucket. Do not advance `**Now working on:**` to the next phase before this.
 
 **Never write an artifact into the log as approved without the user's approval.**
+
+If they did not volunteer a yes, end the turn with a **GATE** the next message can
+parse (same contract as `production-planning.md`):
+
+```
+GATE — <bucket name>
+Presented: <what is in play>
+Lock + next: "lock <bucket>" / "yes" / "next" / "now <next bucket>"
+Stay: "redo @name" / "another take of …"
+```
+
+Confirmation the agent may treat as a lock: `yes`, `ok`, `lock`, `approved`,
+`that's the one`, `use take 2`, `next`, `go`, `continue`, or they name the next
+planned bucket while treating this set as done. Silence / "maybe" / a new
+question is **not** a lock — repeat the GATE once, do not invent a yes.
 
 **If the user genuinely doesn't care** — "whatever you think", "you pick", "don't care", or they hand you the whole job — then **you decide**. Choose, say in one line which you picked and why, and log it as usual with `(agent-selected)`. Do not stall a production waiting for an approval the user has already delegated to you.
 
@@ -59,7 +74,12 @@ after the user picks take 2:
 
 ## When to WRITE to it
 
-**Immediately once an artifact is approved** (see the approval gates above), before your next tool call or your final reply. The runtime will inject a reminder after generation tool results — treat that as a hard rule, not a suggestion. Where there is no approval loop — the user asked for one thing and got it, or delegated the choice to you — approval is implicit and you log right away.
+Two writes, different jobs:
+
+1. **Right after a successful generate** — park the URL, `generation_id`, `credits_used`, and `session_id` under `#### Candidates (pending approval)` and under `### Sessions` if this is the first shot of a new bucket. Rewrite `## 🎯 Now` only for `**Awaiting approval:**` / the current bucket. This is what the runtime reminder is asking for. It is **not** approval.
+2. **After the user locks the bucket** — promote the winner, mark rejects, update `**Approved:**`, then you may change `**Now working on:**` to the next planned bucket.
+
+Where there is no production (user asked for one throwaway image and got it, or said "you pick") — approval is implicit and you log the finished entry right away. A film / ad / scene plan is never that case.
 
 Tools that REQUIRE logging:
 - `generate_image`, `generate_image_edit`, `edit_image`
@@ -95,12 +115,14 @@ Stub for first creation:
 **Now working on:** <the immediate next step>
 **Approved:** <locked assets — DNAs, moodboards, scenes; "nothing yet" if still iterating>
 **Awaiting approval:** <what you've presented and are waiting on; omit when nothing is pending>
+**Sessions:** <plan names + ids — Cast / Locations / Scene 01 — …; "none yet" until first generate>
 **Last updated:** <ISO date>
 
 ---
 
 ## Production: <name from user's request, slugified human label>
 
+### Sessions
 ### Cast
 ### Visual DNA
 ### Scenes
@@ -115,10 +137,17 @@ Subsections (`### Cast` etc.) are **suggested defaults**, not required. Adapt: a
 One bullet per artifact. Write the label **the way the user would reference it next time** ("the rainy one"), not the model's raw output.
 
 ```md
+### Sessions
+- **Cast** — sess_abc  (image) — @maya @doron
+- **Locations** — sess_def  (image) — @night_market
+- **Scene 01 — coffee shop** — sess_ghi  (video) — shots 1–4
+- **Scene 02 — rooftop chase** — (pending)
+
 ### Cast
 - **Maya** — female, 30, urban photographer, leather jacket
   - portrait: https://...characters/maya.png  (nano-banana-2, 2026-05-13)
   - visual DNA: vdna_8f2c  (@maya)
+  - session: sess_abc
 
 ### Scenes
 1. **Coffee shop morning** — Maya at counter, soft light, wide shot
@@ -152,6 +181,7 @@ When a user request supersedes a previous artifact (e.g., "redo scene 2 with mor
 6. **One file per workspace.** Multiple concurrent productions go under separate `## Production: <name>` headings inside the same file.
 7. **Approved state is user-granted, never assumed.** A generation succeeding is not approval. Only the user's "yes" — or their explicit delegation of the choice to you — promotes a candidate to an approved entry. Silence is not approval; neither is the user moving on to another topic.
 8. **The `## 🎯 Now` block names what is locked.** Keep an `**Approved:**` line there listing the currently-approved cast, DNAs, moodboards, and scenes, so the approved state survives compaction and is the first thing you read next session.
+9. **Sessions are part of the log.** Every bucket from the plan gets a `### Sessions` row (name from the plan, `session_id`, kind, which `@tags` / scene it holds). After the first generate of a bucket, `rename_session` to that plan name and write the id. Reuse that id — do not spawn untitled sessions for retakes.
 
 ## Bulk Generation Entry Shape
 

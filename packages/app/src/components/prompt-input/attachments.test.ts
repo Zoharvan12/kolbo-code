@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { hydratePromptUrls, rememberAttachmentUrl, resetAttachmentUrls } from "./attachment-urls"
-import { attachmentMime, mimeFromUrl } from "./files"
+import { attachmentMime, hosted, mimeFromUrl, ready, texted } from "./files"
 import { pasteMode } from "./paste"
 
 describe("attachmentMime", () => {
@@ -19,9 +19,22 @@ describe("attachmentMime", () => {
     expect(await attachmentMime(file)).toBe("text/plain")
   })
 
-  test("rejects binary files", async () => {
+  test("accepts unknown binary as octet-stream", async () => {
     const file = new File([Uint8Array.of(0, 255, 1, 2)], "blob.bin", { type: "application/octet-stream" })
-    expect(await attachmentMime(file)).toBeUndefined()
+    expect(await attachmentMime(file)).toBe("application/octet-stream")
+  })
+
+  test("accepts excel, html, and markdown", async () => {
+    const xlsx = new File([Uint8Array.of(0x50, 0x4b, 3, 4)], "cast.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    expect(await attachmentMime(xlsx)).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    const html = new File(["<html><body>hi</body></html>"], "page.html", { type: "text/html" })
+    expect(await attachmentMime(html)).toBe("text/plain")
+    const md = new File(["# note\n"], "brief.md", { type: "text/markdown" })
+    expect(await attachmentMime(md)).toBe("text/plain")
+    expect(mimeFromUrl("cast.xlsx")).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    expect(mimeFromUrl("page.html")).toBe("text/plain")
   })
 
   test("accepts video files by mime and by extension", async () => {
@@ -29,6 +42,21 @@ describe("attachmentMime", () => {
     expect(await attachmentMime(file)).toBe("video/mp4")
     expect(mimeFromUrl("https://media.kolbo.ai/generated-videos/shot.mp4")).toBe("video/mp4")
     expect(mimeFromUrl("https://cdn.example/clip.webm?sig=1")).toBe("video/webm")
+    expect(mimeFromUrl("weird.xyz")).toBe("application/octet-stream")
+  })
+})
+
+describe("attachment ready / hosted", () => {
+  test("treats html as text and excel as a local-path file", () => {
+    expect(texted("text/plain")).toBe(true)
+    expect(texted("text/html")).toBe(true)
+    expect(hosted("text/html")).toBe(false)
+    expect(hosted("application/pdf")).toBe(true)
+    expect(hosted("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")).toBe(false)
+    expect(ready({ mime: "text/plain" })).toBe(true)
+    expect(ready({ mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", localPath: "C:\\cast.xlsx" })).toBe(true)
+    expect(ready({ mime: "image/png", uploading: true })).toBe(false)
+    expect(ready({ mime: "image/png", publicUrl: "https://media.kolbo.ai/a.png" })).toBe(true)
   })
 })
 

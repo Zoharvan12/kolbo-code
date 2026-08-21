@@ -6,6 +6,7 @@ import type { AgentPart, FileAttachmentPart, ImageAttachmentPart, KolboAssetPart
 import { Identifier } from "@/utils/id"
 import { createCommentMetadata, formatCommentNote } from "@/utils/comment-note"
 import { mediaLabels } from "./media-labels"
+import { texted } from "./files"
 
 type PromptRequestPart = (TextPartInput | FilePartInput | AgentPartInput) & { id: string }
 
@@ -213,16 +214,23 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
   const handles = mediaLabels(input.images)
 
   for (const [index, attachment] of input.images.entries()) {
-    // Never ship data:/blob: into the session — those bytes stay in every
-    // later turn and blow the context window. Wait for the CDN URL.
-    const url = attachment.publicUrl
-    if (!url || !/^https?:\/\//.test(url)) continue
+    const https = attachment.publicUrl && /^https?:\/\//.test(attachment.publicUrl) ? attachment.publicUrl : undefined
+    const inline = !https && texted(attachment.mime) && attachment.dataUrl?.startsWith("data:text/")
+    const local = !https && !inline && attachment.localPath ? attachment.localPath : undefined
+    if (!https && !inline && !local) continue
+
+    const url = https
+      ? https
+      : inline
+        ? attachment.dataUrl!
+        : `file://${encodeFilePath(absolute(input.sessionDirectory, local!))}`
+    const mime = inline ? "text/plain" : attachment.mime
     const label = attachment.localPath ?? attachment.filename
     const partId = Identifier.ascending("part")
     const filePart: PromptRequestPart = {
       id: partId,
       type: "file",
-      mime: attachment.mime,
+      mime,
       url,
       filename: label,
     }
@@ -240,7 +248,7 @@ export function buildRequestParts(input: BuildRequestPartsInput) {
             : "File"
     const sourceParts: string[] = []
     if (attachment.localPath) sourceParts.push(`local path: ${attachment.localPath}`)
-    if (attachment.publicUrl) sourceParts.push(`URL: ${attachment.publicUrl}`)
+    if (https) sourceParts.push(`URL: ${https}`)
     if (sourceParts.length > 0) {
       const notePart: PromptRequestPart = {
         id: Identifier.ascending("part"),

@@ -106,6 +106,57 @@ describe("buildRequestParts", () => {
     expect(result.requestParts.some((part) => part.type === "file" && part.url.startsWith("data:"))).toBe(false)
   })
 
+  test("sends a remembered local path when there is no CDN URL", () => {
+    const result = buildRequestParts({
+      prompt: [{ type: "text", content: "read this", start: 0, end: 9 }],
+      context: [],
+      images: [
+        {
+          type: "image",
+          id: "doc_1",
+          filename: "cast.xlsx",
+          mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          dataUrl: "file:///C:/cast.xlsx",
+          localPath: "C:\\cast.xlsx",
+        },
+      ],
+      text: "read this",
+      messageID: "msg_path",
+      sessionID: "ses_path",
+      sessionDirectory: "/repo",
+    })
+    const file = result.requestParts.find((part) => part.type === "file")
+    expect(file).toMatchObject({
+      type: "file",
+      filename: "C:\\cast.xlsx",
+      mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    expect(file && file.type === "file" && file.url.startsWith("file://")).toBe(true)
+    expect(result.requestParts.some((part) => part.type === "text" && part.text?.includes("local path: C:\\cast.xlsx"))).toBe(true)
+  })
+
+  test("inlines text attachments that have a data:text URL", () => {
+    const result = buildRequestParts({
+      prompt: [{ type: "text", content: "read this", start: 0, end: 9 }],
+      context: [],
+      images: [
+        {
+          type: "image",
+          id: "html_1",
+          filename: "page.html",
+          mime: "text/plain",
+          dataUrl: "data:text/plain;base64,PGh0bWw+",
+        },
+      ],
+      text: "read this",
+      messageID: "msg_html",
+      sessionID: "ses_html",
+      sessionDirectory: "/repo",
+    })
+    const file = result.requestParts.find((part) => part.type === "file")
+    expect(file).toMatchObject({ type: "file", mime: "text/plain", url: "data:text/plain;base64,PGh0bWw+" })
+  })
+
   test("deduplicates context files when prompt already includes same path", () => {
     const prompt: Prompt = [{ type: "file", path: "src/foo.ts", content: "@src/foo.ts", start: 0, end: 11 }]
 

@@ -1,15 +1,17 @@
 ---
 name: video-prompting-guide
 description: >
-  Deep video generation prompting guide covering all major models: Kling, Sora, Seedance,
-  Grok, VEO, HunyuanVideo, Runway, LTX, MiniMax, Hailuo. Universal prompt formula, camera
-  vocabulary, lighting, lens effects, temporal effects, audio descriptions, and model-specific
-  tips. Use when writing or improving video generation prompts.
-  Keywords: video prompt, kling, sora, seedance, grok, veo, hunyuan, runway, ltx, camera,
+  MUST load before generate_video / generate_video_from_image / generate_video_from_video
+  when the job is NOT Elements/Visual-DNA (those use elements-prompting). Covers Kling, Sora,
+  Veo, Grok, Hailuo, Runway, and generic t2v/i2v. Universal shot/camera/lighting vocabulary.
+  Do NOT write a video prompt from memory and skip this skill.
+  Keywords: video prompt, kling, sora, veo, grok, hailuo, hunyuan, runway, ltx, camera,
   lighting, cinematography, shot type, slow motion, dolly, tracking
 ---
 
 # Video Generation Prompting — Universal Guide
+
+If the job is Elements / Visual DNA / Seedance Locked Intro, stop and load `elements-prompting` instead. Do not rewrite `@DNA` tags into names here.
 
 ## Universal Prompt Formula
 

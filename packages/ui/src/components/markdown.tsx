@@ -8,6 +8,7 @@ import { checksum } from "@opencode-ai/util/encode"
 import { ComponentProps, createEffect, createMemo, createResource, createSignal, on, onCleanup, splitProps } from "solid-js"
 import { isServer } from "solid-js/web"
 import { stream } from "./markdown-stream"
+import { isPromptBlock } from "./markdown-prompt"
 import { openKolboLightbox as openLightbox, isVideoUrl as isKolboVideoUrl, firstFramePosterSrc, pauseOnFirstFrame, startMediaDrag } from "./kolbo-media"
 import { dispatchArtifact, isKolboSiteUrl, resolveHtmlPreviewSource } from "../lib/artifact"
 
@@ -361,16 +362,20 @@ function ensureCodeWrapper(block: HTMLPreElement, labels: CopyLabels) {
   const parent = block.parentElement
   if (!parent) return
   const previewLang = getPreviewLang(block)
+  const prompt = !previewLang && isPromptBlock(block)
   const wrapped = parent.getAttribute("data-component") === "markdown-code"
   if (!wrapped) {
     const wrapper = document.createElement("div")
     wrapper.setAttribute("data-component", "markdown-code")
+    if (prompt) wrapper.setAttribute("data-kind", "prompt")
     parent.replaceChild(wrapper, block)
     wrapper.appendChild(block)
     wrapper.appendChild(createCopyButton(labels))
     if (previewLang) wrapper.appendChild(createPreviewButton(labels.preview))
     return
   }
+  if (prompt) parent.setAttribute("data-kind", "prompt")
+  else parent.removeAttribute("data-kind")
 
   // Ensure exactly one copy button
   const copyButtons = Array.from(parent.querySelectorAll('[data-slot="markdown-copy-button"]')).filter(

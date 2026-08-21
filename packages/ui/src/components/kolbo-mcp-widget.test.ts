@@ -1,6 +1,17 @@
 import { describe, expect, test } from "bun:test"
 import { createStore } from "solid-js/store"
-import { catalogTypes, gridRow, matchModel, messageText, referenceUrls, serializeForWidget } from "./kolbo-mcp-widget"
+import {
+  catalogTypes,
+  gridRow,
+  matchModel,
+  messageText,
+  preferKolbo,
+  referenceUrls,
+  resolveKind,
+  serializeForWidget,
+  statusTool,
+  uri,
+} from "./kolbo-mcp-widget"
 
 describe("serializeForWidget", () => {
   test("resolves a live store Proxy to a plain, deep-equal object", () => {
@@ -75,6 +86,29 @@ describe("in-progress generation card", () => {
   })
 })
 
+describe("generation card kind + urls", () => {
+  test("elements / video tools are not labeled image", () => {
+    expect(resolveKind("image", "generate_elements")).toBe("video")
+    expect(resolveKind("image", "mcp__kolbo__generate_video")).toBe("video")
+    expect(resolveKind("image", "generate_image")).toBe("image")
+    expect(resolveKind("image", "get_generation_status", ["https://media.kolbo.ai/kolboai-media/video-elements-results/abc/clip"])).toBe(
+      "video",
+    )
+  })
+
+  test("drops provider origin urls when a Kolbo copy exists", () => {
+    const kolbo = "https://media.kolbo.ai/kolboai-media/video-elements-results/abc/6"
+    const pika = "https://cdn.pika.art/v2/media/media_cce899c9/output.mp4"
+    expect(preferKolbo([kolbo, pika])).toEqual([kolbo])
+    expect(preferKolbo([pika])).toEqual([pika])
+  })
+
+  test("status polls are follow-ups, not a second generation", () => {
+    expect(statusTool("get_generation_status")).toBe(true)
+    expect(statusTool("generate_elements")).toBe(false)
+  })
+})
+
 describe("widget → host bridge", () => {
   test("reads the text out of a ui/message request", () => {
     // window.kolbo.sendMessage() posts MCP-UI's role/content envelope. The host
@@ -84,6 +118,25 @@ describe("widget → host bridge", () => {
     expect(messageText({ text: "plain" })).toBe("plain")
     expect(messageText({ role: "user", content: [] })).toBeUndefined()
     expect(messageText(undefined)).toBeUndefined()
+  })
+})
+
+describe("list_presets widget", () => {
+  test("named lookup does not mount the catalog grid", () => {
+    expect(uri(undefined, "list_presets", { _lookup: true, items: [{ id: "1", name: "Headless" }] })).toBeUndefined()
+    expect(
+      uri(undefined, "list_presets", {
+        items: [
+          { id: "1", name: "Headless Character Sheet" },
+          { id: "2", name: "Character Bible" },
+        ],
+      }),
+    ).toBeUndefined()
+  })
+
+  test("browse without search uses the compact list, not the media grid", () => {
+    const items = Array.from({ length: 12 }, (_, i) => ({ id: String(i), name: `Preset ${i}` }))
+    expect(uri(undefined, "list_presets", { items })).toBe("ui://kolbo/list.html")
   })
 })
 

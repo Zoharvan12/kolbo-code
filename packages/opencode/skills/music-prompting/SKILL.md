@@ -1,11 +1,10 @@
 ---
 name: music-prompting
 description: >
-  Music generation prompting guide: BPM selection by video type, key/mood mapping, prompt
-  structure for background music, duration matching, looping strategies, section-mapped scoring.
-  Use when generating background music for video or crafting music generation prompts.
-  Keywords: music, BPM, tempo, key, mood, instrumental, background music, suno, elevenlabs,
-  music generation, prompt, genre, looping, score, soundtrack
+  MUST load before generate_music. BPM by video type, key/mood mapping, background-score
+  structure, duration matching, looping. Do NOT write a music prompt from memory and skip
+  this skill. Keywords: music, BPM, tempo, key, mood, instrumental, background music, suno,
+  generate_music, score, soundtrack
 ---
 
 # Music Generation — Prompting Guide

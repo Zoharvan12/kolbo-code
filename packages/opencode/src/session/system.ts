@@ -101,7 +101,7 @@ export namespace SystemPrompt {
 
     return [
       "Skills provide specialized instructions and workflows for specific tasks.",
-      "Use the skill tool to load a skill when a task matches its description.",
+      "They are not optional flavor. If a listed skill matches the task — especially before any generate_image, generate_image_edit, generate_video, generate_elements, or generate_music call — you MUST invoke the skill tool and follow it. Skipping a matching skill is a failure.",
       // the agents seem to ingest the information about skills a bit better if we present a more verbose
       // version of them here and a less verbose version in tool description, rather than vice versa.
       Skill.fmt(list, { verbose: true }),

@@ -17,6 +17,7 @@ import { promptProbe } from "@/testing/prompt"
 import { Identifier } from "@/utils/id"
 import { Worktree as WorktreeState } from "@/utils/worktree"
 import { buildRequestParts } from "./build-request-parts"
+import { ready } from "./files"
 import { setCursorPosition } from "./editor-dom"
 import { hydratePromptUrls, inFlightAttachments } from "./attachments"
 import { formatServerError } from "@/utils/server-errors"
@@ -82,9 +83,7 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
       await Promise.allSettled(inFlightAttachments)
     }
     input.draft.prompt = hydratePromptUrls(input.draft.prompt)
-    const pending = draftImages(input.draft.prompt).filter(
-      (item) => !item.publicUrl || !/^https?:\/\//.test(item.publicUrl),
-    )
+    const pending = draftImages(input.draft.prompt).filter((item) => !ready(item))
     if (pending.length > 0) {
       showToast({
         title: "Attachment still uploading",

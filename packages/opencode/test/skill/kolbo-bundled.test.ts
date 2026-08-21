@@ -15,8 +15,10 @@ import log from "../../skills/kolbo/references/workflows/production-log.md" with
 import transcript from "../../skills/kolbo/references/workflows/transcription.md" with { type: "text" }
 // @ts-ignore — Bun text-import attribute syntax
 import continuity from "../../skills/kolbo/references/filmmaking/blocking-continuity.md" with { type: "text" }
+// @ts-ignore — Bun text-import attribute syntax
+import plan from "../../skills/kolbo/references/workflows/production-planning.md" with { type: "text" }
 
-const docs = [core, cost, dna, film, library, log, transcript, continuity].join("\n")
+const docs = [core, cost, dna, film, library, log, transcript, continuity, plan].join("\n")
 
 test("SKILL.md is bundled and non-empty", () => {
   expect(core.length).toBeGreaterThan(10_000)
@@ -39,10 +41,17 @@ test.each(ROUTES)("SKILL.md routes to %s", (route) => {
 })
 
 const GUARDRAILS = [
+  "## ⚠️ Load the matching skill BEFORE generating (HARD RULE)",
   "## ⚠️ If the User Names a Tool, USE THAT TOOL (HARD RULE)",
   "## Rate Limiting & Batch Generation",
   "## 🛑 Runaway-Loop Guard",
   "## ⚠️ @name Syntax",
+  "Rewrite / compile never drops a tag",
+  "## ⚠️ One session per plan bucket (HARD RULE)",
+  "GATE —",
+  "search: \"<name>\"",
+  "headless",
+  "preset_id",
   "## Reference Tagging",
   "Quote Real Cost, Never Estimates",
   "# Production Log",

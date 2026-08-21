@@ -40,6 +40,8 @@ Always call `list_models({ type: "<tool-type>" })` first when the user hasn't na
 
 ## Universal Rules
 
+- **Keep every `@DNA` / `#Moodboard` / `@ImageN` token.** Same contract as the Kolbo help widget: tag EVERY referenced asset in the prompt text (exact `@DNA_name`, `@ImageN`, `#Name` — an untagged reference is silently dropped). The tag stays the canonical subject name in every shot. Never replace it with a nickname, role label, or pronoun. Rewriting a user prompt and losing `@yonatan` is a failed turn.
+- When the output is **one video** and the user has Visual DNA / several refs / "keep him consistent", write an **Elements** prompt (not a still, not Creative Director). Elements is video-only.
 - **Clean prompts only.** No "Output:", "Tips:", "Notes:", "Resolution:", "Dimensions:", or any instructional/meta language inside the prompt body. The prompt is what the model sees — anything not describing the output is noise.
 - **Resolution / aspect ratio / duration are MCP-tool params**, not prompt text. Pass them as separate fields on the tool call.
 - **Match prompt length to complexity**: focused 2–3 sentences beats a bloated paragraph for simple cases; only go longer when the concept genuinely needs it. Aim for **under ~200 tokens** — long prompts distort.
