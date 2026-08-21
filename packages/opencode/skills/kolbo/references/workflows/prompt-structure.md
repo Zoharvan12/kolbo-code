@@ -79,7 +79,7 @@ in the order it drifts:
   closure or cap, material finish.
 - **Scenes** — camera angle, layout, background objects, lighting direction.
 
-**`edit_scope` names ONE change.** "Change only the background to a night street." A
+**The edit-scope field names ONE change.** "Change only the background to a night street." A
 prompt that re-describes the whole picture is a re-generation, and the model will
 re-imagine exactly the parts you wanted frozen.
 
