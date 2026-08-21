@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { ToolPart } from "@opencode-ai/sdk/v2"
-import { isGenerationPart, urlsFromPart } from "./session-canvas-media"
+import { isGenerationPart, stillPending, urlsForCanvas, urlsFromPart } from "./session-canvas-media"
 
 function tool(state: ToolPart["state"]): ToolPart {
   return {
@@ -145,5 +145,28 @@ describe("session canvas media", () => {
       time: { start: 1 },
     })
     expect(isGenerationPart(part)).toBe(true)
+    expect(stillPending(part)).toBe(true)
+  })
+
+  test("a timed-out generate_* stays pending until recovered urls arrive", () => {
+    const part = tool({
+      status: "completed",
+      input: { prompt: "orange tabby" },
+      output: JSON.stringify({
+        state: "processing",
+        generation_id: "gen_abc",
+        _timed_out: true,
+      }),
+      metadata: {},
+      title: "",
+      time: { start: 1, end: 2 },
+    })
+    expect(isGenerationPart(part)).toBe(true)
+    expect(urlsFromPart(part)).toEqual([])
+    expect(stillPending(part)).toBe(true)
+    expect(urlsForCanvas(part, { gen_abc: ["https://cdn.example/done.mp4"] })).toEqual([
+      "https://cdn.example/done.mp4",
+    ])
+    expect(stillPending(part, { gen_abc: ["https://cdn.example/done.mp4"] })).toBe(false)
   })
 })

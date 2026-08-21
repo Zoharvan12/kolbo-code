@@ -11,6 +11,7 @@ import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
 import { Icon } from "@opencode-ai/ui/icon"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { Spinner } from "@opencode-ai/ui/spinner"
+import { Switch } from "@opencode-ai/ui/switch"
 import { Tooltip } from "@opencode-ai/ui/tooltip"
 import { type Session } from "@opencode-ai/sdk/v2/client"
 import { type LocalProject } from "@/context/layout"
@@ -309,18 +310,21 @@ const WorkspaceSessionList = (props: {
         </Button>
       </div>
     </Show>
-    <button
-      type="button"
-      class="flex items-center gap-2 w-full text-left text-12-regular text-text-weak hover:text-text-strong transition-colors pl-9 pr-3 py-1.5 mt-1 rounded-md hover:bg-surface-recess-base/40"
-      onClick={() => settings.general.setShowArchivedSessions(!settings.general.showArchivedSessions())}
-    >
-      <Icon name={settings.general.showArchivedSessions() ? "eye" : "archive"} size="small" />
-      <span>
-        {settings.general.showArchivedSessions()
+    <Switch
+      class="w-full justify-between mt-2 px-2 py-1.5 rounded-lg border border-border-weak-base bg-surface-recess-base/35"
+      checked={settings.general.showArchivedSessions()}
+      onChange={(on) => settings.general.setShowArchivedSessions(on)}
+      title={
+        settings.general.showArchivedSessions()
           ? props.language.t("common.hideArchivedSessions")
-          : props.language.t("common.showArchivedSessions")}
+          : props.language.t("common.showArchivedSessions")
+      }
+    >
+      <span class="flex items-center gap-2 min-w-0 flex-1">
+        <Icon name="archive" size="small" class="shrink-0 text-icon-base" />
+        <span class="text-12-regular text-text-strong truncate">{props.language.t("common.archived")}</span>
       </span>
-    </button>
+    </Switch>
   </nav>
   )
 }

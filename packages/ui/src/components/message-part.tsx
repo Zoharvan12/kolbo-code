@@ -3336,7 +3336,11 @@ function KolboOperationCard(props: {
     if (fromOp.length) return fromOp
     return props.status === "completed" ? extractUrls(props.output) : []
   })
-  const inFlight = createMemo(() => props.status !== "completed" && props.status !== "error")
+  const inFlight = createMemo(() => {
+    if (urls().length > 0) return false
+    if (op()?.phase === "completed" || op()?.phase === "failed") return false
+    return true
+  })
   const isError = createMemo(() => props.status === "error" || view()?.phase === "failed")
   const pendN = createMemo(() => pendingCount(props.tool, props.input))
   const doneN = createMemo(() => urls().length)
@@ -3416,15 +3420,9 @@ function KolboOperationCard(props: {
     const env = reported()
     const check = platformOps.generationStatus
     if (!check || !env || env.phase !== "running" || env.outputs.length > 0) return
-    // Poll once the tool call can no longer deliver the result itself.
-    // "completed" is the normal case. "error" is the one that mattered and was
-    // missing: interrupting a turn aborts the tool call, so its result NEVER
-    // arrives — and that is exactly when the generation still needs watching.
-    // It is already submitted and already paid for, and it lands in the library
-    // either way; refusing to poll just left the card spinning forever and hid
-    // an image the user owns. Interrupting is not cancelling — cancelling is the
-    // Stop button on the card, and nothing else calls cancelGeneration.
-    if (props.status !== "completed" && props.status !== "error") return
+    // Watch even while the tool call is still blocked. generate_* can sit on
+    // its poll window after the server is already done — waiting for
+    // status=completed is what left the session card spinning.
     const id = env.id
     if (!id) return
     let stopped = false
@@ -3433,11 +3431,9 @@ function KolboOperationCard(props: {
     })
     void (async () => {
       for (let i = 0; i < POLL_MAX && !stopped; i++) {
-        await new Promise((done) => setTimeout(done, POLL_MS))
-        if (stopped) return
         const status = await check(id).catch(() => undefined)
-        if (!status || stopped) continue
-        if (status.state === "completed") {
+        if (stopped) return
+        if (status?.state === "completed") {
           setResolved({
             ...env,
             phase: "completed",
@@ -3446,10 +3442,11 @@ function KolboOperationCard(props: {
           })
           return
         }
-        if (status.state === "failed" || status.state === "cancelled") {
+        if (status?.state === "failed" || status?.state === "cancelled") {
           setResolved({ ...env, phase: "failed", error: status.error || status.state })
           return
         }
+        await new Promise((done) => setTimeout(done, POLL_MS))
       }
     })()
   })

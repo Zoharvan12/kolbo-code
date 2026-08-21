@@ -17,7 +17,8 @@ import { useServer } from "@/context/server"
 import { useSync } from "@/context/sync"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import type { Part, ToolPart, ToolStateRunning } from "@opencode-ai/sdk/v2"
-import { isGenerationPart, partOp } from "./session-canvas-media"
+import { isGenerationPart, partOp, stillPending } from "./session-canvas-media"
+import { allFound, watch } from "./session-gen-watch"
 import { FolderPicker, ProjectPicker } from "./canvas-library-pickers"
 import { runStart } from "./session-run-clock"
 import { AudioWavePlayer, fmt as formatDurationSec } from "@/pages/session/audio-wave-player"
@@ -453,18 +454,23 @@ function pendingKind(part: ToolPart): PendingGen["kind"] {
   return "image"
 }
 
-function collectPending(messages: { id: string; completedAt?: number }[], parts: Record<string, Part[] | undefined>) {
+function collectPending(
+  messages: { id: string; completedAt?: number }[],
+  parts: Record<string, Part[] | undefined>,
+  recovered: Record<string, string[]> = {},
+) {
   const out: PendingGen[] = []
   const now = Date.now()
   for (const message of messages) {
     const list = parts[message.id]
-    if (!list || typeof message.completedAt === "number") continue
+    if (!list) continue
+    const messageDone = typeof message.completedAt === "number"
     for (const part of list) {
       if (part.type !== "tool") continue
       const tool = part as ToolPart
-      if (!isGenerationPart(tool)) continue
+      if (!isGenerationPart(tool) || !stillPending(tool, recovered)) continue
       const state = tool.state
-      if (state.status === "completed" || state.status === "error") continue
+      if (state.status !== "completed" && messageDone) continue
       const running = state as ToolStateRunning
       const startedAt = running.time?.start ?? now
       if (now - startedAt > PENDING_STUCK_MS) continue
@@ -806,7 +812,23 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
       id: m.id,
       completedAt: m.role === "assistant" ? m.time?.completed : undefined,
     }))
-    return collectPending(messages, sync.data.part as Record<string, Part[] | undefined>)
+    return collectPending(messages, sync.data.part as Record<string, Part[] | undefined>, allFound())
+  })
+
+  createEffect(() => {
+    const check = ops.generationStatus
+    if (!check) return
+    const parts = sync.data.part as Record<string, Part[] | undefined>
+    for (const list of Object.values(parts)) {
+      if (!list) continue
+      for (const part of list) {
+        if (part.type !== "tool") continue
+        const tool = part as ToolPart
+        if (!isGenerationPart(tool) || !stillPending(tool, allFound())) continue
+        const id = partOp(tool)?.id
+        if (id) watch(id, check)
+      }
+    }
   })
 
   let lastPending = 0
@@ -1041,13 +1063,19 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
   })
 
   // Flat row-major distribution into N columns — matches the masonry shape
-  // Session mode uses, so the visual feel is identical.
+  // Session mode uses, so the visual feel is identical. Pending gens sit in
+  // the same buckets (first cells) so a 16:9 spinner is one tile, not a
+  // full-width row that blows the grid apart.
+  type Entry = { kind: "pending"; cell: PendingGen } | { kind: "item"; item: MediaItem }
   const items = createMemo(() => pages().flat())
-  const columnBuckets = createMemo<MediaItem[][]>(() => {
+  const columnBuckets = createMemo<Entry[][]>(() => {
     const n = Math.max(1, cols())
-    const all = items()
-    const buckets: MediaItem[][] = Array.from({ length: n }, () => [])
-    for (let i = 0; i < all.length; i++) buckets[i % n].push(all[i])
+    const all: Entry[] = [
+      ...pending().map((cell) => ({ kind: "pending" as const, cell })),
+      ...items().map((item) => ({ kind: "item" as const, item })),
+    ]
+    const buckets: Entry[][] = Array.from({ length: n }, () => [])
+    all.forEach((entry, i) => buckets[i % n].push(entry))
     return buckets
   })
 
@@ -1282,16 +1310,28 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
             </div>
           </Match>
           <Match when={items().length > 0 || pending().length > 0}>
-            <Show when={pending().length > 0}>
-              <div class="flex gap-3 mb-3">
-                <For each={pending()}>{(cell) => <LibraryPendingCard cell={cell} sessionID={props.sessionID()} />}</For>
-              </div>
-            </Show>
             <div class="flex gap-3">
               <Index each={columnBuckets()}>
                 {(bucket) => (
                   <div class="flex-1 min-w-0 flex flex-col gap-3">
-                    <For each={bucket()}>{(item) => <LibraryCell item={item} isFavorited={isFavorited(item)} onToggleFavorite={() => void toggleFavorite(item)} revealed={revealedNsfw().has(item.id)} onReveal={() => reveal(item.id)} onDelete={() => void deleteSingle(item)} getSelectedUrls={() => selectedItems().map((it) => it.url)} registry={registry()} />}</For>
+                    <For each={bucket()}>
+                      {(entry) =>
+                        entry.kind === "pending" ? (
+                          <LibraryPendingCard cell={entry.cell} sessionID={props.sessionID()} />
+                        ) : (
+                          <LibraryCell
+                            item={entry.item}
+                            isFavorited={isFavorited(entry.item)}
+                            onToggleFavorite={() => void toggleFavorite(entry.item)}
+                            revealed={revealedNsfw().has(entry.item.id)}
+                            onReveal={() => reveal(entry.item.id)}
+                            onDelete={() => void deleteSingle(entry.item)}
+                            getSelectedUrls={() => selectedItems().map((it) => it.url)}
+                            registry={registry()}
+                          />
+                        )
+                      }
+                    </For>
                   </div>
                 )}
               </Index>
@@ -1324,7 +1364,7 @@ function LibraryPendingCard(props: { cell: PendingGen; sessionID: string | undef
   const ratio = () => (props.cell.kind === "video" ? 16 / 9 : props.cell.kind === "audio" ? 16 / 2.5 : 1)
   return (
     <div
-      class="relative rounded-xl overflow-hidden flex-1 min-w-0"
+      class="relative rounded-xl overflow-hidden w-full"
       style={{
         "aspect-ratio": String(ratio()),
         background: "linear-gradient(135deg, var(--background-stronger) 0%, var(--surface-recess-base) 100%)",

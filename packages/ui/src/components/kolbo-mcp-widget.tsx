@@ -503,7 +503,14 @@ function build(
 ) {
   if (!resolved) {
     const fromMeta = metadata?.structuredContent
-    if (fromMeta && typeof fromMeta === "object") return shaped(fromMeta, tool)
+    const done = read(output, metadata)
+    // Last progress ping is often still `phase: generating` with empty urls
+    // after the tool result already has the media. Prefer the finished
+    // payload or the card never leaves the spinner.
+    if (fromMeta && typeof fromMeta === "object") {
+      const next = shaped(fromMeta, tool)
+      if (!stale(next, done)) return next
+    }
     const fromText = listed(output)
     if (fromText) return fromText
   }
@@ -551,6 +558,15 @@ function build(
       preset_id: input?.preset_id,
     },
   }, tool)
+}
+
+function stale(meta: unknown, op?: Operation) {
+  const obj = rec(meta)
+  if (!obj) return false
+  const urls = Array.isArray(obj.urls) ? obj.urls : []
+  if (urls.length) return false
+  if (obj.phase !== "generating" && obj.phase !== "running") return false
+  return !!op && (op.phase === "completed" || op.outputs.length > 0)
 }
 
 function shaped(data: unknown, tool?: string) {

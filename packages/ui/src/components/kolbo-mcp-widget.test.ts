@@ -14,6 +14,7 @@ import {
   resolveKind,
   serializeForWidget,
   statusTool,
+  structured,
   uri,
 } from "./kolbo-mcp-widget"
 
@@ -140,6 +141,34 @@ describe("generation card kind + urls", () => {
   test("status polls are follow-ups, not a second generation", () => {
     expect(statusTool("get_generation_status")).toBe(true)
     expect(statusTool("generate_elements")).toBe(false)
+  })
+
+  test("finished tool output beats a stale generating envelope", () => {
+    // MCP's last progress ping stays on the part as structuredContent after
+    // the call returns. The card used to keep that spinner and never show
+    // the video that was already in the tool result.
+    const data = structured(
+      JSON.stringify({
+        state: "completed",
+        generation_id: "gen_1",
+        urls: ["https://media.kolbo.ai/kolboai-media/video-elements-results/abc/clip"],
+      }),
+      {
+        structuredContent: {
+          widget: "generation",
+          phase: "generating",
+          kind: "video",
+          urls: [],
+          generation_id: "gen_1",
+        },
+      },
+      { prompt: "walk" },
+      "generate_video",
+    )
+    expect(data).toMatchObject({
+      phase: "completed",
+      urls: ["https://media.kolbo.ai/kolboai-media/video-elements-results/abc/clip"],
+    })
   })
 })
 

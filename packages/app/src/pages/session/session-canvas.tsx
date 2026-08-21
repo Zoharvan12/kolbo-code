@@ -13,7 +13,8 @@ import { useTheme } from "@opencode-ai/ui/theme/context"
 import type { Part, ToolPart, ToolStateCompleted, ToolStateRunning } from "@opencode-ai/sdk/v2"
 import { isVideoUrl, mediaKey, openKolboLightbox, startMediaDrag } from "@opencode-ai/ui/kolbo-media"
 import { type Operation } from "@opencode-ai/ui/kolbo-operation"
-import { isGenerationPart, partOp, urlsFromPart } from "./session-canvas-media"
+import { isGenerationPart, partOp, stillPending, urlsForCanvas, urlsFromPart } from "./session-canvas-media"
+import { allFound, watch } from "./session-gen-watch"
 import { runStart } from "./session-run-clock"
 
 export { isGenerationPart, urlsFromPart }
@@ -84,6 +85,7 @@ const PENDING_STUCK_MS = 10 * 60 * 1000
 function collectCanvasCells(
   messages: { id: string; completedAt?: number }[],
   partsByMessage: Record<string, Part[] | undefined>,
+  recovered: Record<string, string[]> = {},
 ): { cells: CanvasCell[]; pending: PendingCell[] } {
   const cells: CanvasCell[] = []
   const pending: PendingCell[] = []
@@ -110,10 +112,10 @@ function collectCanvasCells(
       if (!isGenerationPart(tool)) continue
       const state = tool.state
       const op = partOp(tool)
-      if (state.status === "completed") {
+      const urls = urlsForCanvas(tool, recovered)
+      if (urls.length) {
         const completed = state as ToolStateCompleted
-        const urls = urlsFromPart(tool)
-        if (urls.length === 0) continue
+        const ended = state.status === "completed" ? completed.time.end : Date.now()
         urls.forEach((url, idx) => {
           // Cross-call dedupe keyed on the filename so the same asset from a
           // different host / query / tool (e.g. a generated image fed into
@@ -135,20 +137,21 @@ function collectCanvasCells(
             messageID: message.id,
             partID: tool.id,
             tool: tool.tool,
-            completedAt: completed.time.end,
+            completedAt: ended,
             media: [{ url, kind: mediaKind(op, url) }],
           })
         })
       } else if (state.status === "error") {
         // skip
-      } else {
+      } else if (stillPending(tool, recovered)) {
         const running = state as ToolStateRunning
         const startedAt = running.time?.start ?? now
         // Drop tools that are stuck: either the parent message is already
         // done (no more updates coming) or they've been "running" longer
-        // than any real generation should take. Without this, the canvas
-        // shows ghost spinners forever for aborted / crashed generations.
-        if (messageDone) continue
+        // than any real generation should take. A timed-out generate_* is
+        // "completed" with no URLs — the job is still on the server, so
+        // keep the spinner even after the parent message ends.
+        if (state.status !== "completed" && messageDone) continue
         if (now - startedAt > PENDING_STUCK_MS) continue
         pending.push({
           key: tool.id,
@@ -1008,6 +1011,22 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
   let previousCollected: { cells: CanvasCell[]; pending: PendingCell[] } = { cells: [], pending: [] }
   const arraysEqualByRef = <T,>(a: readonly T[], b: readonly T[]) =>
     a.length === b.length && a.every((v, i) => v === b[i])
+  createEffect(() => {
+    const check = ops.generationStatus
+    if (!check) return
+    const parts = sync.data.part as Record<string, Part[] | undefined>
+    for (const list of Object.values(parts)) {
+      if (!list) continue
+      for (const part of list) {
+        if (part.type !== "tool") continue
+        const tool = part as ToolPart
+        if (!isGenerationPart(tool) || !stillPending(tool, allFound())) continue
+        const id = partOp(tool)?.id
+        if (id) watch(id, check)
+      }
+    }
+  })
+
   const collected = createMemo(() => {
     const raw = collectCanvasCells(
       // completedAt comes from AssistantMessage.time.completed (set when
@@ -1018,6 +1037,7 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
         completedAt: m.role === "assistant" ? m.time?.completed : undefined,
       })),
       sync.data.part as Record<string, Part[] | undefined>,
+      allFound(),
     )
     const stableCells: CanvasCell[] = []
     const liveCellKeys = new Set<string>()

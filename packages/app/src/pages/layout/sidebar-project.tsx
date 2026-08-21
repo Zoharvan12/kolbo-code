@@ -203,6 +203,16 @@ const ProjectPreviewPanel = (props: {
   <div class="-m-3 p-2 flex flex-col w-72">
     <div class="px-4 pt-2 pb-1 flex items-center gap-2">
       <div class="text-14-medium text-text-strong truncate grow">{displayName(props.project)}</div>
+      <button
+        type="button"
+        class="shrink-0 text-12-regular text-text-weak hover:text-text-strong"
+        onClick={() => {
+          props.ctx.showEditProjectDialog(props.project)
+          props.ctx.onHoverOpenChanged(props.project.worktree, false)
+        }}
+      >
+        {props.language.t("common.rename")}
+      </button>
     </div>
     <div class="px-4 pb-2 text-12-medium text-text-weak">{props.language.t("sidebar.project.recentSessions")}</div>
     <div class="px-2 pb-2 flex flex-col gap-2">

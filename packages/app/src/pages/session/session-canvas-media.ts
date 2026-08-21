@@ -15,6 +15,22 @@ export function urlsFromPart(part: ToolPart): string[] {
   return extractUrls(state.output)
 }
 
+/** URLs on the part, or ones recovered after generate_* timed out. */
+export function urlsForCanvas(part: ToolPart, recovered?: Record<string, string[]>) {
+  const op = partOp(part)
+  const extra = op?.id ? recovered?.[op.id] : undefined
+  if (extra?.length) return extra
+  return urlsFromPart(part)
+}
+
+/** Still waiting on the server — including a timed-out tool with a generation id. */
+export function stillPending(part: ToolPart, recovered?: Record<string, string[]>) {
+  if (urlsForCanvas(part, recovered).length) return false
+  if (part.state.status === "error") return false
+  if (part.state.status === "completed") return !!partOp(part)?.id
+  return true
+}
+
 function recovery(tool: string) {
   const name = tool.replace(/^kolbo_/, "").replace(/^mcp__kolbo__/, "")
   return name === "get_generation_status" || name === "get_creative_director_status"
