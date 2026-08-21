@@ -14,6 +14,7 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 
 import FileTree from "@/components/file-tree"
 import { ArtifactPreviewTab, type ArtifactData } from "@/components/artifact-preview"
+import { artifactLabel } from "@opencode-ai/ui/lib/artifact"
 import { SessionContextUsage } from "@/components/session-context-usage"
 import { SessionContextTab, SortableTab, FileVisual } from "@/components/session"
 import { useCommand } from "@/context/command"
@@ -45,6 +46,9 @@ export function SessionSidePanel(props: {
   artifactsTabActive: () => boolean
   onArtifactsTabDeactivate: () => void
   onArtifactClose: () => void
+  showApplyPlan?: () => boolean
+  applyingPlan?: () => boolean
+  onApplyPlan?: () => void
   canvasTabActive: () => boolean
   onCanvasTabActivate: () => void
   onCanvasTabDeactivate: () => void
@@ -401,7 +405,13 @@ export function SessionSidePanel(props: {
                             />
                           }
                         >
-                          {language.t("session.tab.artifacts")}
+                          <span class="max-w-[140px] truncate">
+                            {(() => {
+                              const art = props.artifact()
+                              if (!art) return language.t("session.tab.artifacts")
+                              return artifactLabel(art.lang, { path: art.path, title: art.title })
+                            })()}
+                          </span>
                         </Tabs.Trigger>
                       </div>
                       <div
@@ -482,7 +492,12 @@ export function SessionSidePanel(props: {
                         reactively, so the iframe / scroll position survives
                         across versions and the whole screen no longer flashes. */}
                     <Show when={props.artifact()}>
-                      <ArtifactPreviewTab artifact={props.artifact()!} />
+                      <ArtifactPreviewTab
+                        artifact={props.artifact()!}
+                        showApplyPlan={props.showApplyPlan?.()}
+                        applyingPlan={props.applyingPlan?.()}
+                        onApplyPlan={props.onApplyPlan}
+                      />
                     </Show>
                   </Tabs.Content>
 

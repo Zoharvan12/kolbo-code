@@ -128,13 +128,67 @@ export function buildQuery(filters: {
   folderId: string | null
   page: number
   pageSize: number
+  sessionIds?: string[]
 }): string {
   const p = new URLSearchParams()
   if (filters.projectId && filters.projectId !== "all") p.set("project_id", filters.projectId)
   if (filters.folderId) p.set("folder_id", filters.folderId)
   if (filters.type !== "all") p.set("type", filters.type)
   if (filters.category !== "all" && filters.category !== "trash") p.set("category", filters.category)
+  if (filters.sessionIds?.length) p.set("session_ids", filters.sessionIds.join(","))
+  p.set("sort", "created_desc")
   p.set("page", String(filters.page))
   p.set("page_size", String(filters.pageSize))
   return p.toString()
+}
+
+const OBJECT_ID = /^[a-f0-9]{24}$/i
+
+/** True when the URL looks like a still image (not a video/audio file). */
+export function isImageThumb(u: string | undefined): boolean {
+  return !!(u && /\.(webp|jpg|jpeg|png|gif|avif)(\?|$)/i.test(u))
+}
+
+/**
+ * Best still for a library tile — prefer small/optimized thumbs (same fields
+ * UnifiedMediaCard / showcase use) over the full media URL.
+ */
+export function thumbOf(item: {
+  type: string
+  url?: string
+  thumbnail_url?: string
+  metadata?: Record<string, unknown>
+}): string | undefined {
+  const md = item.metadata ?? {}
+  const cands = [
+    md.thumbnailSmallUrl,
+    md.thumbnail_small_url,
+    md.thumbnailUrl,
+    md.thumbnail_url,
+    item.thumbnail_url,
+    md.poster,
+    md.poster_url,
+    md.preview_url,
+  ]
+  for (const c of cands) {
+    if (typeof c === "string" && isImageThumb(c)) return c
+  }
+  if (item.type === "image" && item.url) return item.url
+  return undefined
+}
+
+/** Keep only library rows that belong to this Code chat (Kolbo session ids or URL keys). */
+export function matchSession(
+  item: { session_id?: string | null; url?: string },
+  sessions: Set<string>,
+  keys: Set<string>,
+  keyOf: (url: string) => string,
+) {
+  if (item.session_id && sessions.has(item.session_id)) return true
+  if (item.url && keys.size > 0 && keys.has(keyOf(item.url))) return true
+  return false
+}
+
+export function isObjectId(id: string) {
+  return OBJECT_ID.test(id)
 }

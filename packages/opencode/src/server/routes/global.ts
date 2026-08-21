@@ -30,9 +30,53 @@ const _htmlPreviewStore = new Map<string, string>()
  * generations. The menu filters locally (fuzzysort in useFilteredList), so one
  * fetch per TTL window is all the UI ever needs.
  */
-type KolboAsset = { id: string; name: string; thumbnail?: string; dnaType?: string }
+type KolboAsset = {
+  id: string
+  name: string
+  thumbnail?: string
+  dnaType?: string
+  description?: string
+  images?: string[]
+}
 const _kolboAssetCache = new Map<string, { at: number; value: KolboAsset[] }>()
 const KOLBO_ASSET_TTL = 5 * 60 * 1000
+
+function assetImages(row: Record<string, any>): string[] {
+  const out: string[] = []
+  const push = (url: unknown) => {
+    if (typeof url === "string" && url && !url.startsWith("data:") && !out.includes(url)) out.push(url)
+  }
+  push(row.sheet_url ?? row.characterSheet)
+  push(row.thumbnail_url ?? row.thumbnail)
+  if (Array.isArray(row.images)) {
+    for (const img of row.images) {
+      if (typeof img === "string") push(img)
+      else if (img && typeof img === "object") push(img.url ?? img.src)
+    }
+  }
+  if (Array.isArray(row.source_images)) {
+    for (const img of row.source_images) {
+      if (typeof img === "string") push(img)
+      else if (img && typeof img === "object") push(img.url ?? img.src)
+    }
+  }
+  return out
+}
+
+function mapAsset(row: any): KolboAsset | null {
+  const id = row?.id ?? row?._id
+  const name = row?.name
+  if (!id || !name) return null
+  const images = assetImages(row)
+  return {
+    id: String(id),
+    name: String(name),
+    thumbnail: images[0],
+    dnaType: row.dna_type ?? row.dnaType,
+    description: typeof row.description === "string" ? row.description : undefined,
+    images: images.length ? images : undefined,
+  }
+}
 
 async function kolboAssets(cacheKey: string, path: string): Promise<KolboAsset[]> {
   const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
@@ -50,29 +94,8 @@ async function kolboAssets(cacheKey: string, path: string): Promise<KolboAsset[]
     // kolbo-api wraps list payloads differently per route.
     const rows: any[] = body.visual_dnas ?? body.moodboards ?? body.data ?? []
     const value = rows.flatMap((row): KolboAsset[] => {
-      const id = row?.id ?? row?._id
-      const name = row?.name
-      if (!id || !name) return []
-      return [
-        {
-          id: String(id),
-          name: String(name),
-          // Reference sheet first, matching kolbo-map's hero-image rule
-          // (characterSheet > images > thumbnail). The v1 API exposes it as
-          // `sheet_url` and only sets it when one exists and isn't a data: URL —
-          // 42 of 60 personal DNAs and 989 of the 1,936 global presets have one.
-          // A turnaround identifies a character far better than a single still.
-          // Raw rows are snake_case; the camelCase aliases are not always present.
-          thumbnail:
-            row.sheet_url ??
-            row.characterSheet ??
-            row.thumbnail_url ??
-            row.thumbnail ??
-            row.images?.[0] ??
-            row.source_images?.[0]?.url,
-          dnaType: row.dna_type ?? row.dnaType,
-        },
-      ]
+      const mapped = mapAsset(row)
+      return mapped ? [mapped] : []
     })
     _kolboAssetCache.set(key, { at: Date.now(), value })
     return value
@@ -88,6 +111,8 @@ const KolboAssetSchema = z.object({
   name: z.string(),
   thumbnail: z.string().optional(),
   dnaType: z.string().optional(),
+  description: z.string().optional(),
+  images: z.array(z.string()).optional(),
 })
 
 type KolboPreset = { id: string; name: string; thumbnail?: string }
@@ -884,20 +909,9 @@ export const GlobalRoutes = lazy(() =>
           if (!res.ok) return c.json({ error: "Visual DNA not found" }, 404)
           const body = (await res.json()) as Record<string, any>
           const row = body.visual_dna ?? body
-          const name = row?.name
-          if (!name) return c.json({ error: "Visual DNA not found" }, 404)
-          return c.json({
-            id: String(row.id ?? row._id ?? id),
-            name: String(name),
-            thumbnail:
-              row.sheet_url ??
-              row.characterSheet ??
-              row.thumbnail_url ??
-              row.thumbnail ??
-              row.images?.[0] ??
-              row.source_images?.[0]?.url,
-            dnaType: row.dna_type ?? row.dnaType,
-          })
+          const mapped = mapAsset(row)
+          if (!mapped) return c.json({ error: "Visual DNA not found" }, 404)
+          return c.json(mapped)
         } catch {
           return c.json({ error: "Kolbo Visual DNA service is unavailable" }, 502)
         }

@@ -27,6 +27,12 @@ export function SessionComposerRegion(props: {
   onNewSessionWorktreeReset: () => void
   onSubmit: () => void
   onResponseSubmit: () => void
+  /** Plan mode → Build: Apply Plan control above the prompt. */
+  applyPlan?: {
+    show: () => boolean
+    applying: () => boolean
+    onApply: () => void
+  }
   popoverDirection?: "up" | "down"
   followup?: {
     queue: () => boolean
@@ -248,6 +254,38 @@ export function SessionComposerRegion(props: {
                 "margin-top": `${-lift()}px`,
               }}
             >
+              <Show when={props.applyPlan?.show()}>
+                <div class="mb-3 rounded-xl border border-border-weak-base bg-surface-base p-3 flex flex-col gap-2 shadow-[0_-8px_24px_rgba(0,0,0,0.25)]">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <div class="text-14-medium text-text-strong">{language.t("artifact.applyPlan.title")}</div>
+                      <div class="text-12-regular text-text-weak mt-0.5">
+                        {language.t("artifact.applyPlan.subtitle")}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-14-medium text-white hover:opacity-90 transition-opacity duration-100 disabled:opacity-50 disabled:cursor-wait"
+                    style={{ "background-color": "var(--icon-agent-plan-base)" }}
+                    disabled={props.applyPlan?.applying()}
+                    onClick={() => props.applyPlan?.onApply()}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path
+                        d="M3 8.5l3.5 3.5L13 4.5"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                    {props.applyPlan?.applying()
+                      ? language.t("artifact.applyPlan.applying")
+                      : language.t("artifact.applyPlan")}
+                  </button>
+                </div>
+              </Show>
               <Show when={props.followup?.items.length}>
                 <SessionFollowupDock
                   items={props.followup!.items}

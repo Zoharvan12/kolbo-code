@@ -101,6 +101,20 @@ function marked(obj: Record<string, unknown>, urls: string[]) {
   return urls.length > 0 && typeof obj.model === "string"
 }
 
+function phaseOf(obj: Record<string, unknown>, urls: string[]): string {
+  const state = str(obj.state).toLowerCase()
+  if (state === "failed" || state === "cancelled" || state === "error") return "failed"
+  if (typeof obj.error === "string" && obj.error && !urls.length && state !== "processing" && state !== "completed") {
+    return "failed"
+  }
+  const phase = str(obj.phase)
+  if (phase === "failed") return "failed"
+  if (phase === "generating" || phase === "running") return "running"
+  if (phase === "completed" || phase === "review") return phase
+  if (state === "completed" || urls.length) return urls.length ? "completed" : "running"
+  return urls.length ? "completed" : "running"
+}
+
 function lift(obj: Record<string, unknown>): Record<string, unknown> | undefined {
   if (obj.schema === SCHEMA) return obj
   const inner = record(obj.operation)
@@ -116,16 +130,18 @@ function lift(obj: Record<string, unknown>): Record<string, unknown> | undefined
   const modelRaw = obj.model
   const model = typeof modelRaw === "string" ? { id: modelRaw } : (record(modelRaw) ?? {})
   const prompt = typeof obj.prompt === "string" ? obj.prompt : str(obj.prompt_used)
+  const err = typeof obj.error === "string" ? obj.error : ""
   return {
     schema: SCHEMA,
     id,
     kind: kindOf(obj, urls),
     route: str(obj.route) || str(obj.tool),
-    phase: str(obj.phase) === "generating" ? "running" : str(obj.phase) || (urls.length ? "completed" : "running"),
+    phase: phaseOf(obj, urls),
     title: str(obj.title) || "Generation",
     model,
     ...(prompt ? { prompt } : {}),
     ...(cost !== undefined ? { cost } : {}),
+    ...(err ? { error: err } : {}),
     params: Array.isArray(obj.params) ? obj.params : [],
     outputs: urls.length ? urls.map((url) => ({ url, kind: kindOf(obj, urls) })) : obj.outputs,
     actions: Array.isArray(obj.actions) ? obj.actions : [],

@@ -4,7 +4,9 @@ Load this file when starting a multi-step production, or before any continuation
 
 ## Why It Exists
 
-Every URL, id, and brief produced by a Kolbo MCP tool MUST be recorded in `.kolbo/production.md` in the user's workspace. This file — not chat history — is your source of truth for prior artifacts: URLs scattered across `tool_result` blobs are unreliable to re-scan and disappear entirely on context compaction. If the user named a model, write that name into `## 🎯 Now` and keep using that family on every follow-up — compaction is not permission to cheapest-swap.
+Every URL, id, and brief produced by a Kolbo MCP tool MUST be recorded in `.kolbo/production.md` in the user's workspace. This file is **your** (agent) source of truth for prior artifacts across turns — not chat history (unreliable / compacted) and not a substitute for the user's **Library** gallery. URLs scattered across `tool_result` blobs are unreliable to re-scan and disappear entirely on context compaction. If the user named a model, write that name into `## 🎯 Now` and keep using that family on every follow-up — compaction is not permission to cheapest-swap.
+
+**User vs agent SoT:** finished media for the human → **Library → This session**. Job state while in flight → `get_generation_status`. Your memory → this file. Chat cards are progress UI only.
 
 ## When to READ it
 

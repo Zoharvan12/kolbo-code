@@ -177,14 +177,14 @@ function createGlobalSync() {
     return sdk
   }
 
-  async function loadSessions(directory: string) {
+  async function loadSessions(directory: string, force = false) {
     const pending = sessionLoads.get(directory)
     if (pending) return pending
 
     children.pin(directory)
     const [store, setStore] = children.child(directory, { bootstrap: false })
     const meta = sessionMeta.get(directory)
-    if (meta && meta.limit >= store.limit) {
+    if (!force && meta && meta.limit >= store.limit) {
       const next = trimSessions(store.session, {
         limit: store.limit,
         permission: store.permission,
@@ -196,6 +196,7 @@ function createGlobalSync() {
       children.unpin(directory)
       return
     }
+    if (force) sessionMeta.delete(directory)
 
     const limit = Math.max(store.limit + SESSION_RECENT_LIMIT, SESSION_RECENT_LIMIT)
     const promise = loadRootSessionsWithFallback({

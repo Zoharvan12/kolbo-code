@@ -274,7 +274,7 @@ export const SessionRoutes = lazy(() =>
           title: z.string().optional(),
           time: z
             .object({
-              archived: z.number().optional(),
+              archived: z.number().nullable().optional(),
             })
             .optional(),
         }),
@@ -286,8 +286,14 @@ export const SessionRoutes = lazy(() =>
         if (updates.title !== undefined) {
           await Session.setTitle({ sessionID, title: updates.title })
         }
-        if (updates.time?.archived !== undefined) {
-          await Session.setArchived({ sessionID, time: updates.time.archived })
+        if (updates.time && "archived" in updates.time) {
+          // 0 / null both mean unarchive — clients may send 0 because some
+          // serializers drop JSON nulls.
+          const t = updates.time.archived
+          await Session.setArchived({
+            sessionID,
+            time: t === null || t === 0 ? null : t,
+          })
         }
 
         const session = await Session.get(sessionID)

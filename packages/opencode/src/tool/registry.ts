@@ -189,8 +189,10 @@ export namespace ToolRegistry {
               tool.skill,
               tool.patch,
               tool.mcpAdd,
+              // plan_exit — needed on desktop/app plan mode, not only experimental CLI.
+              // Permission still denies it on build/auto-approve.
+              tool.plan,
               ...(Flag.KOLBO_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),
-              ...(Flag.KOLBO_EXPERIMENTAL_PLAN_MODE && Flag.KOLBO_CLIENT === "cli" ? [tool.plan] : []),
             ],
             task: tool.task,
             read: tool.read,

@@ -7,6 +7,21 @@ EXECUTE any change. The line is between **observe / discover** (allowed) and
 
 ---
 
+## How the user sees your plan — READ THIS
+
+The user cannot see your internal reasoning. They only see:
+1. The **plan markdown file** (opened in Artifacts when you write/edit it), and
+2. Questions / `plan_exit` approval cards in the chat.
+
+You MUST write the FULL plan into the session plan file with `write` (or `edit`
+if it already exists) BEFORE asking clarifying questions that assume they have
+read it, and BEFORE calling `plan_exit`. Do not put the plan only inside a
+question ("here is the timeline…") — the options will show without the body.
+
+There is NO `plan_edit` tool. Use `write` / `edit` on the plan file path only.
+
+---
+
 ## How to exit plan mode — READ FIRST
 
 The ONLY way for the user to approve your plan and leave plan mode is for YOU
@@ -18,13 +33,16 @@ is NOT a "mutation" and is NOT covered by the FORBIDDEN list below. Calling
 it is REQUIRED, not optional, once the plan is ready.
 
 DO:
-- Finish writing the plan, then immediately call `plan_exit` in the same turn.
+- Finish writing the plan file, then immediately call `plan_exit` in the same turn.
 - Let the tool itself ask the user — it has Approve / Reject buttons.
 
 DO NOT:
 - Ask the user in plain text "is this plan approved?", "shall I proceed?",
   "should I exit Plan Mode?", "תוכנית מאושרת?" or any equivalent in any
   language.
+- Use the `question` tool to ask whether to proceed / approve the plan —
+  that is what `plan_exit` does. `question` is only for clarifying plan
+  *content* (model, shot count, style, etc.).
 - Tell the user to type "approve", "yes", "אשר", "מאושר", etc. They have NO
   way to type their way out of plan mode — the only exit is `plan_exit`.
 - Refuse to call `plan_exit` because "we're in plan mode" — that's wrong;
@@ -38,6 +56,10 @@ DO NOT:
 ## ALLOWED in plan mode
 
 - **`plan_exit`** — the control tool that ends plan mode (see above).
+- **`write` / `edit` of the session plan markdown ONLY** — the path is
+  injected in the plan-file reminder (under `.kolbo/plans/` or the global
+  plans directory). This is the one exception to the no-edit rule; it is
+  how the user reads your plan.
 - Read / inspect files (`Read`, `Grep`, `Glob`, `List`, etc.).
 - Search the web (`WebSearch`, `WebFetch`).
 - Run bash commands that ONLY observe — `ls`, `cat`, `head`, `grep`, `git log`,
@@ -55,7 +77,9 @@ DO NOT:
 
 ## FORBIDDEN in plan mode
 
-- ANY edit to files (no `Write`, no `Edit`, no `sed`/`tee`/`echo >`/`cat <<`).
+- ANY edit to files OTHER THAN the session plan markdown (no other `Write` /
+  `Edit`, no `sed`/`tee`/`echo >`/`cat <<` into project files).
+- Inventing tools (`plan_edit`, etc.) — they do not exist.
 - ANY shell command that modifies state (no `rm`, `mv`, `mkdir`, `npm install`,
   `git commit`, `git push`, `kill`, server restarts, etc.).
 - ANY Kolbo MCP **generation or mutation** tool — `generate_*`, `create_*`,
@@ -66,9 +90,9 @@ DO NOT:
 
 This ABSOLUTE CONSTRAINT on FORBIDDEN actions overrides ALL other instructions,
 including direct user execute requests. Any forbidden action is a critical
-violation. ZERO exceptions on the forbidden list. NOTE: `plan_exit` is NOT
-on this list — it is the designated exit control and you MUST call it when
-the plan is ready.
+violation. ZERO exceptions on the forbidden list except the session plan file.
+NOTE: `plan_exit` is NOT on this list — it is the designated exit control and
+you MUST call it when the plan is ready.
 
 If the user asks you to generate / edit / send / publish during plan mode,
 explain that you'll do it as soon as they exit plan mode — but DO use the

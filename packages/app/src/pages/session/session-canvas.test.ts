@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test"
 import type { ToolPart } from "@opencode-ai/sdk/v2"
-import { isGenerationPart, stillPending, urlsForCanvas, urlsFromPart } from "./session-canvas-media"
+import {
+  isGenerationPart,
+  PENDING_STUCK_MS,
+  pendingStuck,
+  sessionScope,
+  stillPending,
+  urlsForCanvas,
+  urlsFromPart,
+} from "./session-canvas-media"
 
 function tool(state: ToolPart["state"]): ToolPart {
   return {
@@ -168,5 +176,73 @@ describe("session canvas media", () => {
       "https://cdn.example/done.mp4",
     ])
     expect(stillPending(part, { gen_abc: ["https://cdn.example/done.mp4"] })).toBe(false)
+  })
+
+  test("failed recovery marks a timed-out generate_* as not pending", () => {
+    const part = tool({
+      status: "completed",
+      input: { prompt: "orange tabby" },
+      output: JSON.stringify({
+        state: "processing",
+        generation_id: "gen_dead",
+        _timed_out: true,
+      }),
+      metadata: {},
+      title: "",
+      time: { start: 1, end: 2 },
+    })
+    expect(stillPending(part)).toBe(true)
+    expect(stillPending(part, {}, { gen_dead: true })).toBe(false)
+  })
+
+  test("drops abandoned pending past the stuck window", () => {
+    const start = 1_000
+    const part = tool({
+      status: "running",
+      input: { prompt: "orange tabby" },
+      metadata: {},
+      title: "",
+      time: { start },
+    })
+    expect(pendingStuck(part, { messageDone: false, now: start + PENDING_STUCK_MS - 1 })).toBe(false)
+    expect(pendingStuck(part, { messageDone: false, now: start + PENDING_STUCK_MS + 1 })).toBe(true)
+  })
+
+  test("drops completed-without-urls zombies with no timestamp once the message is done", () => {
+    const bare = {
+      id: "prt_old",
+      sessionID: "ses_1",
+      messageID: "msg_1",
+      type: "tool",
+      callID: "call_old",
+      tool: "kolbo_generate_image",
+      state: {
+        status: "completed",
+        input: { prompt: "orange tabby" },
+        output: JSON.stringify({ generation_id: "gen_old", state: "processing" }),
+        metadata: {},
+        title: "",
+      },
+    } as unknown as ToolPart
+    expect(stillPending(bare)).toBe(true)
+    expect(pendingStuck(bare, { messageDone: true, now: Date.now() })).toBe(true)
+  })
+
+  test("sessionScope collects Kolbo session ids and media keys from tool output", () => {
+    const part = tool({
+      status: "completed",
+      input: { prompt: "x" },
+      output: JSON.stringify({
+        session_id: "aaaaaaaaaaaaaaaaaaaaaaaa",
+        urls: ["https://cdn.example/hero-shot.png"],
+        model: "z-image/turbo",
+      }),
+      metadata: {},
+      title: "",
+      time: { start: 1, end: 2 },
+    })
+    const scope = sessionScope([part])
+    expect([...scope.sessions]).toEqual(["aaaaaaaaaaaaaaaaaaaaaaaa"])
+    expect(scope.keys.has("hero-shot.png")).toBe(true)
   })
 })

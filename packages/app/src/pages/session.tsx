@@ -33,6 +33,8 @@ import { useSearchParams } from "@solidjs/router"
 import { NewSessionView, SessionHeader } from "@/components/session"
 import { DialogConnectProvider } from "@/components/dialog-connect-provider"
 import { type ArtifactData } from "@/components/artifact-preview"
+import { resetAgentOpen } from "@opencode-ai/ui/lib/artifact"
+import { internalUser } from "@opencode-ai/ui/session-turn-visibility"
 import { useComments } from "@/context/comments"
 import { getSessionPrefetch, SESSION_PREFETCH_TTL } from "@/context/global-sync/session-prefetch"
 import { useGlobalSync } from "@/context/global-sync"
@@ -443,17 +445,95 @@ export default function Page() {
   const [artifact, setArtifact] = createSignal<ArtifactData | null>(null)
   const [artifactsTabActive, setArtifactsTabActive] = createSignal(false)
   const [canvasTabActive, setCanvasTabActive] = createSignal(false)
+  const [applyingPlan, setApplyingPlan] = createSignal(false)
+
+  const lastAssistantAgent = createMemo(() => {
+    const id = params.id
+    if (!id) return undefined
+    const msgs = sync.data.message[id] ?? []
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const msg = msgs[i]
+      if (msg?.role === "assistant") return msg.agent
+    }
+    return undefined
+  })
+
+  // Apply Plan once a plan body is in Artifacts (markdown) and this turn is
+  // still plan-mode (composer on Plan, or last assistant was the plan agent).
+  const showApplyPlan = createMemo(() => {
+    const art = artifact()
+    if (!art || art.lang !== "markdown") return false
+    return local.agent.current()?.name === "plan" || lastAssistantAgent() === "plan"
+  })
+
+  const applyPlan = async () => {
+    const sessionID = params.id
+    if (!sessionID || applyingPlan()) return
+    setApplyingPlan(true)
+    local.agent.set("build")
+    const model = local.model.current()
+    try {
+      await sdk.client.session.promptAsync({
+        sessionID,
+        messageID: Identifier.ascending("message"),
+        agent: "build",
+        model: model
+          ? { providerID: model.provider.id, modelID: model.id }
+          : undefined,
+        variant: local.model.variant.current() ?? undefined,
+        parts: [
+          {
+            type: "text",
+            text: "The plan has been approved. You are now the build agent — execute the plan. Follow the plan in Artifacts / the session plan file. You may edit files and run tools.",
+          },
+        ],
+      })
+    } catch (err) {
+      showToast({
+        variant: "error",
+        title: language.t("artifact.applyPlan"),
+        description: formatServerError(err, language.t),
+      })
+    } finally {
+      setApplyingPlan(false)
+    }
+  }
+
+  // New session → allow one agent-driven Artifacts auto-open again.
+  createEffect(
+    on(
+      () => params.id,
+      () => {
+        resetAgentOpen()
+        setArtifact(null)
+        setArtifactsTabActive(false)
+      },
+      { defer: true },
+    ),
+  )
 
   onMount(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ content: string; lang: string; autoOpen?: boolean }>).detail
+      const detail = (
+        e as CustomEvent<{ content: string; lang: string; autoOpen?: boolean; path?: string; title?: string }>
+      ).detail
       const lang = detail.lang as ArtifactData["lang"]
       if (lang !== "html" && lang !== "svg" && lang !== "mermaid" && lang !== "markdown" && lang !== "site") return
-      setArtifact({ content: detail.content, lang })
+      // Always keep the latest markup so Artifacts shows the current file when
+      // the user opens it. Only steal focus / open the panel when autoOpen —
+      // agent edits used to force Artifacts on every tweak and yank Canvas away.
+      setArtifact({
+        content: detail.content ?? "",
+        lang,
+        path: detail.path,
+        title: detail.title,
+      })
+      if (!detail.autoOpen) return
+      // Don't yank focus for an empty body — leave Canvas alone until content exists.
+      if (lang !== "site" && !(detail.content ?? "").trim()) return
       setArtifactsTabActive(true)
-      // Explicit artifact request wins over any sticky canvas override.
       setCanvasTabActive(false)
-      if (detail.autoOpen && !view().reviewPanel.opened()) view().reviewPanel.open()
+      if (!view().reviewPanel.opened()) view().reviewPanel.open()
     }
     document.addEventListener("kolbo:artifact", handler)
     onCleanup(() => document.removeEventListener("kolbo:artifact", handler))
@@ -571,8 +651,8 @@ export default function Page() {
   const visibleUserMessages = createMemo(
     () => {
       const revert = revertMessageID()
-      if (!revert) return userMessages()
-      return messagesBefore(userMessages(), revert)
+      const msgs = revert ? messagesBefore(userMessages(), revert) : userMessages()
+      return msgs.filter((msg) => !internalUser(sync.data.part[msg.id] ?? []))
     },
     emptyUserMessages,
     {
@@ -2139,6 +2219,11 @@ export default function Page() {
           resumeScroll()
         }}
         onResponseSubmit={resumeScroll}
+        applyPlan={{
+          show: showApplyPlan,
+          applying: applyingPlan,
+          onApply: () => void applyPlan(),
+        }}
         followup={
           params.id && !isChildSession()
             ? {
@@ -2323,6 +2408,9 @@ export default function Page() {
             setArtifact(null)
             setArtifactsTabActive(false)
           }}
+          showApplyPlan={showApplyPlan}
+          applyingPlan={applyingPlan}
+          onApplyPlan={() => void applyPlan()}
           canvasTabActive={canvasTabActive}
           onCanvasTabActivate={() => setCanvasTabActive(true)}
           onCanvasTabDeactivate={() => setCanvasTabActive(false)}

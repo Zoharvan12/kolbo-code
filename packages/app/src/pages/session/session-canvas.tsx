@@ -10,11 +10,11 @@ import { usePlatformOps } from "@opencode-ai/ui/context/platform-ops"
 import { Mark } from "@opencode-ai/ui/logo"
 import { showToast } from "@opencode-ai/ui/toast"
 import { useTheme } from "@opencode-ai/ui/theme/context"
-import type { Part, ToolPart, ToolStateCompleted, ToolStateRunning } from "@opencode-ai/sdk/v2"
+import type { Part, ToolPart, ToolStateCompleted } from "@opencode-ai/sdk/v2"
 import { isVideoUrl, mediaKey, openKolboLightbox, startMediaDrag } from "@opencode-ai/ui/kolbo-media"
 import { type Operation } from "@opencode-ai/ui/kolbo-operation"
-import { isGenerationPart, partOp, stillPending, urlsForCanvas, urlsFromPart } from "./session-canvas-media"
-import { allFound, watch } from "./session-gen-watch"
+import { isGenerationPart, partOp, pendingStartedAt, pendingStuck, stillPending, urlsForCanvas, urlsFromPart } from "./session-canvas-media"
+import { allDead, allFound, watch } from "./session-gen-watch"
 import { runStart } from "./session-run-clock"
 
 export { isGenerationPart, urlsFromPart }
@@ -75,17 +75,14 @@ export function hasKolboMediaInSession(parts: Part[][]): boolean {
   return false
 }
 
-// Cap on how long a still-"running" tool part can persist as a pending cell.
-// Beyond this we treat it as stuck/abandoned and drop it from the canvas
-// (the generation either errored without updating state, the server-side
-// task died, or the message was aborted). 10 minutes is comfortably past
-// the slowest legitimate video generations.
-const PENDING_STUCK_MS = 10 * 60 * 1000
+// Cap on how long a still-"running" tool part can persist as a pending cell
+// lives in session-canvas-media (PENDING_STUCK_MS / pendingStuck).
 
 function collectCanvasCells(
   messages: { id: string; completedAt?: number }[],
   partsByMessage: Record<string, Part[] | undefined>,
   recovered: Record<string, string[]> = {},
+  dead: Record<string, true> = {},
 ): { cells: CanvasCell[]; pending: PendingCell[] } {
   const cells: CanvasCell[] = []
   const pending: PendingCell[] = []
@@ -143,16 +140,11 @@ function collectCanvasCells(
         })
       } else if (state.status === "error") {
         // skip
-      } else if (stillPending(tool, recovered)) {
-        const running = state as ToolStateRunning
-        const startedAt = running.time?.start ?? now
-        // Drop tools that are stuck: either the parent message is already
-        // done (no more updates coming) or they've been "running" longer
-        // than any real generation should take. A timed-out generate_* is
-        // "completed" with no URLs — the job is still on the server, so
-        // keep the spinner even after the parent message ends.
-        if (state.status !== "completed" && messageDone) continue
-        if (now - startedAt > PENDING_STUCK_MS) continue
+      } else if (stillPending(tool, recovered, dead)) {
+        const startedAt = pendingStartedAt(tool) ?? now
+        // Timed-out generate_* is "completed" with no URLs — keep the spinner
+        // while recovery runs, but drop abandoned / clock-less zombies.
+        if (pendingStuck(tool, { messageDone, now, recovered, startedAt, dead })) continue
         pending.push({
           key: tool.id,
           tool: tool.tool,
@@ -860,6 +852,11 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
   // Lazy-mount the library on first switch, then keep it mounted (see the
   // <Show when={librarySeen()}> below).
   const [librarySeen, setLibrarySeen] = createSignal(false)
+  // Library is the only canvas surface — pin mode so persisted "session"
+  // views from older builds flip over automatically.
+  createEffect(() => {
+    if (view().canvas.mode() !== "library") view().canvas.setMode("library")
+  })
   createEffect(() => {
     if (view().canvas.mode() === "library") setLibrarySeen(true)
   })
@@ -1020,7 +1017,7 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
       for (const part of list) {
         if (part.type !== "tool") continue
         const tool = part as ToolPart
-        if (!isGenerationPart(tool) || !stillPending(tool, allFound())) continue
+        if (!isGenerationPart(tool) || !stillPending(tool, allFound(), allDead())) continue
         const id = partOp(tool)?.id
         if (id) watch(id, check)
       }
@@ -1038,6 +1035,7 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
       })),
       sync.data.part as Record<string, Part[] | undefined>,
       allFound(),
+      allDead(),
     )
     const stableCells: CanvasCell[] = []
     const liveCellKeys = new Set<string>()
@@ -1057,9 +1055,10 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
 
     const stablePending: PendingCell[] = []
     const livePendingKeys = new Set<string>()
-    const sid = props.sessionID()
     for (const p of raw.pending) {
-      const startedAt = sid ? runStart(sid, true, p.startedAt) : p.startedAt
+      // Per-tool clock so a long session run doesn't inflate every spinner
+      // to "96:07" and so part flicker doesn't reset the counter to 0.
+      const startedAt = runStart(p.key, true, p.startedAt)
       const cached = pendingByKey.get(p.key)
       if (cached) {
         if (cached.startedAt !== startedAt) cached.startedAt = startedAt
@@ -1360,7 +1359,8 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
         }
       `}</style>
 
-      {/* Toolbar — swaps to selection bar when items are selected */}
+      {/* Library owns density + scope; Session/Library toggle removed. */}
+      <Show when={view().canvas.mode() === "session"}>
       <div
         class="flex items-center justify-between px-4 py-2.5 shrink-0 gap-3"
         style="border-bottom:1px solid color-mix(in srgb, var(--text-base) 8%, transparent);background:color-mix(in srgb, var(--background-base) 85%, transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)"
@@ -1369,70 +1369,22 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
           when={batchMode() || selectedUrls().size > 0}
           fallback={
             <>
-              <div class="flex items-center gap-2 min-w-0">
-                {/* Session/Library toggle pill — left side of the toolbar. */}
-                <div
-                  role="tablist"
-                  aria-label="Canvas mode"
-                  class="flex items-center rounded-md p-0.5"
-                  style="background:color-mix(in srgb, var(--text-base) 6%, transparent);border:1px solid color-mix(in srgb, var(--text-base) 10%, transparent)"
-                >
-                  {(["session", "library"] as const).map((m) => (
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={view().canvas.mode() === m}
-                      onClick={() => view().canvas.setMode(m)}
-                      class="px-2 py-0.5 rounded text-11-regular transition-colors"
-                      classList={{
-                        "bg-surface-base text-text-strong shadow-sm": view().canvas.mode() === m,
-                        "text-text-weak hover:text-text-base": view().canvas.mode() !== m,
-                      }}
-                      style={view().canvas.mode() === m
-                        ? "font-weight:600"
-                        : "font-weight:500"}
-                    >
-                      {lang.t(("canvas.tab." + m) as any)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
+              <div class="flex items-center gap-2 min-w-0" />
               <div class="flex items-center gap-2.5 min-w-0">
-                <input
-                  type="range"
-                  min="1"
-                  max="8"
-                  step="1"
-                  value={cols()}
-                  onInput={(e) => view().canvas.setGridCols(parseInt(e.currentTarget.value, 10))}
-                  title={lang.t("canvas.density.cols", { count: cols() })}
-                  aria-label={lang.t("canvas.density")}
-                  class="kolbo-canvas-slider"
-                  style={{ "--kolbo-slider-fill": sliderFillBg() }}
-                />
-                <div
-                  class="flex items-center justify-center shrink-0"
-                  style="min-width:24px;height:22px;border-radius:6px;padding:0 6px;background:color-mix(in srgb, var(--text-base) 6%, transparent);color:var(--text-strong);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums"
+                <button
+                  type="button"
+                  onClick={() => setBatchMode(true)}
+                  title={lang.t("canvas.select")}
+                  aria-label={lang.t("canvas.select")}
+                  class="flex items-center justify-center shrink-0 transition-colors"
+                  style="height:22px;padding:0 8px;border-radius:6px;background:color-mix(in srgb, var(--text-base) 6%, transparent);color:var(--text-strong);border:1px solid color-mix(in srgb, var(--text-base) 10%, transparent);font-size:11px;font-weight:600;letter-spacing:0.02em;display:inline-flex;gap:5px;align-items:center"
                 >
-                  {cols()}
-                </div>
-                <Show when={view().canvas.mode() !== "library"}>
-                  <button
-                    type="button"
-                    onClick={() => setBatchMode(true)}
-                    title={lang.t("canvas.select")}
-                    aria-label={lang.t("canvas.select")}
-                    class="flex items-center justify-center shrink-0 transition-colors"
-                    style="height:22px;padding:0 8px;border-radius:6px;background:color-mix(in srgb, var(--text-base) 6%, transparent);color:var(--text-strong);border:1px solid color-mix(in srgb, var(--text-base) 10%, transparent);font-size:11px;font-weight:600;letter-spacing:0.02em;display:inline-flex;gap:5px;align-items:center"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
-                      <rect x="2" y="2" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.5" />
-                      <path d="M5 8.5l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    {lang.t("canvas.select")}
-                  </button>
-                </Show>
+                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="2" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.5" />
+                    <path d="M5 8.5l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  {lang.t("canvas.select")}
+                </button>
               </div>
             </>
           }
@@ -1511,12 +1463,10 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
           </div>
         </Show>
       </div>
+      </Show>
 
-      {/* Library is lazy-mounted on first switch and then kept mounted via
-          CSS-hide so subsequent toggles preserve scroll position, batch
-          selection, fetched pages, etc. Mounting both Session and Library
-          at once on first canvas open made the panel blank for ~2s while
-          the 1700-line library tree initialized — the lazy gate fixes that. */}
+      {/* Library is the only canvas surface; Session view stays in the tree
+          for now but is unreachable from the UI. */}
       <Show when={librarySeen()}>
         <div
           class="flex-1 min-h-0 flex flex-col"

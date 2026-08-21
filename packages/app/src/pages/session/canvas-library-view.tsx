@@ -16,15 +16,24 @@ import { useLanguage } from "@/context/language"
 import { useServer } from "@/context/server"
 import { useSync } from "@/context/sync"
 import { useSessionLayout } from "@/pages/session/session-layout"
-import type { Part, ToolPart, ToolStateRunning } from "@opencode-ai/sdk/v2"
-import { isGenerationPart, partOp, stillPending } from "./session-canvas-media"
-import { allFound, watch } from "./session-gen-watch"
+import type { Part, ToolPart } from "@opencode-ai/sdk/v2"
+import {
+  isGenerationPart,
+  partOp,
+  pendingStartedAt,
+  pendingStuck,
+  sessionScope,
+  stillPending,
+} from "./session-canvas-media"
+import { kindFromTool } from "@opencode-ai/ui/kolbo-mcp-widget"
+import { allDead, allFound, watch } from "./session-gen-watch"
 import { FolderPicker, ProjectPicker } from "./canvas-library-pickers"
 import { runStart } from "./session-run-clock"
 import { AudioWavePlayer, fmt as formatDurationSec } from "@/pages/session/audio-wave-player"
 import { showToast } from "@opencode-ai/ui/toast"
 import { MediaCard } from "@opencode-ai/ui/media-card"
-import { openKolboLightbox, firstFramePosterSrc, pauseOnFirstFrame } from "@opencode-ai/ui/kolbo-media"
+import { CulledImage } from "@opencode-ai/ui/culled-image"
+import { openKolboLightbox, mediaKey } from "@opencode-ai/ui/kolbo-media"
 import { Icon } from "@opencode-ai/ui/icon"
 import { useKolboModels } from "@opencode-ai/ui/context"
 import { Mark } from "@opencode-ai/ui/logo"
@@ -34,8 +43,11 @@ import {
   CATEGORY_OPTIONS,
   folderLabel,
   folderTitle,
+  isImageThumb,
+  matchSession,
   parseFolders,
   parseProjects,
+  thumbOf,
   TYPE_OPTIONS,
   type CategoryFilter,
   type LibraryFolder,
@@ -105,6 +117,7 @@ type MediaItem = {
   width?: number
   height?: number
   duration?: number
+  session_id?: string | null
   metadata?: MediaItemMetadata
 }
 
@@ -444,13 +457,15 @@ function loadFolders(serverBase: string, fresh = false): Promise<LibraryFolder[]
   return p
 }
 
-const PENDING_STUCK_MS = 10 * 60 * 1000
 type PendingGen = { key: string; kind: "image" | "video" | "audio"; startedAt: number }
 
 function pendingKind(part: ToolPart): PendingGen["kind"] {
   const op = partOp(part)
   if (op?.kind === "audio") return "audio"
   if (op?.kind === "video") return "video"
+  const fromTool = kindFromTool(part.tool)
+  if (fromTool === "audio") return "audio"
+  if (fromTool === "video") return "video"
   return "image"
 }
 
@@ -458,9 +473,12 @@ function collectPending(
   messages: { id: string; completedAt?: number }[],
   parts: Record<string, Part[] | undefined>,
   recovered: Record<string, string[]> = {},
+  frozen: Map<string, number> = new Map(),
+  dead: Record<string, true> = {},
 ) {
   const out: PendingGen[] = []
   const now = Date.now()
+  const live = new Set<string>()
   for (const message of messages) {
     const list = parts[message.id]
     if (!list) continue
@@ -468,14 +486,16 @@ function collectPending(
     for (const part of list) {
       if (part.type !== "tool") continue
       const tool = part as ToolPart
-      if (!isGenerationPart(tool) || !stillPending(tool, recovered)) continue
-      const state = tool.state
-      if (state.status !== "completed" && messageDone) continue
-      const running = state as ToolStateRunning
-      const startedAt = running.time?.start ?? now
-      if (now - startedAt > PENDING_STUCK_MS) continue
+      if (!isGenerationPart(tool) || !stillPending(tool, recovered, dead)) continue
+      const startedAt = frozen.get(tool.id) ?? pendingStartedAt(tool) ?? now
+      if (pendingStuck(tool, { messageDone, now, recovered, startedAt, dead })) continue
+      frozen.set(tool.id, startedAt)
+      live.add(tool.id)
       out.push({ key: tool.id, kind: pendingKind(tool), startedAt })
     }
+  }
+  for (const key of frozen.keys()) {
+    if (!live.has(key)) frozen.delete(key)
   }
   return out.sort((a, b) => b.startedAt - a.startedAt)
 }
@@ -496,6 +516,16 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
   const ops = usePlatformOps()
   const { view } = useSessionLayout()
   const cols = createMemo(() => view().canvas.gridCols())
+  const sliderFill = createMemo(() => {
+    const pct = ((cols() - 1) / 7) * 100
+    return (
+      `linear-gradient(to right, ` +
+      `color-mix(in srgb, var(--text-base) 65%, transparent) 0%, ` +
+      `color-mix(in srgb, var(--text-base) 65%, transparent) ${pct}%, ` +
+      `color-mix(in srgb, var(--text-base) 12%, transparent) ${pct}%, ` +
+      `color-mix(in srgb, var(--text-base) 12%, transparent) 100%)`
+    )
+  })
   // Absolute sidecar URL. In `bun tauri dev` the WebView is served by Vite on
   // :1420, which doesn't proxy `/global/*` to the opencode sidecar (different
   // port). Relative fetches 404. Always prefix with the sidecar base.
@@ -509,6 +539,9 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
   const [folderId, setFolderId] = createSignal<string | null>(
     typeof localStorage !== "undefined" ? localStorage.getItem(FOLDER_LS_KEY) : null,
   )
+  // Library defaults to this-chat scope so it can replace Session as the
+  // primary board; "All media" is one click away for the full catalog.
+  const [scope, setScope] = createSignal<"session" | "all">("session")
 
   const persistProject = (id: string) => {
     setProjectId(id)
@@ -546,6 +579,20 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
     base ? loadModelRegistry(base) : Promise.resolve(indexRegistry([], "")),
   )
 
+  const chatScope = createMemo(() => {
+    const id = props.sessionID()
+    if (!id) return { sessions: new Set<string>(), keys: new Set<string>() }
+    const messages = sync.data.message[id] ?? []
+    const parts: ToolPart[] = []
+    for (const msg of messages) {
+      for (const part of sync.data.part[msg.id] ?? []) {
+        if (part.type === "tool") parts.push(part as ToolPart)
+      }
+    }
+    return sessionScope(parts)
+  })
+  const sessionIdList = createMemo(() => [...chatScope().sessions])
+
   // Filters tuple — any change resets pagination and replaces the page list.
   // serverBase is included so the fetch re-fires once the sidecar URL is
   // resolved (Solid contexts populate asynchronously — first render may see
@@ -558,6 +605,8 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
       type: type(),
       category: category(),
       folderId: folderId(),
+      scope: scope(),
+      sessions: scope() === "session" ? sessionIdList() : [],
     }),
   )
 
@@ -594,6 +643,20 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
       // Server context not yet resolved (or no sidecar). filtersKey includes
       // base, so this will re-trigger as soon as serverBase populates. Bail
       // out silently — no error toast, no loading spinner.
+      return
+    }
+    const scoped = scope() === "session"
+    const sessions = chatScope().sessions
+    const keys = chatScope().keys
+    if (scoped && sessions.size === 0 && keys.size === 0) {
+      if (!append) {
+        setPages([])
+        setHasNext(false)
+        setListTotal(0)
+        setLoading(false)
+        setError(null)
+        setSignedOut(false)
+      }
       return
     }
     const now = Date.now()
@@ -641,12 +704,18 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
           folderId: folderId(),
           page: target,
           pageSize: viewportPageSize(),
+          sessionIds: scoped ? sessionIdList() : undefined,
         })
         fetchUrl = `${base}/global/kolbo-media?${qs}`
       }
       const res = await fetch(fetchUrl, {
         signal: inFlight.signal,
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+        cache: "no-store",
       })
       // Defensive: if Content-Type isn't JSON, the request landed on the wrong
       // server (e.g. Vite's SPA fallback returning index.html with 200). Treat
@@ -684,7 +753,12 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
           .map((f: any) => ({
             id: f._id || f.id,
             url: f.url || f.cdnUrl,
-            thumbnail_url: f.thumbnail_url || f.metadata?.thumbnail_url,
+            thumbnail_url:
+              f.thumbnail_url ||
+              f.metadata?.thumbnail_url ||
+              f.metadata?.thumbnailUrl ||
+              f.metadata?.thumbnailSmallUrl ||
+              f.metadata?.poster_url,
             type: (f.type || f.mediaType) as "image" | "video" | "audio",
             source_type: f.source_type || f.sourceType,
             prompt: f.prompt || f.metadata?.prompt,
@@ -709,7 +783,11 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
           .map((f) => ({
             id: f.id,
             url: f.url,
-            thumbnail_url: f.metadata?.thumbnail_url,
+            thumbnail_url:
+              f.metadata?.thumbnail_url ||
+              f.metadata?.thumbnailUrl ||
+              f.metadata?.thumbnailSmallUrl ||
+              f.metadata?.poster_url,
             type: f.mediaType as "image" | "video" | "audio",
             is_favorited: true,
             source_type: f.sourceType,
@@ -725,10 +803,36 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
         nextHasNext = false
         total = items.length
       } else {
-        const data = (await res.json()) as { media?: MediaItem[]; pagination?: Pagination }
-        items = data.media ?? []
-        nextHasNext = data.pagination?.has_next ?? false
-        total = data.pagination?.total_items ?? (nextHasNext ? null : items.length)
+        const data = (await res.json()) as {
+          media?: MediaItem[]
+          data?: { media?: MediaItem[]; items?: MediaItem[]; pagination?: Pagination }
+          pagination?: Pagination
+          items?: MediaItem[]
+        }
+        const raw =
+          data.media ??
+          data.items ??
+          data.data?.media ??
+          data.data?.items ??
+          []
+        items = raw.map((f) => ({
+          ...f,
+          thumbnail_url:
+            f.thumbnail_url ||
+            f.metadata?.thumbnail_url ||
+            (f.metadata as MediaItemMetadata | undefined)?.thumbnailUrl ||
+            (f.metadata as MediaItemMetadata | undefined)?.thumbnailSmallUrl ||
+            (f.metadata as MediaItemMetadata | undefined)?.poster_url,
+        }))
+        const pg = data.pagination ?? data.data?.pagination
+        nextHasNext = pg?.has_next ?? false
+        total = pg?.total_items ?? (nextHasNext ? null : items.length)
+      }
+      // Client filter keeps working before prod API gains session_ids — and
+      // also catches assets that only match by URL key from this chat.
+      if (scoped && (sessions.size > 0 || keys.size > 0)) {
+        items = items.filter((item) => matchSession(item, sessions, keys, mediaKey))
+        if (!sessionIdList().length) total = items.length
       }
       if (append) {
         if (items.length === 0 && nextHasNext) {
@@ -748,6 +852,13 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
         setListTotal(total)
       }
       setHasNext(nextHasNext)
+      // This-session may need extra pages when the API ignores session_ids
+      // (not deployed yet) or when we only have URL keys to match.
+      if (scoped && nextHasNext && items.length === 0 && target < 15 && emptyResponseCount < MAX_EMPTY_RESPONSES) {
+        setLoading(false)
+        setLoadingMore(false)
+        return fetchPage(true, retryCount, true)
+      }
     } catch (e) {
       if ((e as Error).name === "AbortError") return
       // The sidecar binary occasionally Bun-panics and is auto-respawned by
@@ -796,23 +907,157 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
     }
     if (lastMode === "library") return
     lastMode = mode
+    void refreshLibrary(true)
+  })
+
+  async function refreshLibrary(silent = false) {
     const base = serverBase()
     if (base) {
       void loadProjects(base, true).then(() => refetchProjects())
       void loadFolders(base, true).then(() => refetchFolders())
     }
-    lastKey = ""
-    void fetchPage(false, 0, pages().flat().length > 0)
-  })
+    setPage(1)
+    setHasNext(false)
+    setError(null)
+    if (!silent) {
+      setPages([])
+      setListTotal(null)
+    }
+    await fetchPage(false, 0, silent)
+  }
+
+  const pendingStarts = new Map<string, number>()
+  // Reuse PendingGen / MediaItem / Entry refs across sync ticks. Without this,
+  // every streamed token rebuilds new wrappers → <For> remounts every cell →
+  // CulledImage flashes blank (black holes) then reloads. Same pattern as
+  // session-canvas.tsx.
+  const pendingByKey = new Map<string, PendingGen>()
+  const itemById = new Map<string, MediaItem>()
+  type Entry = { kind: "pending"; cell: PendingGen } | { kind: "item"; item: MediaItem }
+  const entryByKey = new Map<string, Entry>()
+  let previousPending: PendingGen[] = []
+  let previousItems: MediaItem[] = []
+  let previousBuckets: Entry[][] = []
+  const sameRefs = <T,>(a: readonly T[], b: readonly T[]) =>
+    a.length === b.length && a.every((v, i) => v === b[i])
 
   const pending = createMemo(() => {
     const id = props.sessionID()
-    if (!id) return [] as PendingGen[]
+    if (!id) {
+      pendingByKey.clear()
+      previousPending = []
+      return previousPending
+    }
     const messages = (sync.data.message[id] ?? []).map((m) => ({
       id: m.id,
       completedAt: m.role === "assistant" ? m.time?.completed : undefined,
     }))
-    return collectPending(messages, sync.data.part as Record<string, Part[] | undefined>, allFound())
+    const raw = collectPending(
+      messages,
+      sync.data.part as Record<string, Part[] | undefined>,
+      allFound(),
+      pendingStarts,
+      allDead(),
+    )
+    const next: PendingGen[] = []
+    const live = new Set<string>()
+    for (const row of raw) {
+      live.add(row.key)
+      const cached = pendingByKey.get(row.key)
+      if (cached) {
+        if (cached.kind !== row.kind) cached.kind = row.kind
+        if (cached.startedAt !== row.startedAt) cached.startedAt = row.startedAt
+        next.push(cached)
+      } else {
+        pendingByKey.set(row.key, row)
+        next.push(row)
+      }
+    }
+    for (const key of pendingByKey.keys()) {
+      if (!live.has(key)) pendingByKey.delete(key)
+    }
+    if (sameRefs(next, previousPending)) return previousPending
+    previousPending = next
+    return next
+  })
+
+  // When in-progress generations finish, pull fresh library rows so completed
+  // tiles replace pending spinners without waiting for a manual refresh.
+  let prevPendingCount = 0
+  createEffect(() => {
+    const n = pending().length
+    if (prevPendingCount > 0 && n < prevPendingCount && view().canvas.mode() === "library") {
+      const timer = window.setTimeout(() => void refreshLibrary(true), 1200)
+      onCleanup(() => window.clearTimeout(timer))
+    }
+    prevPendingCount = n
+  })
+
+  const items = createMemo(() => {
+    const next: MediaItem[] = []
+    const live = new Set<string>()
+    for (const item of pages().flat()) {
+      live.add(item.id)
+      const cached = itemById.get(item.id)
+      if (cached && cached.url === item.url && cached.thumbnail_url === item.thumbnail_url) {
+        // Keep the same object so masonry <For> keys stay stable; refresh
+        // fields that can change without a remount (favorite, etc.).
+        if (cached.is_favorited !== item.is_favorited) cached.is_favorited = item.is_favorited
+        next.push(cached)
+      } else {
+        itemById.set(item.id, item)
+        next.push(item)
+      }
+    }
+    for (const id of itemById.keys()) {
+      if (!live.has(id)) itemById.delete(id)
+    }
+    if (sameRefs(next, previousItems)) return previousItems
+    previousItems = next
+    return next
+  })
+
+  const columnBuckets = createMemo<Entry[][]>(() => {
+    const n = Math.max(1, cols())
+    const all: Entry[] = []
+    const live = new Set<string>()
+    for (const cell of pending()) {
+      const k = `p:${cell.key}`
+      live.add(k)
+      const cached = entryByKey.get(k)
+      if (cached && cached.kind === "pending" && cached.cell === cell) {
+        all.push(cached)
+      } else {
+        const entry: Entry = { kind: "pending", cell }
+        entryByKey.set(k, entry)
+        all.push(entry)
+      }
+    }
+    for (const item of items()) {
+      const k = `i:${item.id}`
+      live.add(k)
+      const cached = entryByKey.get(k)
+      if (cached && cached.kind === "item" && cached.item === item) {
+        all.push(cached)
+      } else {
+        const entry: Entry = { kind: "item", item }
+        entryByKey.set(k, entry)
+        all.push(entry)
+      }
+    }
+    for (const k of entryByKey.keys()) {
+      if (!live.has(k)) entryByKey.delete(k)
+    }
+    const buckets: Entry[][] = Array.from({ length: n }, () => [])
+    all.forEach((entry, i) => buckets[i % n].push(entry))
+    if (
+      previousBuckets.length === buckets.length &&
+      previousBuckets.every((col, i) => sameRefs(col, buckets[i]!))
+    ) {
+      return previousBuckets
+    }
+    previousBuckets = buckets
+    return buckets
   })
 
   createEffect(() => {
@@ -824,7 +1069,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
       for (const part of list) {
         if (part.type !== "tool") continue
         const tool = part as ToolPart
-        if (!isGenerationPart(tool) || !stillPending(tool, allFound())) continue
+        if (!isGenerationPart(tool) || !stillPending(tool, allFound(), allDead())) continue
         const id = partOp(tool)?.id
         if (id) watch(id, check)
       }
@@ -1066,18 +1311,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
   // Session mode uses, so the visual feel is identical. Pending gens sit in
   // the same buckets (first cells) so a 16:9 spinner is one tile, not a
   // full-width row that blows the grid apart.
-  type Entry = { kind: "pending"; cell: PendingGen } | { kind: "item"; item: MediaItem }
-  const items = createMemo(() => pages().flat())
-  const columnBuckets = createMemo<Entry[][]>(() => {
-    const n = Math.max(1, cols())
-    const all: Entry[] = [
-      ...pending().map((cell) => ({ kind: "pending" as const, cell })),
-      ...items().map((item) => ({ kind: "item" as const, item })),
-    ]
-    const buckets: Entry[][] = Array.from({ length: n }, () => [])
-    all.forEach((entry, i) => buckets[i % n].push(entry))
-    return buckets
-  })
+  // (items / columnBuckets are stabilized above — see pendingByKey / entryByKey.)
 
   const ownedFolders = createMemo(() => scoped().filter((f) => f.is_owner))
   const sharedFolders = createMemo(() => scoped().filter((f) => !f.is_owner))
@@ -1105,6 +1339,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
             projects={projects() ?? []}
             allLabel={lang.t("canvas.library.project.all")}
             aria={lang.t("canvas.library.project.pick")}
+            searchPlaceholder={lang.t("common.search.placeholder")}
             onChange={persistProject}
           />
           <FolderPicker
@@ -1120,6 +1355,76 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
             titleFor={folderTitle}
             onChange={persistFolder}
           />
+        </div>
+        {/* Scope: this chat vs full library + density */}
+        <div class="flex items-center gap-2 min-w-0">
+          <div role="radiogroup" aria-label="Scope" class="flex items-center gap-0.5 min-w-0 flex-1">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={scope() === "session"}
+              onClick={() => setScope("session")}
+              class="text-11-regular px-2 py-0.5 rounded-md transition-colors whitespace-nowrap"
+              classList={{
+                "text-text-strong underline underline-offset-4 decoration-1": scope() === "session",
+                "text-text-weak hover:text-text-base": scope() !== "session",
+              }}
+            >
+              {lang.t("canvas.library.scope.session" as any)}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={scope() === "all"}
+              onClick={() => setScope("all")}
+              class="text-11-regular px-2 py-0.5 rounded-md transition-colors whitespace-nowrap"
+              classList={{
+                "text-text-strong underline underline-offset-4 decoration-1": scope() === "all",
+                "text-text-weak hover:text-text-base": scope() !== "all",
+              }}
+            >
+              {lang.t("canvas.library.scope.all" as any)}
+            </button>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => void refreshLibrary(false)}
+              disabled={loading()}
+              title={lang.t("canvas.library.refresh")}
+              aria-label={lang.t("canvas.library.refresh")}
+              class="flex items-center justify-center transition-colors hover:bg-background-stronger disabled:opacity-50"
+              style="width:28px;height:28px;border-radius:8px;background:transparent;color:var(--text-weak)"
+            >
+              <Show
+                when={loading()}
+                fallback={<Icon name="reset" size="small" />}
+              >
+                <span
+                  aria-hidden="true"
+                  style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid currentColor;border-top-color:transparent;animation:kolbo-spin 0.85s linear infinite"
+                />
+              </Show>
+            </button>
+            <input
+              type="range"
+              min="1"
+              max="8"
+              step="1"
+              value={cols()}
+              onInput={(e) => view().canvas.setGridCols(parseInt(e.currentTarget.value, 10))}
+              title={lang.t("canvas.density.cols", { count: cols() })}
+              aria-label={lang.t("canvas.density")}
+              class="kolbo-canvas-slider"
+              style={{ "--kolbo-slider-fill": sliderFill() }}
+            />
+            <div
+              class="flex items-center justify-center shrink-0"
+              style="min-width:24px;height:22px;border-radius:6px;padding:0 6px;background:color-mix(in srgb, var(--text-base) 6%, transparent);color:var(--text-strong);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums"
+            >
+              {cols()}
+            </div>
+          </div>
         </div>
         {/* Row 3: type + category chips + folder */}
         <div class="flex items-center gap-1 overflow-x-auto" role="group">
@@ -1303,9 +1608,11 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
             <div class="flex flex-col items-center justify-center h-full text-center gap-2 px-6">
               <div class="text-text-strong text-13-regular">{lang.t("canvas.library.empty.title")}</div>
               <div class="text-text-weak text-11-regular">
-                {type() !== "all" || category() !== "all" || folderId()
-                  ? lang.t("canvas.library.empty.caption.filtered")
-                  : lang.t("canvas.library.empty.caption.default")}
+                {scope() === "session"
+                  ? lang.t("canvas.library.empty.caption.session" as any)
+                  : type() !== "all" || category() !== "all" || folderId()
+                    ? lang.t("canvas.library.empty.caption.filtered")
+                    : lang.t("canvas.library.empty.caption.default")}
               </div>
             </div>
           </Match>
@@ -1358,7 +1665,9 @@ function LibraryPendingCard(props: { cell: PendingGen; sessionID: string | undef
     onCleanup(() => clearInterval(id))
   })
   const started = createMemo(() =>
-    props.sessionID ? runStart(props.sessionID, true, props.cell.startedAt, now()) : props.cell.startedAt,
+    // Per-generation clock — never the session "Working for" clock, or a
+    // 90-minute session run makes a brand-new spinner look 96:07 old.
+    runStart(props.cell.key, true, props.cell.startedAt, now()),
   )
   const label = createMemo(() => formatDurationSec(Math.max(0, (now() - started()) / 1000)))
   const ratio = () => (props.cell.kind === "video" ? 16 / 9 : props.cell.kind === "audio" ? 16 / 2.5 : 1)
@@ -1398,19 +1707,11 @@ function LibraryCell(props: {
 }) {
   const lang = useLanguage()
   const m = props.item
-  const previewSrc = createMemo(() => m.thumbnail_url || m.url)
+  const previewSrc = createMemo(() => thumbOf(m))
 
-  // For videos: only treat `thumbnail_url` as a real <img>-able poster if it
-  // points to an actual image (webp/jpg/png/...). Sometimes the backend echoes
-  // the video URL itself into thumbnail_url, which would render as a broken
-  // image. Mirrors kolbo-map's `isVideoImageThumb` guard.
-  const isImageThumb = (u: string | undefined): boolean =>
-    !!(u && /\.(webp|jpg|jpeg|png|gif|avif)(\?|$)/i.test(u))
-  const videoPoster = createMemo(() => {
-    if (m.type !== "video") return undefined
-    const t = m.thumbnail_url
-    return isImageThumb(t) ? t : undefined
-  })
+  // For videos: only treat an image still as a poster. Never use the video URL
+  // as an <img> src (broken icon). Matches kolbo-map UnifiedMediaCard / showcase.
+  const videoPoster = createMemo(() => (m.type === "video" ? thumbOf(m) : undefined))
   const [videoLoadFailed, setVideoLoadFailed] = createSignal(false)
   const [imageLoadFailed, setImageLoadFailed] = createSignal(false)
   const filename = m.filename || (m.prompt ? m.prompt.slice(0, 60) : m.id)
@@ -1565,10 +1866,9 @@ function LibraryCell(props: {
                 </div>
               }
             >
-              <img
+              <CulledImage
                 src={previewSrc()}
                 alt={filename}
-                loading="lazy"
                 onError={() => setImageLoadFailed(true)}
                 style={{
                   display: "block",
@@ -1665,17 +1965,11 @@ function LibraryCell(props: {
               </div>
             }
             fallback={
-              // Pre-play state — mirrors kolbo-map's UnifiedMediaCard:
-              //   1. Always render <video preload="metadata"> so the browser
-              //      fetches just enough bytes to decode the first frame, then
-              //      we seek to currentTime=0 on `loadedmetadata` to display it.
-              //   2. ONLY overlay an <img> on top when thumbnail_url is a real
-              //      image (webp/jpg/png/...) — never use the video URL itself
-              //      as an <img src>, which is what was producing the broken
-              //      image icon. If the <img> 404s, hide it and fall back to
-              //      the video's first frame underneath.
-              //   3. Click the surface → lightbox; click the center play
-              //      button → switch to playing state (full <video> + controls).
+              // Idle grid — same as kolbo-map UnifiedMediaCard showcase:
+              // show a still CulledImage thumb only. Do NOT attach the video
+              // URL (preload=metadata / #t=0.05) on every cell — that saturated
+              // the connection and made Library feel stuck. Full video loads
+              // only when the user hits play.
               <button
                 type="button"
                 onClick={openInLightbox}
@@ -1683,11 +1977,8 @@ function LibraryCell(props: {
                 class="block size-full p-0 m-0 border-0 bg-transparent cursor-zoom-in relative"
               >
                 <Show
-                  when={!videoLoadFailed()}
+                  when={videoPoster() && !videoLoadFailed()}
                   fallback={
-                    // Last-resort fallback when both the thumbnail image AND
-                    // the <video> element fail to render — dark placeholder
-                    // with a film icon so the cell isn't blank.
                     <div
                       style={{
                         display: "flex",
@@ -1705,13 +1996,9 @@ function LibraryCell(props: {
                     </div>
                   }
                 >
-                  <video
-                    src={firstFramePosterSrc(m.url)}
-                    poster={videoPoster()}
-                    preload="metadata"
-                    playsinline
-                    muted
-                    ref={(el) => pauseOnFirstFrame(el)}
+                  <CulledImage
+                    src={videoPoster()}
+                    alt={filename}
                     onError={() => setVideoLoadFailed(true)}
                     style={{
                       display: "block",

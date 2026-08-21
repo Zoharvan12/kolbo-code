@@ -31,8 +31,6 @@ type Starter = {
   media?: { url: string; filename: string; mime: string }[]
   /** Full-URL override for the card still (art iterations use new immutable keys). */
   thumb?: string
-  /** Looping muted card video (small ~400KB mp4). Takes precedence over thumb. */
-  thumbVideo?: string
   /** "contain" letterboxes the still over the gradient (vertical 9:16 art in a
    *  16:10 card) instead of the default cover-crop. */
   fit?: "contain"
@@ -78,38 +76,16 @@ const DEMO_FASHION: { url: string; filename: string; mime: string }[] = [
 
 const STARTERS: Starter[] = [
   { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${THUMB_CDN_V3}/fashionCampaign-v2.webp`, media: DEMO_FASHION, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
-  { key: "scene", categories: ["film"], tag: "seedance", thumbVideo: `${THUMB_CDN_V3}/scene-video-v1.mp4`, media: DEMO_SCENE, gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
-  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumbVideo: `${THUMB_CDN_V3}/ugc-video-v1.mp4`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
+  // Still images only — WebView2 autoplay is flaky on these cards, so looping
+  // mp4 thumbs kept painting as empty gradients. Static art is enough here.
+  { key: "scene", categories: ["film"], tag: "seedance", thumb: `${THUMB_CDN}/scene.webp`, media: DEMO_SCENE, gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
+  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN_V3}/ugc.webp`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
   { key: "presentation", categories: ["web"], gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
   { key: "landing", media: [DEMO_LANDING], categories: ["web", "marketing"], gradient: "linear-gradient(140deg,#00c2ff,#0037ff)" },
-  { key: "productAnimation", categories: ["marketing", "film"], thumbVideo: `${THUMB_CDN_V3}/productAnimation-video-v1.mp4`, media: [DEMO_SNEAKER], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
+  { key: "productAnimation", categories: ["marketing", "film"], thumb: `${THUMB_CDN}/productAnimation.webp`, media: [DEMO_SNEAKER], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
 ]
 
 const CATEGORIES: ("all" | StarterCategory)[] = ["all", "marketing", "film", "images", "web"]
-
-// Chromium ignores a JSX-set `muted` attribute when deciding autoplay policy —
-// the property must be true BEFORE play() or playback is silently blocked and
-// the card shows only its first frame. Mute via property, retry once the data
-// is ready, and once more on the first user interaction (WebView2's autoplay
-// policy can refuse play() until the document has been interacted with).
-const playMutedLoop = (el: HTMLVideoElement) => {
-  el.muted = true
-  el.defaultMuted = true
-  el.loop = true
-  // NO isConnected/paused guards: Solid refs run before insertion, and the
-  // eager play() on the detached element is exactly what starts the media
-  // load — it rejects with AbortError (expected, swallowed) yet leaves the
-  // element armed to play the moment data arrives. Guarding it out is what
-  // made the cards paint nothing.
-  const tryPlay = () => void el.play().catch(() => {})
-  el.addEventListener("canplay", tryPlay)
-  const resume = () => {
-    tryPlay()
-    if (!el.paused) document.removeEventListener("pointerdown", resume, true)
-  }
-  document.addEventListener("pointerdown", resume, true)
-  queueMicrotask(tryPlay)
-}
 
 export function NewSessionView(props: NewSessionViewProps) {
   const sync = useSync()
@@ -213,54 +189,25 @@ export function NewSessionView(props: NewSessionViewProps) {
                         <span data-slot="new-session-card-thumb" style={{ background: starter.gradient }}>
                           {/* contain-fit art (9:16 in a 16:10 card) sits on a blurred
                               cover-fill of ITSELF — flat gradient bars read broken. */}
-                          <Show
-                            when={starter.thumbVideo}
-                            fallback={
-                              <>
-                                <Show when={starter.fit === "contain"}>
-                                  <img
-                                    src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
-                                    alt=""
-                                    aria-hidden="true"
-                                    loading="lazy"
-                                    referrerpolicy="no-referrer"
-                                    data-slot="new-session-card-thumb-blur"
-                                    onError={(e) => (e.currentTarget.style.display = "none")}
-                                  />
-                                </Show>
-                                <img
-                                  src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
-                                  alt=""
-                                  loading="lazy"
-                                  referrerpolicy="no-referrer"
-                                  style={starter.fit === "contain" ? { "object-fit": "contain" } : undefined}
-                                  onError={(e) => (e.currentTarget.style.display = "none")}
-                                />
-                              </>
-                            }
-                          >
-                            <Show when={starter.fit === "contain"}>
-                              <video
-                                src={starter.thumbVideo}
-                                aria-hidden="true"
-                                loop
-                                playsinline
-                                preload="auto"
-                                ref={playMutedLoop}
-                                data-slot="new-session-card-thumb-blur"
-                                onError={(e) => (e.currentTarget.style.display = "none")}
-                              />
-                            </Show>
-                            <video
-                              src={starter.thumbVideo}
-                              loop
-                              playsinline
-                              preload="auto"
-                              ref={playMutedLoop}
-                              style={starter.fit === "contain" ? { "object-fit": "contain" } : undefined}
+                          <Show when={starter.fit === "contain"}>
+                            <img
+                              src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
+                              alt=""
+                              aria-hidden="true"
+                              loading="lazy"
+                              referrerpolicy="no-referrer"
+                              data-slot="new-session-card-thumb-blur"
                               onError={(e) => (e.currentTarget.style.display = "none")}
                             />
                           </Show>
+                          <img
+                            src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
+                            alt=""
+                            loading="lazy"
+                            referrerpolicy="no-referrer"
+                            style={starter.fit === "contain" ? { "object-fit": "contain" } : undefined}
+                            onError={(e) => (e.currentTarget.style.display = "none")}
+                          />
                           <Show when={starter.tag}>
                             <span data-slot="new-session-card-tag">{language.t(`session.new.tag.${starter.tag}`)}</span>
                           </Show>

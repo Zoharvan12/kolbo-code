@@ -1,5 +1,6 @@
-import { createMemo, createResource, createSignal, onCleanup, onMount, Show } from "solid-js"
-import { checksum } from "@opencode-ai/util/encode"
+import { createEffect, createMemo, createResource, createSignal, onCleanup, onMount, Show } from "solid-js"
+import { checksum, sampledChecksum } from "@opencode-ai/util/encode"
+import { artifactLabel } from "@opencode-ai/ui/lib/artifact"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useServer } from "@/context/server"
@@ -12,6 +13,10 @@ export type ArtifactData = {
   /** Source markup — or, for lang "site", the published site's public URL. */
   content: string
   lang: "html" | "svg" | "mermaid" | "markdown" | "site"
+  /** Absolute or project path when this came from a write/edit. */
+  path?: string
+  /** Explicit label (e.g. chat Plan dump) when there is no file path. */
+  title?: string
 }
 
 function buildMermaidSrcdoc(code: string): string {
@@ -65,8 +70,16 @@ async function storeHtmlPreview(serverUrl: string, content: string): Promise<str
 
 // Design width assumed for HTML previews — content is scaled to fit the panel
 const HTML_DESIGN_WIDTH = 1280
+/** Above this, blob/srcdoc freezes WebView2 — refuse the fallback. */
+const HEAVY_HTML = 250_000
 
-export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
+export function ArtifactPreviewTab(props: {
+  artifact: ArtifactData
+  /** Show Apply Plan when this markdown is a plan-mode deliverable. */
+  showApplyPlan?: boolean
+  applyingPlan?: boolean
+  onApplyPlan?: () => void
+}) {
   const language = useLanguage()
   const platform = usePlatform()
   const server = useServer()
@@ -91,28 +104,49 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
     return w > 0 && w < HTML_DESIGN_WIDTH ? w / HTML_DESIGN_WIDTH : 1
   })
 
-  // Keyed on content checksum so reactive reads stay cheap and refetches
-  // The source returns a stable string key (server::content) so the resource
-  // refetches only when one of those actually changes — and createResource
-  // automatically discards stale resolutions if a newer fetch starts first.
+  // Debounce HTML body so rapid edit bursts coalesce into one POST + one
+  // iframe navigation instead of thrashing WebView2 on every hunk.
+  const [stableHtml, setStableHtml] = createSignal(
+    props.artifact.lang === "html" ? props.artifact.content : "",
+  )
+  createEffect(() => {
+    const lang = props.artifact.lang
+    const content = props.artifact.content
+    if (lang !== "html") {
+      setStableHtml("")
+      return
+    }
+    if (!stableHtml()) {
+      setStableHtml(content)
+      return
+    }
+    const t = window.setTimeout(() => setStableHtml(content), 200)
+    onCleanup(() => clearTimeout(t))
+  })
+
   const [htmlPreview] = createResource(
     () => {
       if (props.artifact.lang !== "html") return null
       const url = server.current?.http.url
       if (!url) return null
-      return `${url}:${checksum(props.artifact.content) ?? ""}`
+      const body = stableHtml()
+      if (!body) return null
+      return `${url}:${sampledChecksum(body) ?? ""}`
     },
     async () => {
       const url = server.current?.http.url
       if (!url) return null
-      return storeHtmlPreview(url, props.artifact.content)
+      const body = stableHtml()
+      if (!body) return null
+      return storeHtmlPreview(url, body)
     },
   )
 
-  // Fallback blob URL — used when the sidecar isn't reachable or returned null.
+  // Fallback blob URL — never for heavy HTML (sync parse freezes the app).
   const needsBlobFallback = createMemo(
     () =>
       props.artifact.lang === "html" &&
+      stableHtml().length <= HEAVY_HTML &&
       (!server.current?.http.url || (htmlPreview.state === "ready" && htmlPreview() === null)),
   )
   const blobUrl = createMemo<string>((prev) => {
@@ -121,7 +155,7 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
       return ""
     }
     if (prev) URL.revokeObjectURL(prev)
-    const blob = new Blob([props.artifact.content], { type: "text/html" })
+    const blob = new Blob([stableHtml()], { type: "text/html" })
     return URL.createObjectURL(blob)
   })
   onCleanup(() => {
@@ -142,6 +176,82 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
     return b || null
   })
   const isLoadingPreview = createMemo(() => props.artifact.lang === "html" && htmlPreview.loading && !blobUrl())
+  const heavyFailed = createMemo(
+    () =>
+      props.artifact.lang === "html" &&
+      stableHtml().length > HEAVY_HTML &&
+      htmlPreview.state === "ready" &&
+      !htmlPreview(),
+  )
+  const label = createMemo(() =>
+    artifactLabel(props.artifact.lang, { path: props.artifact.path, title: props.artifact.title }),
+  )
+  const blank = createMemo(
+    () => props.artifact.lang !== "site" && !props.artifact.content.trim(),
+  )
+
+  // Two long-lived iframe slots — assign src without remounting. Keyed <Show>
+  // discarded the warm pending frame and flashed blank on every HTML edit.
+  const [slotA, setSlotA] = createSignal<string | null>(null)
+  const [slotB, setSlotB] = createSignal<string | null>(null)
+  const [front, setFront] = createSignal<"a" | "b">("a")
+  const [painted, setPainted] = createSignal(false)
+  const [pendingSlot, setPendingSlot] = createSignal<"a" | "b" | null>(null)
+
+  createEffect(() => {
+    const next = effectiveHtmlUrl()
+    if (!next) {
+      if (htmlPreview.loading || props.artifact.lang === "html" || props.artifact.lang === "site") return
+      setSlotA(null)
+      setSlotB(null)
+      setPendingSlot(null)
+      setPainted(false)
+      return
+    }
+    const f = front()
+    const shown = f === "a" ? slotA() : slotB()
+    if (!shown) {
+      if (f === "a") setSlotA(next)
+      else setSlotB(next)
+      return
+    }
+    if (next === shown) return
+    const back = f === "a" ? "b" : "a"
+    const backUrl = back === "a" ? slotA() : slotB()
+    if (next === backUrl && pendingSlot() === back) return
+    if (back === "a") setSlotA(next)
+    else setSlotB(next)
+    setPendingSlot(back)
+  })
+
+  const promote = (slot: "a" | "b") => {
+    if (pendingSlot() === slot) {
+      setFront(slot)
+      setPendingSlot(null)
+    }
+    setPainted(true)
+  }
+
+  const frameStyle = (slot: "a" | "b") => {
+    const live = front() === slot
+    const preview = view() === "preview"
+    const has = slot === "a" ? !!slotA() : !!slotB()
+    return {
+      position: "absolute",
+      top: "0",
+      left: "0",
+      width: `${HTML_DESIGN_WIDTH}px`,
+      height: `${panelHeight() / htmlScale()}px`,
+      border: "0",
+      background: "transparent",
+      "color-scheme": "light",
+      "transform-origin": "top left",
+      transform: `scale(${htmlScale()})`,
+      opacity: live && preview && has && painted() ? "1" : "0",
+      "pointer-events": live && preview ? "auto" : "none",
+      "z-index": live ? "1" : "0",
+    } as const
+  }
 
   // ── Publish flow ─────────────────────────────────────────────────────────
   // POSTs the current artifact to the opencode server's /global/kolbo-artifact-publish
@@ -216,7 +326,13 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
     <div class="flex flex-col h-full overflow-hidden">
       {/* Toolbar */}
       <div class="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-border-weaker-base">
-        <div class="flex items-center rounded-md border border-border-weak-base bg-surface-base-active overflow-hidden text-12-medium">
+        <div class="min-w-0 flex-1">
+          <div class="text-13-medium text-text-strong truncate" title={props.artifact.path ?? label()}>
+            {label()}
+          </div>
+        </div>
+
+        <div class="flex items-center rounded-md border border-border-weak-base bg-surface-base-active overflow-hidden text-12-medium shrink-0">
           <button
             type="button"
             onClick={() => setView("preview")}
@@ -242,8 +358,6 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
             {language.t("artifact.code")}
           </button>
         </div>
-
-        <div class="flex-1" />
 
         <Show
           when={props.artifact.lang === "html" || props.artifact.lang === "svg" || props.artifact.lang === "mermaid"}
@@ -317,48 +431,45 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
         }}
         class="flex-1 min-h-0 overflow-hidden relative"
       >
+        <Show when={blank()}>
+          <div class="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-6 text-center">
+            <div class="text-13-medium text-text-base">{language.t("artifact.empty")}</div>
+            <div class="text-12-regular text-text-weak max-w-[36ch]">{language.t("artifact.empty.hint")}</div>
+          </div>
+        </Show>
+
         {/* HTML — wait for HTTP URL so WebView2 composites WebGL/Canvas correctly */}
-        <Show when={props.artifact.lang === "html" || props.artifact.lang === "site"}>
-          {/* Loading spinner while sidecar is processing */}
-          <Show when={isLoadingPreview() && view() === "preview"}>
-            <div class="absolute inset-0 flex items-center justify-center bg-white dark:bg-neutral-900">
+        <Show when={!blank() && (props.artifact.lang === "html" || props.artifact.lang === "site")}>
+          <Show when={isLoadingPreview() && view() === "preview" && !painted()}>
+            <div class="absolute inset-0 flex items-center justify-center bg-[var(--surface-recess-base)]">
               <div class="size-6 border-2 border-neutral-300 border-t-neutral-600 rounded-full animate-spin" />
             </div>
           </Show>
-
-          {/* Iframe — scaled to fit panel width so fixed-width HTML isn't cropped.
-              Starts transparent and fades in on `load` so we don't flash an
-              empty-white iframe while the HTML is still painting. */}
-          <Show when={effectiveHtmlUrl()} keyed>
-            {(src) => {
-              const [loaded, setLoaded] = createSignal(false)
-              return (
-                <iframe
-                  src={src}
-                  onLoad={() => setLoaded(true)}
-                  style={{
-                    position: "absolute",
-                    top: "0",
-                    left: "0",
-                    width: `${HTML_DESIGN_WIDTH}px`,
-                    height: `${panelHeight() / htmlScale()}px`,
-                    border: "0",
-                    background: "transparent",
-                    "color-scheme": "light",
-                    "transform-origin": "top left",
-                    transform: `scale(${htmlScale()})`,
-                    opacity: view() === "preview" && loaded() ? "1" : "0",
-                    transition: "opacity 220ms cubic-bezier(0.2, 0.7, 0.2, 1)",
-                    "pointer-events": view() === "preview" ? "auto" : "none",
-                  }}
-                />
-              )
-            }}
+          <Show when={heavyFailed() && view() === "preview"}>
+            <div class="absolute inset-0 flex items-center justify-center px-6 text-center text-12-regular text-text-weak">
+              Preview unavailable for this large HTML file. Open in tab instead.
+            </div>
           </Show>
+          <iframe
+            src={slotA() ?? undefined}
+            title="HTML preview A"
+            onLoad={() => {
+              if (slotA()) promote("a")
+            }}
+            style={frameStyle("a")}
+          />
+          <iframe
+            src={slotB() ?? undefined}
+            title="HTML preview B"
+            onLoad={() => {
+              if (slotB()) promote("b")
+            }}
+            style={frameStyle("b")}
+          />
         </Show>
 
         {/* SVG */}
-        <Show when={props.artifact.lang === "svg" && view() === "preview"}>
+        <Show when={!blank() && props.artifact.lang === "svg" && view() === "preview"}>
           <div
             style="position:absolute;inset:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:16px;"
             // eslint-disable-next-line solid/no-innerhtml
@@ -367,7 +478,7 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
         </Show>
 
         {/* Markdown */}
-        <Show when={props.artifact.lang === "markdown" && view() === "preview"}>
+        <Show when={!blank() && props.artifact.lang === "markdown" && view() === "preview"}>
           <div class="absolute inset-0 overflow-auto px-6 py-5">
             <Markdown
               text={props.artifact.content}
@@ -378,7 +489,7 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
         </Show>
 
         {/* Mermaid */}
-        <Show when={props.artifact.lang === "mermaid" && view() === "preview"}>
+        <Show when={!blank() && props.artifact.lang === "mermaid" && view() === "preview"}>
           <iframe
             sandbox="allow-scripts allow-same-origin"
             srcdoc={buildMermaidSrcdoc(props.artifact.content)}
@@ -387,7 +498,7 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
         </Show>
 
         {/* Code tab */}
-        <Show when={view() === "code"}>
+        <Show when={!blank() && view() === "code"}>
           <div class="h-full overflow-auto" style="position:absolute;inset:0;">
             <pre class="p-4 text-12-regular text-text-base whitespace-pre-wrap break-words" style="margin:0;">
               <code>{props.artifact.content}</code>
@@ -456,6 +567,33 @@ export function ArtifactPreviewTab(props: { artifact: ArtifactData }) {
           </div>
         </KobalteDialog.Portal>
       </KobalteDialog>
+
+      {/* Sticky Apply Plan — full-width footer so it stays visible while reading */}
+      <Show when={props.artifact.lang === "markdown" && props.showApplyPlan && props.onApplyPlan}>
+        <div class="shrink-0 border-t border-border-weak-base bg-surface-base px-4 py-3 flex flex-col gap-2">
+          <div class="text-14-medium text-text-strong">{language.t("artifact.applyPlan.title")}</div>
+          <div class="text-12-regular text-text-weak">{language.t("artifact.applyPlan.subtitle")}</div>
+          <button
+            type="button"
+            class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-14-medium text-white hover:opacity-90 transition-opacity duration-100 disabled:opacity-50 disabled:cursor-wait"
+            style={{ "background-color": "var(--icon-agent-plan-base)" }}
+            disabled={props.applyingPlan}
+            aria-label={language.t("artifact.applyPlan")}
+            onClick={() => props.onApplyPlan?.()}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M3 8.5l3.5 3.5L13 4.5"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            {props.applyingPlan ? language.t("artifact.applyPlan.applying") : language.t("artifact.applyPlan")}
+          </button>
+        </div>
+      </Show>
     </div>
   )
 }

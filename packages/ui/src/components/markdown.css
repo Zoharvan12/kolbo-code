@@ -661,7 +661,7 @@
   border: 1px solid var(--border-weak-base);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--surface-base-active, #fafafa);
+  background: var(--surface-recess-base);
   color-scheme: light;
   cursor: pointer;
   container-type: inline-size;
@@ -669,7 +669,29 @@
     border-color 200ms cubic-bezier(0.2, 0.7, 0.2, 1),
     box-shadow 200ms cubic-bezier(0.2, 0.7, 0.2, 1),
     transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+[data-slot="markdown-html-inline-preview"]:not([data-ready]) {
   animation: artifact-card-enter 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+[data-slot="markdown-html-preview-skeleton"] {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-recess-base);
+  z-index: 0;
+}
+
+[data-slot="markdown-html-preview-spinner"] {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--text-base) 14%, transparent);
+  border-top-color: var(--text-base);
+  animation: kolbo-spin 0.9s linear infinite;
 }
 
 [data-slot="markdown-html-inline-preview"]:hover {
@@ -692,9 +714,14 @@
   pointer-events: none;
   transform-origin: top left;
   transform: scale(calc(100cqw / 1280px));
+  opacity: 0;
   transition:
     filter 220ms ease,
     opacity 220ms ease;
+}
+
+[data-slot="markdown-html-inline-preview"] iframe[data-ready] {
+  opacity: 1;
   animation: artifact-iframe-enter 460ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 

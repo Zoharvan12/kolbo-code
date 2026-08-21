@@ -23,21 +23,45 @@ Load this file when the user wants a **Seedance 2.5** video (they said "2.5" / "
 - **Up to 50 reference medias / Visual DNA mentions** (`@Name`, `@ImageN`, `#Moodboard`). Every referenced asset must be tagged in the prompt text. A rewrite that drops or renames a tag ( `@doron_fauda_1` → `DORON` / `the hero` ) is a failed turn — put the exact tag back.
 - **Multimodal refs:** images + video clips + audio can all anchor one generation.
 
+## Universal Rules (HARD — same as help widget OUTPUT CONTRACT)
+
+- **First lines ALWAYS declare shot structure** (text-to-video / Elements / reference gen — NOT video-edit):
+  1. `N connected cinematic shots, Xs total, AR, Multishot ON`
+  2. `Total: Xs / N shots / AR`
+  Example: `12 connected cinematic shots, 30 seconds total, 16:9, Multishot ON` + `Total: 30s / 12 shots / 16:9`
+  UGC phone: `N connected phone shots, Xs total, 9:16, Multishot ON` — never the word "cinematic"; restate `9:16 vertical phone frame` in every shot.
+- **Last line repeats** `Total: Xs / N shots / AR` + short POSITIVE LOCKS.
+- **Shot timecodes MUST sum to Xs.** `SHOT 1 — 0:00–0:02` … through SHOT N ending at Xs. Never `[0s]` / `[3s]` stubs.
+- **MCP `duration` = Xs** on the generate call. Mismatch is a failed turn.
+- Duration range **4–30s**; shot count **≤30** in one generation. Do not split a ≤30s story into multiple 10s clips unless the user asks.
+- Omit Total / Multishot / shot-count headers only for **video editing** (source duration locked) — use Edit Goal blocks instead.
+
 ## Locked Intro (DEFAULT — same shape as Seedance 2)
 
-After the Total line, every multi-shot cinematic opens with:
-
 ```
+N connected cinematic shots, Xs total, AR, Multishot ON
+Total: Xs / N shots / AR
+
 [GLOBAL LOOK – LOCKED, APPLIES TO EVERY SHOT]
 [CAST – IDENTICAL IN EVERY SHOT]
 [LOCATION]
+[LOCATION MAP]
+[CONTINUITY – LOCKED ACROSS EVERY CUT]
+[PHYSICS]
+
+SHOT 1 — 0:00–0:02 — Medium / camera position
+…
+Total: Xs / N shots / AR
 ```
 
-then timecoded `SHOT N — 0:00–0:02 — Medium / camera position` beats. Full skeleton, acting rules, and optical craft: `models/seedance.md`.
+Full acting / continuity craft: `models/seedance.md`. Do not skip the Total lines or the three look/cast/location blocks. Do not restack GLOBAL LOOK inside shots.
 
-2.5 is where this format earns its keep: 15 shots timed to 30s, ~5k characters, one locked look so every cut matches camera / grade / cast. Do not skip the three blocks. Do not restack GLOBAL LOOK inside shots.
+2.5 is where this format earns its keep: 15 shots timed to 30s, ~5k characters, one locked look so every cut matches camera / grade / cast.
 
-UGC / phone vertical (full craft: `workflows/ugc-smartphone.md`): NEVER write "cinematic". GLOBAL LOOK is phone-native. Use `N connected phone shots, Xs total, 9:16, Multishot ON` and restate `9:16 vertical phone frame` inside every shot.
+## OUTPUT CONTRACT (WINS — mirror of help widget)
+
+ONE fenced prompt. Missing Total / Multishot / summing timecodes / matching `duration` = failed skill turn.
+FORBIDDEN: "same character throughout" as the only lock; one fence per shot; claiming you followed the skill while omitting GLOBAL LOOK / CAST / LOCATION / Multishot ON.
 
 ## Prompt length
 

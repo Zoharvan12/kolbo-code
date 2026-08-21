@@ -239,12 +239,23 @@ Your previous response was cut off because you reached the output token limit. C
 
         if (!Flag.KOLBO_EXPERIMENTAL_PLAN_MODE) {
           if (input.agent.name === "plan") {
+            // Plan path must be explicit — plan.txt alone forbids other edits,
+            // and without this path the model invents plan_edit or stuffs the
+            // plan into a question the user can't read.
+            const plan = Session.plan(input.session)
+            const exists = yield* fsys.existsSafe(plan)
             userMessage.parts.push({
               id: PartID.ascending(),
               messageID: userMessage.info.id,
               sessionID: userMessage.info.sessionID,
               type: "text",
-              text: PROMPT_PLAN,
+              text: `${PROMPT_PLAN}
+
+<system-reminder>
+## Plan File Info
+${exists ? `A plan file already exists at ${plan}. Read it and update it with the edit tool.` : `No plan file exists yet. Create your full plan at ${plan} using the write tool.`}
+This is the ONLY file you may edit in plan mode. Write the complete plan there so the user can read it in Artifacts — do not hide the plan inside a question. There is no plan_edit tool.
+</system-reminder>`,
               synthetic: true,
             })
           }
@@ -1481,6 +1492,8 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           let step = 0
           let consecutiveLengthResumes = 0
           const MAX_LENGTH_RESUMES = 3
+          let compacts = 0
+          const MAX_COMPACTIONS = 2
           const session = yield* sessions.get(sessionID)
           let cachedSkills: string | undefined
           let cachedEnv: string[] | undefined
@@ -1599,6 +1612,35 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               lastFinished.summary !== true &&
               (yield* compaction.isOverflow({ tokens: lastFinished.tokens, model }))
             ) {
+              if (compacts >= MAX_COMPACTIONS) {
+                log.warn("auto-compaction limit reached, stopping loop", { compacts, sessionID })
+                const limitMsg: MessageV2.Assistant = {
+                  id: MessageID.ascending(),
+                  parentID: lastUser.id,
+                  role: "assistant",
+                  mode: lastUser.agent,
+                  agent: lastUser.agent,
+                  variant: lastUser.model.variant,
+                  path: { cwd: ctx.directory, root: ctx.worktree },
+                  cost: 0,
+                  tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+                  modelID: lastUser.model.modelID,
+                  providerID: lastUser.model.providerID,
+                  time: { created: Date.now() },
+                  sessionID,
+                }
+                yield* sessions.updateMessage(limitMsg)
+                yield* sessions.updatePart({
+                  id: PartID.ascending(),
+                  messageID: limitMsg.id,
+                  sessionID,
+                  type: "text",
+                  text: "This session kept overflowing context after compaction. Please start a new session, or clear older context and try a smaller request.",
+                  synthetic: false,
+                })
+                break
+              }
+              compacts++
               yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true })
               continue
             }
@@ -1761,6 +1803,17 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
               if (result === "stop") return "break" as const
               if (result === "compact") {
+                if (compacts >= MAX_COMPACTIONS) {
+                  log.warn("auto-compaction limit reached, stopping loop", { compacts, sessionID })
+                  handle.message.error = new MessageV2.ContextOverflowError({
+                    message:
+                      "This session kept overflowing context after compaction. Please start a new session, or clear older context and try a smaller request.",
+                  }).toObject()
+                  handle.message.finish = "error"
+                  yield* sessions.updateMessage(handle.message)
+                  return "break" as const
+                }
+                compacts++
                 yield* compaction.create({
                   sessionID,
                   agent: lastUser.agent,
@@ -1768,7 +1821,9 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                   auto: true,
                   overflow: !handle.message.finish,
                 })
+                return "continue" as const
               }
+              compacts = 0
               return "continue" as const
             }).pipe(
               Effect.onInterrupt(() => finalizeInterrupted),

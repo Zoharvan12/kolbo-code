@@ -1,5 +1,5 @@
 ---
-version: 0.9.3
+version: 0.9.6
 name: kolbo
 description: |
   Generate, edit, analyze, and direct creative media through Kolbo AI: images,
@@ -20,7 +20,29 @@ allowed-tools: Bash, Read, Write, Edit
 
 You have direct access to the Kolbo AI creative platform via MCP tools (auto-configured by `kolbo auth login`). Use them to generate and deliver real content — do NOT just describe what you would create.
 
-> 🚫 **Don't dump generated URLs as bare text or markdown links in chat** — the UI already renders artifacts as a gallery tile + canvas. Refer by description ("the rainy scene"), store URLs in `.kolbo/production.md`. INLINE `![](url)` images ARE allowed for catalog-style replies (per-item thumbs in numbered lists).
+> 🚫 **Don't dump generated URLs as bare text or markdown links in chat** — the UI already shows results in **Library** (right panel) and on the generation card. Refer by description ("the rainy scene"), store URLs in `.kolbo/production.md`. INLINE `![](url)` images ARE allowed for catalog-style replies (per-item thumbs in numbered lists).
+
+## ⚠️ Source of truth for generations (HARD RULE — read this)
+
+Agents keep getting confused because three UIs show the same job. Use this map — never invent a fourth:
+
+| Surface | What it is | Trust it for |
+|---|---|---|
+| **Library** (right panel — "This session" / "All media") | User-facing gallery of **completed** media | "Is the user's output there?" Point humans here. Finished clips/images land automatically — do **not** `list_media` / `get_media` just to verify a `generate_*` you just ran. |
+| **Chat generation card** | Progress chrome while a job is in flight | Status badge only (`Generating` / done). A **black / empty preview while Generating is NORMAL** — the iframe has nothing to paint yet. It is **not** failure, not "lost", not a reason to re-fire. |
+| **`get_generation_status`** (MCP) | Agent API for job state | Whether the server job is `completed` / `failed` / still running, and the final `urls`. This is your SoT for in-flight work — **not** the card pixels. |
+| **`.kolbo/production.md`** | Your private log across turns | Ids + URLs after success. Compaction-safe memory — not the user gallery. |
+
+**Do NOT:**
+- Treat an empty/black chat card as "generation failed" or "nothing produced".
+- Re-call `generate_*` because Library still shows a K/logo spinner tile while the job is running — that tile **is** the in-progress placeholder for the same job.
+- Call `list_media` / `get_media` / `list_session_generations` to "check if it worked" after a generate you already submitted — that burns credits/context and can pollute the session.
+- Tell the user to look at chat history for finals — tell them **Library → This session**.
+
+**Do:**
+- After `submitted` / `_timed_out`: end the turn, or one `get_generation_status(..., wait=true)`.
+- When done: say the result is in Library; log URLs to `.kolbo/production.md`.
+- If the user asks "where is it?" → Library (This session). If they ask "is it done?" and you don't have urls yet → `get_generation_status` once.
 
 This file is the **always-loaded core**: tool inventory + universal hard rules + routing index. For any model-specific prompt rules, Visual DNA workflow, production log format, marketing workflow, cost validation, etc., **Read the matching `references/` file from the index below**. Don't try to remember the rules — load the file when you need them.
 
@@ -218,7 +240,7 @@ Do **not** call `generate_*` / `generate_elements` / `generate_image_edit` until
 
 `generate_elements`, Seedance 2 / 2.5, WAN, MiniMax H3, Gemini, and any Visual DNA video share **one** compile shape — the Locked Intro in `references/models/seedance.md`. Load `elements-prompting` first (craft, `@Image N` mapping, eight elements), then compile:
 
-`Total: Xs / N shots / AR` → `[GLOBAL LOOK – LOCKED, APPLIES TO EVERY SHOT]` → `[CAST – IDENTICAL IN EVERY SHOT]` (each person is `@DNAName`) → `[LOCATION]` → `SHOT N — 0:00–0:02 — …`
+`N connected cinematic shots, Xs total, AR, Multishot ON` → `Total: Xs / N shots / AR` → `[GLOBAL LOOK – LOCKED, APPLIES TO EVERY SHOT]` → `[CAST – IDENTICAL IN EVERY SHOT]` (each person is `@DNAName`) → `[LOCATION]` → LOCATION MAP / CONTINUITY / PHYSICS → `SHOT N — 0:00–0:02 — …` (ranges sum to Xs) → closing `Total: Xs / N shots / AR`. Pass MCP `duration: X` matching that Total. Omitting Total / Multishot is a failed compile — same contract as the Kolbo help widget.
 
 Write the beats at FULL DEPTH. The cap is 15,000 characters on Seedance 2.5 (10,000 on 2.0) — a 30s / 8+ shot compile should land around 4k–9k, and every beat carries its own camera move, a performance task for the speaker AND the listeners, prop/hand state, and the sound in that beat. A one-line shot beat is under-written; the structure alone is not the craft. Read `references/models/seedance25.md` before compiling.
 
@@ -268,9 +290,13 @@ A user-named tool — in any language — overrides every other rule. Recognized
    - Auto-select → **only when no model was named on this task**. Then pick from "Auto-selectable" (models with a `summary`). Cheapest fit. Prefer `[RECOMMENDED]` when cost is similar.
    - Never auto-select from "Named-only" section.
 5. **Validate inputs** against model caps — see `references/workflows/cost-and-validation.md`.
-6. **How calls work**: each tool blocks until generation is fully complete. Images: seconds. Video: minutes. Multiple tool calls in one response run concurrently. On hosts with live widgets the tool instead returns `submitted` instantly — the card updates on its own; you only need `get_generation_status` when a follow-up step needs the output URLs.
-7. **Checking status — NEVER poll in a loop**: `get_generation_status` takes `wait=true` (blocks server-side until done, ~3 min) and `generation_ids` (check MANY generations in ONE call — returns `all_done` + which are still running). One `wait=true` call replaces any polling loop. If it comes back with some still processing, call it ONCE more with `wait=true` and the remaining ids.
-8. **Share the URL** after success. Never fabricate URLs.
+6. **How calls work**: each tool blocks until generation is fully complete. Images: seconds. Video: minutes. Multiple tool calls in one response run concurrently. On hosts with live widgets the tool instead returns `submitted` (or `_timed_out`) instantly — the card updates on its own.
+7. **🛑 After `submitted` / `_timed_out` — END THE TURN (credit guard)**: Do **not** keep thinking, writing skills, editing files, or planning "next steps" while a generation is still running. That burns the user's coding/chat credits for nothing. Either:
+   - **Stop immediately** after telling the user it's generating in Library / the card above (preferred when you do not need the output URLs yet), OR
+   - If the **next** required step needs those URLs, call `get_generation_status` **once** with `wait=true` (and `generation_ids` for a batch) as the **only** follow-up — no parallel Write/Edit/Think while it waits.
+   - A black preview on the chat card is expected until URLs exist — not a signal to retry.
+8. **Checking status — NEVER poll in a loop**: `get_generation_status` takes `wait=true` (blocks server-side until done, ~3 min) and `generation_ids` (check MANY generations in ONE call — returns `all_done` + which are still running). One `wait=true` call replaces any polling loop. If it comes back with some still processing, call it ONCE more with `wait=true` and the remaining ids.
+9. **Share the URL** after success. Never fabricate URLs.
 
 Model types for `list_models`: `text_to_img`, `image_editing`, `text_to_video`, `img_to_video`, `draw_to_video`, `video_to_video`, `elements`, `firstlastgenerations`, `lipsync-image`, `lipsync-video`, `music_gen`, `text_to_speech`, `text_to_sound`, `stt`, `text`, `3d_text_to_model`, `3d_image_to_model`, `3d_multi_image_to_model`, `3d_world`.
 
@@ -318,7 +344,8 @@ Full tables + formulas in `references/workflows/cost-and-validation.md`. Quick r
 ## Rate Limiting & Batch Generation
 
 - `generate_image`: 30/min. All other generation tools: 10/min per type. 300/min global. `upload_media`: 300/min, no credit cost.
-- **⚠️ NEVER re-fire a generation you already called.** Aborted / timed-out calls still process server-side. Run `get_generation_status` (with `wait=true`) before retrying.
+- **⚠️ NEVER re-fire a generation you already called.** Aborted / timed-out / `submitted` calls still process server-side. Finish with `get_generation_status` (`wait=true`) — never a second `generate_*`. A black chat card or Library K-tile is not a missing job.
+- **⚠️ NEVER keep working while a generation is in flight.** After `submitted` / `_timed_out`, end the turn or block on one `wait=true` status call. Writing production.md / skills / "merge decisions" while the card spins wastes coding credits.
 - **Tracking a batch**: check ALL in-flight ids in ONE `get_generation_status` call with `generation_ids` + `wait=true`. Read `all_done` / `still_processing` from the response — do not check ids one by one, and never re-call without `wait`.
 - **Batch ≤10 items**: output ALL tool calls in one response — they run concurrently.
 - **Bulk >10 items**: real-world ceilings — `generate_image` 8–10 in-flight, image-edit 5–8, video tools 3–5, `generate_video_from_video` 3, music/speech/sound 5–8. Fire one batch → wait → fire next. Persist every `generation_id` in `.kolbo/production.md`.
@@ -387,9 +414,9 @@ A generation can fail three ways. Treat ALL as failure:
 Chat renders markdown natively. `![alt](url)` = inline image. `[label](url)` = labeled link with preview.
 
 - **Catalog-style replies** (numbered lists of characters / scenes / products): embed `![alt](url)` so each item shows inline.
-- **Conversational replies** ("4 shots ready"): keep prose short; canvas chip already shows gallery.
+- **Conversational replies** ("4 shots ready"): keep prose short; Library already shows the gallery.
 
-Avoid bare URL dumps and HTML `<table>` grids — canvas already provides a gallery.
+Avoid bare URL dumps and HTML `<table>` grids — Library already provides a gallery.
 
 **After `generate_creative_director` completes** — share results as individual URLs, one per scene. Do NOT create an HTML grid artifact.
 

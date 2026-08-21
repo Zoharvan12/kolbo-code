@@ -994,18 +994,30 @@ export default function Layout(props: ParentProps) {
   async function archiveSession(session: Session) {
     const [store, setStore] = globalSync.child(session.directory)
     const sessions = store.session ?? []
+    const visible = sessions.filter((s) => !s.parentID && !s.time?.archived && s.id !== session.id)
     const index = sessions.findIndex((s) => s.id === session.id)
-    const nextSession = sessions[index + 1] ?? sessions[index - 1]
+    const nextSession =
+      visible.find((s) => s.id === sessions[index + 1]?.id) ??
+      visible.find((s) => s.id === sessions[index - 1]?.id) ??
+      visible[0]
 
+    const archivedAt = Date.now()
     await globalSDK.client.session.update({
       directory: session.directory,
       sessionID: session.id,
-      time: { archived: Date.now() },
+      time: { archived: archivedAt },
     })
+    // Keep the row in the store with time.archived set — splicing it out made
+    // the "Show archived" toggle useless (nothing left to reveal).
     setStore(
       produce((draft) => {
-        const index = findSessionIndex(draft.session, session.id)
-        if (index >= 0) draft.session.splice(index, 1)
+        const i = findSessionIndex(draft.session, session.id)
+        if (i < 0) return
+        draft.session[i] = {
+          ...draft.session[i],
+          time: { ...draft.session[i].time, archived: archivedAt },
+        }
+        if (draft.sessionTotal > 0) draft.sessionTotal -= 1
       }),
     )
     if (session.id === params.id) {
@@ -1015,6 +1027,28 @@ export default function Layout(props: ParentProps) {
         navigate(`/${params.dir}/session`)
       }
     }
+  }
+
+  async function unarchiveSession(session: Session) {
+    // Send 0 (not null) — some SDK/body paths drop JSON null and the server
+    // would never see the clear. Server treats 0 as unarchive.
+    await globalSDK.client.session.update({
+      directory: session.directory,
+      sessionID: session.id,
+      time: { archived: 0 },
+    })
+    const [, setStore] = globalSync.child(session.directory)
+    setStore(
+      produce((draft) => {
+        const i = findSessionIndex(draft.session, session.id)
+        if (i < 0) return
+        const was = !!draft.session[i].time?.archived
+        const time = { ...draft.session[i].time }
+        delete (time as { archived?: number }).archived
+        draft.session[i] = { ...draft.session[i], time }
+        if (was) draft.sessionTotal += 1
+      }),
+    )
   }
 
   command.register("layout", () => {
@@ -1984,6 +2018,7 @@ export default function Layout(props: ParentProps) {
     clearHoverProjectSoon,
     prefetchSession,
     archiveSession,
+    unarchiveSession,
     workspaceName,
     renameWorkspace,
     editorOpen,
@@ -2030,6 +2065,7 @@ export default function Layout(props: ParentProps) {
       clearHoverProjectSoon,
       prefetchSession,
       archiveSession,
+      unarchiveSession,
     },
   }
 

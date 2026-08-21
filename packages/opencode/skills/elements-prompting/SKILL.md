@@ -114,7 +114,16 @@ After the user completes the selection or the information is complete, output th
    - If it is **text generation**, clarify the text content, occurrence timing, position and method (e.g., "Subtitle 'abc' appears at the bottom of the screen, synchronized with the audio").
 4. **Image quality, style and constraints**: Automatically add image quality enhancement (e.g., "4K HD, rich details") and fallback anti-distortion constraint words (e.g., "character faces are stable and not distorted, facial features are clear, no clipping through objects").
 
-Then compile that craft into the Kolbo Locked Intro (`Total: Xs / N shots / AR` → `[GLOBAL LOOK]` → `[CAST]` with `@DNAName` → `[LOCATION]` → `SHOT N`) before calling `generate_elements`.
+Then compile that craft into the Kolbo Locked Intro before calling `generate_elements` / `generate_video`:
+
+1. `N connected cinematic shots, Xs total, AR, Multishot ON`
+2. `Total: Xs / N shots / AR`
+3. `[GLOBAL LOOK]` → `[CAST]` (`@DNAName` per person) → `[LOCATION]` → LOCATION MAP / CONTINUITY / PHYSICS
+4. `SHOT N — 0:00–0:02 — …` with ranges that **sum to Xs**
+5. Closing `Total: Xs / N shots / AR`
+6. Pass MCP `duration: X` equal to that Total
+
+A compile without Total / Multishot / summing shot ranges is incomplete — fix it before the tool call. Full rules: `references/models/seedance.md` (+ `seedance25.md` for 2.5).
 
 #### Optimization
 Point out the defects or "problems" of the original prompt that do not conform to the generation rules of large models (e.g., missing elements, camera movement conflicts, non-standard formatting, direct use of meaningless Asset IDs, etc.).

@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test"
-import { buildQuery, folderLabel, folderTitle, parseFolders, parseProjects } from "./canvas-library"
+import {
+  buildQuery,
+  folderLabel,
+  folderTitle,
+  isImageThumb,
+  matchSession,
+  parseFolders,
+  parseProjects,
+  thumbOf,
+} from "./canvas-library"
 
 describe("parseFolders", () => {
   test("reads the v1 media/folders payload", () => {
@@ -94,6 +103,7 @@ describe("buildQuery", () => {
     expect(p.get("category")).toBe("ai")
     expect(p.get("page")).toBe("2")
     expect(p.get("page_size")).toBe("24")
+    expect(p.get("sort")).toBe("created_desc")
   })
 
   test("omits all-project / all-type / trash category", () => {
@@ -110,5 +120,58 @@ describe("buildQuery", () => {
     expect(p.has("folder_id")).toBe(false)
     expect(p.has("type")).toBe(false)
     expect(p.has("category")).toBe(false)
+  })
+
+  test("passes session_ids for this-session scope", () => {
+    const qs = buildQuery({
+      projectId: "all",
+      type: "all",
+      category: "all",
+      folderId: null,
+      page: 1,
+      pageSize: 24,
+      sessionIds: ["aaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbb"],
+    })
+    expect(new URLSearchParams(qs).get("session_ids")).toBe(
+      "aaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbb",
+    )
+  })
+})
+
+describe("matchSession", () => {
+  test("matches by session id or media key", () => {
+    const sessions = new Set(["aaaaaaaaaaaaaaaaaaaaaaaa"])
+    const keys = new Set(["shot.mp4"])
+    expect(
+      matchSession({ session_id: "aaaaaaaaaaaaaaaaaaaaaaaa", url: "https://x/a.jpg" }, sessions, keys, () => ""),
+    ).toBe(true)
+    expect(matchSession({ url: "https://cdn/shot.mp4" }, sessions, keys, (u) => u.split("/").pop()!)).toBe(true)
+    expect(matchSession({ url: "https://cdn/other.jpg" }, sessions, keys, () => "other.jpg")).toBe(false)
+  })
+})
+
+describe("thumbOf", () => {
+  test("prefers small/optimized stills over the full media url", () => {
+    expect(
+      thumbOf({
+        type: "video",
+        url: "https://media.kolbo.ai/clip.mp4",
+        metadata: {
+          thumbnailSmallUrl: "https://media.kolbo.ai/thumbs/clip-sm.webp",
+          thumbnail_url: "https://media.kolbo.ai/thumbs/clip.webp",
+        },
+      }),
+    ).toBe("https://media.kolbo.ai/thumbs/clip-sm.webp")
+  })
+
+  test("never returns a video url as an image thumb", () => {
+    expect(isImageThumb("https://media.kolbo.ai/clip.mp4")).toBe(false)
+    expect(thumbOf({ type: "video", url: "https://media.kolbo.ai/clip.mp4" })).toBeUndefined()
+  })
+
+  test("falls back to the image url for image items", () => {
+    expect(thumbOf({ type: "image", url: "https://media.kolbo.ai/shot.png" })).toBe(
+      "https://media.kolbo.ai/shot.png",
+    )
   })
 })

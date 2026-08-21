@@ -41,6 +41,7 @@ export type WorkspaceSidebarContext = {
   clearHoverProjectSoon: () => void
   prefetchSession: (session: Session, priority?: "high" | "low") => void
   archiveSession: (session: Session) => Promise<void>
+  unarchiveSession: (session: Session) => Promise<void>
   workspaceName: (directory: string, projectId?: string, branch?: string) => string | undefined
   renameWorkspace: (directory: string, next: string, projectId?: string, branch?: string) => void
   editorOpen: (id: string) => boolean
@@ -156,6 +157,7 @@ const WorkspaceActions = (props: {
   navigateToNewSession: () => void
 }): JSX.Element => {
   const settings = useSettings()
+  const globalSync = useGlobalSync()
   return (
   <div
     class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 transition-opacity"
@@ -214,7 +216,9 @@ const WorkspaceActions = (props: {
           </DropdownMenu.Item>
           <DropdownMenu.Item
             onSelect={() => {
-              settings.general.setShowArchivedSessions(!settings.general.showArchivedSessions())
+              const on = !settings.general.showArchivedSessions()
+              settings.general.setShowArchivedSessions(on)
+              if (on) void globalSync.project.loadSessions(props.directory, true)
               props.setMenuOpen(false)
             }}
           >
@@ -258,6 +262,7 @@ const WorkspaceSessionList = (props: {
   slug: Accessor<string>
   mobile?: boolean
   ctx: WorkspaceSidebarContext
+  directory: string
   showNew: Accessor<boolean>
   loading: Accessor<boolean>
   sessions: Accessor<Session[]>
@@ -266,6 +271,12 @@ const WorkspaceSessionList = (props: {
   language: ReturnType<typeof useLanguage>
 }): JSX.Element => {
   const settings = useSettings()
+  const globalSync = useGlobalSync()
+  const setArchived = (on: boolean) => {
+    settings.general.setShowArchivedSessions(on)
+    // Force reload so archived rows arrive from the API (list defaults to omitting them).
+    if (on) void globalSync.project.loadSessions(props.directory, true)
+  }
   return (
   <nav class="flex flex-col gap-1">
     <Show when={props.showNew()}>
@@ -292,6 +303,7 @@ const WorkspaceSessionList = (props: {
           clearHoverProjectSoon={props.ctx.clearHoverProjectSoon}
           prefetchSession={props.ctx.prefetchSession}
           archiveSession={props.ctx.archiveSession}
+          unarchiveSession={props.ctx.unarchiveSession}
         />
       )}
     </For>
@@ -310,21 +322,43 @@ const WorkspaceSessionList = (props: {
         </Button>
       </div>
     </Show>
-    <Switch
-      class="w-full justify-between mt-2 px-2 py-1.5 rounded-lg border border-border-weak-base bg-surface-recess-base/35"
-      checked={settings.general.showArchivedSessions()}
-      onChange={(on) => settings.general.setShowArchivedSessions(on)}
-      title={
-        settings.general.showArchivedSessions()
-          ? props.language.t("common.hideArchivedSessions")
-          : props.language.t("common.showArchivedSessions")
-      }
-    >
-      <span class="flex items-center gap-2 min-w-0 flex-1">
-        <Icon name="archive" size="small" class="shrink-0 text-icon-base" />
-        <span class="text-12-regular text-text-strong truncate">{props.language.t("common.archived")}</span>
-      </span>
-    </Switch>
+    {/* Quiet filter — kept far from session rows so it never reads as another session. */}
+    <div class="mt-3 pt-2.5 border-t border-border-weaker-base px-1">
+      <Switch
+        class="w-full min-w-0 justify-between gap-2 px-1.5 py-1 rounded-md transition-opacity"
+        classList={{
+          "opacity-100": settings.general.showArchivedSessions(),
+          "opacity-70 hover:opacity-100": !settings.general.showArchivedSessions(),
+        }}
+        checked={settings.general.showArchivedSessions()}
+        onChange={setArchived}
+        title={
+          settings.general.showArchivedSessions()
+            ? props.language.t("common.hideArchivedSessions")
+            : props.language.t("common.showArchivedSessions")
+        }
+      >
+        <span class="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+          <Icon
+            name="archive"
+            size="small"
+            classList={{
+              "shrink-0 text-icon-strong": settings.general.showArchivedSessions(),
+              "shrink-0 text-icon-weak": !settings.general.showArchivedSessions(),
+            }}
+          />
+          <span
+            class="text-11-regular truncate"
+            classList={{
+              "text-text-strong": settings.general.showArchivedSessions(),
+              "text-text-weak": !settings.general.showArchivedSessions(),
+            }}
+          >
+            {props.language.t("common.archived")}
+          </span>
+        </span>
+      </Switch>
+    </div>
   </nav>
   )
 }
@@ -474,6 +508,7 @@ export const SortableWorkspace = (props: {
             slug={slug}
             mobile={props.mobile}
             ctx={props.ctx}
+            directory={props.directory}
             showNew={showNew}
             loading={loading}
             sessions={sessions}
@@ -525,6 +560,7 @@ export const LocalWorkspace = (props: {
         slug={slug}
         mobile={props.mobile}
         ctx={props.ctx}
+        directory={props.project.worktree}
         showNew={() => false}
         loading={loading}
         sessions={sessions}

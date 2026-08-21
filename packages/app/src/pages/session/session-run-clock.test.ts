@@ -22,4 +22,11 @@ describe("session run clock", () => {
     expect(runElapsed("s1", false, undefined, 6000)).toBe(0)
     expect(runElapsed("s1", true, 6000, 6500)).toBe(500)
   })
+
+  test("per-tool clocks do not inherit the session working clock", () => {
+    resetRunClocks()
+    runElapsed("ses_long", true, 1000, 100_000)
+    expect(runStart("tool_a", true, 95_000, 100_000)).toBe(95_000)
+    expect(runElapsed("tool_a", true, 95_000, 100_000)).toBe(5_000)
+  })
 })

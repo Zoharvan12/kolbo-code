@@ -9,6 +9,8 @@ import {
   matchModel,
   messageText,
   clipText,
+  toolCall,
+  callId,
   preferKolbo,
   referenceUrls,
   resolveKind,
@@ -141,6 +143,18 @@ describe("generation card kind + urls", () => {
   test("status polls are follow-ups, not a second generation", () => {
     expect(statusTool("get_generation_status")).toBe(true)
     expect(statusTool("generate_elements")).toBe(false)
+    // Even with urls, status tools must not mount generation.html — that was
+    // the Elements Video + Generations duplicate in chat.
+    expect(
+      uri(
+        undefined,
+        "get_generation_status",
+        { urls: ["https://media.kolbo.ai/kolboai-media/video-elements-results/abc/clip"] },
+      ),
+    ).toBeUndefined()
+    expect(uri(undefined, "generate_elements", { urls: ["https://media.kolbo.ai/x.mp4"] })).toBe(
+      "ui://kolbo/generation.html",
+    )
   })
 
   test("finished tool output beats a stale generating envelope", () => {
@@ -170,6 +184,57 @@ describe("generation card kind + urls", () => {
       urls: ["https://media.kolbo.ai/kolboai-media/video-elements-results/abc/clip"],
     })
   })
+
+  test("rebuilds Open in Kolbo from the session_id on the tool text", () => {
+    const data = structured(
+      JSON.stringify({
+        state: "completed",
+        generation_id: "gen_1",
+        session_id: "64cccccccccccccccccccccc",
+        project_id: "proj_1",
+        urls: ["https://media.kolbo.ai/kolboai-media/video-elements-results/abc/clip.mp4"],
+      }),
+      {
+        structuredContent: {
+          widget: "generation",
+          phase: "generating",
+          kind: "video",
+          urls: [],
+          generation_id: "gen_1",
+        },
+      },
+      { prompt: "walk" },
+      "generate_elements",
+    )
+    expect(data).toMatchObject({
+      phase: "completed",
+      session_id: "64cccccccccccccccccccccc",
+      open_url:
+        "https://app.kolbo.ai/video-tools?session=64cccccccccccccccccccccc&tool=image-to-video&mode=elements&project=proj_1",
+    })
+  })
+
+  test("keeps an existing open_url on a finished envelope", () => {
+    const href =
+      "https://app.kolbo.ai/video-tools?session=64dddddddddddddddddddddd&tool=image-to-video&mode=elements"
+    const data = structured(
+      undefined,
+      {
+        structuredContent: {
+          widget: "generation",
+          phase: "completed",
+          kind: "video",
+          tool: "generate_elements",
+          session_id: "64dddddddddddddddddddddd",
+          open_url: href,
+          urls: ["https://media.kolbo.ai/clip.mp4"],
+        },
+      },
+      undefined,
+      "generate_elements",
+    )
+    expect(data).toMatchObject({ open_url: href })
+  })
 })
 
 describe("widget → host bridge", () => {
@@ -187,6 +252,19 @@ describe("widget → host bridge", () => {
     expect(clipText({ text: "full prompt" })).toBe("full prompt")
     expect(clipText({ text: "" })).toBeUndefined()
     expect(clipText(undefined)).toBeUndefined()
+  })
+
+  test("reads name and id out of a tools/call request", () => {
+    // Stop used to empty-ack tools/call, so the card showed cancelled while the
+    // job kept running in the Kolbo app. Guard the shape the bridge actually sends.
+    expect(toolCall({ name: "cancel_generation", arguments: { generation_id: "gen_1" } })).toEqual({
+      name: "cancel_generation",
+      args: { generation_id: "gen_1" },
+    })
+    expect(callId({ generation_id: "gen_1" })).toBe("gen_1")
+    expect(callId({ job_id: "job_1" })).toBe("job_1")
+    expect(toolCall({ arguments: { generation_id: "gen_1" } })).toBeUndefined()
+    expect(callId({})).toBeUndefined()
   })
 })
 

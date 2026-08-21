@@ -103,6 +103,12 @@ async fn await_initialization(
     let stream = async {
         let e = *rx.borrow();
         let _ = events.send(e);
+        // If Done already landed before the webview subscribed (common in
+        // debug when the sidecar is healthy in <2s), do not wait for another
+        // watch change — that never comes and the UI stays on the splash forever.
+        if matches!(e, InitStep::Done) {
+            return;
+        }
 
         while rx.changed().await.is_ok() {
             let step = *rx.borrow_and_update();

@@ -45,15 +45,15 @@ import {
   openKolboLightbox,
   startMediaDrag,
 } from "./kolbo-media"
-import { card, costOf, player, read, urlsOf, type Operation } from "./kolbo-operation"
-import { generative, KolboMcpWidget, statusTool } from "./kolbo-mcp-widget"
+import { card, costOf, read, urlsOf, type Operation } from "./kolbo-operation"
+import { generative, KolboMcpWidget, resolveKind, statusTool } from "./kolbo-mcp-widget"
 import { usePlatformOps } from "../context/platform-ops"
 import { useKolboModels } from "../context/kolbo-models"
 import { Accordion } from "./accordion"
 import { StickyAccordionHeader } from "./sticky-accordion-header"
 import { Card } from "./card"
 import { HtmlArtifactCard } from "./html-artifact-card"
-import { dispatchArtifact, isHtmlPath, isMarkdownPath, type ArtifactLang } from "../lib/artifact"
+import { dispatchArtifact, dispatchArtifactDebounced, isHtmlPath, isMarkdownPath, isPlanPath, takeAgentOpen, type ArtifactLang } from "../lib/artifact"
 import { Collapsible } from "./collapsible"
 import { FileIcon } from "./file-icon"
 import { Icon } from "./icon"
@@ -1742,6 +1742,10 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
   const render = createMemo(() => {
     const state = part().state as { output?: string; metadata?: Record<string, unknown> }
     const tool = part().tool
+    const name = tool.replace(/^kolbo_/, "").replace(/^mcp__kolbo__/, "")
+    // get_generation_status / get_creative_director_status are recovery only —
+    // never a second generation card next to the original generate_*.
+    if (statusTool(name)) return () => null
     const widget = (state.metadata?.structuredContent as { widget?: unknown } | undefined)?.widget
     if (typeof widget === "string" && widget !== "generation") return KolboOperationCard
     if (read(state.output, state.metadata)) return KolboOperationCard
@@ -1751,7 +1755,6 @@ PART_MAPPING["tool"] = function ToolPartDisplay(props) {
     // (update_doc, list rows) mount a media card and render a logo as if it
     // were the output.
     if (hasGeneratedOutput(state.output)) return KolboOperationCard
-    const name = tool.replace(/^kolbo_/, "").replace(/^mcp__kolbo__/, "")
     if (name.startsWith("list_")) return KolboOperationCard
     if (generative(name)) return KolboOperationCard
     return ToolRegistry.render(tool) ?? GenericTool
@@ -1818,8 +1821,8 @@ export function MessageDivider(props: { label: string }) {
 }
 
 PART_MAPPING["compaction"] = function CompactionPartDisplay() {
-  const i18n = useI18n()
-  return <MessageDivider label={i18n.t("ui.messagePart.compaction")} />
+  // Compaction is a backend context reset — never show a chat divider for it.
+  return null
 }
 
 PART_MAPPING["text"] = function TextPartDisplay(props) {
@@ -1917,8 +1920,32 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   // and applies RTL `dir`). Cleaner, fewer hard-coded special cases.
   const displayText = createMemo(() => text())
 
+  // Plan mode often dumps the plan as chat markdown and never calls write on
+  // `.kolbo/plans/*.md`. Surface that body in Artifacts so the user can read
+  // it next to Canvas — same destination as a real plan-file write.
+  createEffect(
+    on(
+      () => {
+        if (props.message.role !== "assistant") return null
+        if ((props.message as AssistantMessage).agent !== "plan") return null
+        if (part().synthetic) return null
+        if (streaming()) return null
+        if (!isLastTextPart()) return null
+        const body = displayText()
+        if (body.length < 160) return null
+        if (!/^#{1,3}\s/m.test(body) && body.length < 400) return null
+        return body
+      },
+      (body) => {
+        if (!body) return
+        dispatchArtifact(body, "markdown", true, { title: i18n.t("ui.artifact.planTitle") })
+      },
+      { defer: true },
+    ),
+  )
+
   return (
-    <Show when={displayText()}>
+    <Show when={!part().synthetic && displayText()}>
       <div data-component="text-part">
         <div data-slot="text-part-body">
           <Show when={streaming()} fallback={<Markdown text={displayText()} cacheKey={part().id} streaming={false} />}>
@@ -2399,11 +2426,13 @@ ToolRegistry.register({
     const pending = () => props.status === "pending" || props.status === "running"
     const editPath = () => props.input.filePath || props.metadata?.filediff?.file || ""
     // Both types can be opened in the Artifacts panel by clicking the button on
-    // this row. Only HTML *auto*-opens (see the effect below): agents rewrite
-    // bookkeeping files (production.md, plans, notes) continuously, and popping
-    // the panel on every one of those edits hijacks the screen.
+    // this row. Only HTML *and session plan markdown* auto-open (see the effect
+    // below): agents rewrite bookkeeping files (production.md, notes)
+    // continuously, and popping the panel on every one of those edits hijacks
+    // the screen — but the plan file IS the deliverable in plan mode.
     const previewLang = (): ArtifactLang | null =>
       isHtmlPath(editPath()) ? "html" : isMarkdownPath(editPath()) ? "markdown" : null
+    const planFile = () => isPlanPath(editPath())
     // opencode's edit-tool metadata only ships {file, patch, additions,
     // deletions} — no before/after — so we re-read the file off disk to
     // get the full updated HTML.
@@ -2427,14 +2456,23 @@ ToolRegistry.register({
       { initialValue: "" },
     )
 
-    // Fire autoOpen only on the first dispatch per tool instance; subsequent
-    // edits to the same file refresh the canvas in place without yanking focus.
-    let autoOpened = false
+    // Agent edits remount a new tool row per hunk. autoOpen must be gated
+    // session-wide (takeAgentOpen), not per instance — otherwise every HTML
+    // tweak re-opens Artifacts and steals Canvas. Plan files always auto-open
+    // (the user must see the plan). Later non-plan edits still refresh the
+    // stored markup with autoOpen=false.
     createEffect(() => {
       const content = editedContent()
-      if (!content || pending() || previewLang() !== "html") return
-      dispatchArtifact(content, "html", !autoOpened)
-      autoOpened = true
+      if (!content || pending()) return
+      const lang = previewLang()
+      const meta = { path: editPath() }
+      if (lang === "html") {
+        dispatchArtifactDebounced(content, "html", takeAgentOpen(), 200, meta)
+        return
+      }
+      if (lang === "markdown" && planFile()) {
+        dispatchArtifactDebounced(content, "markdown", true, 200, meta)
+      }
     })
 
     // Expanding the row IS the "show me this file" gesture, so it opens the
@@ -2443,7 +2481,7 @@ ToolRegistry.register({
     const showInArtifacts = () => {
       const content = editedContent()
       const lang = previewLang()
-      if (content && lang) dispatchArtifact(content, lang)
+      if (content && lang) dispatchArtifact(content, lang, true, { path: editPath() })
     }
     const openInArtifacts = (e: MouseEvent) => {
       e.stopPropagation()
@@ -2456,6 +2494,7 @@ ToolRegistry.register({
           {...props}
           icon="code-lines"
           defer
+          defaultOpen={planFile()}
           onOpenChange={(open) => open && showInArtifacts()}
           trigger={
             <div data-component="edit-trigger">
@@ -2542,6 +2581,7 @@ ToolRegistry.register({
     const filename = () => getFilename(props.input.filePath ?? "")
     const pending = () => props.status === "pending" || props.status === "running"
     const isHtmlFile = () => !pending() && isHtmlPath(props.input.filePath)
+    const planFile = () => isPlanPath(props.input.filePath)
     const previewLang = (): ArtifactLang | null =>
       pending()
         ? null
@@ -2554,21 +2594,27 @@ ToolRegistry.register({
     const showInArtifacts = () => {
       const content = props.input.content
       const lang = previewLang()
-      if (content && lang) dispatchArtifact(content, lang)
+      if (content && lang) dispatchArtifact(content, lang, true, { path: props.input.filePath })
     }
 
-    // Only HTML auto-opens the panel. Markdown gets the Preview button above
-    // but never steals the screen: agents rewrite production.md / plans / notes
-    // continuously, and auto-opening on each write is pure interruption.
+    // HTML auto-opens once per session (takeAgentOpen). Session plan markdown
+    // always auto-opens — that file is the plan-mode deliverable. Other
+    // markdown (production.md etc.) never steals the screen.
     createEffect(
       on(
         () => props.status,
         (status, prev) => {
           if (prev !== "running" || status !== "completed") return
           const content = props.input.content
-          const lang = previewLang() === "html" ? "html" : null
-          if (!lang || !content) return
-          dispatchArtifact(content, lang)
+          if (!content) return
+          const meta = { path: props.input.filePath }
+          if (previewLang() === "html") {
+            dispatchArtifact(content, "html", takeAgentOpen(), meta)
+            return
+          }
+          if (previewLang() === "markdown" && planFile()) {
+            dispatchArtifact(content, "markdown", true, meta)
+          }
         },
         { defer: true },
       ),
@@ -2580,6 +2626,7 @@ ToolRegistry.register({
           {...props}
           icon="code-lines"
           defer
+          defaultOpen={planFile()}
           onOpenChange={(open) => open && showInArtifacts()}
           trigger={
             <div data-component="write-trigger">
@@ -2607,7 +2654,7 @@ ToolRegistry.register({
                       e.stopPropagation()
                       const content = props.input.content
                       const lang = previewLang()
-                      if (content && lang) dispatchArtifact(content, lang)
+                      if (content && lang) dispatchArtifact(content, lang, true, { path: props.input.filePath })
                     }}
                     title={i18n.t("ui.artifact.preview")}
                   >
@@ -3324,11 +3371,13 @@ function KolboOperationCard(props: {
     const env = op()
     return env ? card(env) : undefined
   })
+  // Before structuredContent lands, lift()/player() default kind to "image".
+  // Prefer the tool name so video/audio cards don't say "Generating image…".
   const kind = createMemo<KolboChipKind>(() => {
-    const play = view() ? player(op()!) : "image"
-    if (play === "audio") return "audio"
-    if (play === "video") return "video"
-    if (play === "model3d") return "model3d"
+    const resolved = resolveKind(op()?.kind, props.tool, urlsOf(op()))
+    if (resolved === "audio") return "audio"
+    if (resolved === "video") return "video"
+    if (resolved === "model3d") return "model3d"
     return "image"
   })
   const urls = createMemo(() => {
@@ -3337,6 +3386,7 @@ function KolboOperationCard(props: {
     return props.status === "completed" ? extractUrls(props.output) : []
   })
   const inFlight = createMemo(() => {
+    if (props.status === "error") return false
     if (urls().length > 0) return false
     if (op()?.phase === "completed" || op()?.phase === "failed") return false
     return true
@@ -3348,6 +3398,7 @@ function KolboOperationCard(props: {
   const labelKey = createMemo(() => kolboChipLabelKey(kind(), count()))
   const text = createMemo(() => {
     const label = i18n.t(labelKey())
+    if (isError()) return i18n.t("ui.kolbo.chip.failed", { label })
     if (inFlight()) {
       return count() > 1
         ? i18n.t("ui.kolbo.chip.generatingCount", { count: count(), label })
@@ -3417,9 +3468,38 @@ function KolboOperationCard(props: {
   const POLL_MS = 15_000
   const POLL_MAX = 240
   createEffect(() => {
+    if (props.status === "error") {
+      const env = reported()
+      if (!env || env.phase === "failed") return
+      const err =
+        (typeof (props.metadata as { error?: unknown } | undefined)?.error === "string"
+          ? (props.metadata as { error: string }).error
+          : "") ||
+        env.error ||
+        "Generation failed"
+      setResolved({ ...env, phase: "failed", error: err })
+    }
+  })
+  createEffect(() => {
     const env = reported()
+    if (env?.phase === "failed" && resolved()?.phase !== "failed") {
+      setResolved(env)
+      return
+    }
+    // Tool finished with no generation id and no media — it never started.
+    if (
+      props.status === "completed" &&
+      env &&
+      env.phase === "running" &&
+      !env.id &&
+      env.outputs.length === 0
+    ) {
+      setResolved({ ...env, phase: "failed", error: env.error || "Generation did not start" })
+      return
+    }
     const check = platformOps.generationStatus
     if (!check || !env || env.phase !== "running" || env.outputs.length > 0) return
+    if (props.status === "error") return
     // Watch even while the tool call is still blocked. generate_* can sit on
     // its poll window after the server is already done — waiting for
     // status=completed is what left the session card spinning.
@@ -3448,6 +3528,13 @@ function KolboOperationCard(props: {
         }
         await new Promise((done) => setTimeout(done, POLL_MS))
       }
+      if (stopped) return
+      // Poll window exhausted with no terminal state — stop pretending it's live.
+      setResolved({
+        ...env,
+        phase: "failed",
+        error: env.error || "Generation status could not be confirmed",
+      })
     })()
   })
   const cancel = async (event: MouseEvent) => {
@@ -3507,7 +3594,8 @@ function KolboOperationCard(props: {
     return total > MAX_CHIP_THUMBS ? total - MAX_CHIP_THUMBS : 0
   })
   const isVideoUrl = isVideoUrlShared
-  const hidePoll = createMemo(() => statusTool(props.tool) && urls().length === 0)
+  // Status recovery tools never render a card (see render() + uri()).
+  const hidePoll = createMemo(() => statusTool(props.tool))
 
   return (
     <div class="px-3 pb-2">

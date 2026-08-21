@@ -80,7 +80,7 @@ export namespace Session {
         created: row.time_created,
         updated: row.time_updated,
         compacting: row.time_compacting ?? undefined,
-        archived: row.time_archived ?? undefined,
+        archived: row.time_archived ? row.time_archived : undefined,
       },
     }
   }
@@ -328,7 +328,7 @@ export namespace Session {
     readonly touch: (sessionID: SessionID) => Effect.Effect<void>
     readonly get: (id: SessionID) => Effect.Effect<Info>
     readonly setTitle: (input: { sessionID: SessionID; title: string }) => Effect.Effect<void>
-    readonly setArchived: (input: { sessionID: SessionID; time?: number }) => Effect.Effect<void>
+    readonly setArchived: (input: { sessionID: SessionID; time?: number | null }) => Effect.Effect<void>
     readonly setPermission: (input: { sessionID: SessionID; permission: Permission.Ruleset }) => Effect.Effect<void>
     readonly setRuntimeAgent: (input: { sessionID: SessionID; agent: string | undefined }) => Effect.Effect<void>
     readonly setRevert: (input: {
@@ -555,8 +555,15 @@ export namespace Session {
         yield* patch(input.sessionID, { title: input.title })
       })
 
-      const setArchived = Effect.fn("Session.setArchived")(function* (input: { sessionID: SessionID; time?: number }) {
-        yield* patch(input.sessionID, { time: { archived: input.time } })
+      const setArchived = Effect.fn("Session.setArchived")(function* (input: {
+        sessionID: SessionID
+        time?: number | null
+      }) {
+        // Falsy time (null / 0 / undefined) clears time_archived. Pass null
+        // (not undefined) into the patch so the projector actually writes SQL NULL.
+        yield* patch(input.sessionID, {
+          time: { archived: (input.time ? input.time : null) as unknown as number | undefined },
+        })
       })
 
       const setPermission = Effect.fn("Session.setPermission")(function* (input: {
@@ -700,8 +707,9 @@ export namespace Session {
     runPromise((svc) => svc.setTitle(input)),
   )
 
-  export const setArchived = fn(z.object({ sessionID: SessionID.zod, time: z.number().optional() }), (input) =>
-    runPromise((svc) => svc.setArchived(input)),
+  export const setArchived = fn(
+    z.object({ sessionID: SessionID.zod, time: z.number().nullable().optional() }),
+    (input) => runPromise((svc) => svc.setArchived(input)),
   )
 
   export const setRevert = fn(

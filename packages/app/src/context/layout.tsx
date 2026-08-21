@@ -49,7 +49,7 @@ type SessionView = {
 }
 
 export type CanvasMode = "session" | "library"
-const DEFAULT_CANVAS_MODE: CanvasMode = "session"
+const DEFAULT_CANVAS_MODE: CanvasMode = "library"
 
 const DEFAULT_CANVAS_GRID_COLS = 2
 

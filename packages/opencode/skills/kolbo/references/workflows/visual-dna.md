@@ -63,11 +63,12 @@ When the user says "use the model אסתר" but you've only created a DNA for "�
 
 ## ⚠️ Don't re-fetch / re-list your own outputs (CRITICAL)
 
-After a generation tool returns its URLs, those URLs are **already** in the canvas (the desktop app's gallery panel) and in `.kolbo/production.md`. Do **NOT** call `list_media`, `get_media`, `get_media_stats`, `list_visual_dnas`, or `chat_send_message` with `media_urls` on those URLs just to "verify" or "fetch thumbnails of the results":
+After a generation tool returns its URLs, those URLs are **already** in **Library** (right panel — This session) and in `.kolbo/production.md`. Do **NOT** call `list_media`, `get_media`, `get_media_stats`, `list_visual_dnas`, or `chat_send_message` with `media_urls` on those URLs just to "verify" or "fetch thumbnails of the results":
 
 - It burns credits and time for zero new information.
-- Every such tool call streams partial output into the session, which forces the desktop canvas to re-evaluate (visible flicker on the gallery tiles).
+- Every such tool call streams partial output into the session, which forces Library to re-evaluate (visible flicker on the gallery tiles).
 - The thumbnails returned by `list_media` / `get_media` are the SAME asset you just generated.
+- A black chat generation card while `Generating` is normal — do not treat it as missing output.
 
 **Only call list/get media tools when:**
 - The user explicitly asks ("what do I have in my library?", "show me my old DNAs").

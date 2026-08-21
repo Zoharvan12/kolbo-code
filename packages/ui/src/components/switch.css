@@ -113,8 +113,9 @@
   }
 
   &[data-checked]:hover:not([data-disabled], [data-readonly]) [data-slot="switch-control"] {
-    border-color: var(--border-hover);
-    background-color: var(--surface-hover);
+    border-color: var(--icon-strong-base);
+    background-color: var(--icon-strong-base);
+    filter: brightness(1.08);
   }
 
   &[data-disabled] {

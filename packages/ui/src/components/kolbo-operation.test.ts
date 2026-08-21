@@ -158,6 +158,22 @@ describe("kolbo.operation/1 host contract", () => {
     expect(env?.id).toBe("gen_abc")
   })
 
+  test("failed / cancelled server state is not painted as generating", () => {
+    expect(
+      read(
+        JSON.stringify({
+          state: "failed",
+          generation_id: "gen_bad",
+          error: "provider rejected",
+          phase: "generating",
+        }),
+      ),
+    ).toMatchObject({ phase: "failed", error: "provider rejected", id: "gen_bad" })
+    expect(
+      read(JSON.stringify({ state: "cancelled", generation_id: "gen_x", widget: "generation" })),
+    ).toMatchObject({ phase: "failed", id: "gen_x" })
+  })
+
   test("a record with an id but no media is not a generation", () => {
     expect(read(JSON.stringify({ id: "doc_1", title: "Brief", credits_used: 0 }))).toBeUndefined()
   })

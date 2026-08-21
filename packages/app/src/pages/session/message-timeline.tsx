@@ -12,6 +12,7 @@ import { InlineInput } from "@opencode-ai/ui/inline-input"
 import { SquareLoader } from "@opencode-ai/ui/square-loader"
 import { getToolInfo } from "@opencode-ai/ui/message-part"
 import { SessionTurn } from "@opencode-ai/ui/session-turn"
+import { internalUser } from "@opencode-ai/ui/session-turn-visibility"
 import { ScrollView } from "@opencode-ai/ui/scroll-view"
 import { TextField } from "@opencode-ai/ui/text-field"
 import type { AssistantMessage, Message as MessageType, Part, TextPart, UserMessage } from "@opencode-ai/sdk/v2"
@@ -343,15 +344,25 @@ export function MessageTimeline(props: {
     const parentID = pending()?.parentID
     if (parentID) {
       const messages = sessionMessages()
-      const message = messages.find((item) => item.id === parentID)
-      if (message && message.role === "user") return message.id
+      const index = messages.findIndex((item) => item.id === parentID)
+      // Walk back through hidden compaction / synthetic users so the thinking
+      // indicator stays on the latest real user turn.
+      for (let i = index < 0 ? messages.length - 1 : index; i >= 0; i--) {
+        const item = messages[i]
+        if (!item || item.role !== "user") continue
+        if (internalUser(sync.data.part[item.id] ?? [])) continue
+        return item.id
+      }
     }
 
     const status = sessionStatus()
     if (status.type !== "idle") {
       const messages = sessionMessages()
       for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === "user") return messages[i].id
+        const item = messages[i]
+        if (!item || item.role !== "user") continue
+        if (internalUser(sync.data.part[item.id] ?? [])) continue
+        return item.id
       }
     }
 

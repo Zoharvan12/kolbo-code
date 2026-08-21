@@ -120,7 +120,14 @@ const NON_EMPTY_TEXT = /[^\s\u200B]/
 // Map agent name \u2192 icon (build/auto-approve/plan are first-party native
 // agents from packages/opencode/src/agent/agent.ts:181-220; user agents
 // fall through to a sensible default).
-type KolboAsset = { id: string; name: string; thumbnail?: string; dnaType?: string }
+type KolboAsset = {
+  id: string
+  name: string
+  thumbnail?: string
+  dnaType?: string
+  description?: string
+  images?: string[]
+}
 
 type AgentIconName = "pencil-line" | "circle-check" | "checklist" | "magnifying-glass" | "brain"
 function agentIcon(name?: string): AgentIconName {
@@ -1032,16 +1039,18 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         globalLoading={globalDnasLoading()}
         onNeedGlobal={loadGlobalDnas}
         initialTab={initialTab}
-        onSelect={(kind, item) =>
-          handleAtSelect({
-            type: kind,
-            id: item.id,
-            name: item.name,
-            display: item.name,
-            thumbnail: item.thumbnail,
-            ...(kind === "visual-dna" ? { dnaType: item.dnaType } : {}),
-          })
-        }
+        onSelect={(kind, items) => {
+          for (const item of items) {
+            handleAtSelect({
+              type: kind,
+              id: item.id,
+              name: item.name,
+              display: item.name,
+              thumbnail: item.thumbnail,
+              ...(kind === "visual-dna" ? { dnaType: item.dnaType } : {}),
+            })
+          }
+        }}
       />
     ))
 
@@ -1633,12 +1642,11 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     return submitPrompt(event)
   }
 
-  // A Kolbo widget's "Use" / "Load more" button (window.kolbo.sendMessage →
-  // ui/message → kolbo:attach-media's sibling event, see kolbo-mcp-widget.tsx).
-  // The widget is a sandboxed cross-origin iframe with no way to reach the
-  // session itself, so it hands the composer a finished sentence to send. Goes
-  // through the normal submit path so queue-while-busy, history and attachments
-  // all behave exactly as if the user had typed it.
+  // A Kolbo widget's "Load more" / retry (window.kolbo.sendMessage →
+  // ui/message). The widget is a sandboxed cross-origin iframe with no way to
+  // reach the session itself, so it hands the composer a finished sentence to
+  // send. Goes through the normal submit path so queue-while-busy, history and
+  // attachments all behave exactly as if the user had typed it.
   const handleWidgetMessage = (event: Event) => {
     const text = (event as CustomEvent<{ text?: unknown }>).detail?.text
     if (typeof text !== "string" || !text.trim()) return
@@ -1647,9 +1655,33 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     void handleSubmit(new Event("submit"))
   }
 
+  // Use / DNA / preset click — paste the id into the composer and leave it
+  // there. Do not send. The iframe click stole focus, so always append at end.
+  const handleWidgetInsert = (event: Event) => {
+    const raw = (event as CustomEvent<{ text?: unknown }>).detail?.text
+    if (typeof raw !== "string" || !raw.trim() || !editorRef) return
+    const token = raw.trim()
+    const chunk = getTextLength(editorRef) > 0 ? ` ${token}` : token
+    requestAnimationFrame(() => {
+      editorRef.focus()
+      const range = document.createRange()
+      const selection = window.getSelection()
+      range.selectNodeContents(editorRef)
+      range.collapse(false)
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+      document.execCommand("insertText", false, chunk)
+      handleInput()
+    })
+  }
+
   onMount(() => {
     document.addEventListener("kolbo:send-message", handleWidgetMessage)
-    onCleanup(() => document.removeEventListener("kolbo:send-message", handleWidgetMessage))
+    document.addEventListener("kolbo:insert-text", handleWidgetInsert)
+    onCleanup(() => {
+      document.removeEventListener("kolbo:send-message", handleWidgetMessage)
+      document.removeEventListener("kolbo:insert-text", handleWidgetInsert)
+    })
   })
 
   const handleKeyDown = (event: KeyboardEvent) => {

@@ -15,8 +15,15 @@ Load this file when the user wants a **Seedance 2 / Seedance 2.0** (ByteDance) v
 
 - **Visual DNA names are immutable anchors:** when `visual_dna_ids` is passed, every DNA MUST appear in the prompt as the exact literal `@DNA_name` (CAST + every shot it is in). Never "Zohar's", "the left man", "the man on the LEFT", a nickname, or a Visual DNA anchors paragraph without `@tags`.
 - **Rewrites never thin out or rename anchors.** "`@X anchors Odysseus`" is NOT a reference line, and `Odysseus` must never replace `@X` later. Every referenced asset keeps its exact literal tag plus a full role line on every rewrite. Re-use the exact DNA tag in every shot it participates in. A compile that dropped `@gal_suit` / `@yonatan` / `#Board` is a failed turn.
-- **First line ALWAYS declares shot structure**: total duration, shot count, aspect ratio. Example: `Total: 15s / 6 shots / 16:9`. Put it at the BOTTOM of the prompt too. For connected narrative sequences the proven phrasing is `N connected cinematic shots, 15 seconds total, 16:9, Multishot ON` — use it and keep `Multishot ON` for any multi-shot story.
-- **Then the Locked Intro** — `[GLOBAL LOOK]` / `[CAST]` / `[LOCATION]` — before any shot. A one-liner `same character throughout` is not a character lock.
+- **DURATION + SHOT STRUCTURE (HARD — same as help widget):** every text-to-video / Elements prompt MUST open AND close with total duration, shot count, and aspect. Omit only for video-edit tasks (source duration is locked). Required first lines:
+  1. `N connected cinematic shots, Xs total, AR, Multishot ON`
+  2. `Total: Xs / N shots / AR`
+  Then Locked Intro, then `SHOT N — 0:00–0:02 — Size / camera` beats whose ranges **sum exactly to Xs**. Last line repeats `Total: Xs / N shots / AR`.
+  - Example (15s / 6 shots): `6 connected cinematic shots, 15 seconds total, 16:9, Multishot ON` + `Total: 15s / 6 shots / 16:9`
+  - UGC / phone vertical: `N connected phone shots, Xs total, 9:16, Multishot ON` (never the word "cinematic").
+  - A prompt with only shot body and no Total / Multishot header is a **failed turn** — rewrite before calling `generate_*`.
+- **MCP `duration` must match the Total line.** Pass `duration: X` (whole seconds) on `generate_video` / `generate_elements` / `generate_video_from_image` equal to the `Xs` in `Total: Xs / …`. Mismatch = wrong-length clip.
+- **Then the Locked Intro** — `[GLOBAL LOOK]` / `[CAST]` / `[LOCATION]` (+ LOCATION MAP / CONTINUITY / PHYSICS for multi-shot) — before any shot. A one-liner `same character throughout` is not a character lock.
 - **Order inside each shot**: Subject → Action → Camera → Constraints → (Audio/SFX if relevant). Do NOT restack GLOBAL LOOK style inside the shot.
 - **Prompt length**: simple single-idea pieces ~120–280 words. Locked-intro cinematic typically 400–900 words. Shorter than ~120 words = random output. The 8000-char cap below always wins.
 - **Shot count is user-directed.** If the user asks for N shots, deliver exactly N in one prompt unless they ask to split.
@@ -32,11 +39,11 @@ Load this file when the user wants a **Seedance 2 / Seedance 2.0** (ByteDance) v
 
 ## Locked Intro (DEFAULT for any multi-shot cinematic — including Elements)
 
-After the Total line, every multi-shot prompt — and any piece with recurring people or a recurring place — opens with three locked blocks. Skip only for: true single-shot POV/orb, 3×3 grid-panel mode, or video-edit tasks.
+After the Total lines, every multi-shot prompt — and any piece with recurring people or a recurring place — opens with the locked blocks. Skip only for: true single-shot POV/orb, 3×3 grid-panel mode, or video-edit tasks.
 
 ```
-Total: Xs / N shots / AR
 N connected cinematic shots, Xs total, AR, Multishot ON
+Total: Xs / N shots / AR
 
 [GLOBAL LOOK – LOCKED, APPLIES TO EVERY SHOT]
 <body>, <lens family>, <film stock>, <aspect> spherical, <stop>. <DoF, grain, grade as law>. <movement grammar>. <performance + audio law>.
@@ -48,13 +55,36 @@ PROP: recurring object.
 [LOCATION]
 Place in materials + light + color field. Blocking. Background LIFE.
 
+[LOCATION MAP]
+Named seats / sides in SCREEN language (screen-left armchair, center couch, door camera-left).
+
+[CONTINUITY – LOCKED ACROSS EVERY CUT]
+Axis / camera side of the line. Screen direction. Eyelines. Floor props stay. Which hand holds what. No teleport.
+
+[PHYSICS]
+Weight into furniture, props resting, cloth/hair settle, no float.
+
 SHOT 1 — 0:00–0:02 — Medium / camera position
 (physical verbs, timed acting, quoted dialogue)
-…
+SHOT 2 — 0:02–0:05 — …
+… (ranges MUST sum to Xs)
 Total: Xs / N shots / AR
+POSITIVE LOCKS: <2–4 sentences restating positions / mouth / optical signature>
 ```
 
 When a Visual DNA exists, its exact `@DNA_name` IS the cast name — never place a nickname before it or substitute one later. For plain image refs use `@ImageN`.
+
+## OUTPUT CONTRACT (WINS — same as help widget)
+
+ONE fenced prompt. Required shape or the turn failed:
+1. `N connected cinematic shots, Xs total, AR, Multishot ON`
+2. `Total: Xs / N shots / AR`
+3. GLOBAL LOOK → CAST → LOCATION → LOCATION MAP → CONTINUITY → PHYSICS (dense, before any shot)
+4. `SHOT 1 — 0:00–0:02 — …` through SHOT N; timecodes sum to Xs; continuity bridge after SHOT 1
+5. Closing `Total: Xs / N shots / AR` + short POSITIVE LOCKS
+6. Tool call `duration` = Xs
+
+FORBIDDEN: omitting Total / Multishot; "same character throughout" as the only lock; one fence per shot; `[0s]`/`[3s]` stubs; splitting a ≤15s story into multiple generations unless the user asks.
 
 ## The 5 Formats
 

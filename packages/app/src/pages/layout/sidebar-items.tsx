@@ -78,6 +78,7 @@ export type SessionItemProps = {
   clearHoverProjectSoon: () => void
   prefetchSession: (session: Session, priority?: "high" | "low") => void
   archiveSession: (session: Session) => Promise<void>
+  unarchiveSession: (session: Session) => Promise<void>
 }
 
 const SessionRow = (props: {
@@ -218,16 +219,10 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
         style={{ "padding-left": `${8 + (props.level ?? 0) * 16}px` }}
       >
         <div class="flex min-w-0 items-center gap-1">
-          <Show when={props.session.time.archived}>
-            <span
-              class="shrink-0 text-text-weak/70"
-              aria-label={language.t("common.archive")}
-              title={language.t("common.archive")}
-            >
-              <Icon name="archive" size="small" />
-            </span>
-          </Show>
-          <div class="min-w-0 flex-1">
+          <div
+            class="min-w-0 flex-1"
+            classList={{ "opacity-55": !!props.session.time.archived }}
+          >
             <Show
               when={!tooltip()}
               fallback={
@@ -245,16 +240,9 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
             </Show>
           </div>
 
-          <Show when={!props.level}>
-            <div
-              class="shrink-0 overflow-hidden transition-[width,opacity]"
-              classList={{
-                "w-6 opacity-100 pointer-events-auto": !!props.mobile,
-                "w-0 opacity-0 pointer-events-none": !props.mobile,
-                "group-hover/session:w-6 group-hover/session:opacity-100 group-hover/session:pointer-events-auto": true,
-                "group-focus-within/session:w-6 group-focus-within/session:opacity-100 group-focus-within/session:pointer-events-auto": true,
-              }}
-            >
+          {/* One control: archive OR restore — never both. */}
+          <Show when={!props.level && !props.session.time.archived}>
+            <div class="shrink-0 w-6 opacity-70 group-hover/session:opacity-100 group-focus-within/session:opacity-100 transition-opacity">
               <Tooltip value={language.t("common.archive")} placement="top">
                 <IconButton
                   icon="archive"
@@ -265,6 +253,23 @@ export const SessionItem = (props: SessionItemProps): JSX.Element => {
                     event.preventDefault()
                     event.stopPropagation()
                     void props.archiveSession(props.session)
+                  }}
+                />
+              </Tooltip>
+            </div>
+          </Show>
+          <Show when={!props.level && !!props.session.time.archived}>
+            <div class="shrink-0 w-6 opacity-70 group-hover/session:opacity-100 group-focus-within/session:opacity-100 transition-opacity">
+              <Tooltip value={language.t("common.restore")} placement="top">
+                <IconButton
+                  icon="reset"
+                  variant="ghost"
+                  class="size-6 rounded-md"
+                  aria-label={language.t("common.restore")}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    void props.unarchiveSession(props.session)
                   }}
                 />
               </Tooltip>

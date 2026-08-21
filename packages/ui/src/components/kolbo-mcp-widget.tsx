@@ -21,6 +21,7 @@ const BY_TOOL: Record<string, string> = {
   list_session_generations: BY_WIDGET.list,
   list_projects: BY_WIDGET.list,
   list_project_context: BY_WIDGET.list,
+  list_project_assets: BY_WIDGET.list,
   list_agents: BY_WIDGET.list,
   list_docs: BY_WIDGET.list,
   list_media_folders: BY_WIDGET.list,
@@ -69,11 +70,9 @@ export function uri(meta?: Record<string, unknown>, tool?: string, data?: unknow
     return BY_TOOL[toolName]
   }
   if (toolName.startsWith("list_")) return BY_WIDGET.list
-  // A status poll with no media yet is not a second generation card.
-  if (statusTool(toolName)) {
-    const urls = rec(data)?.urls
-    if (!Array.isArray(urls) || urls.length === 0) return undefined
-  }
+  // Status polls never get a generation card — even with urls. Showing one
+  // duplicated the original generate_* card (Elements Video + Generations).
+  if (statusTool(toolName)) return undefined
   // Nothing else falls back to the generation card. generation.html boots as a
   // "Generating" spinner and only leaves it once an operation payload arrives,
   // so mounting it for a tool that will never produce one (chat_send_message,
@@ -143,6 +142,19 @@ export function clipText(params: unknown): string | undefined {
   return p.text
 }
 
+/** Name + args of a widget `tools/call` request. */
+export function toolCall(params: unknown): { name: string; args: Record<string, unknown> } | undefined {
+  const p = rec(params)
+  if (!p || typeof p.name !== "string" || !p.name) return
+  return { name: p.name, args: rec(p.arguments) ?? rec(p.args) ?? {} }
+}
+
+/** Generation / job id a widget tool call wants to cancel or poll. */
+export function callId(args: Record<string, unknown>): string | undefined {
+  const id = args.generation_id ?? args.generationId ?? args.job_id
+  return typeof id === "string" && id ? id : undefined
+}
+
 function presetLookup(data: unknown) {
   const row = rec(data)
   if (!row) return false
@@ -200,10 +212,10 @@ export function catalogTypes(route: string, tool: string): string[] {
 }
 
 /**
- * Status checks are follow-ups, not a second generation. While they are still
- * waiting they used to mount another full "Generating" card on top of the
- * original generate_* card (title "Kolbo Generations", kind defaulting to
- * image). Only show a result card once there is media to display.
+ * Status checks are follow-ups, not a second generation. They used to mount
+ * another full card ("Kolbo Generations") on top of the original generate_*
+ * card once urls arrived. Hide them entirely in chat — the generate_* card
+ * (and Canvas) already recover the media via polling.
  */
 export function statusTool(tool?: string) {
   const name = bare(tool)
@@ -492,6 +504,66 @@ export function structured(
   return data && typeof data === "object" ? unwrap(data) : data
 }
 
+const APP = "https://app.kolbo.ai"
+const ROUTES: Record<string, { path: string; tool?: string; mode?: string }> = {
+  generate_image: { path: "/image-tools", tool: "text-to-image" },
+  generate_image_edit: { path: "/image-tools", tool: "image-editing" },
+  edit_image: { path: "/image-tools", tool: "image-editing" },
+  generate_video: { path: "/video-tools", tool: "text-to-video" },
+  generate_video_from_image: { path: "/video-tools", tool: "image-to-video" },
+  generate_elements: { path: "/video-tools", tool: "image-to-video", mode: "elements" },
+  generate_first_last_frame: { path: "/video-tools", tool: "image-to-video", mode: "first-last" },
+  generate_video_from_video: { path: "/video-tools", tool: "video-to-video" },
+  generate_lipsync: { path: "/video-tools", tool: "lipsync" },
+  generate_music: { path: "/audio-tools", tool: "music-generator" },
+  generate_speech: { path: "/audio-tools", tool: "text-to-speech" },
+  generate_sound: { path: "/audio-tools", tool: "text-to-sound" },
+  transcribe_audio: { path: "/audio-tools", tool: "speech-to-text" },
+  generate_creative_director: { path: "/creative-director" },
+}
+
+function textObj(output?: string) {
+  if (!output) return
+  try {
+    return rec(JSON.parse(output))
+  } catch {
+    return
+  }
+}
+
+function sid(obj?: Record<string, unknown>, output?: string, input?: Record<string, unknown>) {
+  const pick = (value: unknown) => (typeof value === "string" && value ? value : undefined)
+  const parsed = textObj(output)
+  return pick(obj?.session_id) || pick(obj?.sessionId) || pick(parsed?.session_id) || pick(input?.session_id)
+}
+
+function href(tool: string | undefined, obj?: Record<string, unknown>, output?: string, input?: Record<string, unknown>) {
+  if (typeof obj?.open_url === "string" && obj.open_url) return obj.open_url
+  const id = sid(obj, output, input)
+  const named = typeof obj?.tool === "string" ? obj.tool : tool
+  const route = named ? ROUTES[bare(named)] : undefined
+  if (!route || !id) return
+  let url = `${APP}${route.path}?session=${encodeURIComponent(id)}`
+  if (route.tool) url += `&tool=${route.tool}`
+  if (route.mode) url += `&mode=${route.mode}`
+  const parsed = textObj(output)
+  const pid =
+    (typeof obj?.project_id === "string" && obj.project_id) ||
+    (typeof parsed?.project_id === "string" && parsed.project_id) ||
+    (typeof input?.project_id === "string" && input.project_id)
+  if (pid) url += `&project=${encodeURIComponent(pid)}`
+  return url
+}
+
+function linked(data: unknown, output?: string, input?: Record<string, unknown>, tool?: string) {
+  const obj = rec(data)
+  if (!obj || (obj.widget && obj.widget !== "generation")) return data
+  const url = href(tool, obj, output, input)
+  const id = sid(obj, output, input)
+  if (!url && !id) return data
+  return { ...obj, ...(id ? { session_id: id } : {}), ...(url ? { open_url: url } : {}) }
+}
+
 function build(
   output?: string,
   metadata?: Record<string, unknown>,
@@ -508,7 +580,7 @@ function build(
     // after the tool result already has the media. Prefer the finished
     // payload or the card never leaves the spinner.
     if (fromMeta && typeof fromMeta === "object") {
-      const next = shaped(fromMeta, tool)
+      const next = linked(shaped(fromMeta, tool), output, input, tool)
       if (!stale(next, done)) return next
     }
     const fromText = listed(output)
@@ -517,7 +589,7 @@ function build(
   const op = resolved ?? read(output, metadata)
   if (!op) return
   const urls = preferKolbo(op.outputs.map((item) => item.url).filter(Boolean))
-  return shaped({
+  return linked(shaped({
     widget: "generation",
     // "review" is this app's own pre-flight envelope (describe(), sent before
     // the tool call even runs) — Kolbo Code auto-approves every tool call
@@ -557,7 +629,7 @@ function build(
       moodboard_ids: input?.moodboard_ids,
       preset_id: input?.preset_id,
     },
-  }, tool)
+  }, tool), output, input, tool)
 }
 
 function stale(meta: unknown, op?: Operation) {
@@ -566,7 +638,9 @@ function stale(meta: unknown, op?: Operation) {
   const urls = Array.isArray(obj.urls) ? obj.urls : []
   if (urls.length) return false
   if (obj.phase !== "generating" && obj.phase !== "running") return false
-  return !!op && (op.phase === "completed" || op.outputs.length > 0)
+  if (!op) return false
+  if (op.phase === "failed") return true
+  return op.phase === "completed" || op.outputs.length > 0
 }
 
 function shaped(data: unknown, tool?: string) {
@@ -675,15 +749,29 @@ export function KolboMcpWidget(props: {
   createEffect(() => {
     const htmlFn = ops.mcpWidget
     const preview = ops.htmlPreviewUrl
-    const target = uri(props.metadata, props.tool, untrack(payload))
+    // Track the tool name only. Progress pings rewrite props.metadata (and
+    // thus structuredContent) many times while generate_* is in flight — if
+    // those reads are reactive here, every ping tears down the iframe before
+    // ui/initialized, so onReady never fires and the chat stays stuck on the
+    // tiny "Generating…" chip instead of the MCP generation card.
+    const tool = props.tool
+    const target = uri(
+      untrack(() => props.metadata),
+      tool,
+      untrack(payload),
+    )
     if (!htmlFn || !preview || !target) return
+    // Already handshake-complete for this tool — content updates via push().
+    if (untrack(live) && untrack(src)) return
     let gone = false
     void htmlFn(target).then(async (html) => {
       if (gone || !html) return
       const url = await preview(html)
       if (!gone && url) {
         setSrc(url)
-        props.onReady?.()
+        // Do NOT call onReady here — the iframe is still a blank black frame
+        // until ui/notifications/initialized. Early onReady hid the fallback
+        // chip/pending UI and left a 280px empty hole in the chat.
       }
     })
     onCleanup(() => {
@@ -714,6 +802,7 @@ export function KolboMcpWidget(props: {
     if (msg.method === "ui/notifications/initialized") {
       setLive(true)
       push()
+      props.onReady?.()
       return
     }
     if (msg.method === "ui/notifications/size-changed") {
@@ -726,16 +815,19 @@ export function KolboMcpWidget(props: {
       return
     }
     if (msg.method === "ui/message") {
-      // window.kolbo.sendMessage() — every "Use" button on a media-grid /
-      // catalog / list card, plus the grid's "Load more". The bridge posts
-      // ui/message and awaits the reply; this host had no case for it, so the
-      // request fell through to the bare ack below without ever reaching the
-      // session and the buttons did nothing at all. A widget is a sandboxed
+      // window.kolbo.sendMessage() — Load more / retry / recreate. The bridge
+      // posts ui/message and awaits the reply. A widget is a sandboxed
       // cross-origin iframe, so the text goes to the composer over a document
-      // event, exactly like ui/attach-media hands over a URL (listener:
-      // prompt-input.tsx handleWidgetMessage).
+      // event (listener: prompt-input.tsx handleWidgetMessage) and is SENT.
       const text = messageText(msg.params)
       if (text) document.dispatchEvent(new CustomEvent("kolbo:send-message", { detail: { text } }))
+      if (msg.id != null) reply(msg.id, {})
+      return
+    }
+    if (msg.method === "ui/insert-text") {
+      // Use / row click — paste an id into the composer, do not send.
+      const text = clipText(msg.params)
+      if (text) document.dispatchEvent(new CustomEvent("kolbo:insert-text", { detail: { text } }))
       if (msg.id != null) reply(msg.id, {})
       return
     }
@@ -745,6 +837,69 @@ export function KolboMcpWidget(props: {
       const text = clipText(msg.params)
       if (text) void navigator.clipboard.writeText(text).catch(() => undefined)
       if (msg.id != null) reply(msg.id, {})
+      return
+    }
+    if (msg.method === "tools/call") {
+      // Stop / status from the generation card. The bridge posts tools/call
+      // and awaits a CallToolResult. This host used to empty-ack every unknown
+      // method, so Stop painted "cancelled" while the job kept running in the
+      // Kolbo app. Route the two calls we can honor; refuse the rest.
+      const call = toolCall(msg.params)
+      const id = call ? callId(call.args) : undefined
+      const done = (result: unknown) => {
+        if (msg.id != null) reply(msg.id, result)
+      }
+      if (call && (call.name === "cancel_generation" || call.name === "shorts_cancel") && id && ops.cancelGeneration) {
+        void ops
+          .cancelGeneration(id)
+          .then(() =>
+            done({
+              structuredContent: { cancelled: true, generation_id: id, state: "cancelled" },
+              content: [{ type: "text", text: JSON.stringify({ cancelled: true, generation_id: id }) }],
+            }),
+          )
+          .catch((err: unknown) =>
+            done({
+              structuredContent: {
+                cancelled: false,
+                generation_id: id,
+                reason: err instanceof Error ? err.message : "cancel failed",
+              },
+              content: [{ type: "text", text: JSON.stringify({ cancelled: false }) }],
+            }),
+          )
+        return
+      }
+      if (call && (statusTool(call.name) || call.name === "shorts_status") && id && ops.generationStatus) {
+        void ops.generationStatus(id).then(
+          (st) => {
+            const state = st?.state || "processing"
+            const urls = st?.urls || []
+            const body = {
+              state,
+              phase: state,
+              urls,
+              credits_used: st?.credits,
+              error: st?.error,
+              result: { urls },
+            }
+            done({
+              structuredContent: body,
+              content: [{ type: "text", text: JSON.stringify(body) }],
+            })
+          },
+          () =>
+            done({
+              structuredContent: { state: "processing" },
+              content: [{ type: "text", text: JSON.stringify({ state: "processing" }) }],
+            }),
+        )
+        return
+      }
+      done({
+        isError: true,
+        content: [{ type: "text", text: "This host cannot run that tool from the widget" }],
+      })
       return
     }
     if (msg.method === "ui/attach-media") {
@@ -794,25 +949,35 @@ export function KolboMcpWidget(props: {
 
   return (
     <Show when={src()}>
-      <iframe
-        ref={frame}
-        src={src()}
-        title="Kolbo"
-        sandbox="allow-scripts allow-same-origin allow-popups"
-        // Without these the <video> element's fullscreen button is inert: the
-        // Fullscreen API is gated per-frame, so a cross-origin iframe has to be
-        // granted it explicitly. `allow` is the modern form, `allowfullscreen`
-        // the legacy attribute some webviews still key on — send both.
-        allow="fullscreen; clipboard-write"
-        allowfullscreen
+      {/* Absolute + clipped until handshake so the chat doesn't reserve a
+          black empty hole while the widget HTML boots. */}
+      <div
         style={{
+          position: live() ? "relative" : "absolute",
           width: "100%",
-          height: `${h()}px`,
-          border: "0",
+          height: live() ? `${h()}px` : "0",
+          overflow: "hidden",
           "border-radius": "16px",
-          background: "transparent",
+          "pointer-events": live() ? "auto" : "none",
         }}
-      />
+      >
+        <iframe
+          ref={frame}
+          src={src()}
+          title="Kolbo"
+          sandbox="allow-scripts allow-same-origin allow-popups"
+          allow="fullscreen; clipboard-write"
+          allowfullscreen
+          style={{
+            width: "100%",
+            height: `${Math.max(h(), 180)}px`,
+            border: "0",
+            "border-radius": "16px",
+            background: "transparent",
+            opacity: live() ? "1" : "0",
+          }}
+        />
+      </div>
     </Show>
   )
 }

@@ -27,6 +27,7 @@ import { createAutoScroll } from "../hooks"
 import { useI18n } from "../context/i18n"
 import { usePlatformOps } from "../context/platform-ops"
 import { normalize } from "./session-diff"
+import { hiddenAssistant, internalUser } from "./session-turn-visibility"
 
 const KOLBO_BILLING_URL = "https://app.kolbo.ai/pricing"
 
@@ -263,7 +264,25 @@ export function SessionTurn(
     const msg = message()
     const parent = pendingUser()
     if (!msg || !parent) return false
-    return parent.id === msg.id
+    if (parent.id === msg.id) return true
+
+    // Pending work may sit under a hidden compaction / synthetic user that
+    // follows this real turn — keep the thinking indicator on the visible turn.
+    const messages = allMessages() ?? emptyMessages
+    const index = messageIndex()
+    if (index < 0) return false
+    for (let i = index + 1; i < messages.length; i++) {
+      const item = messages[i]
+      if (!item) continue
+      if (item.role !== "user") continue
+      if (item.id === parent.id) {
+        const next = list(data.store.part?.[item.id], emptyParts)
+        return internalUser(next)
+      }
+      const next = list(data.store.part?.[item.id], emptyParts)
+      if (!internalUser(next)) return false
+    }
+    return false
   })
 
   const parts = createMemo(() => {
@@ -271,8 +290,6 @@ export function SessionTurn(
     if (!msg) return emptyParts
     return list(data.store.part?.[msg.id], emptyParts)
   })
-
-  const compaction = createMemo(() => parts().find((part) => part.type === "compaction"))
 
   const diffs = createMemo(() => {
     const files = message()?.summary?.diffs
@@ -312,12 +329,21 @@ export function SessionTurn(
       const index = messageIndex()
       if (index < 0) return emptyAssistant
 
+      // Fold assistants from following compaction / synthetic-continue user
+      // turns into this real turn so compaction stays invisible in the chat.
       const result: AssistantMessage[] = []
       for (let i = index + 1; i < messages.length; i++) {
         const item = messages[i]
         if (!item) continue
-        if (item.role === "user") break
-        if (item.role === "assistant" && item.parentID === msg.id) result.push(item as AssistantMessage)
+        if (item.role === "user") {
+          const next = list(data.store.part?.[item.id], emptyParts)
+          if (internalUser(next)) continue
+          break
+        }
+        if (item.role !== "assistant") continue
+        const assistant = item as AssistantMessage
+        if (hiddenAssistant(assistant)) continue
+        result.push(assistant)
       }
       return result
     },
@@ -327,7 +353,6 @@ export function SessionTurn(
 
   const interrupted = createMemo(() => assistantMessages().some((m) => m.error?.name === "MessageAbortedError"))
   const divider = createMemo(() => {
-    if (compaction()) return i18n.t("ui.messagePart.compaction")
     if (interrupted()) return i18n.t("ui.message.interrupted")
     return ""
   })
