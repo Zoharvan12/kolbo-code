@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { buildQuery, folderLabel, folderTitle, parseFolders } from "./canvas-library"
+import { buildQuery, folderLabel, folderTitle, parseFolders, parseProjects } from "./canvas-library"
 
 describe("parseFolders", () => {
   test("reads the v1 media/folders payload", () => {
@@ -54,13 +54,26 @@ describe("parseFolders", () => {
     ])
   })
 
-  test("labels include count and shared", () => {
+  test("labels omit stale API counts unless a live total is passed", () => {
     const owned = parseFolders({ folders: [{ id: "f1", name: "Cast", item_count: 3 }] })[0]!
     const shared = parseFolders({ folders: [{ id: "f2", name: "Kit", is_owner: false, item_count: 1 }] })[0]!
-    expect(folderLabel(owned)).toBe("Cast (3)")
-    expect(folderLabel(shared)).toBe("Kit (1) · shared")
-    expect(folderTitle(owned)).toContain("3 items")
+    expect(folderLabel(owned)).toBe("Cast")
+    expect(folderLabel(owned, 5)).toBe("Cast (5)")
+    expect(folderLabel(shared)).toBe("Kit · shared")
+    expect(folderTitle(owned)).not.toContain("items")
+    expect(folderTitle(owned, 5)).toContain("5 items")
     expect(folderTitle(shared)).toContain("shared with you")
+  })
+})
+
+describe("parseProjects", () => {
+  test("reads lightweight and v1 project shapes", () => {
+    const fromLight = parseProjects({
+      data: [{ _id: "p1", name: "Cast", cover: { manual: { url: "https://cdn.example/a.jpg" } } }],
+    })
+    const fromV1 = parseProjects([{ id: "p2", name: "Kit", thumbnail: "https://cdn.example/b.jpg" }])
+    expect(fromLight).toEqual([{ id: "p1", name: "Cast", thumbnail: "https://cdn.example/a.jpg" }])
+    expect(fromV1).toEqual([{ id: "p2", name: "Kit", thumbnail: "https://cdn.example/b.jpg" }])
   })
 })
 

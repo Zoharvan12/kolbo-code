@@ -8,6 +8,7 @@ import {
   gridRow,
   matchModel,
   messageText,
+  clipText,
   preferKolbo,
   referenceUrls,
   resolveKind,
@@ -151,6 +152,12 @@ describe("widget → host bridge", () => {
     expect(messageText({ text: "plain" })).toBe("plain")
     expect(messageText({ role: "user", content: [] })).toBeUndefined()
     expect(messageText(undefined)).toBeUndefined()
+  })
+
+  test("reads the text out of a ui/copy-text request", () => {
+    expect(clipText({ text: "full prompt" })).toBe("full prompt")
+    expect(clipText({ text: "" })).toBeUndefined()
+    expect(clipText(undefined)).toBeUndefined()
   })
 })
 

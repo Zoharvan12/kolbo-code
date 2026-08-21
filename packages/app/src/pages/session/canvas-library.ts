@@ -1,5 +1,5 @@
 export const TYPE_OPTIONS = ["all", "image", "video", "audio"] as const
-export const CATEGORY_OPTIONS = ["all", "ai", "uploaded", "edited", "favorites", "training-lab", "trash"] as const
+export const CATEGORY_OPTIONS = ["all", "ai", "uploaded", "edited", "favorites", "trash"] as const
 export type TypeFilter = (typeof TYPE_OPTIONS)[number]
 export type CategoryFilter = (typeof CATEGORY_OPTIONS)[number]
 
@@ -13,6 +13,12 @@ export type LibraryFolder = {
   is_owner: boolean
   shared_with_count: number
   project_id: string | null
+}
+
+export type LibraryProject = {
+  id: string
+  name: string
+  thumbnail: string | null
 }
 
 export function parseFolders(raw: unknown): LibraryFolder[] {
@@ -46,19 +52,73 @@ export function parseFolders(raw: unknown): LibraryFolder[] {
   })
 }
 
-export function folderLabel(folder: LibraryFolder) {
-  const bits = [folder.name, `(${folder.item_count})`]
+// The API's denormalized itemCount drifts (adds via folder APIs only).
+// Only print a count when the caller has a live total from /v1/media.
+export function folderLabel(folder: LibraryFolder, live?: number) {
+  const bits = [folder.name]
+  if (typeof live === "number") bits.push(`(${live})`)
   if (!folder.is_owner || folder.shared_with_count > 0) bits.push("· shared")
   return bits.join(" ")
 }
 
-export function folderTitle(folder: LibraryFolder) {
+export function folderTitle(folder: LibraryFolder, live?: number) {
   const bits = [folder.name]
   if (folder.description) bits.push(folder.description)
-  if (folder.item_count) bits.push(`${folder.item_count} items`)
+  if (typeof live === "number") bits.push(`${live} items`)
   if (!folder.is_owner) bits.push("shared with you")
   else if (folder.shared_with_count > 0) bits.push(`shared with ${folder.shared_with_count}`)
   return bits.join(" — ")
+}
+
+function str(v: unknown) {
+  return typeof v === "string" && v.trim() ? v.trim() : ""
+}
+
+function coverUrl(raw: unknown): string | null {
+  if (typeof raw === "string" && raw) return raw
+  if (!raw || typeof raw !== "object") return null
+  const c = raw as Record<string, unknown>
+  if (str(c.url)) return str(c.url)
+  if (str(c.thumbnail_url)) return str(c.thumbnail_url)
+  const manual = c.manual
+  if (manual && typeof manual === "object") {
+    const u = (manual as Record<string, unknown>).url
+    if (str(u)) return str(u)
+  }
+  const mosaic = c.mosaic ?? c.auto
+  if (Array.isArray(mosaic) && mosaic[0]) {
+    const first = mosaic[0]
+    if (typeof first === "string" && first) return first
+    if (first && typeof first === "object") {
+      const u = (first as Record<string, unknown>).url
+      if (str(u)) return str(u)
+    }
+  }
+  return null
+}
+
+export function parseProjects(raw: unknown): LibraryProject[] {
+  const body = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {}
+  const list = Array.isArray(raw)
+    ? raw
+    : Array.isArray(body.data)
+      ? body.data
+      : Array.isArray(body.projects)
+        ? body.projects
+        : []
+  return list.flatMap((row) => {
+    if (!row || typeof row !== "object") return []
+    const p = row as Record<string, unknown>
+    const id = p.id ?? p._id
+    if (id == null || id === "") return []
+    return [
+      {
+        id: String(id),
+        name: str(p.name) || str(p.title) || "Untitled",
+        thumbnail: str(p.thumbnail) || str(p.thumbnail_url) || coverUrl(p.cover) || null,
+      },
+    ]
+  })
 }
 
 export function buildQuery(filters: {

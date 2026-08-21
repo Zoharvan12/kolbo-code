@@ -35,6 +35,7 @@ import { messageAgentColor } from "@/utils/agent"
 import { sessionTitle } from "@/utils/session-title"
 import { parseCommentNote, readCommentMetadata } from "@/utils/comment-note"
 import { makeTimer } from "@solid-primitives/timer"
+import { runElapsed } from "./session-run-clock"
 
 type MessageComment = {
   path: string
@@ -304,9 +305,9 @@ export function MessageTimeline(props: {
     onCleanup(() => clearInterval(id))
   })
   const elapsedMs = createMemo(() => {
-    const started = pending()?.time.created
-    if (!started) return 0
-    return Math.max(0, nowTick() - started)
+    const id = sessionID()
+    if (!id) return 0
+    return runElapsed(id, working(), pending()?.time.created, nowTick())
   })
   const currentStage = createMemo(() => {
     const active = pending()

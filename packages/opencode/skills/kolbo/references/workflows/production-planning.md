@@ -98,8 +98,19 @@ the user names 4K or GPT Image 2.
 Do not skip the sheet and `create_visual_dna` from a portrait. The sheet is the
 asset; the DNA stores it.
 
+**Purity (HARD).** Every still on a DNA is packed into later generations (all
+slots the model has, or a white grid if only one slot is left). Keep each
+profile surgically clean: one identity, one vibe. Environment / location
+stills must not contain a main character or recognizable hero face (anonymous
+crowd is OK). Character stills must not contain a second lead. Separate
+states (day/night, clean/bloody) are separate DNAs. Full pack + purity
+rules: `references/workflows/visual-dna.md`.
+
 Then `create_visual_dna` with the sheet as the reference and the matching
 `dna_type`. Name each DNA in the exact form it will be tagged with later.
+Immediately `link_project_asset` it onto the working project and
+`update_project_asset` with the identity `description` plus a purpose `note`.
+Do not leave a cast DNA undescribed on the project roster.
 
 ## 3. Confirm — a labeled GATE, then wait
 

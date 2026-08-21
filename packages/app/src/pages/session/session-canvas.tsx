@@ -1,6 +1,7 @@
 import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup, onMount, type Accessor } from "solid-js"
 import { useSync } from "@/context/sync"
 import { useLanguage } from "@/context/language"
+import { useServer } from "@/context/server"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { AudioWavePlayer, fmt } from "@/pages/session/audio-wave-player"
 import { CanvasLibraryView } from "@/pages/session/canvas-library-view"
@@ -13,6 +14,7 @@ import type { Part, ToolPart, ToolStateCompleted, ToolStateRunning } from "@open
 import { isVideoUrl, mediaKey, openKolboLightbox, startMediaDrag } from "@opencode-ai/ui/kolbo-media"
 import { type Operation } from "@opencode-ai/ui/kolbo-operation"
 import { isGenerationPart, partOp, urlsFromPart } from "./session-canvas-media"
+import { runStart } from "./session-run-clock"
 
 export { isGenerationPart, urlsFromPart }
 
@@ -239,7 +241,19 @@ function saveHidden(sessionID: string, set: Set<string>) {
 
 // ─── Cell ─────────────────────────────────────────────────────────────────────
 
-function CanvasCellView(props: { cell: CanvasCell; onHide?: (url: string) => void }) {
+function favKey(url: string) {
+  let s = url.trim()
+  if (s.startsWith("http://")) s = "https://" + s.slice(7)
+  const i = s.search(/[?#]/)
+  return i === -1 ? s : s.slice(0, i)
+}
+
+function CanvasCellView(props: {
+  cell: CanvasCell
+  onHide?: (url: string) => void
+  favorited?: boolean
+  onFavorite?: () => void
+}) {
   const cellLang = useLanguage()
   // Each cell now holds exactly ONE media item; no slider/index/grouping.
   // Aspect ratio is resolved BEFORE the visible <img>/<video> mounts via
@@ -516,7 +530,7 @@ function CanvasCellView(props: { cell: CanvasCell; onHide?: (url: string) => voi
                         // controls (CSS in the canvas-cell style block
                         // also hides the WebKit PiP placeholder element).
                         disablepictureinpicture
-                        controlslist="nodownload nofullscreen noremoteplayback noplaybackrate"
+                        controlslist="nodownload noremoteplayback noplaybackrate"
                         onLoadedMetadata={(e) => {
                           const v = e.currentTarget
                           if (v.videoWidth > 0 && v.videoHeight > 0) {
@@ -671,6 +685,39 @@ function CanvasCellView(props: { cell: CanvasCell; onHide?: (url: string) => voi
           </button>
         )}
       </Show>
+      <Show when={props.onFavorite && current()}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            props.onFavorite?.()
+          }}
+          class="kolbo-fav-btn absolute z-20 flex items-center justify-center size-[28px] rounded-full transition-all duration-150"
+          classList={{
+            "top-2 left-[36px]": current()?.kind !== "audio",
+            "top-1/2 -translate-y-1/2 left-10": current()?.kind === "audio",
+            "opacity-100": !!props.favorited,
+            "opacity-0 group-hover:opacity-100": !props.favorited,
+          }}
+          style="background:rgba(0,0,0,0.78);border:1px solid rgba(255,255,255,0.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 4px 16px rgba(0,0,0,0.4)"
+          title={props.favorited ? cellLang.t("canvas.library.favorite.remove") : cellLang.t("canvas.library.favorite.add")}
+          aria-pressed={!!props.favorited}
+        >
+          <Show
+            when={props.favorited}
+            fallback={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+            }
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#eab308" stroke="none">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+          </Show>
+        </button>
+      </Show>
     </div>
   )
 }
@@ -802,8 +849,10 @@ function PendingCellView(props: { cell: PendingCell }) {
 export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }) {
   const sync = useSync()
   const lang = useLanguage()
+  const server = useServer()
   const ops = usePlatformOps()
   const { view } = useSessionLayout()
+  const serverBase = createMemo(() => server.current?.http.url ?? "")
 
   // Lazy-mount the library on first switch, then keep it mounted (see the
   // <Show when={librarySeen()}> below).
@@ -988,13 +1037,17 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
 
     const stablePending: PendingCell[] = []
     const livePendingKeys = new Set<string>()
+    const sid = props.sessionID()
     for (const p of raw.pending) {
+      const startedAt = sid ? runStart(sid, true, p.startedAt) : p.startedAt
       const cached = pendingByKey.get(p.key)
       if (cached) {
+        if (cached.startedAt !== startedAt) cached.startedAt = startedAt
         stablePending.push(cached)
       } else {
-        pendingByKey.set(p.key, p)
-        stablePending.push(p)
+        const next = startedAt === p.startedAt ? p : { ...p, startedAt }
+        pendingByKey.set(p.key, next)
+        stablePending.push(next)
       }
       livePendingKeys.add(p.key)
     }
@@ -1093,6 +1146,77 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
 
   const hasContent = createMemo(() => cells().length > 0 || pending().length > 0)
 
+  const [fav, setFav] = createSignal<Record<string, boolean>>({})
+  const asked = new Set<string>()
+  createEffect(() => {
+    const base = serverBase()
+    if (!base) return
+    const urls = cells().flatMap((c) => c.media.map((m) => m.url)).filter(Boolean)
+    const fresh = urls.filter((u) => {
+      const k = favKey(u)
+      if (asked.has(k)) return false
+      asked.add(k)
+      return true
+    })
+    if (fresh.length === 0) return
+    void fetch(`${base}/global/kolbo-favorite-status`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ urls: fresh }),
+    })
+      .then((r) => r.json())
+      .then((body: { data?: Record<string, boolean> }) => {
+        const data = body.data ?? {}
+        setFav((prev) => {
+          const next = { ...prev }
+          for (const [url, on] of Object.entries(data)) next[favKey(url)] = !!on
+          return next
+        })
+      })
+      .catch(() => {})
+  })
+  const isFav = (url?: string) => !!url && !!fav()[favKey(url)]
+  const toggleFav = async (cell: CanvasCell) => {
+    const media = cell.media[0]
+    const base = serverBase()
+    if (!media || !base) return
+    const key = favKey(media.url)
+    const next = !fav()[key]
+    setFav((prev) => ({ ...prev, [key]: next }))
+    const kind = media.kind === "video" ? "video" : media.kind === "audio" ? "audio" : "image"
+    try {
+      const res = await fetch(`${base}/global/kolbo-favorite-toggle`, {
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ url: media.url, item_type: kind }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setFav((prev) => ({ ...prev, [key]: !next }))
+        showToast({
+          variant: "error",
+          title:
+            (body as { error?: { type?: string; message?: string } }).error?.type === "ITEM_NOT_FOUND" ||
+            res.status === 404
+              ? "Not in your library yet — try again in a moment"
+              : ((body as { error?: { message?: string } }).error?.message ?? "Couldn't update favorite"),
+        })
+        return
+      }
+      const on = (body as { data?: { isFavorited?: boolean } }).data?.isFavorited
+      if (typeof on === "boolean") setFav((prev) => ({ ...prev, [key]: on }))
+      showToast({
+        variant: "success",
+        title: (typeof on === "boolean" ? on : next)
+          ? lang.t("canvas.library.favorite.add")
+          : lang.t("canvas.library.favorite.remove"),
+      })
+    } catch (e) {
+      setFav((prev) => ({ ...prev, [key]: !next }))
+      showToast({ variant: "error", title: (e as Error).message || "Couldn't update favorite" })
+    }
+  }
+
   return (
     <div class="flex flex-col h-full overflow-hidden">
       {/* Inline keyframes + range-slider + cell hover styling */}
@@ -1127,6 +1251,10 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
             0 6px 18px rgba(0, 0, 0, 0.22);
           transform: translateY(-1px);
         }
+        .kolbo-fav-btn:hover svg[stroke="rgba(255,255,255,0.85)"] {
+          stroke: #fbbf24;
+          filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.4));
+        }
         .kolbo-canvas-cell-selected,
         .kolbo-canvas-cell-selected:hover {
           box-shadow:
@@ -1141,7 +1269,6 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
         .kolbo-canvas-cell video::-webkit-media-controls-start-playback-button,
         .kolbo-canvas-cell video::-webkit-media-controls-overlay-play-button,
         .kolbo-canvas-cell video::-internal-media-controls-overflow-button,
-        .kolbo-canvas-cell video::-webkit-media-controls-fullscreen-button,
         .kolbo-canvas-cell video::-webkit-media-controls-picture-in-picture-button {
           display: none !important;
           -webkit-appearance: none !important;
@@ -1416,7 +1543,12 @@ export function SessionCanvas(props: { sessionID: Accessor<string | undefined> }
                       entry.kind === "pending" ? (
                         <PendingCellView cell={entry.item} />
                       ) : (
-                        <CanvasCellView cell={entry.item} onHide={hideMedia} />
+                        <CanvasCellView
+                          cell={entry.item}
+                          onHide={hideMedia}
+                          favorited={isFav(entry.item.media[0]?.url)}
+                          onFavorite={() => void toggleFav(entry.item)}
+                        />
                       )
                     }
                   </For>

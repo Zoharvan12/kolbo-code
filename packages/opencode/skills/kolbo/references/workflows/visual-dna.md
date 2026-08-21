@@ -8,12 +8,39 @@ Visual DNA profiles capture the visual "identity" of a character, style, product
 
 ## Workflow
 
-1. **Sheet first, then DNA.** For any production asset (character / location / prop), resolve the sheet **preset** (`list_presets` with `search`) and `generate_image` with that `preset_id` — custom instructions live on the preset. Then `create_visual_dna` with the sheet as `character_sheet_url` (max 4 extra images — if the user gives more, pick the 4 most representative; never pass 5+). Optionally video and audio.
+1. **Sheet first, then DNA.** For any production asset (character / location / prop), resolve the sheet **preset** (`list_presets` with `search`) and `generate_image` with that `preset_id` — custom instructions live on the preset. Then `create_visual_dna` with the sheet as `character_sheet_url` (max 4 extra images — if the user gives more, pick the 4 most representative **that share the same identity and vibe**; never pass 5+). Optionally video and audio. See **Purity** above before you generate those stills.
 2. **Types**: `character` (default), `style`, `product`, `scene`, `environment`.
 3. **Use** the profile by passing its `id` in `visual_dna_ids` in: `generate_image`, `generate_creative_director`, `generate_elements`, `generate_video_from_image`, `generate_video_from_video`, `generate_first_last_frame`.
 4. **List/inspect** profiles with `list_visual_dnas` / `get_visual_dna`.
+5. **Edit in place** with `update_visual_dna` (name, `prompt_helper`, stills, `character_sheet_url`, type, attributes). NEVER `delete_visual_dna` + `create_visual_dna` to rename, restyle, swap stills, or change a description — the old id is what generations and `@Name` already bind to. Providing `images` replaces the whole still set and re-analyzes; omit images to keep them.
+6. **Tag it onto the project cast.** After `create_visual_dna` for named-project work, call `link_project_asset` (`asset_type: "visual_dna"`) then `update_project_asset` with a real `description` (the DNA identity text the roster injects) and a `note` (what this asset is for in THIS project). List first with `list_project_assets`. Same for moodboards (`asset_type: "moodboard"`, note only — style edits stay on `update_moodboard`). Never unlink+relink to change a description.
 
 **Server-side auto-routing:** passing `visual_dna_ids` is enough — the server expands the DNA's reference images and auto-routes the selected text-to-image model to its image-editing variant (e.g. `nano-banana-2` → `nano-banana-2-image-editing`). You do NOT need to also pass `reference_images` when using DNA. If the chosen model has no edit variant at all, the server falls back to using the DNA's images as style references on the t2i model. DNA payloads are never silently dropped.
+
+## How those images actually reach the model (packing)
+
+Kolbo no longer sends only the first still or the character sheet. For every attached DNA:
+
+1. **User-uploaded refs take image slots first.**
+2. **Remaining slots:** one main still per DNA, then leftover stills from each DNA **round-robin** until the model's image-slot cap (`elementsMaxImages` / equivalent) is full.
+3. **If every still fits the cap, every still is sent** as its own reference. A 4-image character DNA on a 9-slot model is four slots, not one.
+4. **If a DNA only gets one leftover slot**, has **no distinct character sheet**, and still has unused stills, those leftovers are composited into a **white grid / collage** (up to 9 cells) so the model still sees them. A real character sheet is never overwritten by a collage.
+5. **Native Kling Elements** stays one element per DNA (sheet / frontal). Other providers use the slot pack above.
+
+So every image you store on a DNA can appear in the generation — as its own slot or as a cell in that grid. Unused stills are no longer ignored.
+
+## Purity — what may live on a DNA (HARD)
+
+Because leftover stills now travel with the DNA, a junk-drawer profile poisons every generation that uses it.
+
+- **One DNA = one identity + one vibe.** All stills must feel like the same person / place / product / look. Do not mix two lighting moods, two eras, or two art directions on one profile.
+- **Character DNA:** only that character. No second hero, no "also include the friend." Extra people only as **anonymous crowd / background extras** — never a named, readable, or story-important second face.
+- **Environment / scene / location DNA:** architecture, light, materials, geography. Empty, or with anonymous crowd / atmosphere extras, is OK. **Do not put a main character, hero, or recognizable face that is not supposed to live in that place** — they will bleed into every shot that uses the location.
+- **Product DNA:** only that product (angles, materials, label). No hand-model hero unless the product is worn-on-body and the body is generic / faceless.
+- **Style DNA:** one art direction. A style board applied to varied subjects is OK. Two conflicting looks in one style DNA is not.
+- **Separate states = separate DNAs** (clean vs bloodied, day vs night, intact vs broken). Do not dump both into one profile.
+- When **generating** stills for a DNA, lock subject + wardrobe/era/palette in the prompt and explicitly forbid extra heroes / wrong-location characters.
+- If the user hands you mixed refs, pick the stills that share vibe + identity (or generate clean ones). Do not register a junk drawer. Max 4 extra images on `create_visual_dna` still applies — those 4 are **all consumed**.
 
 ## ⚠️ Pre-flight: Verify the Visual DNA Exists Before Using It (MANDATORY)
 
@@ -216,9 +243,15 @@ Read `max_visual_dna` from `list_models` for the exact cap, AND `supports_visual
 - `type`: `"character"`
 - `name`: single-token lowercase descriptive name (see naming rule above)
 
-**Why:** A single reference photo only shows one angle. The close-up gives the engine facial detail; the 4-angle sheet gives it body geometry and pose range. Together they produce far more consistent generations.
+**Why:** A single reference photo only shows one angle. The close-up gives the engine facial detail; the 4-angle sheet gives it body geometry and pose range. Together they produce far more consistent generations. Both stills (and any user photos you add) must be the **same person, same vibe** — they will all be packed into the next generation.
 
 **Skip this only if** the user explicitly says "just use my image as-is" or provides 3+ reference images already covering multiple angles.
+
+### Environments, products, style — same precision
+
+- **Environment / location:** generate empty (or crowd-only) plates. Prompt out heroes and readable faces. A location DNA that contains `@maya` in the frame will put Maya in every later shot of that place.
+- **Product:** isolated angles, consistent lighting, readable label. No extra hero unless the product is worn and the body is generic.
+- **Style:** one look, applied cleanly. Do not mix neon-cyber and dusty-western stills on the same style DNA.
 
 ## When to Use
 
@@ -251,7 +284,7 @@ Custom instructions live on the **image preset**. Resolve it silently, then gene
 
 1. `list_presets({ type: "image", search: "headless" | "bible" | "character sheet" | "location" | "product" })`
 2. Pass the exact `id` as `preset_id` on `generate_image` (2K or 4K, never 1K; 4K for bible / high-detail / when named)
-3. Show the sheet → GATE → `create_visual_dna { name, images, character_sheet_url }`
+3. Show the sheet → GATE → `create_visual_dna { name, images, character_sheet_url }` (or `update_visual_dna` with `character_sheet_url` when the DNA already exists)
 
 | Search | When |
 |---|---|

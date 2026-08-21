@@ -1,5 +1,5 @@
 ---
-version: 0.9.0
+version: 0.9.3
 name: kolbo
 description: |
   Generate, edit, analyze, and direct creative media through Kolbo AI: images,
@@ -117,22 +117,40 @@ Each `references/models/*.md` mirrors the matching skill prompt in `kolbo-api/sr
 |------|---------|
 | `list_models` / `list_voices` / `check_credits` / `get_generation_status` / `cancel_generation` / `get_session_usage` | Discovery + status. `list_models` with no args returns the recommended shortlist out of ~428 — pass `type` for a full category with per-model caps. `cancel_generation` stops an in-flight job and refunds what it can: use it when the user changes their mind mid-generation instead of letting it run. |
 | `upload_media` / `create_upload_ticket` / `list_media` / `get_media` / `get_media_stats` / `favorite_media` / `unfavorite_media` / `delete_media` / `restore_media` / `permanently_delete_media` / `move_media` / `bulk_*_media` / `*_media_folder` | Media library — see `workflows/media-library.md`. Getting a LOCAL file in depends on where the server runs: `upload_media` with a path only works on a local (stdio) install; over a remote connector use `create_upload_ticket` and POST the file yourself. |
-| `create_visual_dna` / `generate_character_sheet` / `list_visual_dnas` / `get_visual_dna` / `delete_visual_dna` / `*_visual_dna_folder` (5 folder tools) | Visual DNA (+ character sheet, character folders) — see `workflows/visual-dna.md` |
+| `create_visual_dna` / `update_visual_dna` / `generate_character_sheet` / `list_visual_dnas` / `get_visual_dna` / `delete_visual_dna` / `*_visual_dna_folder` (5 folder tools) | Visual DNA (+ character sheet, character folders) — see `workflows/visual-dna.md`. Edit with `update_visual_dna`; never delete+recreate. |
 | `list_moodboards` / `get_moodboard` / `list_presets` | Style overlays + sheet presets. Always pass `search` when you know the name — that is a silent id lookup, not a catalog to show. Never omit `preset_id` after claiming a preset was used. |
 | `list_color_palettes` / `analyze_color_palette` / `create_color_palette` / `update_color_palette` / `delete_color_palette` / `activate_color_palette` / `deactivate_color_palette` | **Color DNA — sticky and account-wide.** At most one palette is active at a time; while it is, it strict-grades **every** image and video generation automatically, with no per-call argument. `analyze_color_palette` pulls colors out of 1-5 image URLs for free and does NOT save. `create_color_palette` defaults `is_active: true`, which activates it and deactivates any other. Per-generation opt-out: `skip_color_palette: true` on `generate_image` / `generate_image_edit` / `generate_video` / `generate_video_from_image`. |
 | `list_agents` / `create_agent` / `update_agent` / `delete_agent` | Custom chat agents — reusable named personas for `chat_send_message`. The agent's `description` IS the system instruction. Resolve a name the user mentions ("use my SEO agent") to an id with `list_agents`, then pass `agent_id`. Global/preset agents are read-only; only the user's own can be updated or deleted. |
 | `search_stock_media` / `get_stock_sources` / `get_stock_categories` / `get_stock_collections` / `get_stock_asset` / `analyze_script_for_stock` / `import_stock_asset` | Stock library (free, no credits) — EXISTING photos / videos / 3D / SFX / music. For stock **music** use `search_stock_media` with `mediaType: "music"` (semantic vibe query, e.g. "uplifting corporate background") → `get_stock_asset` for downloads. The older `*_music_library` tools are deprecated adapters over this — prefer the stock tools, except for the licensed-catalog tools in the next row. |
 | `search_music_library` / `browse_music_library` / `get_music_library_facets` / `get_music_track_audio` / `get_music_track_lyrics` / `get_music_track_related` / `analyze_script_for_music` / `acquire_clean_music_track` / `import_music_track_to_library` | **SYNCI licensed music** — a commercially licensed catalog, not free stock. Discovery and previews are free but **watermarked**; there is no unwatermarked URL until you pay. `acquire_clean_music_track` (or `import_music_track_to_library`, which also copies it to the media library) **CHARGES CREDITS** for the clean master — confirm with the user first, and pass a stable `requestId` so a retry doesn't buy it twice. `analyze_script_for_music` turns a script into search terms for `search_music_library`. Use this family when the user needs music cleared for commercial use; use `search_stock_media` with `mediaType: "music"` when free stock will do. |
-| `list_projects` / `move_session` | Projects: resolve a project NAME → the `project_id` you pass on generation/upload/doc calls; `move_session` relocates a whole session + its media when work landed in the wrong project. See "Projects — Where Work Lands" below. |
-| `create_project` / `update_project` / `archive_project` / `unarchive_project` / `list_sessions` / `rename_session` / `delete_session` / `restore_session` | Project lifecycle + session inventory. `list_sessions` returns `project_id` + `types[]` on every row. Soft-delete leftover empty sessions after a move; `restore_session` undoes trash. Create a project when the user starts new work, then pass its id on EVERY call. |
+| `list_projects` / `get_project` / `move_session` | Projects: resolve a project NAME → the `project_id` you pass on generation/upload/doc calls; `get_project` returns the full description (list clips it). `move_session` relocates a whole session + its media when work landed in the wrong project. See "Projects — Where Work Lands" below. |
+| `create_project` / `update_project` / `archive_project` / `unarchive_project` / `list_sessions` / `rename_session` / `delete_session` / `restore_session` | Project lifecycle + session inventory. Edit name/description with `update_project` (read via `get_project` first). Rename sessions with `rename_session` — never delete+recreate. `list_sessions` returns `project_id` + `types[]` on every row. Soft-delete leftover empty sessions after a move; `restore_session` undoes trash. Create a project when the user starts new work, then pass its id on EVERY call. |
 | `bulk_move_sessions` / `list_session_generations` / `move_generations_to_session` / `split_session` / `undo_session_organization` | Reorganize many sessions or generations. `list_session_generations` is an inventory (not a live generation card). |
 | `add_project_context` / `list_project_context` / `delete_project_context` / `get_project_profile` / `regenerate_project_profile` | Project knowledge base (RAG): feed scripts/URLs/notes; `get_project_profile` = the living brief — read it to ground work in the project |
-| `create_moodboard` / `update_moodboard` / `delete_moodboard` | Moodboards from image URLs → AI master style prompt → pass `moodboard_id` to generation tools |
+| `list_project_assets` / `link_project_asset` / `unlink_project_asset` / `update_project_asset` | Project CAST roster: the Visual DNAs and moodboards tagged onto a project (`@Name` / `#Name`). `update_project_asset` writes each tagged DNA's identity description and/or its project-scoped purpose note. Never unlink+relink to edit. |
+| `create_moodboard` / `update_moodboard` / `delete_moodboard` | Moodboards from image URLs → AI master style prompt → pass `moodboard_id` to generation tools. Edit with `update_moodboard`; never delete+recreate. |
 | `clone_voice` / `import_elevenlabs_voice` / `delete_voice` | Custom voices (clone CHARGES CREDITS — confirm first; new voices show in `list_voices`) |
 | `trim_video` | Frame-accurate trim of a Kolbo-hosted video (tool waits and returns the URL). `edit_video` also gained `remove_background`. |
 | `create_doc` / `list_docs` / `get_doc` / `update_doc` / `share_doc` / `delete_doc` | AI Docs (Magic Pad): YOU author full HTML documents (plans, briefs, scripts, research) saved into the user's project, editable in the Kolbo app. `share_doc` returns a public link. `update_doc` content replaces the WHOLE doc — `get_doc` first. |
 | `chat_send_message` / `chat_list_conversations` / `chat_get_messages` | Kolbo chat with optional `media_urls` (up to 10 per call) |
 | `publish_html_artifact` | Publish HTML / SVG / Mermaid to `sites.kolbo.ai`. Server dedupes by content hash. Strict CSP. |
+
+## ⚠️ Edit in place — never delete+recreate (HARD RULE — always on)
+
+Existing Kolbo objects keep a stable id. Generations, `@Name` / `#Name` bindings, share links, and teammates already point at that id. Deleting and making a new one orphans those links and throws away the stored analysis.
+
+| What changed | Tool |
+|---|---|
+| Visual DNA name, description, stills, sheet, type, attributes | `update_visual_dna` |
+| Project-cast DNA description or purpose note | `update_project_asset` |
+| Moodboard name, style notes, images | `update_moodboard` |
+| Project name or description | `get_project` then `update_project` |
+| Project cast membership | `link_project_asset` / `unlink_project_asset` (list first) |
+| Session title | `rename_session` |
+| Custom agent name / persona | `update_agent` |
+| AI Doc title / content | `get_doc` then `update_doc` |
+
+`delete_*` is only for objects the user asked to remove.
 
 ## ⚠️ Visual DNA `@Name` in the prompt (HARD RULE — always on)
 
@@ -148,6 +166,8 @@ Passing `visual_dna_ids` is **not enough**. For every DNA in that array you MUST
 Before `generate_elements` / any DNA video: for each id in `visual_dna_ids`, confirm the prompt string includes `@` + that DNA's stored `name`. Missing even one → fix the prompt, do not fire.
 
 Resolve names with `list_visual_dnas` first. Full binding rules: `references/workflows/visual-dna.md`.
+
+**Every still on a DNA can reach the model.** Kolbo now sends all of a DNA's reference images that fit the model's image-slot cap (user uploads first, then one still per DNA, then leftovers round-robin). If a DNA only gets one leftover slot and has no real character sheet, unused stills become a white grid. Mixed-vibe stills or environment photos that contain a main character will confuse the generation — keep each DNA surgically clean. Create-and-pack rules: `references/workflows/visual-dna.md`.
 
 ## ⚠️ `enhance_prompt` — leave it OFF (HARD RULE)
 

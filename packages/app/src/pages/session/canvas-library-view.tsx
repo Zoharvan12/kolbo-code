@@ -14,7 +14,12 @@ import {
 } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { useServer } from "@/context/server"
+import { useSync } from "@/context/sync"
 import { useSessionLayout } from "@/pages/session/session-layout"
+import type { Part, ToolPart, ToolStateRunning } from "@opencode-ai/sdk/v2"
+import { isGenerationPart, partOp } from "./session-canvas-media"
+import { FolderPicker, ProjectPicker } from "./canvas-library-pickers"
+import { runStart } from "./session-run-clock"
 import { AudioWavePlayer, fmt as formatDurationSec } from "@/pages/session/audio-wave-player"
 import { showToast } from "@opencode-ai/ui/toast"
 import { MediaCard } from "@opencode-ai/ui/media-card"
@@ -29,9 +34,11 @@ import {
   folderLabel,
   folderTitle,
   parseFolders,
+  parseProjects,
   TYPE_OPTIONS,
   type CategoryFilter,
   type LibraryFolder,
+  type LibraryProject,
   type TypeFilter,
 } from "./canvas-library"
 
@@ -63,7 +70,6 @@ const ICON_PATHS = {
     uploaded: <><path d="M8 13V4M5 7l3-3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M3 13h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></>,
     edited: <><path d="M10.5 2.8l2.7 2.7-7.2 7.2H3.3v-2.7l7.2-7.2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/><path d="M9.2 4.1l2.7 2.7" stroke="currentColor" stroke-width="1.4"/></>,
     favorites: <path d="M8 2l1.9 4 4.4.6-3.2 3.1.8 4.4L8 12 4.1 14.1l.8-4.4L1.7 6.6l4.4-.6z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="none"/>,
-    "training-lab": <><rect x="3" y="2.5" width="10" height="11" rx="1.4" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M6 2.5v2.2h4V2.5M6 9h4M8 7v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></>,
     trash: <path d="M2.5 4.5h11M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4.5 4.5l.6 9a1.5 1.5 0 0 0 1.5 1.4h2.8a1.5 1.5 0 0 0 1.5-1.4l.6-9M7 7.5v4.5M9 7.5v4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>,
   },
 } as const
@@ -137,25 +143,16 @@ type FavoriteItemRaw = {
   }
 }
 
-type Project = {
-  _id: string
-  name?: string
-  title?: string
-}
-
-// Module-scoped one-shot projects cache so switching back and forth between
-// Library and Session doesn't re-fetch the project list on every entry.
-// Keyed by serverBase so different sidecar instances don't share cache.
-const projectsCache = new Map<string, Promise<Project[]>>()
-function loadProjects(serverBase: string): Promise<Project[]> {
+const projectsCache = new Map<string, Promise<LibraryProject[]>>()
+function loadProjects(serverBase: string, fresh = false): Promise<LibraryProject[]> {
+  if (fresh) projectsCache.delete(serverBase)
   const cached = projectsCache.get(serverBase)
   if (cached) return cached
   const p = (async () => {
     try {
       const res = await fetch(`${serverBase}/global/kolbo-projects`, { headers: { Accept: "application/json" } })
       if (!res.ok) return []
-      const data = (await res.json()) as { data?: Project[] } | Project[]
-      return Array.isArray(data) ? data : (data.data ?? [])
+      return parseProjects(await res.json())
     } catch {
       return []
     }
@@ -429,7 +426,8 @@ function extractMediaModelName(item: MediaItem): string | undefined {
 }
 
 const foldersCache = new Map<string, Promise<LibraryFolder[]>>()
-function loadFolders(serverBase: string): Promise<LibraryFolder[]> {
+function loadFolders(serverBase: string, fresh = false): Promise<LibraryFolder[]> {
+  if (fresh) foldersCache.delete(serverBase)
   const cached = foldersCache.get(serverBase)
   if (cached) return cached
   const p = (async () => {
@@ -445,6 +443,37 @@ function loadFolders(serverBase: string): Promise<LibraryFolder[]> {
   return p
 }
 
+const PENDING_STUCK_MS = 10 * 60 * 1000
+type PendingGen = { key: string; kind: "image" | "video" | "audio"; startedAt: number }
+
+function pendingKind(part: ToolPart): PendingGen["kind"] {
+  const op = partOp(part)
+  if (op?.kind === "audio") return "audio"
+  if (op?.kind === "video") return "video"
+  return "image"
+}
+
+function collectPending(messages: { id: string; completedAt?: number }[], parts: Record<string, Part[] | undefined>) {
+  const out: PendingGen[] = []
+  const now = Date.now()
+  for (const message of messages) {
+    const list = parts[message.id]
+    if (!list || typeof message.completedAt === "number") continue
+    for (const part of list) {
+      if (part.type !== "tool") continue
+      const tool = part as ToolPart
+      if (!isGenerationPart(tool)) continue
+      const state = tool.state
+      if (state.status === "completed" || state.status === "error") continue
+      const running = state as ToolStateRunning
+      const startedAt = running.time?.start ?? now
+      if (now - startedAt > PENDING_STUCK_MS) continue
+      out.push({ key: tool.id, kind: pendingKind(tool), startedAt })
+    }
+  }
+  return out.sort((a, b) => b.startedAt - a.startedAt)
+}
+
 // Viewport-based page size — ported from kolbo-desktop's main.js:1986-1989.
 // Loads enough to fill viewport + 2-row buffer, not a fixed 50.
 function viewportPageSize(): number {
@@ -457,6 +486,7 @@ function viewportPageSize(): number {
 export function CanvasLibraryView(props: { sessionID: Accessor<string | undefined> }) {
   const lang = useLanguage()
   const server = useServer()
+  const sync = useSync()
   const ops = usePlatformOps()
   const { view } = useSessionLayout()
   const cols = createMemo(() => view().canvas.gridCols())
@@ -488,10 +518,20 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
     } catch {}
   }
 
-  const [projects] = createResource(serverBase, (base) => (base ? loadProjects(base) : Promise.resolve([] as Project[])))
-  const [folders] = createResource(serverBase, (base) => (base ? loadFolders(base) : Promise.resolve([] as LibraryFolder[])))
+  const [projects, { refetch: refetchProjects }] = createResource(serverBase, (base) =>
+    base ? loadProjects(base) : Promise.resolve([] as LibraryProject[]),
+  )
+  const [folders, { refetch: refetchFolders }] = createResource(serverBase, (base) =>
+    base ? loadFolders(base) : Promise.resolve([] as LibraryFolder[]),
+  )
+  const scoped = createMemo(() => {
+    const pid = projectId()
+    const all = folders() ?? []
+    if (pid === "all") return all
+    return all.filter((f) => !f.project_id || f.project_id === pid)
+  })
   createEffect(() => {
-    const list = folders()
+    const list = scoped()
     const id = folderId()
     if (!list || !id) return
     if (!list.some((f) => f.id === id)) persistFolder(null)
@@ -516,6 +556,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
   )
 
   const [pages, setPages] = createSignal<MediaItem[][]>([])
+  const [listTotal, setListTotal] = createSignal<number | null>(null)
   const [page, setPage] = createSignal(1)
   const [hasNext, setHasNext] = createSignal(false)
   const [loading, setLoading] = createSignal(false)
@@ -541,7 +582,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
       return next
     })
 
-  async function fetchPage(append: boolean, retryCount = 0) {
+  async function fetchPage(append: boolean, retryCount = 0, silent = false) {
     const base = serverBase()
     if (!base) {
       // Server context not yet resolved (or no sidecar). filtersKey includes
@@ -557,7 +598,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
     lastLoadAt = now
     const target = append ? page() + 1 : 1
     if (!append) {
-      setLoading(true)
+      if (!silent) setLoading(true)
       setError(null)
       setSignedOut(false)
       emptyResponseCount = 0
@@ -620,6 +661,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
       }
       let items: MediaItem[]
       let nextHasNext: boolean
+      let total: number | null = null
       if (isTrash) {
         // /media/db/trash response shape: { data: { items: TrashItem[], pagination: {...} } }
         // TrashItem has shape similar to MediaItem but lives in a separate collection.
@@ -648,6 +690,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
             metadata: f.metadata,
           }))
         nextHasNext = data.data?.pagination?.hasMore ?? data.data?.pagination?.has_next ?? false
+        total = data.data?.pagination?.totalItems ?? items.length
       } else if (isFavorites) {
         const data = (await res.json()) as {
           data?: { favorites?: FavoriteItemRaw[]; pagination?: Pagination }
@@ -674,10 +717,12 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
         // /favorite-items returns everything up to limit (1000). Treat single
         // response as the full result — no second-page fetch.
         nextHasNext = false
+        total = items.length
       } else {
         const data = (await res.json()) as { media?: MediaItem[]; pagination?: Pagination }
         items = data.media ?? []
         nextHasNext = data.pagination?.has_next ?? false
+        total = data.pagination?.total_items ?? (nextHasNext ? null : items.length)
       }
       if (append) {
         if (items.length === 0 && nextHasNext) {
@@ -694,6 +739,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
       } else {
         setPages([items])
         setPage(1)
+        setListTotal(total)
       }
       setHasNext(nextHasNext)
     } catch (e) {
@@ -709,7 +755,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
         /network error|connection (reset|refused)|fetch failed|wrong origin|is not valid JSON/i.test(msg)
       if (looksLikeRespawn && retryCount === 0) {
         await new Promise((r) => setTimeout(r, 2500))
-        return fetchPage(append, 1)
+        return fetchPage(append, 1, silent)
       }
       setError(msg)
     } finally {
@@ -729,7 +775,49 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
     lastKey = k
     setPage(1)
     setPages([])
+    setListTotal(null)
     void fetchPage(false)
+  })
+
+  // Library stays mounted after first visit. Re-enter must refetch — otherwise
+  // the grid (and folder list) stay on the snapshot from last time.
+  let lastMode = ""
+  createEffect(() => {
+    const mode = view().canvas.mode()
+    if (mode !== "library") {
+      lastMode = mode
+      return
+    }
+    if (lastMode === "library") return
+    lastMode = mode
+    const base = serverBase()
+    if (base) {
+      void loadProjects(base, true).then(() => refetchProjects())
+      void loadFolders(base, true).then(() => refetchFolders())
+    }
+    lastKey = ""
+    void fetchPage(false, 0, pages().flat().length > 0)
+  })
+
+  const pending = createMemo(() => {
+    const id = props.sessionID()
+    if (!id) return [] as PendingGen[]
+    const messages = (sync.data.message[id] ?? []).map((m) => ({
+      id: m.id,
+      completedAt: m.role === "assistant" ? m.time?.completed : undefined,
+    }))
+    return collectPending(messages, sync.data.part as Record<string, Part[] | undefined>)
+  })
+
+  let lastPending = 0
+  createEffect(() => {
+    const n = pending().length
+    if (n < lastPending && view().canvas.mode() === "library") {
+      const base = serverBase()
+      if (base) void loadFolders(base, true).then(() => refetchFolders())
+      void fetchPage(false, 0, true)
+    }
+    lastPending = n
   })
 
   onCleanup(() => {
@@ -963,20 +1051,9 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
     return buckets
   })
 
-  const projectName = createMemo(() => {
-    const id = projectId()
-    if (id === "all") return lang.t("canvas.library.project.all")
-    const found = projects()?.find((p) => p._id === id)
-    return found?.name || found?.title || lang.t("canvas.library.project.pick")
-  })
-  const ownedFolders = createMemo(() => (folders() ?? []).filter((f) => f.is_owner))
-  const sharedFolders = createMemo(() => (folders() ?? []).filter((f) => !f.is_owner))
-  const folderName = createMemo(() => {
-    const id = folderId()
-    if (!id) return lang.t("canvas.library.folder.all")
-    const found = (folders() ?? []).find((f) => f.id === id)
-    return found ? folderLabel(found) : lang.t("canvas.library.folder.pick")
-  })
+  const ownedFolders = createMemo(() => scoped().filter((f) => f.is_owner))
+  const sharedFolders = createMemo(() => scoped().filter((f) => !f.is_owner))
+  const liveCount = createMemo(() => (folderId() ? listTotal() : null))
 
   return (
     <div class="flex flex-col h-full overflow-hidden">
@@ -995,51 +1072,26 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
           <div class="px-3 pt-2 pb-2 flex flex-col gap-2 border-b border-border-base">
             {/* Row 2: project + folder pickers */}
             <div class="flex items-center gap-2">
-          <select
-            class="text-12-regular bg-surface-base border border-border-base rounded-md px-2 py-1 min-w-0 flex-1 truncate"
+          <ProjectPicker
             value={projectId()}
-            onChange={(e) => persistProject(e.currentTarget.value)}
-            aria-label={lang.t("canvas.library.project.pick")}
-            title={projectName()}
-          >
-            <option value="all">{lang.t("canvas.library.project.all")}</option>
-            <For each={projects() ?? []}>
-              {(p) => <option value={p._id}>{p.name || p.title || p._id}</option>}
-            </For>
-          </select>
-          <select
-            class="text-12-regular bg-surface-base border border-border-base rounded-md px-2 py-1 min-w-0 flex-1 truncate"
-            value={folderId() ?? ""}
-            onChange={(e) => persistFolder(e.currentTarget.value || null)}
-            aria-label={lang.t("canvas.library.folder.pick")}
-            title={folderName()}
-          >
-            <option value="">{lang.t("canvas.library.folder.all")}</option>
-            <Show when={ownedFolders().length > 0}>
-              <option value="" disabled>
-                {lang.t("canvas.library.folder.owned")}
-              </option>
-              <For each={ownedFolders()}>
-                {(f) => (
-                  <option value={f.id} title={folderTitle(f)}>
-                    {folderLabel(f)}
-                  </option>
-                )}
-              </For>
-            </Show>
-            <Show when={sharedFolders().length > 0}>
-              <option value="" disabled>
-                {lang.t("canvas.library.folder.shared")}
-              </option>
-              <For each={sharedFolders()}>
-                {(f) => (
-                  <option value={f.id} title={folderTitle(f)}>
-                    {folderLabel(f)}
-                  </option>
-                )}
-              </For>
-            </Show>
-          </select>
+            projects={projects() ?? []}
+            allLabel={lang.t("canvas.library.project.all")}
+            aria={lang.t("canvas.library.project.pick")}
+            onChange={persistProject}
+          />
+          <FolderPicker
+            value={folderId()}
+            owned={ownedFolders()}
+            shared={sharedFolders()}
+            allLabel={lang.t("canvas.library.folder.all")}
+            ownedLabel={lang.t("canvas.library.folder.owned")}
+            sharedLabel={lang.t("canvas.library.folder.shared")}
+            aria={lang.t("canvas.library.folder.pick")}
+            live={liveCount() ?? undefined}
+            labelFor={folderLabel}
+            titleFor={folderTitle}
+            onChange={persistFolder}
+          />
         </div>
         {/* Row 3: type + category chips + folder */}
         <div class="flex items-center gap-1 overflow-x-auto" role="group">
@@ -1219,7 +1271,7 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
               </div>
             </div>
           </Match>
-          <Match when={items().length === 0}>
+          <Match when={items().length === 0 && pending().length === 0}>
             <div class="flex flex-col items-center justify-center h-full text-center gap-2 px-6">
               <div class="text-text-strong text-13-regular">{lang.t("canvas.library.empty.title")}</div>
               <div class="text-text-weak text-11-regular">
@@ -1229,7 +1281,12 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
               </div>
             </div>
           </Match>
-          <Match when={items().length > 0}>
+          <Match when={items().length > 0 || pending().length > 0}>
+            <Show when={pending().length > 0}>
+              <div class="flex gap-3 mb-3">
+                <For each={pending()}>{(cell) => <LibraryPendingCard cell={cell} sessionID={props.sessionID()} />}</For>
+              </div>
+            </Show>
             <div class="flex gap-3">
               <Index each={columnBuckets()}>
                 {(bucket) => (
@@ -1249,6 +1306,41 @@ export function CanvasLibraryView(props: { sessionID: Accessor<string | undefine
             </div>
           </Match>
         </Switch>
+      </div>
+    </div>
+  )
+}
+
+function LibraryPendingCard(props: { cell: PendingGen; sessionID: string | undefined }) {
+  const [now, setNow] = createSignal(Date.now())
+  onMount(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    onCleanup(() => clearInterval(id))
+  })
+  const started = createMemo(() =>
+    props.sessionID ? runStart(props.sessionID, true, props.cell.startedAt, now()) : props.cell.startedAt,
+  )
+  const label = createMemo(() => formatDurationSec(Math.max(0, (now() - started()) / 1000)))
+  const ratio = () => (props.cell.kind === "video" ? 16 / 9 : props.cell.kind === "audio" ? 16 / 2.5 : 1)
+  return (
+    <div
+      class="relative rounded-xl overflow-hidden flex-1 min-w-0"
+      style={{
+        "aspect-ratio": String(ratio()),
+        background: "linear-gradient(135deg, var(--background-stronger) 0%, var(--surface-recess-base) 100%)",
+      }}
+    >
+      <div class="absolute inset-0 flex flex-col items-center justify-center gap-2">
+        <div class="relative flex items-center justify-center" style="width:40px;height:40px">
+          <span
+            aria-hidden="true"
+            style="position:absolute;inset:0;border-radius:50%;border:2px solid color-mix(in srgb, var(--text-base) 12%, transparent);border-top-color:var(--text-base);animation:kolbo-spin 0.95s cubic-bezier(0.65,0,0.35,1) infinite"
+          />
+          <Mark class="w-5 h-5 opacity-90" />
+        </div>
+        <div class="text-text-weak" style="font-size:10px;font-variant-numeric:tabular-nums;opacity:0.7">
+          {label()}
+        </div>
       </div>
     </div>
   )
@@ -1468,7 +1560,7 @@ function LibraryCell(props: {
                   playsinline
                   controls
                   disablepictureinpicture
-                  controlslist="nodownload nofullscreen noremoteplayback noplaybackrate"
+                  controlslist="nodownload noremoteplayback noplaybackrate"
                   onLoadedData={(e) => {
                     const v = e.currentTarget
                     v.muted = false

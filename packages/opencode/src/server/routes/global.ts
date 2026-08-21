@@ -1463,6 +1463,44 @@ export const GlobalRoutes = lazy(() =>
     // project_id filter interacts badly with cross-project favorites and the
     // sourceType=uploaded items have null project_id. Per kolbo-map's
     // favoritesApi.ts, the canonical query is GET /api/favorite-items.
+    .post("/kolbo-favorite-toggle", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      let body: unknown
+      try { body = await c.req.json() } catch { return c.json({ error: { message: "invalid json", type: "bad_request" } }, 400) }
+      try {
+        const res = await fetch(`${Partner.apiBase}/favorite-items/toggle`, {
+          method: "POST",
+          headers: { "X-API-Key": apiKey, "Content-Type": "application/json", "User-Agent": Installation.USER_AGENT },
+          body: JSON.stringify(body ?? {}),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: (data as any)?.error || "upstream_error" } }, (res.status === 404 ? 404 : 502) as 404 | 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `favorite toggle failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
+    .post("/kolbo-favorite-status", async (c) => {
+      const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
+      const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
+      if (!apiKey) return c.json({ error: { message: "Not authenticated with Kolbo", type: "auth" } }, 401)
+      let body: unknown
+      try { body = await c.req.json() } catch { return c.json({ error: { message: "invalid json", type: "bad_request" } }, 400) }
+      try {
+        const res = await fetch(`${Partner.apiBase}/favorite-items/check-status`, {
+          method: "POST",
+          headers: { "X-API-Key": apiKey, "Content-Type": "application/json", "User-Agent": Installation.USER_AGENT },
+          body: JSON.stringify(body ?? {}),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return c.json({ error: { message: (data as any)?.message || `upstream ${res.status}`, type: "upstream_error" } }, 502)
+        return c.json(data as Record<string, unknown>)
+      } catch (e) {
+        return c.json({ error: { message: `favorite status failed: ${(e as Error).message}`, type: "network_error" } }, 502)
+      }
+    })
     .get("/kolbo-favorites", async (c) => {
       const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
       const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined

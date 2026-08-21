@@ -136,6 +136,13 @@ export function messageText(params: unknown): string | undefined {
   return joined || undefined
 }
 
+/** Plain text from a widget `ui/copy-text` request. */
+export function clipText(params: unknown): string | undefined {
+  const p = rec(params)
+  if (!p || typeof p.text !== "string" || !p.text) return undefined
+  return p.text
+}
+
 function presetLookup(data: unknown) {
   const row = rec(data)
   if (!row) return false
@@ -713,6 +720,14 @@ export function KolboMcpWidget(props: {
       // prompt-input.tsx handleWidgetMessage).
       const text = messageText(msg.params)
       if (text) document.dispatchEvent(new CustomEvent("kolbo:send-message", { detail: { text } }))
+      if (msg.id != null) reply(msg.id, {})
+      return
+    }
+    if (msg.method === "ui/copy-text") {
+      // Sandboxed iframe clipboard is flaky even with clipboard-write. The
+      // widget tries navigator.clipboard first; this is the parent fallback.
+      const text = clipText(msg.params)
+      if (text) void navigator.clipboard.writeText(text).catch(() => undefined)
       if (msg.id != null) reply(msg.id, {})
       return
     }
