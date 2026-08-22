@@ -8,7 +8,9 @@ import { useServer } from "@/context/server"
 export type KolboAssetItem = {
   id: string
   name: string
+  /** Grid card image — preferably the optimized small thumb. */
   thumbnail?: string
+  sheet?: string
   dnaType?: string
   description?: string
   images?: string[]
@@ -31,22 +33,127 @@ type Props = {
   onSelect: (kind: Kind, items: KolboAssetItem[]) => void
 }
 
-const MAX_DNA = 8
+/** Moodboards stay capped; Visual DNAs are unlimited in this picker. */
 const MAX_MOODBOARD = 4
+
+/** Recover a Mongo hex id from string / Buffer / `{buffer:{…}}` leaks. */
+function coerceId(raw: unknown): string | null {
+  if (raw == null) return null
+  if (typeof raw === "string") {
+    const s = raw.trim()
+    if (!s || s === "[object Object]") return null
+    if (/^[a-f0-9]{24}$/i.test(s)) return s
+    return s
+  }
+  if (typeof raw === "number" || typeof raw === "bigint") return String(raw)
+  if (typeof raw !== "object") return null
+  const obj = raw as Record<string, any>
+  if (typeof obj.toHexString === "function") {
+    const hex = obj.toHexString()
+    if (typeof hex === "string" && hex) return hex
+  }
+  if (obj.type === "Buffer" && Array.isArray(obj.data)) {
+    return (obj.data as number[]).map((b) => (b & 0xff).toString(16).padStart(2, "0")).join("")
+  }
+  if (obj.buffer != null) {
+    const buf = obj.buffer
+    const bytes = Array.isArray(buf)
+      ? buf
+      : typeof buf === "object"
+        ? Object.keys(buf as object)
+            .filter((k) => /^\d+$/.test(k))
+            .sort((a, b) => Number(a) - Number(b))
+            .map((k) => Number((buf as Record<string, number>)[k]))
+        : []
+    if (bytes.length === 12) return bytes.map((b) => (b & 0xff).toString(16).padStart(2, "0")).join("")
+  }
+  return null
+}
+
+/** Prefer a real Mongo id; when the sidecar collapses every ObjectId to
+ *  "[object Object]", fall back to name so the grid can still multi-select. */
+function keyOf(item: Pick<KolboAssetItem, "id" | "name">) {
+  const id = coerceId(item.id) ?? (typeof item.id === "string" ? item.id.trim() : "")
+  if (id && id !== "[object Object]") return id
+  return `name:${item.name}`
+}
+
+function apiId(item: Pick<KolboAssetItem, "id">) {
+  return coerceId(item.id)
+}
 
 function coverFit(item: KolboAssetItem) {
   return (item.dnaType ?? "").toLowerCase() === "environment"
 }
 
-function heroUrls(item: KolboAssetItem) {
-  if (item.images?.length) return item.images
-  if (item.thumbnail) return [item.thumbnail]
-  return [] as string[]
+/** Merge URL lists without dropping extras from either side. */
+function mergeUrls(...lists: (string[] | undefined)[]) {
+  const out: string[] = []
+  for (const list of lists) {
+    for (const url of list ?? []) {
+      if (url && !out.includes(url)) out.push(url)
+    }
+  }
+  return out
+}
+
+/** Full-res DNA media for the gallery — sheet + refs. Never the small card thumb. */
+function allMedia(item: KolboAssetItem) {
+  const urls = mergeUrls(item.sheet ? [item.sheet] : undefined, item.images)
+  if (urls.length) return urls
+  return item.thumbnail ? [item.thumbnail] : []
+}
+
+/** Normalize a detail/list payload that may still be snake_case from older sidecars. */
+function normalizeAsset(row: Record<string, any>, fallback?: KolboAssetItem): KolboAssetItem {
+  const id = coerceId(row.id ?? row._id) ?? fallback?.id ?? ""
+  const sheet =
+    (typeof row.sheet === "string" && row.sheet) ||
+    (typeof row.sheet_url === "string" && row.sheet_url) ||
+    (typeof row.characterSheet === "string" && row.characterSheet) ||
+    fallback?.sheet
+  const small =
+    (typeof row.thumbnail_small_url === "string" && row.thumbnail_small_url) ||
+    (typeof row.thumbnailSmallUrl === "string" && row.thumbnailSmallUrl) ||
+    undefined
+  const thumb =
+    small ||
+    (typeof row.thumbnail === "string" && row.thumbnail) ||
+    (typeof row.thumbnail_url === "string" && row.thumbnail_url) ||
+    fallback?.thumbnail
+  const fromImages = Array.isArray(row.images)
+    ? row.images.flatMap((img: unknown) => {
+        if (typeof img === "string") return [img]
+        if (img && typeof img === "object" && typeof (img as { url?: string }).url === "string") {
+          return [(img as { url: string }).url]
+        }
+        return []
+      })
+    : []
+  const fromInventory = Array.isArray(row.imageInventory ?? row.image_inventory)
+    ? (row.imageInventory ?? row.image_inventory).flatMap((img: any) =>
+        typeof img?.url === "string" ? [img.url] : typeof img === "string" ? [img] : [],
+      )
+    : []
+  const images = mergeUrls(
+    fromImages,
+    fromInventory,
+    fallback?.images,
+  ).filter((url) => url !== sheet)
+  return {
+    id,
+    name: String(row.name || fallback?.name || ""),
+    thumbnail: thumb,
+    sheet,
+    dnaType: row.dnaType ?? row.dna_type ?? fallback?.dnaType,
+    description: typeof row.description === "string" ? row.description : fallback?.description,
+    images: images.length ? images : undefined,
+  }
 }
 
 /**
- * Browse Visual DNAs and moodboards as a picture grid — kolbo-map parity:
- * contain+blur cards, multi-select, detail panel, Apply bar.
+ * Browse Visual DNAs and moodboards as a picture grid — multi-select,
+ * detail panel with all media, Apply bar. No create/edit here.
  */
 export const DialogSelectKolboAsset: Component<Props> = (props) => {
   const dialog = useDialog()
@@ -55,7 +162,7 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
   const [tab, setTab] = createSignal<Tab>(props.initialTab ?? "visual-dna")
   const [query, setQuery] = createSignal("")
   const [selected, setSelected] = createSignal<KolboAssetItem[]>([])
-  const [previewId, setPreviewId] = createSignal<string | null>(null)
+  const [previewKey, setPreviewKey] = createSignal<string | null>(null)
   const [enriched, setEnriched] = createSignal<Record<string, KolboAssetItem>>({})
   const [detailLoading, setDetailLoading] = createSignal(false)
   const [galleryIdx, setGalleryIdx] = createSignal(0)
@@ -67,17 +174,18 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
   createEffect(() => {
     tab()
     setSelected([])
-    setPreviewId(null)
+    setPreviewKey(null)
     setGalleryIdx(0)
   })
 
   const kind = (): Kind => (tab() === "moodboard" ? "moodboard" : "visual-dna")
-  const maxPick = () => (kind() === "moodboard" ? MAX_MOODBOARD : MAX_DNA)
+  /** `null` = no cap (Visual DNA). */
+  const maxPick = () => (kind() === "moodboard" ? MAX_MOODBOARD : null)
 
   const source = createMemo(() => {
-    if (tab() === "moodboard") return props.moodboards
-    if (tab() === "global-dna") return props.globalDnas
-    return props.visualDnas
+    const rows =
+      tab() === "moodboard" ? props.moodboards : tab() === "global-dna" ? props.globalDnas : props.visualDnas
+    return rows.map((row) => normalizeAsset(row as unknown as Record<string, any>, row))
   })
   const items = createMemo(() => {
     const q = query().trim().toLowerCase()
@@ -88,25 +196,28 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
   })
   const loading = createMemo(() => tab() === "global-dna" && props.globalLoading && props.globalDnas.length === 0)
 
-  const isSelected = (id: string) => selected().some((item) => item.id === id)
-  const atMax = () => selected().length >= maxPick()
+  const isSelected = (item: KolboAssetItem) => selected().some((row) => keyOf(row) === keyOf(item))
+  const atMax = () => {
+    const max = maxPick()
+    return max != null && selected().length >= max
+  }
 
-  const resolve = (id: string): KolboAssetItem | null => {
-    const extra = enriched()[id]
+  const resolve = (key: string): KolboAssetItem | null => {
+    const extra = enriched()[key]
     const row =
-      items().find((item) => item.id === id) ?? selected().find((item) => item.id === id) ?? null
+      items().find((item) => keyOf(item) === key) ?? selected().find((item) => keyOf(item) === key) ?? null
     if (!row && !extra) return null
-    return { ...row, ...extra, id } as KolboAssetItem
+    return { ...row, ...extra, id: row?.id ?? extra?.id ?? key } as KolboAssetItem
   }
 
   const preview = createMemo(() => {
-    const id = previewId()
-    return id ? resolve(id) : null
+    const key = previewKey()
+    return key ? resolve(key) : null
   })
 
   const gallery = createMemo(() => {
     const item = preview()
-    return item ? heroUrls(item) : []
+    return item ? allMedia(item) : []
   })
 
   createEffect(() => {
@@ -114,12 +225,16 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
     if (galleryIdx() >= urls.length) setGalleryIdx(0)
   })
 
+  // Always hydrate the preview DNA — list payloads are often thumbnail-only.
   createEffect(() => {
-    const id = previewId()
-    if (!id || kind() === "moodboard") return
-    const row = resolve(id)
-    if (row?.description && (row.images?.length ?? 0) > 1) return
-    if (enriched()[id]?.description) return
+    const key = previewKey()
+    if (!key || kind() === "moodboard") return
+    const cached = enriched()[key]
+    // Skip only when we already have real multi-image detail (or a sheet + refs).
+    if (cached && (cached.sheet || (cached.images?.length ?? 0) > 0)) return
+    const row = resolve(key)
+    const id = row ? apiId(row) : null
+    if (!id) return
     const base = server.current?.http.url
     if (!base) return
     setDetailLoading(true)
@@ -127,9 +242,20 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
     void fetch(`${base}/global/kolbo-visual-dna/${encodeURIComponent(id)}`)
       .then(async (res) => {
         if (!res.ok || cancelled) return
-        const body = (await res.json()) as KolboAssetItem
-        if (!body?.id || cancelled) return
-        setEnriched((prev) => ({ ...prev, [id]: { ...row, ...body, id: body.id } }))
+        const body = (await res.json()) as Record<string, any>
+        if (cancelled) return
+        const next = normalizeAsset(body, row ?? undefined)
+        if (!next.name) return
+        setEnriched((prev) => ({
+          ...prev,
+          [key]: {
+            ...next,
+            // Keep the optimized small thumb on the card if detail only returned fulls.
+            thumbnail: row?.thumbnail && row.thumbnail !== next.sheet ? row.thumbnail : next.thumbnail,
+            images: mergeUrls(next.images, row?.images),
+            sheet: next.sheet ?? row?.sheet,
+          },
+        }))
       })
       .catch(() => {})
       .finally(() => {
@@ -141,10 +267,11 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
   })
 
   const toggle = (item: KolboAssetItem) => {
-    setPreviewId(item.id)
+    const key = keyOf(item)
+    setPreviewKey(key)
     setGalleryIdx(0)
-    if (isSelected(item.id)) {
-      setSelected((prev) => prev.filter((x) => x.id !== item.id))
+    if (isSelected(item)) {
+      setSelected((prev) => prev.filter((x) => keyOf(x) !== key))
       return
     }
     if (atMax()) return
@@ -209,7 +336,7 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
               </div>
             }
           >
-            <div class="flex flex-1 min-h-0 gap-3">
+            <div class="flex flex-1 min-h-0 gap-3 flex-col lg:flex-row">
               <div
                 class="flex-1 min-w-0 min-h-0 overflow-auto no-scrollbar pr-0.5"
                 style={{
@@ -221,10 +348,11 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
               >
                 <For each={items()}>
                   {(item) => {
-                    const picked = () => isSelected(item.id)
+                    const picked = () => isSelected(item)
                     const disabled = () => atMax() && !picked()
-                    const active = () => previewId() === item.id
+                    const active = () => previewKey() === keyOf(item)
                     const cover = () => coverFit(item)
+                    const count = () => allMedia(enriched()[keyOf(item)] ? { ...item, ...enriched()[keyOf(item)] } : item).length
                     return (
                       <button
                         type="button"
@@ -284,6 +412,11 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
                               </svg>
                             </span>
                           </Show>
+                          <Show when={count() > 1}>
+                            <span class="absolute bottom-1.5 end-1.5 px-1.5 py-0.5 rounded-md bg-black/65 text-white text-11-medium">
+                              {count()}
+                            </span>
+                          </Show>
                         </div>
                         <div class="flex flex-col min-w-0 px-0.5">
                           <span class="text-13-medium text-text-strong truncate">{item.name}</span>
@@ -299,11 +432,10 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
 
               <Show when={preview()}>
                 {(item) => {
-                  const urls = () => heroUrls(item())
-                  const hero = () => urls()[galleryIdx()] ?? item().thumbnail
+                  const hero = () => gallery()[galleryIdx()] ?? item().thumbnail
                   return (
-                    <aside class="hidden xl:flex w-[300px] shrink-0 flex-col min-h-0 rounded-2xl border border-border-weaker-base bg-surface-recess-base overflow-hidden">
-                      <div class="relative aspect-[4/3] w-full bg-black/30">
+                    <aside class="flex w-full lg:w-[340px] shrink-0 flex-col min-h-0 max-h-[42vh] lg:max-h-none rounded-2xl border border-border-weaker-base bg-surface-recess-base overflow-hidden">
+                      <div class="relative aspect-[4/3] w-full bg-black/30 shrink-0">
                         <Show
                           when={hero()}
                           fallback={
@@ -330,44 +462,58 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
                           </div>
                         </Show>
                       </div>
-                      <Show when={urls().length > 1}>
-                        <div class="flex gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar">
-                          <For each={urls()}>
-                            {(url, index) => (
-                              <button
-                                type="button"
-                                class="size-12 shrink-0 rounded-md overflow-hidden border transition-colors"
-                                classList={{
-                                  "border-green-500/80": galleryIdx() === index(),
-                                  "border-border-weaker-base hover:border-border-weak-base":
-                                    galleryIdx() !== index(),
-                                }}
-                                onClick={() => setGalleryIdx(index())}
-                              >
-                                <img src={url} alt="" class="size-full object-cover" referrerpolicy="no-referrer" />
-                              </button>
-                            )}
-                          </For>
+
+                      <div class="flex-1 min-h-0 overflow-auto flex flex-col gap-3 px-3 py-3">
+                        <Show when={gallery().length > 0}>
+                          <div class="flex flex-col gap-1.5">
+                            <div class="text-11-medium text-text-weak uppercase tracking-wide">
+                              {language.t("dialog.kolboAsset.allMedia")} ({gallery().length})
+                            </div>
+                            <div class="grid grid-cols-3 gap-1.5">
+                              <For each={gallery()}>
+                                {(url, index) => (
+                                  <button
+                                    type="button"
+                                    class="rounded-md overflow-hidden border aspect-square transition-colors"
+                                    classList={{
+                                      "border-green-500/80": galleryIdx() === index(),
+                                      "border-border-weaker-base hover:border-border-weak-base": galleryIdx() !== index(),
+                                    }}
+                                    onClick={() => setGalleryIdx(index())}
+                                  >
+                                    <img
+                                      src={url}
+                                      alt=""
+                                      class="size-full object-cover"
+                                      referrerpolicy="no-referrer"
+                                    />
+                                  </button>
+                                )}
+                              </For>
+                            </div>
+                          </div>
+                        </Show>
+
+                        <div class="flex flex-col gap-1 pt-1">
+                          <div class="text-14-medium text-text-strong break-words">{item().name}</div>
+                          <Show when={item().dnaType}>
+                            <div class="text-12-regular text-text-weak">{item().dnaType}</div>
+                          </Show>
+                          <Show when={item().description}>
+                            <p class="text-12-regular text-text-base whitespace-pre-wrap break-words line-clamp-6">
+                              {item().description}
+                            </p>
+                          </Show>
                         </div>
-                      </Show>
-                      <div class="flex flex-col gap-2 px-3 py-3 flex-1 min-h-0 overflow-auto">
-                        <div class="text-14-medium text-text-strong break-words">{item().name}</div>
-                        <Show when={item().dnaType}>
-                          <div class="text-12-regular text-text-weak">{item().dnaType}</div>
-                        </Show>
-                        <Show when={item().description}>
-                          <p class="text-12-regular text-text-base whitespace-pre-wrap break-words">
-                            {item().description}
-                          </p>
-                        </Show>
                       </div>
+
                       <div class="shrink-0 flex flex-col gap-2 p-3 border-t border-border-weaker-base">
                         <button
                           type="button"
                           class="w-full px-3 py-2.5 rounded-lg text-13-medium border border-border-weak-base text-text-base hover:bg-surface-raised-base-hover transition-colors"
                           onClick={() => toggle(item())}
                         >
-                          {isSelected(item().id)
+                          {isSelected(item())
                             ? language.t("dialog.kolboAsset.deselect")
                             : language.t("dialog.kolboAsset.select")}
                         </button>
@@ -402,21 +548,28 @@ export const DialogSelectKolboAsset: Component<Props> = (props) => {
               </For>
             </div>
             <div class="flex-1 min-w-0 text-13-regular text-text-base truncate">
-              {language.t("dialog.kolboAsset.selectedCount", {
-                count: selected().length,
-                max: maxPick(),
-              })}
+              <Show
+                when={maxPick() != null}
+                fallback={language.t("dialog.kolboAsset.selectedCountUnlimited", {
+                  count: selected().length,
+                })}
+              >
+                {language.t("dialog.kolboAsset.selectedCount", {
+                  count: selected().length,
+                  max: maxPick()!,
+                })}
+              </Show>
             </div>
             <button
               type="button"
-              class="shrink-0 px-3 py-1.5 rounded-lg text-13-medium text-text-weak hover:text-text-base"
+              class="px-3 py-1.5 rounded-lg text-13-medium text-text-weak hover:text-text-base hover:bg-surface-raised-base-hover transition-colors"
               onClick={() => setSelected([])}
             >
               {language.t("dialog.kolboAsset.clear")}
             </button>
             <button
               type="button"
-              class="shrink-0 px-4 py-2 rounded-lg text-13-medium text-white hover:opacity-90 transition-opacity"
+              class="px-4 py-1.5 rounded-lg text-13-medium text-white hover:opacity-90 transition-opacity"
               style={{ "background-color": "var(--icon-agent-plan-base, #22c55e)" }}
               onClick={() => apply(selected())}
             >
