@@ -3,6 +3,7 @@ name: Distribute canonical Kolbo skill
 # packages/opencode/skills/kolbo is the only editable source. This workflow:
 #   1. mirrors it byte-for-byte into the Claude plugin;
 #   2. regenerates the public kolbo-skills split package from it;
+#      also packs kolbo.zip (Claude.ai / Codex upload) from the same tree;
 #   3. mirrors it into @kolbo/mcp, validates the bundle, versions and publishes it;
 #   4. updates kolbo-api to the newly published MCP package.
 # Never hand-edit any downstream skill tree.
@@ -104,6 +105,11 @@ jobs:
           cd source/packages/opencode
           node script/build-split-skills.mjs --out "$GITHUB_WORKSPACE/skills-pkg"
           node script/build-split-skills.mjs --check --out "$GITHUB_WORKSPACE/skills-pkg"
+
+      - name: Pack Claude.ai / Codex upload zip
+        run: |
+          set -euo pipefail
+          node source/packages/opencode/script/pack-upload-skill.mjs --out "$GITHUB_WORKSPACE/skills-pkg/kolbo.zip"
 
       - name: Sync plugin manifests to the generated skill set
         run: |
