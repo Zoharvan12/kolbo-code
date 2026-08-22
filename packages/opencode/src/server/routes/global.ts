@@ -16,6 +16,7 @@ import { Auth } from "../../auth"
 import { Partner } from "../../brand/partner"
 import { Global } from "../../global"
 import path from "path"
+import { assetId } from "./kolbo-asset-id"
 
 const log = Log.create({ service: "server" })
 
@@ -33,21 +34,28 @@ const _htmlPreviewStore = new Map<string, string>()
 type KolboAsset = {
   id: string
   name: string
+  /** Optimized small image for grid cards — prefer over full sheet. */
   thumbnail?: string
+  sheet?: string
   dnaType?: string
   description?: string
+  /** Full-resolution reference stills (excludes sheet when sheet is separate). */
   images?: string[]
 }
+
 const _kolboAssetCache = new Map<string, { at: number; value: KolboAsset[] }>()
 const KOLBO_ASSET_TTL = 5 * 60 * 1000
 
-function assetImages(row: Record<string, any>): string[] {
-  const out: string[] = []
+function assetImages(row: Record<string, any>): { sheet?: string; images: string[]; thumb?: string } {
+  const images: string[] = []
   const push = (url: unknown) => {
-    if (typeof url === "string" && url && !url.startsWith("data:") && !out.includes(url)) out.push(url)
+    if (typeof url === "string" && url && !url.startsWith("data:") && !images.includes(url)) images.push(url)
   }
-  push(row.sheet_url ?? row.characterSheet)
-  push(row.thumbnail_url ?? row.thumbnail)
+  const sheetRaw = row.sheet_url ?? row.characterSheet ?? row.character_sheet_url ?? row.character_sheet
+  const sheet = typeof sheetRaw === "string" && sheetRaw && !sheetRaw.startsWith("data:") ? sheetRaw : undefined
+
+  // Collect every still — list payloads sometimes omit `images` while inventory /
+  // source_images still carry the 4 reference slots.
   if (Array.isArray(row.images)) {
     for (const img of row.images) {
       if (typeof img === "string") push(img)
@@ -60,30 +68,52 @@ function assetImages(row: Record<string, any>): string[] {
       else if (img && typeof img === "object") push(img.url ?? img.src)
     }
   }
-  return out
+  if (Array.isArray(row.imageInventory) || Array.isArray(row.image_inventory)) {
+    for (const img of row.imageInventory ?? row.image_inventory) {
+      if (img && typeof img === "object") push(img.url ?? img.src)
+      else if (typeof img === "string") push(img)
+    }
+  }
+  push(row.thumbnail_url ?? row.thumbnailUrl ?? row.thumbnail)
+  if (sheet) push(sheet)
+
+  const small =
+    row.thumbnail_small_url ?? row.thumbnailSmallUrl ?? row.thumbnail_small ?? undefined
+  const thumb =
+    typeof small === "string" && small && !small.startsWith("data:")
+      ? small
+      : undefined
+
+  // Sheet stays labeled separately; refs are everything else.
+  const refs = sheet ? images.filter((url) => url !== sheet) : images
+  return { sheet, images: refs, thumb }
 }
 
 function mapAsset(row: any): KolboAsset | null {
-  const id = row?.id ?? row?._id
+  const id = assetId(row?.id ?? row?._id)
   const name = row?.name
   if (!id || !name) return null
-  const images = assetImages(row)
+  const media = assetImages(row)
+  // Grid cards use the optimized small thumb when present; gallery uses sheet + images.
+  const thumbnail = media.thumb ?? media.sheet ?? media.images[0]
   return {
-    id: String(id),
+    id,
     name: String(name),
-    thumbnail: images[0],
+    thumbnail,
+    sheet: media.sheet,
     dnaType: row.dna_type ?? row.dnaType,
     description: typeof row.description === "string" ? row.description : undefined,
-    images: images.length ? images : undefined,
+    images: media.images.length ? media.images : undefined,
   }
 }
 
-async function kolboAssets(cacheKey: string, path: string): Promise<KolboAsset[]> {
+async function kolboAssets(cacheKey: string, path: string, opts?: { fresh?: boolean }): Promise<KolboAsset[]> {
   const auth = (await Auth.get(Partner.authProviderID)) ?? (await Auth.get(Partner.authProviderIDLegacy))
   const apiKey = auth?.type === "api" ? auth.key : auth?.type === "oauth" ? auth.access : undefined
   if (!apiKey) return []
 
-  const key = `${cacheKey}:${apiKey}`
+  const key = `${cacheKey}:idfix:${apiKey}`
+  if (opts?.fresh) _kolboAssetCache.delete(key)
   const hit = _kolboAssetCache.get(key)
   if (hit && Date.now() - hit.at < KOLBO_ASSET_TTL) return hit.value
 
@@ -110,6 +140,7 @@ const KolboAssetSchema = z.object({
   id: z.string(),
   name: z.string(),
   thumbnail: z.string().optional(),
+  sheet: z.string().optional(),
   dnaType: z.string().optional(),
   description: z.string().optional(),
   images: z.array(z.string()).optional(),
@@ -845,7 +876,8 @@ export const GlobalRoutes = lazy(() =>
       // scope against ['mine','global','all'] and silently falls back to 'all'
       // on anything else, so the old value was quietly asking for the whole
       // catalog and relying on luck to keep the menu short.
-      async (c) => c.json(await kolboAssets("visual-dna", "/v1/visual-dna?scope=mine")),
+      async (c) =>
+        c.json(await kolboAssets("visual-dna", "/v1/visual-dna?scope=mine", { fresh: c.req.query("refresh") === "1" })),
     )
     .get(
       "/kolbo-global-visual-dnas",
@@ -862,7 +894,12 @@ export const GlobalRoutes = lazy(() =>
           ...errors(401, 502),
         },
       }),
-      async (c) => c.json(await kolboAssets("visual-dna-global", "/v1/visual-dna?scope=global")),
+      async (c) =>
+        c.json(
+          await kolboAssets("visual-dna-global", "/v1/visual-dna?scope=global", {
+            fresh: c.req.query("refresh") === "1",
+          }),
+        ),
     )
     .get(
       "/kolbo-moodboards",
@@ -879,7 +916,8 @@ export const GlobalRoutes = lazy(() =>
           ...errors(401, 502),
         },
       }),
-      async (c) => c.json(await kolboAssets("moodboard", "/v1/moodboards")),
+      async (c) =>
+        c.json(await kolboAssets("moodboard", "/v1/moodboards", { fresh: c.req.query("refresh") === "1" })),
     )
     .get(
       "/kolbo-visual-dna/:id",

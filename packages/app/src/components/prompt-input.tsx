@@ -124,6 +124,7 @@ type KolboAsset = {
   id: string
   name: string
   thumbnail?: string
+  sheet?: string
   dnaType?: string
   description?: string
   images?: string[]
@@ -230,18 +231,17 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   onMount(() => {
     // Array.isArray, not truthiness: a server without these routes falls through
     // to the SPA catch-all and returns HTML, which would blow up on .map() below.
-    globalSDK.client.global
-      .kolboVisualDnas()
-      .then((res) => {
-        if (Array.isArray(res.data)) setVisualDnas(res.data as KolboAsset[])
-      })
-      .catch(() => {})
-    globalSDK.client.global
-      .kolboMoodboards()
-      .then((res) => {
-        if (Array.isArray(res.data)) setMoodboards(res.data as KolboAsset[])
-      })
-      .catch(() => {})
+    // `refresh=1` busts the sidecar's 5-minute DNA cache so sheet + all stills
+    // show up after API/sidecar mapping fixes.
+    const load = (path: string, set: (items: KolboAsset[]) => void) =>
+      fetch(`${globalSDK.url}/global/${path}?refresh=1`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (Array.isArray(data)) set(data as KolboAsset[])
+        })
+        .catch(() => {})
+    load("kolbo-visual-dnas", setVisualDnas)
+    load("kolbo-moodboards", setMoodboards)
   })
 
   // The platform catalog is thousands of presets, so it is NOT fetched on mount
@@ -254,11 +254,15 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     if (globalDnasRequested) return
     globalDnasRequested = true
     setGlobalDnasLoading(true)
-    globalSDK.client.global
-      .kolboGlobalVisualDnas()
-      .then((res) => {
-        if (Array.isArray(res.data)) {
-          setGlobalDnas(res.data as KolboAsset[])
+    fetch(`${globalSDK.url}/global/kolbo-global-visual-dnas?refresh=1`)
+      .then(async (res) => {
+        if (!res.ok) {
+          globalDnasRequested = false
+          return
+        }
+        const data = await res.json().catch(() => null)
+        if (Array.isArray(data)) {
+          setGlobalDnas(data as KolboAsset[])
           return
         }
         // A sidecar without this route answers the SPA catch-all with HTML — a
@@ -2217,6 +2221,21 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   </DropdownMenu.Portal>
                 </DropdownMenu>
               </TooltipKeybind>
+              <Tooltip placement="top" value={language.t("prompt.action.visualDna")}>
+                <Button
+                  data-action="prompt-visual-dna"
+                  type="button"
+                  variant="ghost"
+                  class="size-8 p-0"
+                  style={buttons()}
+                  disabled={store.mode !== "normal"}
+                  tabIndex={store.mode === "normal" ? undefined : -1}
+                  aria-label={language.t("prompt.action.visualDna")}
+                  onClick={() => openKolboAssets("visual-dna")}
+                >
+                  <Icon name="dna" class="size-4.5" />
+                </Button>
+              </Tooltip>
               <Tooltip
                 placement="top"
                 value={dictating() ? language.t("prompt.action.dictateStop") : language.t("prompt.action.dictate")}
