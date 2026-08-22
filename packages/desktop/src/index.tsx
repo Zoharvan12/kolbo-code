@@ -330,7 +330,8 @@ const createPlatform = (): Platform => {
             const zipUrl = platforms?.["windows-x86_64"]?.url
             if (!zipUrl) throw new Error("No Windows update URL found")
             const exeUrl = zipUrl.replace(".nsis.zip", ".exe")
-            await commands.killSidecar().catch(() => undefined)
+            // Do NOT kill the sidecar here — download can take a while and the UI
+            // would spam "Failed to reload code". Rust kills it right before spawn.
             const push = (p: UpdateDownloadProgress) => onProgress(p)
             const stop = await listen<UpdateDownloadProgress>("update-download-progress", (e) => push(e.payload))
             const ch = new Channel<UpdateDownloadProgress>()

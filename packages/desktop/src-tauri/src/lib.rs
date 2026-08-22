@@ -425,10 +425,18 @@ async fn install_update(
     file.flush()
         .await
         .map_err(|e| format!("Failed to save installer: {e}"))?;
+    // Windows refuses CreateProcess on a file we still hold open for write
+    // (os error 32 — "being used by another process"). Close before spawn.
+    drop(file);
     emit(downloaded);
 
-    // Give the UI one frame to paint 100% / "Installing..." before we exit.
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    // Kill the CLI sidecar only now — killing it before the download made the
+    // UI spam "Failed to reload code" for the whole download window.
+    kill_sidecar(app.clone());
+
+    // Brief settle so Windows releases the write handle and AV finishes the
+    // first scan pass before we execute the freshly-written installer.
+    tokio::time::sleep(Duration::from_millis(400)).await;
 
     // /P = one passive progress window (same as plugins.updater.windows.installMode).
     // /UPDATE = upgrade path: skip welcome/dir pages and run the previous

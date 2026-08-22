@@ -41,10 +41,11 @@ type Starter = {
 // Real card art lives on the shared env-agnostic CDN bucket (kolbo-general-media,
 // the documented home for hardcoded product assets): keyed by starter key so it
 // can be redrawn without shipping a new build. Assets are cached immutable — on
-// any redraw upload a NEW key (-v2) and update this base or the key names.
+// any redraw upload a NEW key (-vN) and update this base or the key names.
+// JPEG (not WebP) — WebView2 / WebKit often fail to decode some WebP stills,
+// which left empty-session cards showing only the gradient tile.
 // Gradient tile carries the card if an asset is missing/unreachable.
-const THUMB_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/starters-v2"
-const THUMB_CDN_V3 = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/starters-v3"
+const THUMB_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/starters-v4"
 const DEMO_CDN = "https://kolbo-general-media.fra1.cdn.digitaloceanspaces.com/kolbo-code/demo-assets"
 
 // Each preset's demo assets MATCH its card art — a card showing a woman with
@@ -66,7 +67,7 @@ const DEMO_SCENE: { url: string; filename: string; mime: string }[] = [
 // @ImageN numbering the preset prompt references (1=model, 2-5=outfits, 6=env).
 const DEMO_FASHION: { url: string; filename: string; mime: string }[] = [
   // Same image as the card thumbnail — what the card shows IS @Image1.
-  { url: `${THUMB_CDN_V3}/fashionCampaign-v2.webp`, filename: "model.webp", mime: "image/webp" },
+  { url: `${THUMB_CDN}/fashionCampaign.jpg`, filename: "model.jpg", mime: "image/jpeg" },
   { url: `${DEMO_CDN}/demo-fashion-outfit-red.jpg`, filename: "outfit-red.jpg", mime: "image/jpeg" },
   { url: `${DEMO_CDN}/demo-fashion-outfit-cream.jpg`, filename: "outfit-cream.jpg", mime: "image/jpeg" },
   { url: `${DEMO_CDN}/demo-fashion-outfit-black.jpg`, filename: "outfit-black.jpg", mime: "image/jpeg" },
@@ -75,14 +76,14 @@ const DEMO_FASHION: { url: string; filename: string; mime: string }[] = [
 ]
 
 const STARTERS: Starter[] = [
-  { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${THUMB_CDN_V3}/fashionCampaign-v2.webp`, media: DEMO_FASHION, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
-  // Still images only — WebView2 autoplay is flaky on these cards, so looping
-  // mp4 thumbs kept painting as empty gradients. Static art is enough here.
-  { key: "scene", categories: ["film"], tag: "seedance", thumb: `${THUMB_CDN}/scene.webp`, media: DEMO_SCENE, gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
-  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN_V3}/ugc.webp`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
-  { key: "presentation", categories: ["web"], gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
-  { key: "landing", media: [DEMO_LANDING], categories: ["web", "marketing"], gradient: "linear-gradient(140deg,#00c2ff,#0037ff)" },
-  { key: "productAnimation", categories: ["marketing", "film"], thumb: `${THUMB_CDN}/productAnimation.webp`, media: [DEMO_SNEAKER], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
+  { key: "fashionCampaign", categories: ["marketing", "images"], tag: "guided", thumb: `${THUMB_CDN}/fashionCampaign.jpg`, media: DEMO_FASHION, gradient: "linear-gradient(140deg,#ff4dd8,#6a00b8)" },
+  // Still JPEG only — WebP decode was flaky in the desktop WebView, and mp4
+  // autoplay thumbs often painted as empty gradients. Static art is enough.
+  { key: "scene", categories: ["film"], tag: "seedance", thumb: `${THUMB_CDN}/scene.jpg`, media: DEMO_SCENE, gradient: "linear-gradient(140deg,#ff2d78,#7b2dff)" },
+  { key: "ugc", categories: ["marketing", "film"], tag: "needsRefs", thumb: `${THUMB_CDN}/ugc.jpg`, fit: "contain", media: [DEMO_CREAM_JAR, DEMO_CREATOR_WOMAN], gradient: "linear-gradient(140deg,#ff8a00,#ff2d55)" },
+  { key: "presentation", categories: ["web"], thumb: `${THUMB_CDN}/presentation.jpg`, gradient: "linear-gradient(140deg,#ffd200,#ff6a00)" },
+  { key: "landing", media: [DEMO_LANDING], categories: ["web", "marketing"], thumb: `${THUMB_CDN}/landing.jpg`, gradient: "linear-gradient(140deg,#00c2ff,#0037ff)" },
+  { key: "productAnimation", categories: ["marketing", "film"], thumb: `${THUMB_CDN}/productAnimation.jpg`, media: [DEMO_SNEAKER], gradient: "linear-gradient(140deg,#ff5e3a,#b8003e)" },
 ]
 
 const CATEGORIES: ("all" | StarterCategory)[] = ["all", "marketing", "film", "images", "web"]
@@ -191,7 +192,7 @@ export function NewSessionView(props: NewSessionViewProps) {
                               cover-fill of ITSELF — flat gradient bars read broken. */}
                           <Show when={starter.fit === "contain"}>
                             <img
-                              src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
+                              src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.jpg`}
                               alt=""
                               aria-hidden="true"
                               loading="lazy"
@@ -201,7 +202,7 @@ export function NewSessionView(props: NewSessionViewProps) {
                             />
                           </Show>
                           <img
-                            src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.webp`}
+                            src={starter.thumb ?? `${THUMB_CDN}/${starter.key}.jpg`}
                             alt=""
                             loading="lazy"
                             referrerpolicy="no-referrer"
