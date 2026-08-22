@@ -8,9 +8,9 @@ Creative generations bill against the user's Kolbo credit balance. **Billing uni
 
 | Type | Billing unit | Credit range | Example |
 |------|-------------|-------------|---------|
-| **Image** | per image (flat) | 1–30 cr | Flux.1 Fast = 1 cr, Midjourney = 4 cr. If `resolution` is set, check `resolutionMultipliers` — some families multiply cost significantly at higher tiers. |
+| **Image** | per image (flat) | 1–30 cr | Flux.1 Fast = 1 cr, Midjourney = 4 cr. If `resolution` is set, check `resolution_multipliers` — some families multiply cost significantly at higher tiers. |
 | **Image edit** | per image (flat) | 2–20 cr | |
-| **Video** | **cr/s × duration** | 2–30 cr/s | Kandinsky 5 Fast × 5s = 10 cr; Seedance 2.0 × 10s = 300 cr. Check `resolutionMultipliers` + `soundCreditMultiplier`. |
+| **Video** | **cr/s × duration** | 2–30 cr/s | Kandinsky 5 Fast × 5s = 10 cr; Seedance 2.0 × 10s = 300 cr. Check `resolution_multipliers` + `sound_credit_multiplier`. |
 | **Video from image** | **cr/s × duration** | 4–30 cr/s | Same per-second rule. |
 | **Elements (ref-to-video)** | **cr/s × duration** | 4–30 cr/s | Check `credit` and multipliers in `list_models type="elements"`. |
 | **Lipsync** | **cr/s × duration** | 5–20 cr/s | |
@@ -28,7 +28,7 @@ Apply when confirming cost before firing:
 - **Music**: flat per generation — `total = model_credit` (duration does not change cost).
 - **TTS**: `total = model_credit × ceil(character_count / 100)`. Count actual characters first. 1000 chars with ElevenLabs = 50 credits.
 - **Images / 3D / Sound effects**: `total = model_credit × quantity`.
-- **Resolution / audio multipliers**: if `resolution` is set or model has native audio, read `resolutionMultipliers[tier]` and `soundCreditMultiplier`. Formula: `final = base × resolutionMult × (sound ? soundMult : 1) × durationSeconds`.
+- **Resolution / audio multipliers**: if `resolution` is set or model has native audio, read `resolution_multipliers[tier]` and `sound_credit_multiplier`. Formula: `final = base × resolutionMult × (sound ? soundMult : 1) × durationSeconds`.
 
 ### Tier label → pixel mapping (rough)
 
@@ -38,8 +38,7 @@ Apply when confirming cost before firing:
 ## When to Confirm Cost
 
 **Skip cost confirmation when:**
-- The user already specified model + count + duration ("make 5 videos, seedance 2 fast, 15s" IS the confirmation).
-- A single generation costs under 5 credits.
+- Model + count + aspect + creative direction are already pinned by the user ("make 5 videos, seedance 2 fast, 15s" IS the confirmation).
 
 **Required cost confirmation when:**
 - Anything else — present a one-line summary: "8 videos × 5s × [model] @ X cr/s = **Y credits**. Proceed?"
@@ -52,21 +51,7 @@ Apply when confirming cost before firing:
 
 ## ⚠️ Quote Real Cost, Never Estimates (CRITICAL)
 
-Pre-flight formulas above are for **preview only**. After firing, every generation returns `credits_used` (multiplier-adjusted total) and `credits_breakdown` (per-model attribution).
-
-```json
-{
-  "credits_used": 12,
-  "credits_breakdown": [
-    { "model": "nano-banana-2", "base": 8, "final": 12, ... }
-  ],
-  "urls": [...]
-}
-```
-
-**Log `credits_used` to `.kolbo/production.md`**, not `base × count`. The multiplier-adjusted number is the only truth.
-
-When the user asks "how much did I spend?" → call `get_session_usage` for the real, multiplier-adjusted session total + per-tool + per-model breakdowns (same numbers as the desktop bottom-bar counter).
+Pre-flight formulas above are for **preview only** — after firing, quote the returned `credits_used`, never `base × count`. Log `credits_used`, resolution, duration and sound state per entry — format in `production-log.md`.
 
 ## Validation Pattern — Every Generation
 
@@ -132,9 +117,4 @@ Cost formula: `final_cost = credit × resolution_multipliers[resolution] × (sou
 
 ## Always Log the Resolution / Duration / Sound Choices
 
-Production-log entries should include the resolution and (for video) duration + sound state alongside the URL, so the user can see what they paid for:
-
-```md
-- still: https://...01-coffee.png  (flux-2-pro · 1K, 2026-05-14)
-- video: https://...02-rain.mp4   (kling-2 · 1080p · 5s · sound-off, 2026-05-14)
-```
+Log `credits_used`, resolution, duration and sound state per entry — format in `production-log.md`.

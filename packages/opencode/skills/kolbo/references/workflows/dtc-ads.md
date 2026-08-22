@@ -122,5 +122,5 @@ Default-to-cheapest when the user hasn't expressed a quality intent and the diff
 2. **Always confirm aspect ratio + resolution + quantity** before firing.
 3. **Always check for a brand kit** before scraping fresh — `Read .kolbo/brand-kits/<slug>.md` first.
 4. **Always log products + brand kits in `.kolbo/production.md`** so future ads reuse instead of re-uploading / re-scraping.
-5. **No auto-retry on failure** — surface the reason and let the user adjust.
+5. **Retries:** one retry only when `failure.retryable === true` or the generation completed with empty URLs (SKILL.md "⚠️ Generation lifecycle"); otherwise surface the reason and let the user adjust.
 6. **Strict NO uninvited additions** in every ad prompt: "NO captions, NO subtitles, NO watermarks, NO extra text beyond what's specified."

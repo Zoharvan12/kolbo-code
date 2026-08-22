@@ -44,15 +44,17 @@ If the user mentions a product / brand but no mode word, default to `ugc`. If th
 
 The mode determines which Kolbo MCP tool to call, what defaults to set, and what's forbidden.
 
-| Mode | Primary tool | aspect_ratio | duration | sound_enabled | Captions / watermarks |
-|---|---|---|---|:-:|:-:|
-| `ugc`, `ugc_how_to`, `ugc_unboxing`, `ugc_virtual_try_on`, `product_review` | `generate_video_from_image` (frame-first) OR `generate_elements` (Visual DNA → video) | **`9:16`** | model's `default_duration` (5–8s) | OFF | **Never add** |
-| `product_showcase` | `generate_creative_director` with `workflow_type: "video"` (for multi-shot) OR `generate_video` (single) | `16:9` or `1:1` | 5–10s | ON if model supports `sound_generation_type: "native"` | Allowed if user asks |
-| `tv_spot` | `generate_creative_director` with `workflow_type: "video"` (3–6 shots for a beat structure) | `16:9` | 15–30s total | ON (full audio + dialogue) | Allowed if part of the spot |
-| `virtual_try_on` | `generate_elements` with character Visual DNA + product as `reference_images` | `9:16` or `4:5` | 5–8s | OFF | Never add |
-| `wild_card` | User's chosen model with broader prompt latitude (no mode-specific defaults) | User's pick | User's pick | User's pick | User's pick |
+| Mode | Primary tool |
+|---|---|
+| `ugc`, `ugc_how_to`, `ugc_unboxing`, `ugc_virtual_try_on`, `product_review` | `generate_video_from_image` (frame-first) OR `generate_elements` (Visual DNA → video) |
+| `product_showcase` | `generate_creative_director` with `workflow_type: "video"` (for multi-shot) OR `generate_video` (single) |
+| `tv_spot` | `generate_creative_director` with `workflow_type: "video"` (3–6 shots for a beat structure) |
+| `virtual_try_on` | `generate_elements` with character Visual DNA + product as `reference_images` |
+| `wild_card` | User's chosen model with broader prompt latitude (no mode-specific defaults) |
 
-**Pick the actual model** with `list_models({ type: "..." })` and validate caps before firing — see SKILL.md "Resolution / Aspect / Duration — validate against caps".
+Aspect / duration / sound / captions defaults for the `ugc*` family live in "UGC Family Defaults" below.
+
+**Pick the actual model** with `list_models({ type: "..." })` and validate caps before firing — see `references/workflows/cost-and-validation.md`.
 
 ## The Look Itself — read `workflows/ugc-smartphone.md`
 
@@ -149,8 +151,7 @@ Scale to 2–6 slots. Keep `hook → demo → payoff` as the minimum arc; add `t
 ### 2. Rendering rules (hard invariants — apply to EVERY slot)
 
 - One aspect ratio across all slots (UGC = `9:16`). Never mix.
-- **No on-image text**, captions, subtitles, watermarks, or lower-thirds (users add captions in post).
-- **Identity lock**: same presenter, same wardrobe, same lighting environment across all slots — open the prompt with `same character throughout all shots`.
+- **Identity lock**: same presenter, same wardrobe, same lighting environment across all slots — bind identity by tagging `@<dna-name>` in every slot description (identity binds via the DNA; the phrase "same character throughout all shots" is FORBIDDEN — see `models/seedance.md`).
 - Hands and product must read cleanly — no deformed hands, no floating / clipping product, product logo legible when held.
 - Phone-shot aesthetic (handheld sway, window/screen key) unless the mode is polished (`tv_spot`, `product_showcase`).
 
@@ -183,7 +184,7 @@ Track these so each slot's call is reproducible and the arc stays coherent:
 Brief: *"15s UGC review of a skincare serum, tech-savvy woman creator."*
 
 1. Ensure/create presenter Visual DNA (tech-savvy woman) → `visual_dna_id`.
-2. Board: `generate_image` a 3-panel `16:9` sheet — (a) chest-up hook holding the serum, (b) hands applying it, (c) thumbs-up reaction — `same character throughout all shots`, locked to the DNA. → `board_media_id`.
+2. Board: `generate_image` a 3-panel `16:9` sheet — (a) chest-up hook holding the serum, (b) hands applying it, (c) thumbs-up reaction — `@<dna-name>` tagged in every panel description, locked to the DNA. → `board_media_id`.
 3. Slots (each `9:16`, ~5s, sound OFF, animate from the matching board panel + product `@image2`):
    - Slot 1 (hook): "Before this serum my routine was five products…" holding it to camera.
    - Slot 2 (demo): hands applying, product in active use.
@@ -194,9 +195,8 @@ Brief: *"15s UGC review of a skincare serum, tech-savvy woman creator."*
 
 1. **Always pick a mode explicitly.** Don't auto-pick from one ambiguous word. If the user said "make me an ad" with no other signal, offer labeled options: `[UGC / TV Spot / Product Showcase / Surprise me]`.
 2. **Always confirm aspect ratio + duration + sound** before firing — these materially change output and cost. One question, labeled options.
-3. **Default UGC settings are hard rules** — captions OFF, music OFF, watermarks OFF — even when the user doesn't mention them. Only flip when they ask.
-4. **No auto-retry on failure.** If the generation fails (content policy, model OOM), surface the reason and let the user adjust prompt or product.
-5. **Show results without dumping URLs** — see SKILL.md "Generated URLs in chat".
+3. **Retries:** one retry only when `failure.retryable === true` or the generation completed with empty URLs (SKILL.md "⚠️ Generation lifecycle"); otherwise surface the reason and let the user adjust prompt or product.
+4. **Show results without dumping URLs** — see SKILL.md "Generated URLs in chat".
 
 ## Prompt Template Seed for UGC
 

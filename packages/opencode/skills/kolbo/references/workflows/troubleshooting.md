@@ -26,9 +26,9 @@ If Kolbo tools timeout or aren't listed, the MCP server may not be wired. Tell t
 ```
 This re-wires the MCP configuration automatically. Then restart the session.
 
-## Black / empty chat card while "Generating"
+## Generation status, waiting, black cards
 
-**Not a bug and not a failure.** The chat generation card's preview stays dark until the job has media. Library shows a K/logo placeholder tile for the same in-flight job. Do **not** re-fire `generate_*`, do **not** `list_media` to "find" it. Wait, or call `get_generation_status` once with `wait=true`. When complete, the result appears in Library (This session) — that is the user-facing source of truth.
+Status semantics, `wait=true` batching, black-card-is-normal and the credit guard live in SKILL.md "⚠️ Generation lifecycle — source of truth, waiting, failures".
 
 ## "Rate limited" (429 errors)
 
@@ -46,12 +46,6 @@ Call `list_color_palettes` and look for `is_active: true`. Then either
 `skip_color_palette: true` on the single generation. Don't try to counteract the
 grade by writing colours into the prompt — the palette is applied after, and the
 prompt loses.
-
-## Checking generation status without spinning
-
-`get_generation_status` supports `wait=true` (blocks server-side until the generation reaches a final state, up to ~3 min) and `generation_ids` (many ids in one call → returns `all_done`, `still_processing`, and per-generation results). **Never call it repeatedly in a loop** — one `wait=true` call replaces the loop. If some generations are still running after the wait window, call it ONCE more with `wait=true` and only the `still_processing` ids.
-
-**Credit guard:** after a generate tool returns `submitted` / `_timed_out`, do not keep thinking or editing files while the card spins — that burns coding credits. End the turn, or make **one** `wait=true` status call if you need the URLs next.
 
 ## Failure envelope from `get_generation_status`
 

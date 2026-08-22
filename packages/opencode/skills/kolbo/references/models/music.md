@@ -4,7 +4,7 @@
 
 # Music — Prompt Rules (Suno-led)
 
-Load this file when the user wants AI-generated **music** — full songs, lyrics, instrumentals, jingles, scores, soundtracks, lo-fi beats, trailers, ad music. Primarily Suno; the same craft applies to other music models. For TTS / voice cloning see `models/prompt-copilot.md`. For sound effects see SKILL.md "Sound Effects".
+Load this file when the user wants AI-generated **music** — full songs, lyrics, instrumentals, jingles, scores, soundtracks, lo-fi beats, trailers, ad music. Primarily Suno; the same craft applies to other music models. For TTS / voice cloning see `models/prompt-copilot.md`. For sound effects see `generate_sound` (SKILL.md tool table).
 
 **Kolbo MCP routing:** call `generate_music`. Suno is a model option — use `list_models({ type: "music_gen" })` to see versions. Pass `instrumental` and `duration` as separate params; pass the Style/Description text as `style` and the Lyrics as `lyrics`.
 

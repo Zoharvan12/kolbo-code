@@ -8,7 +8,7 @@ Visual DNA profiles capture the visual "identity" of a character, style, product
 
 ## Workflow
 
-1. **Sheet first, then DNA.** For any production asset (character / location / prop), resolve the sheet **preset** (`list_presets` with `search`) and `generate_image` with that `preset_id` — custom instructions live on the preset. Then `create_visual_dna` with the sheet as `character_sheet_url` (max 4 extra images — if the user gives more, pick the 4 most representative **that share the same identity and vibe**; never pass 5+). Optionally video and audio. See **Purity** above before you generate those stills.
+1. **Sheet first, then DNA.** For any production asset (character / location / prop), resolve the sheet **preset** (`list_presets` with `search`) and `generate_image` with that `preset_id` — custom instructions live on the preset. Then `create_visual_dna` with the sheet as `character_sheet_url` (max 4 extra images — if the user gives more, pick the 4 most representative **that share the same identity and vibe**; never pass 5+). Optionally video and audio. See **Purity** below before you generate those stills.
 2. **Types**: `character` (default), `style`, `product`, `scene`, `environment`.
 3. **Use** the profile by passing its `id` in `visual_dna_ids` in: `generate_image`, `generate_creative_director`, `generate_elements`, `generate_video_from_image`, `generate_video_from_video`, `generate_first_last_frame`.
 4. **List/inspect** profiles with `list_visual_dnas` / `get_visual_dna`.
@@ -22,7 +22,7 @@ Visual DNA profiles capture the visual "identity" of a character, style, product
 Kolbo no longer sends only the first still or the character sheet. For every attached DNA:
 
 1. **User-uploaded refs take image slots first.**
-2. **Remaining slots:** one main still per DNA, then leftover stills from each DNA **round-robin** until the model's image-slot cap (`elementsMaxImages` / equivalent) is full.
+2. **Remaining slots:** one main still per DNA, then leftover stills from each DNA **round-robin** until the model's image-slot cap (`elements_max_images` / equivalent) is full.
 3. **If every still fits the cap, every still is sent** as its own reference. A 4-image character DNA on a 9-slot model is four slots, not one.
 4. **If a DNA only gets one leftover slot**, has **no distinct character sheet**, and still has unused stills, those leftovers are composited into a **white grid / collage** (up to 9 cells) so the model still sees them. A real character sheet is never overwritten by a collage.
 5. **Native Kling Elements** stays one element per DNA (sheet / frontal). Other providers use the slot pack above.
@@ -104,16 +104,7 @@ Fields to read for the image source (use the first one present on the item): `th
 
 ## ⚠️ @name Syntax — ALWAYS use it when passing visual_dna_ids (MANDATORY)
 
-Whenever a generation call passes `visual_dna_ids` (even just one), the prompt MUST refer to each Visual DNA by `@<exact-name>` — the literal `name` field as it was set in `create_visual_dna` and as it appears in `list_visual_dnas`. This is how the engine binds the DNA to a role in the scene. Without `@name`, the engine guesses, drops the DNA, or blends multiple DNAs together.
-
-**Use the actual stored name, programmatically.** When you call `list_visual_dnas` (or `create_visual_dna`), read the `name` field off the response and use that exact string after the `@`. Do NOT:
-
-- Translate the name into another language ("אסתר" / "esther" / "אסתי" — pick whichever string is in `name` and use ONLY that one).
-- Invent a friendlier alias ("the model", "המודל", "her", "Zohar's", "the left man", "the man on the LEFT").
-- Write a "Visual DNA anchors:" prose block that describes position/wardrobe but never writes `@ExactName`.
-- Write the character's name in plain text without the `@` prefix.
-- Drop the `@name` when only one DNA is passed — the engine still needs the binding so it knows the DNA is the *subject* and not a passive style.
-- **Drop or "clean" tags while rewriting a prompt** (help-widget parity). Compiling SCENE CONTEXT / Locked Intro / a "better" English prompt is not permission to delete `@gal_suit` or rewrite `@yonatan` as `Yonatan`. Copy every existing `@` / `#` token into the new prompt, then add craft around them.
+SKILL.md's `@Name` hard rule applies; here is why it binds that way:
 
 **Wrong** (DNA `name` is `esther_model`, user wrote prompt in Hebrew):
 ```
@@ -228,31 +219,11 @@ You can combine all three reference types in a single call — they're additive,
 
 ## Visual DNA Limits
 
-Read `max_visual_dna` from `list_models` for the exact cap, AND `supports_visual_dna` for the on/off boolean. A model can support DNA without an explicit cap, or have a non-null cap but silently ignore DNA on certain paths (e.g. `generate_video`). Typical ranges: image models (non-Kling) up to **8**, Kling image models **3**, Elements video models **3–5**, everything else up to **3**.
+Read `max_visual_dna` (and `elements_max_images` for image-slot packing) from `list_models` for the chosen model, AND `supports_visual_dna` for the on/off boolean. A model can support DNA without an explicit cap, or have a non-null cap but silently ignore DNA on certain paths (e.g. `generate_video`). Typical ranges: image models (non-Kling) up to **8**, Kling image models **3**, Elements video models **3–5**, everything else up to **3**.
 
 ## ⚠️ Visual DNA Creation — Always Generate Reference Images First (MANDATORY)
 
-**Before calling `create_visual_dna` for a character**, always generate 2 reference images first and include them alongside any user-provided images. These give the Visual DNA engine multi-angle coverage and dramatically improve consistency.
-
-**Step 1 — Generate both images in parallel (one `generate_image` call each, fire simultaneously):**
-
-1. **4-angle character sheet** — prompt: `"[character description], character reference sheet showing front view, back view, left side view, right side view, four panels arranged in a 2x2 grid, neutral solid background, full body, photorealistic"`, aspect ratio `16:9` (or `3:2` — always landscape, see the aspect-ratio rule below)
-2. **Close-up portrait** — prompt: `"[character description], close-up portrait, face and shoulders, neutral solid background, soft studio lighting, photorealistic"`, aspect ratio `1:1`
-
-**Step 2 — Call `create_visual_dna`** with:
-- `images`: the 4-angle sheet URL first, then the close-up URL — **plus** the user's reference photo(s) only if they provided one (i.e. a real person or existing character they want to match). If they gave no reference image, the 2 generated images alone are sufficient.
-- `type`: `"character"`
-- `name`: single-token lowercase descriptive name (see naming rule above)
-
-**Why:** A single reference photo only shows one angle. The close-up gives the engine facial detail; the 4-angle sheet gives it body geometry and pose range. Together they produce far more consistent generations. Both stills (and any user photos you add) must be the **same person, same vibe** — they will all be packed into the next generation.
-
-**Skip this only if** the user explicitly says "just use my image as-is" or provides 3+ reference images already covering multiple angles.
-
-### Environments, products, style — same precision
-
-- **Environment / location:** generate empty (or crowd-only) plates. Prompt out heroes and readable faces. A location DNA that contains `@maya` in the frame will put Maya in every later shot of that place.
-- **Product:** isolated angles, consistent lighting, readable label. No extra hero unless the product is worn and the body is generic.
-- **Style:** one look, applied cleanly. Do not mix neon-cyber and dusty-western stills on the same style DNA.
+**Before calling `create_visual_dna` for a character**, generate the reference stills first — a multi-angle sheet plus a close-up gives the engine far better coverage than a single photo. Route the stills through the **preset contract** (`list_presets` search → `preset_id` on `generate_image`), never a raw hand-written sheet prompt — see "Character sheet — default for production assets" below for the full flow, preset search terms, and aspect-ratio rules. Include the user's reference photo(s) alongside only if they provided one. **Skip this only if** the user explicitly says "just use my image as-is" or provides 3+ reference images already covering multiple angles.
 
 ## When to Use
 

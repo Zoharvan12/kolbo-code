@@ -61,7 +61,7 @@ The mode determines which Kolbo MCP tool to call and what defaults to use.
 
 **For multi-output modes** (`social_carousel`, `ad_creative_pack`), always use `generate_creative_director` — never fire ≥2 `generate_image` calls in a loop. See `models/creative-director.md`.
 
-**Always validate** `aspect_ratio` and `resolution` against the chosen model's `supported_aspect_ratios` / `supported_resolutions` via `list_models` — see SKILL.md "Resolution / Aspect / Duration — validate against caps".
+**Always validate** `aspect_ratio` and `resolution` against the chosen model's `supported_aspect_ratios` / `supported_resolutions` via `list_models` — see `references/workflows/cost-and-validation.md`.
 
 ## Pre-Generation Interview (CRITICAL)
 

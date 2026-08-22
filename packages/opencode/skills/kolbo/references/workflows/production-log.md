@@ -38,20 +38,8 @@ The log records **what the user approved** — not everything you produced. Gett
 
 **Never write an artifact into the log as approved without the user's approval.**
 
-If they did not volunteer a yes, end the turn with a **GATE** the next message can
-parse (same contract as `production-planning.md`):
-
-```
-GATE — <bucket name>
-Presented: <what is in play>
-Lock + next: "lock <bucket>" / "yes" / "next" / "now <next bucket>"
-Stay: "redo @name" / "another take of …"
-```
-
-Confirmation the agent may treat as a lock: `yes`, `ok`, `lock`, `approved`,
-`that's the one`, `use take 2`, `next`, `go`, `continue`, or they name the next
-planned bucket while treating this set as done. Silence / "maybe" / a new
-question is **not** a lock — repeat the GATE once, do not invent a yes.
+If they didn't volunteer a yes, end the turn with the GATE block from
+`production-planning.md` §3.
 
 **If the user genuinely doesn't care** — "whatever you think", "you pick", "don't care", or they hand you the whole job — then **you decide**. Choose, say in one line which you picked and why, and log it as usual with `(agent-selected)`. Do not stall a production waiting for an approval the user has already delegated to you.
 

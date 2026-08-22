@@ -52,30 +52,6 @@ Compile only what the current generation needs. A video model cannot resolve “
 
 Kolbo Visual DNA is semantic project truth, not merely reference imagery. Read and preserve the saved DNA type and analyzed context: character DNAs own identity/state/performance/voice; environment and scene DNAs own location/geography/light; product DNAs own prop/product identity, scale, material, and state; style DNAs own the visual register. Keep exact tags and never reinterpret one DNA type as another.
 
-## Choose control density
-
-Never equate sophistication with maximum length.
-
-- **Strict** — lock exact blocking, count, timing, dialogue, hand/prop state, axis, scale, or failure-prone physics. Use for continuity-heavy dialogue, expensive hero shots, repeated failures, and exact music synchronization.
-- **Anchored** — dictate non-negotiable story/continuity/physics anchors and allow camera or performance variation inside them. Use for complex spectacle where controlled discovery is valuable.
-- **Exploratory** — protect identity, world, safety, and essential beats while inviting coverage variations. Use for montage, inserts, music-video coverage, and ideation.
-
-If the user supplied an exact prompt, preserve its chosen density unless the failure diagnosis proves density itself is the problem.
-
-## Select craft packs
-
-Load only what the shot needs:
-
-- Story causality and scene reversals: [scene-engine.md](references/filmmaking/scene-engine.md)
-- Asset building, versions, and stress tests: [asset-preproduction.md](references/filmmaking/asset-preproduction.md)
-- Character performance, listening, and voice identity: [acting-direction.md](references/filmmaking/acting-direction.md)
-- Geography, axes, eyelines, diagrams, and state continuity: [blocking-continuity.md](references/filmmaking/blocking-continuity.md)
-- Shot size, optics, operator behavior, and visual grammar: [cinematography.md](references/filmmaking/cinematography.md)
-- Action feasibility, mass, materials, transformations, and impossible shots: [physics-action.md](references/filmmaking/physics-action.md)
-- Dialogue, ambience, native audio, source-song performance, and post music: [audio-dialogue-music.md](references/filmmaking/audio-dialogue-music.md)
-
-Do not paste every craft pack into every prompt. Translate the selected pack into the shortest observable instructions that preserve the intended result.
-
 ## Compile a shot
 
 Read [prompt-contracts.md](references/filmmaking/prompt-contracts.md) for exact structures.
@@ -92,7 +68,7 @@ Before writing, establish:
 8. Audio ownership, exact words/lyrics, and whether music is native, source-driven, or reserved for post.
 9. Model capability limits and target generation mode.
 
-Prompt-length limits apply to the entire compiled generation prompt as one string, including whitespace, headers, timecodes, dialogue, audio, and locks. Count after compilation. For the current Seedance 2.5 adapter snapshot, the hard ceiling is 30,000 characters; never borrow that number for another model.
+Prompt-length limits apply to the entire compiled generation prompt as one string, including whitespace, headers, timecodes, dialogue, audio, and locks. Count after compilation; read the cap from `max_prompt_length` via `list_models` (see `models/seedance25.md`).
 
 **Seedance 2 / Seedance 2.5 / `generate_elements` — Locked Intro is the only compile shape.** Read `references/models/seedance.md` (and `seedance25.md` for 2.5 caps). Do not emit the SCENE CONTEXT / OPTICS / ACTION department pack below as the generation prompt. Every Visual DNA in play must be `@ExactName` in CAST and in each shot — never "the left man" or a possessive.
 

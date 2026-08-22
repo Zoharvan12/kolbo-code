@@ -70,7 +70,7 @@ fails to open (exit 26).
 
 | User says | Call |
 |---|---|
-| "Upload this file" / "host this" / "give me a public URL for this" | `upload_media` — but see "Local files" below if it's a path on the user's disk |
+| "Upload this file" / "host this" / "give me a public URL for this" | `upload_media` — but see "Local files" above if it's a path on the user's disk |
 | "Show my media" / "list my images/videos" / "what do I have?" | `list_media` (pass `type` / `category` / `project_id` / `folder_id` / `search`) |
 | "Show my favorites" / "list starred items" | `list_media` with `category=favorites` |
 | "List everything in project X" | `list_media` with `project_id=X` |
@@ -110,3 +110,13 @@ fails to open (exit 26).
 8. **Bulk caps:** 1000 ids for `bulk_delete_media` / `bulk_restore_media` / `bulk_permanently_delete_media` / `bulk_move_media`; 500 ids for `add_media_to_folder` / `remove_media_from_folder`. Split larger jobs into successive calls.
 9. **Folder share resolution:** `share_media_folder` takes emails; users not found come back in `not_found`. Report those to the user — don't assume the share succeeded silently. Members can list/add/remove items but cannot delete the folder or reshare it.
 10. **`get_media` accepts a generation_id as a fallback** for the `media_id` arg, so you can chase down items the user references by their original generation rather than by library id.
+
+## SYNCI licensed music — operational detail
+
+The `*_music_library` tools (`search_music_library` / `browse_music_library` / `get_music_library_facets` / `get_music_track_audio` / `get_music_track_lyrics` / `get_music_track_related` / `analyze_script_for_music` / `acquire_clean_music_track` / `import_music_track_to_library`) front **SYNCI**, a commercially licensed catalog — not free stock.
+
+- Discovery and previews are free but **watermarked** — there is no unwatermarked URL until you pay.
+- `acquire_clean_music_track` **CHARGES CREDITS** for the clean master. Confirm with the user first, and pass a stable `requestId` so a retry doesn't buy the track twice.
+- `import_music_track_to_library` charges the same way AND also copies the clean track into the media library.
+- `analyze_script_for_music` turns a script into search terms for `search_music_library`.
+- Use this family when the user needs music cleared for commercial use. When free stock will do, use `search_stock_media` with `mediaType: "music"` instead.

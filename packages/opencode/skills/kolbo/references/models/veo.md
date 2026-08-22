@@ -15,7 +15,7 @@ Load this file when the user wants a **Veo 3 / Veo 3.1** (Google) video. For oth
 ## CRITICAL Kolbo Platform Rules
 
 - **Aspect ratio, resolution, and clip length are MCP-tool params** (`aspect_ratio`, `resolution`, `duration`). **NEVER include "16:9", "9:16", "720p", "1080p", "4 seconds", "8s", or any duration / aspect / resolution string inside the prompt body.**
-- Pass `sound_enabled: true/false` as a separate param when the user mentions audio — see SKILL.md "Sound on/off".
+- Pass `sound_enabled: true/false` as a separate param when the user mentions audio — see `workflows/cost-and-validation.md`.
 - Don't write Python / Vertex AI / API call syntax. The user is generating through Kolbo's MCP tools.
 
 ## Model Capabilities (informs recommendations, never in the prompt body)

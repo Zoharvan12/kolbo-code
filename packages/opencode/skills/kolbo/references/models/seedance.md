@@ -25,17 +25,12 @@ Load this file when the user wants a **Seedance 2 / Seedance 2.0** (ByteDance) v
 - **MCP `duration` must match the Total line.** Pass `duration: X` (whole seconds) on `generate_video` / `generate_elements` / `generate_video_from_image` equal to the `Xs` in `Total: Xs / …`. Mismatch = wrong-length clip.
 - **Then the Locked Intro** — `[GLOBAL LOOK]` / `[CAST]` / `[LOCATION]` (+ LOCATION MAP / CONTINUITY / PHYSICS for multi-shot) — before any shot. A one-liner `same character throughout` is not a character lock.
 - **Order inside each shot**: Subject → Action → Camera → Constraints → (Audio/SFX if relevant). Do NOT restack GLOBAL LOOK style inside the shot.
-- **Prompt length**: simple single-idea pieces ~120–280 words. Locked-intro cinematic typically 400–900 words. Shorter than ~120 words = random output. The 8000-char cap below always wins.
+- **Prompt length**: simple single-idea pieces ~120–280 words. Locked-intro cinematic typically 400–900 words. Shorter than ~120 words = random output. The 10,000-char cap below always wins.
 - **Shot count is user-directed.** If the user asks for N shots, deliver exactly N in one prompt unless they ask to split.
 - **Always describe at least one camera movement per shot.**
 - **Tell Seedance what the camera is NOT doing** (e.g. `no cuts, no zoom, natural head movement`) — this is what locks POV.
 - **Final prompt is always English**, wrapped in a copy-ready code block. Detect intent in any language and reply in the user's language, but the prompt itself is English.
-- **HARD CAP: 8000 characters TOTAL for the ENTIRE prompt** — measured as one single string, including ALL shots, ALL boilerplate, ALL SFX lines, the opening style block, the closing `Total: …` line, every newline, every space, every punctuation mark. This is non-negotiable.
-  - Applies to ANY prompt: 1 shot or 6 shots, single POV or full montage — the WHOLE thing must fit under 8000 chars combined.
-  - It is NOT 8000 chars per shot. It is 8000 chars per prompt.
-  - If your draft exceeds 8000 chars, trim aggressively in this order: (1) cut redundant adjectives, (2) collapse the opening cinematic boilerplate, (3) shorten SFX lists, (4) merge or drop shots — keep escalation beats and cut filler beats, (5) tighten action descriptions to verb-led essentials.
-  - **Never** split into multiple prompts, multiple code blocks, or "part 1 / part 2" to evade the cap.
-  - Before outputting, internally count the characters of the final prompt as a single string. If > 8000, rewrite tighter and re-count. Repeat until ≤ 8000. Only then show the user.
+- **HARD CAP: 10,000 characters TOTAL for the ENTIRE prompt** — measured as one single string including all shots, boilerplate, SFX lines, and the Total lines. It is per PROMPT, not per shot. **Never** split into multiple prompts, code blocks, or "part 1 / part 2" to evade the cap. Count the final prompt before output; if over, trim (cut adjectives, collapse boilerplate, shorten SFX lists, merge or drop shots) and re-count until it fits.
 
 ## Locked Intro (DEFAULT for any multi-shot cinematic — including Elements)
 
@@ -72,21 +67,11 @@ Total: Xs / N shots / AR
 POSITIVE LOCKS: <2–4 sentences restating positions / mouth / optical signature>
 ```
 
-When a Visual DNA exists, its exact `@DNA_name` IS the cast name — never place a nickname before it or substitute one later. For plain image refs use `@ImageN`.
-
 ## OUTPUT CONTRACT (WINS — same as help widget)
-
-ONE fenced prompt. Required shape or the turn failed:
-1. `N connected cinematic shots, Xs total, AR, Multishot ON`
-2. `Total: Xs / N shots / AR`
-3. GLOBAL LOOK → CAST → LOCATION → LOCATION MAP → CONTINUITY → PHYSICS (dense, before any shot)
-4. `SHOT 1 — 0:00–0:02 — …` through SHOT N; timecodes sum to Xs; continuity bridge after SHOT 1
-5. Closing `Total: Xs / N shots / AR` + short POSITIVE LOCKS
-6. Tool call `duration` = Xs
 
 FORBIDDEN: omitting Total / Multishot; "same character throughout" as the only lock; one fence per shot; `[0s]`/`[3s]` stubs; splitting a ≤15s story into multiple generations unless the user asks.
 
-## The 5 Formats
+## The 6 Formats
 
 ### 1. Transformations (highest-performing format)
 - Numbered shots, beat by beat.
@@ -248,7 +233,7 @@ Place CAMERA in the **3rd position** of each shot's core layers (Subject → Act
 - No equipment / director names?
 - Emotion through muscle, not labels?
 - Multishot: FOV per segment + "no drift mid-segment"?
-- 8000-char cap honored?
+- prompt-cap honored?
 
 ## Grid Storyboard Mode (3×3 grid input)
 
@@ -273,7 +258,6 @@ When the user uploads a 3×3 grid image and asks for Seedance prompts, switch to
 - Final prompt(s) ALWAYS in a fenced code block ready to paste into Seedance.
 - After the code block, give a 1-line "why this works" note (camera/escalation/physics choice).
 - If user asked in any language other than English, write your explanation in their language but keep the prompt itself English.
-- **Never exceed 8000 characters TOTAL for the entire prompt as one string** — that is the WHOLE prompt including every shot, every line of boilerplate, every SFX list, every newline. NOT 8000 per shot — 8000 for the prompt as one combined unit. Count before output. If over, rewrite tighter (cut adjectives, collapse boilerplate, merge or drop shots). NEVER split into multiple prompts / multiple code blocks / "part 1 / part 2" to work around the limit.
 
 ## Where to run in Kolbo
 
@@ -286,4 +270,4 @@ Seedance 2 lives in the **Video** category. Route the prompt card by the INPUTS:
 
 ## Seedance + Visual DNA / References
 
-When a character must stay consistent, pair Seedance with Visual DNA via `generate_elements` (NOT `generate_video` — text-to-video silently drops `visual_dna_ids`). Use the exact literal `@DNA_name` as the character name in CAST and re-anchor every shot where it appears — never a nickname, alias, possessive (`Zohar's`), or spatial label (`the left man`). See `workflows/visual-dna.md`. For grid/storyboard inputs, the source frame is `@image1`.
+When a character must stay consistent, pair Seedance with Visual DNA via `generate_elements` (NOT `generate_video` — text-to-video silently drops `visual_dna_ids`). `@DNA_name` tagging rules: see `workflows/visual-dna.md`. For grid/storyboard inputs, the source frame is `@image1`.

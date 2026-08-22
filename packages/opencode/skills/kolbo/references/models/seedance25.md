@@ -20,7 +20,7 @@ Load this file when the user wants a **Seedance 2.5** video (they said "2.5" / "
 - **Duration 4–30 seconds**, whole seconds. 30s IS supported.
 - **Up to 30 shots/cuts in ONE generation.** Deliver exactly N if N ≤ 30.
 - **Prompt cap 15,000 characters** for the entire prompt as one string (`max_prompt_length` in the catalog; Seedance 2.0 is 10,000). Verify with `list_models` rather than trusting this number — it was documented as 30,000 for months, which is double the real limit.
-- **Up to 50 reference medias / Visual DNA mentions** (`@Name`, `@ImageN`, `#Moodboard`). Every referenced asset must be tagged in the prompt text. A rewrite that drops or renames a tag ( `@doron_fauda_1` → `DORON` / `the hero` ) is a failed turn — put the exact tag back.
+- **Large reference / Visual DNA capacity** (`@Name`, `@ImageN`, `#Moodboard`) — read the exact caps from `max_visual_dna` / `elements_max_images` in `list_models`. Every referenced asset must be tagged in the prompt text. A rewrite that drops or renames a tag ( `@doron_fauda_1` → `DORON` / `the hero` ) is a failed turn — put the exact tag back.
 - **Multimodal refs:** images + video clips + audio can all anchor one generation.
 
 ## Universal Rules (HARD — same as help widget OUTPUT CONTRACT)

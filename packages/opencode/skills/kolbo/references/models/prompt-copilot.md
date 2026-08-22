@@ -101,7 +101,7 @@ For models that DO expose `negative_prompt` (some text-to-image variants), keep 
 | `21:9` | Ultrawide cinematic, banner |
 | `3:1` / `1:3` | Hero banner, narrow strip |
 
-Model-dependent — always check `supported_aspect_ratios` on the model via `list_models` before passing a value. See SKILL.md "Resolution / Aspect / Duration — validate against caps".
+Model-dependent — always check `supported_aspect_ratios` on the model via `list_models` before passing a value. See `references/workflows/cost-and-validation.md`.
 
 ### Safety / content policy
 

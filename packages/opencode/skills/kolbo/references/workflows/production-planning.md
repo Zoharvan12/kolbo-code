@@ -143,11 +143,12 @@ the next planned bucket in **its** session.
 Only now compile shots. Defaults:
 
 - **`generate_elements` with Seedance 2.5** (`seedance-2-5`) for the film itself —
-  up to 30s and 30 shots in ONE generation, up to 20 Visual DNAs, dialogue and SFX
-  baked in. `generate_video` also accepts `visual_dna_ids` now; Elements remains
-  the primary reference-driven route.
-- **Seedance 2.0** (`seedance-2`, cheaper, 4–15s, 9 DNAs) when the piece is short
-  and the cast is small. `seedance-2-fast` / `seedance-2-mini` for cheap blocking.
+  up to 30s and 30 shots in ONE generation, dialogue and SFX baked in. DNA cap:
+  read `max_visual_dna` from `list_models`. `generate_video` also accepts
+  `visual_dna_ids` now; Elements remains the primary reference-driven route.
+- **Seedance 2.0** (`seedance-2`, cheaper, 4–15s, smaller DNA cap per
+  `list_models`) when the piece is short and the cast is small.
+  `seedance-2-fast` / `seedance-2-mini` for cheap blocking.
 - Every DNA in `visual_dna_ids` must also appear as `@ExactName` in the prompt.
 - Dialogue in quotes inside its shot beat — English only, never TTS or lipsync.
   See `models/seedance25.md`.
